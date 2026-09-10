@@ -1,0 +1,7 @@
+# OS / editor
+.DS_Store
+*.swp
+
+# clasp (if configured later for automated deploys)
+.clasp.json
+.claspignore
