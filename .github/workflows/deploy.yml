@@ -1,0 +1,56 @@
+name: Deploy to Apps Script
+
+# 需要先在 repo 的 Settings > Secrets and variables > Actions 設定以下三個 Secrets：
+#   CLASPRC_JSON        clasp login 之後產生的 ~/.clasprc.json 完整內容（refresh token，等同密碼）
+#   CLASP_SCRIPT_ID     Apps Script 專案的指令碼 ID（專案設定頁可查到）
+#   CLASP_DEPLOYMENT_ID 現有「網頁應用程式」部署的 Deployment ID（部署 > 管理部署作業可查到，
+#                        用這個 ID 更新既有部署，網址才不會變）
+#
+# 本機第一次設定步驟見 HANDOFF.md 或跟 Claude Code 要說明。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Restore clasp credentials
+        run: echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+
+      - name: Write .clasp.json
+        run: |
+          cat > apps-script/.clasp.json << EOF
+          {
+            "scriptId": "${{ secrets.CLASP_SCRIPT_ID }}",
+            "rootDir": "."
+          }
+          EOF
+
+      - name: Verify appsscript.json exists
+        run: |
+          if [ ! -f apps-script/appsscript.json ]; then
+            echo "::error::apps-script/appsscript.json 不存在。請先在本機執行 clasp pull 把現有的 manifest 抓下來並提交進 repo，避免 clasp push 用預設值覆蓋掉正式環境的執行身份/存取權限設定。"
+            exit 1
+          fi
+
+      - name: Push to Apps Script
+        working-directory: apps-script
+        run: clasp push --force
+
+      - name: Deploy (update existing deployment)
+        working-directory: apps-script
+        run: clasp deploy -i "${{ secrets.CLASP_DEPLOYMENT_ID }}" -d "Auto deploy $(date -u +%Y-%m-%dT%H:%M:%SZ) (${{ github.sha }})"

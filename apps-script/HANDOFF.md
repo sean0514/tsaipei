@@ -27,7 +27,21 @@
   `Code.gs` 裡的函式，函式簽章第一個參數幾乎都是 `token`（session token）
 - **無任何 npm / build step**：`Index.html` 裡的 `<script>` 就是最終會在瀏覽器執行的程式碼
 
-## 3. 部署方式（人工操作，Claude Code 無法直接執行）
+## 3. 部署方式
+
+### 3a. 自動部署（已設定，push 到 main 就會觸發）
+
+`.github/workflows/deploy.yml` 會在 push 到 `main` 分支時，用 `clasp push` 把
+`apps-script/` 底下的檔案推到 Apps Script 專案，再用 `clasp deploy -i <deploymentId>`
+更新既有的網頁應用程式部署（同一個網址，不會變）。
+
+需要在 repo 的 Settings > Secrets and variables > Actions 設定三個 Secrets：
+`CLASPRC_JSON`（clasp login 產生的憑證）、`CLASP_SCRIPT_ID`、`CLASP_DEPLOYMENT_ID`，
+且 `apps-script/appsscript.json`（manifest）必須存在於 repo 裡（用 `clasp pull` 從線上
+專案抓下來提交，避免 CI push 時用預設值覆蓋掉正式環境的執行身份/存取權限設定）——
+這兩項目前還沒做，見部署指南或跟 Claude Code 要設定步驟。
+
+### 3b. 人工操作（備用/CI 尚未設定完成前）
 
 1. 打開對應的 Google 試算表 → 擴充功能 → Apps Script
 2. 把 `Code.gs`、`Index.html` 整份內容覆蓋貼上（覆蓋，不是新增）
@@ -37,9 +51,8 @@
 5. 第一次執行、或新增了需要新權限的功能（例如 `SpreadsheetApp.create`、`DriveApp`、
    `UrlFetchApp`）時，使用者可能會被要求重新授權
 
-**這件事無法自動化**，因為 Apps Script 沒有官方 CLI 可以在這個沙盒環境裡直接操作
-（`clasp` 需要 OAuth 瀏覽器登入）。如果 Claude Code 的執行環境有網路權限並已設定
-`clasp` 登入，可以改用 `clasp push` 取代人工貼上，但目前這個專案沒有配置 `clasp`。
+Claude Code 在這個沙盒環境裡沒有瀏覽器，無法自己完成 `clasp login` 的 OAuth 授權，
+所以 CI 憑證（`CLASPRC_JSON`）需要人工在本機產生後貼進 GitHub Secrets。
 
 ## 4. 檔案結構
 
