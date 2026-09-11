@@ -56,7 +56,7 @@ export const SYSTEMS = {
 };
 
 function buildFoodFactoryDefaults() {
-  const roles = SYSTEMS_ROLES_FOODFACTORY;
+  const roles = ['系統管理員', '廠長主管', '倉管人員', '產線人員', '品管人員', '業務出貨人員', '會計人員'];
   const modules = ['dashboard', 'inventory', 'production', 'shipping', 'billing', 'qc', 'cost', 'pettyCash', 'incomeStatement', 'users'];
   const out = {};
   modules.forEach((m) => {
@@ -75,8 +75,6 @@ function buildFoodFactoryDefaults() {
   });
   return out;
 }
-
-const SYSTEMS_ROLES_FOODFACTORY = ['系統管理員', '廠長主管', '倉管人員', '產線人員', '品管人員', '業務出貨人員', '會計人員'];
 
 const LEVEL_RANK = { none: 0, view: 1, edit: 2 };
 
