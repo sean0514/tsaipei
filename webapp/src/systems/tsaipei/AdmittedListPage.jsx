@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { DOC_TYPES } from './InternshipDocsPage';
 
 const STATUSES = ['通過二面', '確認錄取', '放棄'];
 
@@ -22,12 +25,26 @@ export default function AdmittedListPage() {
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
 
-  // 狀態改成「確認錄取」時，原本的 Apps Script 版會自動建立實習文件追蹤
-  // 整組清單、申辦進度追蹤紀錄 — 那兩個模組還沒搬過來，這裡先只存狀態本身，
-  // 之後補 internshipDocs / applicationProgress 模組時要記得把這段連動補上。
+  // 狀態變成「確認錄取」時自動建立實習文件追蹤整組清單、申辦進度追蹤紀錄；
+  // 從「確認錄取」改回「通過二面」時自動刪除該學生的實習文件追蹤整組紀錄
+  // （不可逆，跟原本 Apps Script 版行為一致）。
   async function handleSave(data) {
+    const prevStatus = editing?.status;
     const { id, ...rest } = data;
     await update(id, rest);
+
+    const match = matches.find((m) => m.id === rest.matchId);
+    const studentId = match?.studentId;
+
+    if (studentId && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
+      await Promise.all(DOC_TYPES.map((docType) =>
+        addDoc(collection(db, 'tsaipei_internshipDocs'), { studentId, docType, status: '未提供' })
+      ));
+      await addDoc(collection(db, 'tsaipei_applicationProgress'), { studentId, currentStage: '學生錄取' });
+    } else if (studentId && prevStatus === '確認錄取' && rest.status === '通過二面') {
+      const snap = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    }
     setEditing(null);
   }
 

@@ -8,6 +8,11 @@ import PositionsPage from './systems/tsaipei/PositionsPage';
 import MatchesPage from './systems/tsaipei/MatchesPage';
 import SecondInterviewsPage from './systems/tsaipei/SecondInterviewsPage';
 import AdmittedListPage from './systems/tsaipei/AdmittedListPage';
+import InternshipDocsPage from './systems/tsaipei/InternshipDocsPage';
+import ApplicationProgressPage from './systems/tsaipei/ApplicationProgressPage';
+import InTaiwanVisaPage from './systems/tsaipei/InTaiwanVisaPage';
+import InTaiwanCarePage from './systems/tsaipei/InTaiwanCarePage';
+import HousingPage from './systems/tsaipei/HousingPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 
 function RequireAuth({ children }) {
@@ -24,6 +29,11 @@ const PAGES = {
     matches: MatchesPage,
     secondInterview: SecondInterviewsPage,
     admitted: AdmittedListPage,
+    internshipDocs: InternshipDocsPage,
+    applicationProgress: ApplicationProgressPage,
+    inTaiwanVisa: InTaiwanVisaPage,
+    inTaiwanCare: InTaiwanCarePage,
+    housing: HousingPage,
   },
   foodfactory: { inventory: InventoryPage },
 };

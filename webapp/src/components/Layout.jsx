@@ -7,7 +7,10 @@ import { canView } from '../lib/permissions';
 // Pages that actually exist as routes so far; every other module shows in
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
 export const IMPLEMENTED_MODULES = {
-  tsaipei: ['students', 'positions', 'matches', 'secondInterview', 'admitted'],
+  tsaipei: [
+    'students', 'positions', 'matches', 'secondInterview', 'admitted',
+    'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
+  ],
   foodfactory: ['inventory'],
 };
 
@@ -22,6 +25,10 @@ const GROUP_ROUTES = {
       { route: 'matches', label: '媒合紀錄' },
       { route: 'secondInterview', label: '二面進度' },
       { route: 'admitted', label: '錄取名單' },
+    ],
+    inTaiwanTracking: [
+      { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
+      { route: 'inTaiwanCare', label: '在台關懷紀錄' },
     ],
   },
 };

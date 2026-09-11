@@ -72,6 +72,39 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('matching');
     }
+    // 確認錄取 cascades into these two, written by whoever can edit 'matching'
+    // even if they can't edit these modules directly (same reasoning as
+    // tsaipei_matches' create above).
+    match /tsaipei_internshipDocs/{docId} {
+      allow read: if tsIsMember();
+      allow create, delete: if tsCanEdit('internshipDocs') || tsCanEdit('matching');
+      allow update: if tsCanEdit('internshipDocs');
+    }
+    match /tsaipei_applicationProgress/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('applicationProgress') || tsCanEdit('matching');
+      allow update, delete: if tsCanEdit('applicationProgress');
+    }
+    // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者。
+    match /tsaipei_inTaiwanVisa/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('inTaiwanTracking');
+    }
+    match /tsaipei_inTaiwanCare/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('inTaiwanTracking');
+    }
+    match /tsaipei_housingRecords/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('housing');
+    }
+    match /tsaipei_dormitories/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagement');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
