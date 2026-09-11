@@ -6,7 +6,7 @@
 
 1. 到這個 repo 的 Settings → Pages
 2. Source 選「Deploy from a branch」
-3. Branch 選 `main`，資料夾選 `/portal`
+3. Branch 選 `main`，資料夾選 `/docs`
 4. 儲存後幾分鐘內會拿到一個 `https://<帳號>.github.io/tsaipei/` 網址
 
 ## 更新系統網址
