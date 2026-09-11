@@ -105,6 +105,14 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('dormManagement');
     }
+    match /tsaipei_dormitoryUtilities/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagement');
+    }
+    match /tsaipei_meetings/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('meetings');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {

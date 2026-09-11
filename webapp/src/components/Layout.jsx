@@ -10,6 +10,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'students', 'positions', 'matches', 'secondInterview', 'admitted',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
+    'dormManagement', 'meetings', 'users',
   ],
   foodfactory: ['inventory'],
 };

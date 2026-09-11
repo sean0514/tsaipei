@@ -13,6 +13,9 @@ import ApplicationProgressPage from './systems/tsaipei/ApplicationProgressPage';
 import InTaiwanVisaPage from './systems/tsaipei/InTaiwanVisaPage';
 import InTaiwanCarePage from './systems/tsaipei/InTaiwanCarePage';
 import HousingPage from './systems/tsaipei/HousingPage';
+import DormManagementPage from './systems/tsaipei/DormManagementPage';
+import MeetingsPage from './systems/tsaipei/MeetingsPage';
+import UsersPage from './systems/tsaipei/UsersPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 
 function RequireAuth({ children }) {
@@ -34,6 +37,9 @@ const PAGES = {
     inTaiwanVisa: InTaiwanVisaPage,
     inTaiwanCare: InTaiwanCarePage,
     housing: HousingPage,
+    dormManagement: DormManagementPage,
+    meetings: MeetingsPage,
+    users: UsersPage,
   },
   foodfactory: { inventory: InventoryPage },
 };
