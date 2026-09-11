@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { nextBatchNo } from '../../lib/foodInventory';
@@ -10,9 +12,24 @@ export default function ProductionBatchesPage() {
   const { rows, loading, add, update, remove } = useCollection('foodfactory_productionBatches', { order: ['date', 'desc'] });
   const { rows: products } = useCollection('foodfactory_products');
   const { rows: productInventory, add: addInv, update: updateInv } = useCollection('foodfactory_productInventory');
+  const { rows: materials } = useCollection('foodfactory_materials');
+  const { rows: usage, add: addUsage } = useCollection('foodfactory_productionMaterialUsage');
   const [editing, setEditing] = useState(null);
+  const [usageFor, setUsageFor] = useState(null);
 
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
+  const materialName = (id) => materials.find((m) => m.id === id)?.name || '(未知)';
+
+  // 記一筆用料同時寫一筆出庫的庫存異動紀錄，庫存扣帳完全靠 InventoryLogs 加總，
+  // 跟 addProductionMaterialUsage() 一致。
+  async function handleAddUsage(batchNo, data) {
+    await addUsage({ batchNo, materialId: data.materialId, materialBatchNo: data.materialBatchNo, quantity: data.quantity });
+    await addDoc(collection(db, 'foodfactory_inventoryLogs'), {
+      materialId: data.materialId, batchNo: data.materialBatchNo, type: '出庫', quantity: data.quantity,
+      date: new Date().toISOString().slice(0, 10), refType: '生產批次', refId: batchNo, note: '生產用料',
+    });
+    setUsageFor(null);
+  }
 
   async function handleSave(data) {
     if (data.id) {
@@ -67,6 +84,7 @@ export default function ProductionBatchesPage() {
                   <td>{r.status}</td>
                   {canEditPage && (
                     <td className="row-actions">
+                      <button onClick={() => setUsageFor(r)}>用料明細</button>
                       {r.status !== '完成' && <button onClick={() => setEditing(r)}>編輯</button>}
                       {r.status !== '完成' && <button onClick={() => completeBatch(r)}>完成入庫</button>}
                       {r.status !== '完成' && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
@@ -80,6 +98,59 @@ export default function ProductionBatchesPage() {
         )}
       </div>
       {editing && <BatchFormModal initial={editing} products={products} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {usageFor && (
+        <UsageModal
+          batch={usageFor}
+          materials={materials}
+          usage={usage.filter((u) => u.batchNo === usageFor.batchNo)}
+          materialName={materialName}
+          onCancel={() => setUsageFor(null)}
+          onAdd={(data) => handleAddUsage(usageFor.batchNo, data)}
+        />
+      )}
+    </div>
+  );
+}
+
+function UsageModal({ batch, materials, usage, materialName, onCancel, onAdd }) {
+  const [form, setForm] = useState({});
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>用料明細 · {batch.batchNo}</h3>
+        <table style={{ marginBottom: 16 }}>
+          <thead><tr><th>原料</th><th>使用批號</th><th>數量</th></tr></thead>
+          <tbody>
+            {usage.map((u) => (
+              <tr key={u.id}><td>{materialName(u.materialId)}</td><td>{u.materialBatchNo || '—'}</td><td>{u.quantity}</td></tr>
+            ))}
+            {usage.length === 0 && <tr><td colSpan={3} className="muted">尚無用料紀錄</td></tr>}
+          </tbody>
+        </table>
+        <form onSubmit={(e) => { e.preventDefault(); onAdd(form); setForm({}); }}>
+          <div className="form-grid">
+            <label>
+              原料
+              <select required value={form.materialId || ''} onChange={(e) => setForm({ ...form, materialId: e.target.value })}>
+                <option value="" disabled>請選擇</option>
+                {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+            <label>
+              使用原料批號
+              <input value={form.materialBatchNo || ''} onChange={(e) => setForm({ ...form, materialBatchNo: e.target.value })} />
+            </label>
+            <label>
+              使用數量
+              <input type="number" required value={form.quantity || ''} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">新增用料</button>
+            <button type="button" onClick={onCancel}>關閉</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

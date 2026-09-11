@@ -28,6 +28,13 @@ import ProductsPage from './systems/foodfactory/ProductsPage';
 import CustomersPage from './systems/foodfactory/CustomersPage';
 import ProductionBatchesPage from './systems/foodfactory/ProductionBatchesPage';
 import ShipmentsPage from './systems/foodfactory/ShipmentsPage';
+import QcTemplatesPage from './systems/foodfactory/QcTemplatesPage';
+import QcRecordsPage from './systems/foodfactory/QcRecordsPage';
+import CostAnalysisPage from './systems/foodfactory/CostAnalysisPage';
+import PettyCashPage from './systems/foodfactory/PettyCashPage';
+import IncomeStatementPage from './systems/foodfactory/IncomeStatementPage';
+import PartnersPage from './systems/foodfactory/PartnersPage';
+import CustomerInvoicesPage from './systems/foodfactory/CustomerInvoicesPage';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -65,6 +72,13 @@ const PAGES = {
     customers: CustomersPage,
     production: ProductionBatchesPage,
     shipments: ShipmentsPage,
+    qcTemplates: QcTemplatesPage,
+    qcRecords: QcRecordsPage,
+    cost: CostAnalysisPage,
+    pettyCash: PettyCashPage,
+    incomeStatement: IncomeStatementPage,
+    partners: PartnersPage,
+    billing: CustomerInvoicesPage,
     users: UsersPage,
   },
 };

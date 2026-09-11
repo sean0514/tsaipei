@@ -12,7 +12,10 @@ export const IMPLEMENTED_MODULES = {
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
     'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport',
   ],
-  foodfactory: ['inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments', 'users'],
+  foodfactory: [
+    'inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
+    'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'users',
+  ],
 };
 
 // A permission module can cover several routes at once (matches the
@@ -47,6 +50,14 @@ const GROUP_ROUTES = {
       { route: 'products', label: '成品主檔' },
       { route: 'customers', label: '客戶主檔' },
       { route: 'shipments', label: '出貨單' },
+    ],
+    qc: [
+      { route: 'qcTemplates', label: '檢驗範本' },
+      { route: 'qcRecords', label: '檢驗紀錄' },
+    ],
+    incomeStatement: [
+      { route: 'incomeStatement', label: '損益表' },
+      { route: 'partners', label: '合夥分潤' },
     ],
   },
 };

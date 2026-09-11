@@ -147,28 +147,31 @@ service cloud.firestore {
       allow read: if ffIsMember();
       allow write: if ffIsMember() && ffRole() == '系統管理員';
     }
-    // 原料與庫存 group
+    // 原料與庫存 group — 零用金對帳（支出且類別連動原料庫存）也會自動建原料/
+    // 供應商/進貨/入庫紀錄，所以 create 額外放行 'pettyCash' 編輯者。
     match /foodfactory_materials/{docId} {
       allow read: if ffIsMember();
-      allow write: if ffCanEdit('inventory');
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
     }
     match /foodfactory_suppliers/{docId} {
       allow read: if ffIsMember();
-      allow write: if ffCanEdit('inventory');
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
     }
     match /foodfactory_purchases/{docId} {
       allow read: if ffIsMember();
-      allow write: if ffCanEdit('inventory');
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
     }
-    // 進貨單新增時同步寫入一筆入庫紀錄；生產用料時寫入一筆出庫紀錄 — 兩者都在
-    // 'inventory' 或 'production' 底下即可涵蓋，不需要額外放寬跨模組權限。
+    // 進貨單新增、生產用料、零用金支出都會各自同步寫一筆庫存異動紀錄。
     match /foodfactory_inventoryLogs/{docId} {
       allow read: if ffIsMember();
-      allow create: if ffCanEdit('inventory') || ffCanEdit('production');
+      allow create: if ffCanEdit('inventory') || ffCanEdit('production') || ffCanEdit('pettyCash');
       allow update, delete: if ffCanEdit('inventory');
     }
 
-    // 生產管理 group
+    // 生產管理 group — 成本分析頁面登錄生產費用，所以 create 額外放行 'cost'。
     match /foodfactory_productionBatches/{docId} {
       allow read: if ffIsMember();
       allow write: if ffCanEdit('production');
@@ -179,7 +182,8 @@ service cloud.firestore {
     }
     match /foodfactory_productionExpenses/{docId} {
       allow read: if ffIsMember();
-      allow write: if ffCanEdit('production');
+      allow create: if ffCanEdit('production') || ffCanEdit('cost');
+      allow update, delete: if ffCanEdit('production') || ffCanEdit('cost');
     }
 
     // 成品與出貨 group
@@ -196,9 +200,63 @@ service cloud.firestore {
       allow read: if ffIsMember();
       allow write: if ffCanEdit('shipping');
     }
+    // 客戶請款明細建立請款單時會把出貨單標上 invoiceId，所以 update 額外放行 'billing'。
     match /foodfactory_shipments/{docId} {
       allow read: if ffIsMember();
-      allow write: if ffCanEdit('shipping');
+      allow create, delete: if ffCanEdit('shipping');
+      allow update: if ffCanEdit('shipping') || ffCanEdit('billing');
+    }
+
+    // 品質/食安 group
+    match /foodfactory_qcTemplates/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcTemplateItems/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcRecords/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcRecordItems/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+
+    // 零用金對帳
+    match /foodfactory_pettyCashTransactions/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('pettyCash');
+    }
+    match /foodfactory_expenseCategories/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('pettyCash');
+    }
+
+    // 損益表 group
+    match /foodfactory_accountCategories/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_manualLedgerEntries/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_partners/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_profitPayouts/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+
+    // 客戶請款明細
+    match /foodfactory_customerInvoices/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('billing');
     }
 
     match /{document=**} {
