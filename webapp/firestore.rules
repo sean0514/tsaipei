@@ -1,0 +1,86 @@
+rules_version = '2';
+
+// Two systems share this project, fully separated by collection name prefix
+// (tsaipei_* / foodfactory_*), matching the ROLES/DEFAULT_PERMISSIONS model
+// each system's original Apps Script backend used (see apps-script/Code.gs
+// in each repo). 系統管理員 (admin) always has edit access, same as the
+// hardcoded bypass in permFor_() there.
+//
+// Bootstrapping: the very first admin doc in `<system>_users` can't be
+// created through these rules (nothing can grant edit before an admin
+// exists) — create it once by hand in the Firebase console after the
+// person signs up via Firebase Auth: collection `tsaipei_users` (or
+// `foodfactory_users`), doc id = their Auth UID, fields
+// { email, displayName, role: '系統管理員' }.
+//
+// Adding a new collection: add a `match /<system>_<name>/{docId}` block
+// below with the right module key passed to `tsCanEdit`/`ffCanEdit` — the
+// module key must match a key in src/lib/permissions.js SYSTEMS[system].modules,
+// same easy-to-miss step as pageModuleKey() in the original apps (see HANDOFF.md).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // ---------------- 境外實習生管理系統 (tsaipei) ----------------
+    function tsRole() {
+      return get(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid)).data.role;
+    }
+    function tsIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid));
+    }
+    function tsCanEdit(module) {
+      return tsIsMember() && (
+        tsRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())) &&
+         get(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())).data.level == 'edit')
+      );
+    }
+
+    match /tsaipei_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || tsIsMember());
+      allow write: if tsIsMember() && tsRole() == '系統管理員';
+    }
+    match /tsaipei_rolePermissions/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsIsMember() && tsRole() == '系統管理員';
+    }
+    match /tsaipei_students/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('students');
+    }
+
+    // ---------------- 食品工廠管理系統 (foodfactory) ----------------
+    function ffRole() {
+      return get(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid)).data.role;
+    }
+    function ffIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid));
+    }
+    function ffCanEdit(module) {
+      return ffIsMember() && (
+        ffRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())) &&
+         get(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())).data.level == 'edit')
+      );
+    }
+
+    match /foodfactory_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || ffIsMember());
+      allow write: if ffIsMember() && ffRole() == '系統管理員';
+    }
+    match /foodfactory_rolePermissions/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffIsMember() && ffRole() == '系統管理員';
+    }
+    match /foodfactory_materials/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('inventory');
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
