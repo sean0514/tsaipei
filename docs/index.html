@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統入口</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --card-bg:#ffffff;
+    --text:#1f2430;
+    --text-muted:#6b7280;
+    --border:#e5e7eb;
+    --accent-a:#2563eb;
+    --accent-a-soft:#eaf1fe;
+    --accent-b:#059669;
+    --accent-b-soft:#e7f7f1;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+    --shadow-hover:0 4px 12px rgba(16,24,40,.10), 0 2px 4px rgba(16,24,40,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#111318;
+      --card-bg:#1a1d24;
+      --text:#e8eaed;
+      --text-muted:#9aa1ac;
+      --border:#2a2e37;
+      --accent-a:#5b9bf8;
+      --accent-a-soft:#1b2942;
+      --accent-b:#34d399;
+      --accent-b-soft:#123128;
+      --shadow:0 1px 2px rgba(0,0,0,.3);
+      --shadow-hover:0 6px 16px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    padding:48px 20px;
+    min-height:100vh;
+  }
+  .wrap{max-width:840px;margin:0 auto;}
+  header{text-align:center;margin-bottom:40px;}
+  h1{font-size:28px;font-weight:700;margin:0 0 8px;letter-spacing:.02em;}
+  header p{color:var(--text-muted);font-size:15px;margin:0;}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:20px;
+  }
+  a.card{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:28px 24px;
+    text-decoration:none;
+    color:inherit;
+    box-shadow:var(--shadow);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  a.card:hover, a.card:focus-visible{
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-hover);
+  }
+  a.card:focus-visible{outline:2px solid var(--accent-a);outline-offset:2px;}
+  .icon{
+    width:48px;height:48px;
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;
+  }
+  .card.a .icon{background:var(--accent-a-soft);color:var(--accent-a);}
+  .card.b .icon{background:var(--accent-b-soft);color:var(--accent-b);}
+  .card h2{font-size:18px;margin:0;font-weight:600;}
+  .card p{margin:0;color:var(--text-muted);font-size:14px;line-height:1.6;}
+  .enter{
+    margin-top:4px;
+    font-size:14px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+  .card.a .enter{color:var(--accent-a);}
+  .card.b .enter{color:var(--accent-b);}
+  .enter svg{width:16px;height:16px;transition:transform .15s ease;}
+  a.card:hover .enter svg{transform:translateX(3px);}
+  footer{
+    text-align:center;
+    margin-top:48px;
+    color:var(--text-muted);
+    font-size:12px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>系統入口</h1>
+      <p>選擇要進入的管理系統</p>
+    </header>
+    <div class="grid">
+      <a class="card a" href="https://script.google.com/macros/s/AKfycbw3AD17KQCDf7NHoOwis2pkBj-hsW_5NXbbRT_7XmMgTdzN6hME6DlV0sjHhT3vOrAP3w/exec" target="_blank" rel="noopener">
+        <div class="icon">🌏</div>
+        <h2>境外實習生管理系統</h2>
+        <p>學生建檔、職缺媒合、簽證/居留、實習文件、住宿安排、財務結算</p>
+        <span class="enter">進入系統
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </a>
+      <a class="card b" href="https://script.google.com/macros/s/AKfycbwlj9O4ftUcV51QaeO_5r8p2RlCGU74cx0FgZbuVNWqtjsPONNDZ9aPLC2P1JADc_Yx/exec" target="_blank" rel="noopener">
+        <div class="icon">🏭</div>
+        <h2>食品工廠管理系統</h2>
+        <p>原料庫存、生產管理、成品出貨、客戶請款、品質食安、成本分析</p>
+        <span class="enter">進入系統
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </a>
+    </div>
+    <footer>各系統帳號密碼各自獨立管理，請分別登入</footer>
+  </div>
+</body>
+</html>
