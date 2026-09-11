@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { useCollection } from '../../lib/useCollection';
+import { canEdit as computeCanEdit } from '../../lib/permissions';
+
+const FIELDS = [
+  { key: 'projectCode', label: '專案編號', required: true },
+  { key: 'client', label: '客戶名稱', required: true },
+  { key: 'taxId', label: '統一編號' },
+  { key: 'monthlyProcessingFee', label: '每月辦件費', type: 'number' },
+  { key: 'monthlyServiceFee', label: '每月服務費', type: 'number' },
+  { key: 'monthlyDormFee', label: '每月宿舍費', type: 'number' },
+  { key: 'monthlyDormManageFee', label: '每月宿管費', type: 'number' },
+  { key: 'billingStartDate', label: '計費起算日', type: 'date' },
+  { key: 'billingSettleDay', label: '請款結算日' },
+];
+
+export default function ClientFeeSetupPage() {
+  const { system, role, overrides } = useOutletContext();
+  const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
+  const { rows, loading, add, update, remove } = useCollection('tsaipei_clientFeeSetup');
+  const [editing, setEditing] = useState(null);
+
+  async function handleSave(data) {
+    if (data.id) {
+      const { id, ...rest } = data;
+      await update(id, rest);
+    } else {
+      await add(data);
+    }
+    setEditing(null);
+  }
+
+  return (
+    <div className="content">
+      <div className="page-header">
+        <h2>客戶費用建檔</h2>
+        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增費率</button>}
+      </div>
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
+        {loading ? <p className="muted">載入中…</p> : (
+          <table>
+            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
+                  <td>{r.billDormFee === '否' ? '否' : '是'}</td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      <button onClick={() => setEditing(r)}>編輯</button>
+                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {rows.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {editing && <ClientFeeFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+    </div>
+  );
+}
+
+function ClientFeeFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{initial.id ? '編輯費率' : '新增費率'}</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            {FIELDS.map((f) => (
+              <label key={f.key}>
+                {f.label}
+                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+              </label>
+            ))}
+            <label>
+              是否請款住宿費
+              <select value={form.billDormFee || '是'} onChange={(e) => setForm({ ...form, billDormFee: e.target.value })}>
+                <option value="是">是</option>
+                <option value="否">否</option>
+              </select>
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

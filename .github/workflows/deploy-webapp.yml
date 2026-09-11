@@ -1,0 +1,49 @@
+name: Deploy webapp to Firebase
+
+# Needs one repo secret: FIREBASE_SERVICE_ACCOUNT — the JSON key of a
+# service account with "Firebase Hosting Admin" + "Cloud Datastore
+# Owner"/"Firebase Rules Admin" roles on the xiangshun-project-4cd28
+# project (IAM & Admin > Service Accounts > create key, in Google Cloud
+# Console for that project). Paste the whole JSON file content as the
+# secret value.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/deploy-webapp.yml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Build
+        working-directory: webapp
+        run: npm run build
+
+      - name: Write service account key
+        working-directory: webapp
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+
+      - name: Deploy to Firebase (Hosting + Firestore rules)
+        working-directory: webapp
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
+        run: npx firebase-tools deploy --only hosting,firestore:rules --non-interactive
+
+      - name: Clean up credentials
+        if: always()
+        working-directory: webapp
+        run: rm -f service-account.json

@@ -1,0 +1,131 @@
+# 系統網站（Firebase / Firestore）
+
+把「境外實習生管理系統」與「食品工廠管理系統」搬進同一個 Firebase 專案的第一階段成果：
+React + Vite 前端、Firestore 當資料庫、Firebase Auth 當登入機制，用 collection 前綴
+（`tsaipei_*` / `foodfactory_*`）區分兩套系統的資料。
+
+## 目前狀態
+
+**兩套系統的所有操作模組都已搬完，含兩邊的請款單 Excel 產生功能。**
+
+- 登入（Firebase Auth email/password）
+- 系統選擇入口、側邊欄導覽（依角色權限顯示/隱藏模組）
+- 角色權限模型（`src/lib/permissions.js`），完整移植自兩套系統原本 Apps Script
+  裡的 `ROLES` / `DEFAULT_PERMISSIONS`
+- **境外實習生管理系統**（14 個模組全部搬完）：儀表板、學生資料、職缺媒合群組
+  （實習單位／媒合紀錄／二面進度／錄取名單）、實習文件追蹤、申辦進度追蹤、
+  實習在台追蹤（在台簽證追蹤／在台關懷紀錄）、住宿安排、宿舍管理、會議記錄、
+  使用人員、內部獎金計算群組（內部獎金計算／客戶費用建檔／內部費用建檔）、
+  主管報表。自動連動鏈完整移植（見 `src/lib/bonus.js` 跟各頁面裡的中文註解）：
+  新增學生→建媒合紀錄→已媒合→建二面進度→通過→建錄取名單→確認錄取→建實習
+  文件追蹤＋申辦進度追蹤→進度到「入台」→建在台簽證追蹤＋在台關懷紀錄＋住宿安排。
+  學生資料、職缺媒合等表單欄位是常用子集，未涵蓋 SHEET_FIELDS 全部欄位（語言
+  證明細節、簽證換發次數等），要用到時照既有 `FIELDS` 陣列的模式加。
+  **客戶請款計算**（`src/systems/tsaipei/ClientBillingPage.jsx`）現在也搬完了：
+  跟內部獎金計算同一套即時試算邏輯，換成客戶費用建檔的費率；每一列的
+  「下載請款單」會用 `src/lib/clientInvoice.js`（逐學生天數/金額試算＋期別
+  自動算「第 N 期」，完整移植自 `generateClientInvoice`）產生一份 xlsx，
+  含「請款單」「學生明細」兩個工作表，公司抬頭/銀行資訊沿用 Code.gs 裡
+  `COMPANY_INFO` 的實際值（現在存在 `src/lib/clientInvoice.js`）。
+- **食品工廠管理系統**（所有 nav 模組都已搬完）：
+  原料與庫存群組（原料主檔／供應商／進貨單，含 `src/lib/foodInventory.js` 的
+  庫存量即時計算——庫存從來不是存起來的欄位，是每次從 `InventoryLogs` 全部
+  加總算出來的，跟原本 Apps Script 版一致）、生產管理（生產批次＋用料明細，
+  完成入庫把實際產量計入成品庫存並依保存期限算效期，記一筆用料同步寫一筆
+  出庫庫存異動）、成品與出貨群組（成品主檔／客戶主檔／出貨單，出貨會扣成品
+  庫存、刪除出貨單會還原）、品質/食安（檢驗範本＋項目／檢驗紀錄，依範本
+  資料型態自動判定每項合不合格，`src/lib/qc.js`）、成本分析（`src/lib/
+  foodCost.js`，用料成本＋生產費用分攤試算，含費用登錄）、零用金對帳
+  （含支出類別管理，勾選「連動原料庫存」的支出會自動建原料/供應商/進貨/
+  入庫紀錄）、損益表（`src/lib/incomeStatement.js`，含會計科目/手動分錄）、
+  合夥分潤（依當月淨利×比例試算應分金額）、客戶請款明細（依客戶＋期間把
+  未請款出貨單彙總成一張請款單）、使用人員（跟境外系統共用同一個
+  `src/components/UsersPage.jsx`，靠 `system` 參數區分要讀寫哪一套的
+  collection，不用寫兩份）。
+  客戶請款明細的「下載請款單」也接上了 Excel 產生（`src/lib/
+  customerInvoiceXlsx.js`，移植自 `generateCustomerInvoiceXlsx`）。
+  **還沒搬**：儀表板（側邊欄有這個模組但沒有對應頁面，目前連到「建置中」）。
+
+### Excel 產生方式
+
+兩邊都用 `exceljs` 在瀏覽器端直接產生 `.xlsx`（`src/lib/xlsxExport.js`），
+不需要 Cloud Function。`exceljs` 體積較大（未壓縮約 1.9MB），用動態
+`import()` 讓它只在真的點下載按鈕時才載入，不會拖累首次進站的載入時間
+（build 出來會是獨立的 `exceljs.min-*.js` chunk）。
+
+### 已知限制：跨權限模組的自動連動
+
+Firestore 規則是依「權限模組」擋寫入，但有些自動連動會跨模組寫資料（例如新增
+學生同時建立媒合紀錄，前者屬於 `students` 模組、後者屬於 `matching` 模組）。
+如果操作者對來源模組有編輯權但對目的模組沒有，寫入會被規則擋下來、整個連動
+會靜默失敗一半。目前只針對「新增學生自動建媒合紀錄」這條路徑在規則裡放寬
+（`tsaipei_matches` 的 `create` 同時接受 `matching` 或 `students` 的編輯權），
+之後每接上一條新的跨模組連動，都要檢查 `firestore.rules` 是否也要跟著放寬。
+
+其餘模組（媒合紀錄、住宿安排、生產管理、成本分析…)在側邊欄會顯示但連到「建置中」
+頁面，尚未實作。之後照 `src/systems/tsaipei/StudentsPage.jsx` /
+`src/systems/foodfactory/InventoryPage.jsx` 的模式一個一個補。
+
+## 架構
+
+```
+src/
+  firebase.js              Firebase App/Auth/Firestore 初始化
+  lib/permissions.js       兩套系統的 ROLES + DEFAULT_PERMISSIONS + 權限判斷函式
+  lib/useCollection.js     通用 Firestore CRUD hook（即時訂閱）
+  auth/AuthContext.jsx     登入狀態
+  auth/useSystemAccess.js  某系統下目前使用者的角色/權限（讀 `<system>_users`、
+                            `<system>_rolePermissions`）
+  components/Layout.jsx    側邊欄 + 導覽（依權限顯示模組）
+  pages/                   登入頁、系統選擇頁
+  systems/tsaipei/         境外實習生管理系統的各模組頁面
+  systems/foodfactory/     食品工廠管理系統的各模組頁面
+firestore.rules            資料庫安全規則（權限判斷邏輯的最終防線，不能只靠前端）
+```
+
+## Firestore 資料結構慣例
+
+- 每個 collection 都加系統前綴：`tsaipei_students`、`foodfactory_materials` …
+- `<system>_users/{uid}`：`{ email, displayName, role }`，doc id = Firebase Auth UID，
+  決定這個人在這個系統裡的角色
+- `<system>_rolePermissions/{module}__{role}`：`{ level: 'edit'|'view'|'none' }`，
+  對應原本試算表版本的「動態權限矩陣」，沒有這筆資料時退回 `permissions.js` 裡的預設值
+  （前端如此；**Firestore 規則本身的預設是「沒有 override 就只有系統管理員能寫」**，
+  比前端預設更嚴格，之後要開放某角色編輯某模組，記得同時在 UI 上調權限矩陣、也要讓
+  它真的寫進 `rolePermissions` 這個 collection）
+
+新增一個 collection 時要做的事（跟原本 Apps Script 版 HANDOFF.md 提醒的很像）：
+1. 在 `src/lib/permissions.js` 對應系統的 `modules` 加一筆
+2. 在 `src/systems/<system>/` 新增頁面元件
+3. 在 `src/App.jsx` 的 `PAGES` 加映射
+4. 在 `firestore.rules` 加一個 `match` 區塊（module key 要跟第 1 步一致）
+
+## 初次設定（一次性，需要人工操作）
+
+1. **啟用 Firebase Authentication**：Firebase Console → Build → Authentication →
+   Sign-in method → 啟用「電子郵件/密碼」
+2. **啟用 Firestore**：Firebase Console → Build → Firestore Database → 建立資料庫
+   （若還沒建立）
+3. **建立第一個系統管理員帳號**：
+   - Firebase Console → Authentication → Users → 新增使用者（輸入 email/密碼）
+   - 複製這個使用者的 UID
+   - Firestore Database → 開始新增集合 `tsaipei_users`（或 `foodfactory_users`），
+     文件 ID 貼上剛剛的 UID，欄位填 `email`、`displayName`、`role: "系統管理員"`
+   - 之後這個人登入系統就能在「使用人員」頁面（待建置）管理其他人的帳號與角色，
+     不用再手動操作 Firestore
+4. **部署 Firestore 規則**（第一次要手動跑一次，之後 CI 會自動跑）：
+   ```
+   cd webapp
+   npx firebase-tools login
+   npx firebase-tools deploy --only firestore:rules
+   ```
+5. **設定 GitHub Actions 自動部署**：repo Settings → Secrets → Actions，新增
+   `FIREBASE_SERVICE_ACCOUNT`（見 `.github/workflows/deploy-webapp.yml` 開頭註解）
+
+## 本機開發
+
+```
+cd webapp
+npm install
+npm run dev
+```

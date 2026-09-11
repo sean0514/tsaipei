@@ -1,0 +1,266 @@
+rules_version = '2';
+
+// Two systems share this project, fully separated by collection name prefix
+// (tsaipei_* / foodfactory_*), matching the ROLES/DEFAULT_PERMISSIONS model
+// each system's original Apps Script backend used (see apps-script/Code.gs
+// in each repo). 系統管理員 (admin) always has edit access, same as the
+// hardcoded bypass in permFor_() there.
+//
+// Bootstrapping: the very first admin doc in `<system>_users` can't be
+// created through these rules (nothing can grant edit before an admin
+// exists) — create it once by hand in the Firebase console after the
+// person signs up via Firebase Auth: collection `tsaipei_users` (or
+// `foodfactory_users`), doc id = their Auth UID, fields
+// { email, displayName, role: '系統管理員' }.
+//
+// Adding a new collection: add a `match /<system>_<name>/{docId}` block
+// below with the right module key passed to `tsCanEdit`/`ffCanEdit` — the
+// module key must match a key in src/lib/permissions.js SYSTEMS[system].modules,
+// same easy-to-miss step as pageModuleKey() in the original apps (see HANDOFF.md).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // ---------------- 境外實習生管理系統 (tsaipei) ----------------
+    function tsRole() {
+      return get(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid)).data.role;
+    }
+    function tsIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid));
+    }
+    function tsCanEdit(module) {
+      return tsIsMember() && (
+        tsRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())) &&
+         get(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())).data.level == 'edit')
+      );
+    }
+
+    match /tsaipei_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || tsIsMember());
+      allow write: if tsIsMember() && tsRole() == '系統管理員';
+    }
+    match /tsaipei_rolePermissions/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsIsMember() && tsRole() == '系統管理員';
+    }
+    match /tsaipei_students/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('students');
+    }
+    // 職缺媒合 group — all four collections share the single 'matching'
+    // permission module, same as the original app's DEFAULT_PERMISSIONS.
+    match /tsaipei_positions/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
+    match /tsaipei_matches/{docId} {
+      allow read: if tsIsMember();
+      // create is also allowed to anyone who can edit 'students': new-student
+      // save auto-creates a blank match record (see StudentsPage.jsx), and
+      // some roles (服務人員/行政人員) can edit students without editing matching.
+      allow create: if tsCanEdit('matching') || tsCanEdit('students');
+      allow update, delete: if tsCanEdit('matching');
+    }
+    match /tsaipei_secondInterviews/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
+    match /tsaipei_admittedList/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
+    // 確認錄取 cascades into these two, written by whoever can edit 'matching'
+    // even if they can't edit these modules directly (same reasoning as
+    // tsaipei_matches' create above).
+    match /tsaipei_internshipDocs/{docId} {
+      allow read: if tsIsMember();
+      allow create, delete: if tsCanEdit('internshipDocs') || tsCanEdit('matching');
+      allow update: if tsCanEdit('internshipDocs');
+    }
+    match /tsaipei_applicationProgress/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('applicationProgress') || tsCanEdit('matching');
+      allow update, delete: if tsCanEdit('applicationProgress');
+    }
+    // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者。
+    match /tsaipei_inTaiwanVisa/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('inTaiwanTracking');
+    }
+    match /tsaipei_inTaiwanCare/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('inTaiwanTracking');
+    }
+    match /tsaipei_housingRecords/{docId} {
+      allow read: if tsIsMember();
+      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress');
+      allow update, delete: if tsCanEdit('housing');
+    }
+    match /tsaipei_dormitories/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagement');
+    }
+    match /tsaipei_dormitoryUtilities/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagement');
+    }
+    match /tsaipei_meetings/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('meetings');
+    }
+    // 內部獎金計算/客戶費用建檔/內部費用建檔 share the 'bonus' permission
+    // module (matches the original app's pageModuleKey mapping).
+    match /tsaipei_internalFeeSetup/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
+    match /tsaipei_clientFeeSetup/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
+
+    // ---------------- 食品工廠管理系統 (foodfactory) ----------------
+    function ffRole() {
+      return get(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid)).data.role;
+    }
+    function ffIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid));
+    }
+    function ffCanEdit(module) {
+      return ffIsMember() && (
+        ffRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())) &&
+         get(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())).data.level == 'edit')
+      );
+    }
+
+    match /foodfactory_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || ffIsMember());
+      allow write: if ffIsMember() && ffRole() == '系統管理員';
+    }
+    match /foodfactory_rolePermissions/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffIsMember() && ffRole() == '系統管理員';
+    }
+    // 原料與庫存 group — 零用金對帳（支出且類別連動原料庫存）也會自動建原料/
+    // 供應商/進貨/入庫紀錄，所以 create 額外放行 'pettyCash' 編輯者。
+    match /foodfactory_materials/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
+    }
+    match /foodfactory_suppliers/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
+    }
+    match /foodfactory_purchases/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
+    }
+    // 進貨單新增、生產用料、零用金支出都會各自同步寫一筆庫存異動紀錄。
+    match /foodfactory_inventoryLogs/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('production') || ffCanEdit('pettyCash');
+      allow update, delete: if ffCanEdit('inventory');
+    }
+
+    // 生產管理 group — 成本分析頁面登錄生產費用，所以 create 額外放行 'cost'。
+    match /foodfactory_productionBatches/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('production');
+    }
+    match /foodfactory_productionMaterialUsage/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('production');
+    }
+    match /foodfactory_productionExpenses/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('production') || ffCanEdit('cost');
+      allow update, delete: if ffCanEdit('production') || ffCanEdit('cost');
+    }
+
+    // 成品與出貨 group
+    match /foodfactory_products/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping');
+    }
+    // 生產批次「完成入庫」寫入這裡，出貨單扣庫存也寫這裡 — 兩個權限模組都能寫。
+    match /foodfactory_productInventory/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping') || ffCanEdit('production');
+    }
+    match /foodfactory_customers/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping');
+    }
+    // 客戶請款明細建立請款單時會把出貨單標上 invoiceId，所以 update 額外放行 'billing'。
+    match /foodfactory_shipments/{docId} {
+      allow read: if ffIsMember();
+      allow create, delete: if ffCanEdit('shipping');
+      allow update: if ffCanEdit('shipping') || ffCanEdit('billing');
+    }
+
+    // 品質/食安 group
+    match /foodfactory_qcTemplates/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcTemplateItems/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcRecords/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+    match /foodfactory_qcRecordItems/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('qc');
+    }
+
+    // 零用金對帳
+    match /foodfactory_pettyCashTransactions/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('pettyCash');
+    }
+    match /foodfactory_expenseCategories/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('pettyCash');
+    }
+
+    // 損益表 group
+    match /foodfactory_accountCategories/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_manualLedgerEntries/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_partners/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+    match /foodfactory_profitPayouts/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('incomeStatement');
+    }
+
+    // 客戶請款明細
+    match /foodfactory_customerInvoices/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('billing');
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

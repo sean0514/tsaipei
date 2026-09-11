@@ -1,0 +1,96 @@
+import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { useCollection } from '../../lib/useCollection';
+import { canEdit as computeCanEdit } from '../../lib/permissions';
+
+const STATUSES = ['良好', '待關心', '預計離台'];
+
+export default function InTaiwanCarePage() {
+  const { system, role, overrides } = useOutletContext();
+  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
+  const { rows, loading, update, remove } = useCollection('tsaipei_inTaiwanCare');
+  const { rows: students } = useCollection('tsaipei_students');
+  const [editing, setEditing] = useState(null);
+  const [showDeparted, setShowDeparted] = useState(false);
+
+  const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
+  const visible = rows.filter((r) => showDeparted || r.confirmedDeparture !== true);
+
+  async function handleSave(data) {
+    const { id, ...rest } = data;
+    await update(id, rest);
+    setEditing(null);
+  }
+
+  return (
+    <div className="content">
+      <div className="page-header">
+        <h2>在台關懷紀錄</h2>
+        <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+      </div>
+      <div className="card">
+        {loading ? <p className="muted">載入中…</p> : (
+          <table>
+            <thead><tr><th>學生</th><th>關懷時間</th><th>內容</th><th>狀態</th><th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {visible.map((r) => (
+                <tr key={r.id}>
+                  <td>{studentName(r.studentId)}</td>
+                  <td>{r.careDate || '—'}</td>
+                  <td>{r.content || '—'}</td>
+                  <td>{r.status || '—'}</td>
+                  <td>
+                    {canEditPage ? (
+                      <input type="checkbox" checked={!!r.confirmedDeparture} onChange={(e) => update(r.id, { confirmedDeparture: e.target.checked })} />
+                    ) : (r.confirmedDeparture ? '是' : '否')}
+                  </td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      <button onClick={() => setEditing(r)}>編輯</button>
+                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {visible.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {editing && <CareFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+    </div>
+  );
+}
+
+function CareFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>編輯在台關懷紀錄</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            <label>
+              關懷時間
+              <input type="date" value={form.careDate || ''} onChange={(e) => setForm({ ...form, careDate: e.target.value })} />
+            </label>
+            <label>
+              狀態
+              <select value={form.status || '良好'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label style={{ gridColumn: 'span 2' }}>
+              內容
+              <input value={form.content || ''} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
