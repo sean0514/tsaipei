@@ -52,7 +52,7 @@ var SHEET_FIELDS = {
     {key:'translationSupervisor',label:'翻譯主管'},{key:'translationSpecialist',label:'翻譯專員'},
     {key:'adminSupervisor',label:'行政主管'},{key:'adminSpecialist',label:'行政專員'},
     {key:'accountant',label:'會計人員'},{key:'accountantAssistant',label:'會計助理'},
-    {key:'dormManager1',label:'宿管人員1'},{key:'dormManager2',label:'宿管人員2'}
+    {key:'dormManager1',label:'宿管人員1'},{key:'dormManager2',label:'宿管人員2'},{key:'closed',label:'已結案'}
   ],
   Matches: [
     {key:'id',label:'ID'},{key:'studentId',label:'學生ID'},{key:'positionId',label:'職缺ID'},

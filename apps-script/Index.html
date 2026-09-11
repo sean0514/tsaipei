@@ -945,32 +945,39 @@ const POSITION_FIELDS = [
   {key:'translationSupervisor',label:'翻譯主管'},{key:'translationSpecialist',label:'翻譯專員'},
   {key:'adminSupervisor',label:'行政主管'},{key:'adminSpecialist',label:'行政專員'},
   {key:'accountant',label:'會計人員'},{key:'accountantAssistant',label:'會計助理'},
-  {key:'dormManager1',label:'宿管人員1'},{key:'dormManager2',label:'宿管人員2'}
+  {key:'dormManager1',label:'宿管人員1'},{key:'dormManager2',label:'宿管人員2'},{key:'closed',label:'已結案'}
 ];
+function positionRowInfo(p){
+  const groups = parseLocationGroups(p.locationGroups);
+  const totalHeadcount = groups.reduce((sum,g)=>sum+(Number(g.headcount)||0),0);
+  const matchCount = state.matches.filter(m=>m.positionId===p.id && m.status!=='取消').length;
+  const groupsHTML = groups.length ? groups.map(g=>
+    `<div style="margin-bottom:4px;">${g.venue?g.venue+' · ':''}${g.location||'—'} · ${g.headcount||0}名 ${tag(g.status, POSITION_TAG)}</div>`
+  ).join('') : `<span class="cell-sub">尚未設定地點</span>`;
+  return {groups, totalHeadcount, matchCount, groupsHTML};
+}
 function renderPositions(){
   const editable = canEdit('matching');
+  const activePositions = state.positions.filter(p=>p.closed!=='是');
+  const closedPositions = state.positions.filter(p=>p.closed==='是');
   const industryMap = {};
-  const posRows = state.positions.map(p=>{
-    const groups = parseLocationGroups(p.locationGroups);
-    const totalHeadcount = groups.reduce((sum,g)=>sum+(Number(g.headcount)||0),0);
-    const matchCount = state.matches.filter(m=>m.positionId===p.id && m.status!=='取消').length;
+  const posRows = activePositions.map(p=>{
+    const info = positionRowInfo(p);
     const industryKey = p.industry || '未分類';
     if(!industryMap[industryKey]) industryMap[industryKey] = {positions:0, total:0, matched:0};
     industryMap[industryKey].positions += 1;
-    industryMap[industryKey].total += totalHeadcount;
-    industryMap[industryKey].matched += matchCount;
-    const groupsHTML = groups.length ? groups.map(g=>
-      `<div style="margin-bottom:4px;">${g.venue?g.venue+' · ':''}${g.location||'—'} · ${g.headcount||0}名 ${tag(g.status, POSITION_TAG)}</div>`
-    ).join('') : `<span class="cell-sub">尚未設定地點</span>`;
+    industryMap[industryKey].total += info.totalHeadcount;
+    industryMap[industryKey].matched += info.matchCount;
     return `<tr>
       <td>${p.projectCode||'—'}</td>
       <td><div style="font-weight:600;">${p.company}</div><div class="cell-sub">${p.industry||''}</div></td>
       <td>${p.title}</td>
-      <td>${groupsHTML}</td>
-      <td>${matchCount} / ${totalHeadcount||'—'}</td>
+      <td>${info.groupsHTML}</td>
+      <td>${info.matchCount} / ${info.totalHeadcount||'—'}</td>
       <td>${editable ? `<div class="row-actions">
         <button class="btn small ghost" data-edit-position="${p.id}">編輯</button>
         <button class="btn small ghost" data-copy-position="${p.id}">複製</button>
+        <button class="btn small secondary" data-close-position="${p.id}">已結案</button>
         <button class="btn small danger-ghost" data-del-position="${p.id}">刪除</button>
       </div>` : ''}</td>
     </tr>`;
@@ -989,13 +996,28 @@ function renderPositions(){
     </tr>`;
   }).join('');
 
+  const closedRows = closedPositions.map(p=>{
+    const info = positionRowInfo(p);
+    return `<tr>
+      <td>${p.projectCode||'—'}</td>
+      <td><div style="font-weight:600;">${p.company}</div><div class="cell-sub">${p.industry||''}</div></td>
+      <td>${p.title}</td>
+      <td>${info.groupsHTML}</td>
+      <td>${info.matchCount} / ${info.totalHeadcount||'—'}</td>
+      <td>${editable ? `<div class="row-actions">
+        <button class="btn small secondary" data-reopen-position="${p.id}">取消已結案</button>
+        <button class="btn small danger-ghost" data-del-position="${p.id}">刪除</button>
+      </div>` : ''}</td>
+    </tr>`;
+  }).join('');
+
   return `
     <div class="page-head">
       <div><h1>實習單位</h1><div class="page-desc">管理合作企業釋出的實習職缺${editable?'':'（唯讀）'}</div></div>
       ${editable ? '<button class="btn" id="btn-add-position">+ 新增職缺</button>' : ''}
       ${importExportButtonsHTML('position', editable)}
     </div>
-    ${editable ? `<div class="split-note" style="margin-top:-14px;margin-bottom:16px;">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。</div>` : ''}
+    ${editable ? `<div class="split-note" style="margin-top:-14px;margin-bottom:16px;">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。已結案的職缺按「已結案」後會移到下方「已結案」區塊，不會再列入缺額概況統計，也可以按「取消已結案」移回上方列表。</div>` : ''}
     <div class="panel">
       <h3>缺額概況（依產業分類）</h3>
       <div class="table-wrap"><table>
@@ -1007,6 +1029,13 @@ function renderPositions(){
       <thead><tr><th>專案編號</th><th>公司 / 產業</th><th>職務名稱</th><th>地點 / 缺額 / 狀態</th><th>已媒合 / 總缺額</th><th></th></tr></thead>
       <tbody>${posRows || `<tr><td colspan="6"><div class="empty-note">尚無職缺，點選「新增職缺」開始建立。</div></td></tr>`}</tbody>
     </table></div></div>
+    <div class="section-gap panel">
+      <h3>已結案 <span style="font-weight:400;color:var(--ink-soft);">（${closedPositions.length} 筆）</span></h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>專案編號</th><th>公司 / 產業</th><th>職務名稱</th><th>地點 / 缺額 / 狀態</th><th>已媒合 / 總缺額</th><th></th></tr></thead>
+        <tbody>${closedRows || `<tr><td colspan="6"><div class="empty-note">目前沒有已結案的實習單位。</div></td></tr>`}</tbody>
+      </table></div>
+    </div>
   `;
 }
 
@@ -3733,6 +3762,18 @@ function attachPageEvents(){
         try{ await gsRun('addPosition', authToken, data); closeModal(); await loadAll(); }
         catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
       });
+    });
+  });
+  document.querySelectorAll('[data-close-position]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      try{ await gsRun('updatePosition', authToken, b.dataset.closePosition, {closed:'是'}); await loadAll(); }
+      catch(err){ alert(errMsg(err)); }
+    });
+  });
+  document.querySelectorAll('[data-reopen-position]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      try{ await gsRun('updatePosition', authToken, b.dataset.reopenPosition, {closed:''}); await loadAll(); }
+      catch(err){ alert(errMsg(err)); }
     });
   });
   document.querySelectorAll('[data-del-position]').forEach(b=>{
