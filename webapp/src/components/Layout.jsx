@@ -8,7 +8,7 @@ import { canView } from '../lib/permissions';
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
 export const IMPLEMENTED_MODULES = {
   tsaipei: [
-    'students', 'positions', 'matches', 'secondInterview', 'admitted',
+    'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
     'dormManagement', 'meetings', 'users',
   ],

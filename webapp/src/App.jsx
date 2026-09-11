@@ -16,6 +16,7 @@ import HousingPage from './systems/tsaipei/HousingPage';
 import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
 import UsersPage from './systems/tsaipei/UsersPage';
+import DashboardPage from './systems/tsaipei/DashboardPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 
 function RequireAuth({ children }) {
@@ -27,6 +28,7 @@ function RequireAuth({ children }) {
 
 const PAGES = {
   tsaipei: {
+    dashboard: DashboardPage,
     students: StudentsPage,
     positions: PositionsPage,
     matches: MatchesPage,
