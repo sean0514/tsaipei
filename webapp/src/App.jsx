@@ -15,13 +15,19 @@ import InTaiwanCarePage from './systems/tsaipei/InTaiwanCarePage';
 import HousingPage from './systems/tsaipei/HousingPage';
 import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
-import UsersPage from './systems/tsaipei/UsersPage';
 import DashboardPage from './systems/tsaipei/DashboardPage';
 import BonusPage from './systems/tsaipei/BonusPage';
 import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
 import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
 import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
+import UsersPage from './components/UsersPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
+import SuppliersPage from './systems/foodfactory/SuppliersPage';
+import PurchasesPage from './systems/foodfactory/PurchasesPage';
+import ProductsPage from './systems/foodfactory/ProductsPage';
+import CustomersPage from './systems/foodfactory/CustomersPage';
+import ProductionBatchesPage from './systems/foodfactory/ProductionBatchesPage';
+import ShipmentsPage from './systems/foodfactory/ShipmentsPage';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -51,7 +57,16 @@ const PAGES = {
     internalFeeSetup: InternalFeeSetupPage,
     managerReport: ManagerReportPage,
   },
-  foodfactory: { inventory: InventoryPage },
+  foodfactory: {
+    inventory: InventoryPage,
+    suppliers: SuppliersPage,
+    purchases: PurchasesPage,
+    products: ProductsPage,
+    customers: CustomersPage,
+    production: ProductionBatchesPage,
+    shipments: ShipmentsPage,
+    users: UsersPage,
+  },
 };
 
 function ModuleRoute() {

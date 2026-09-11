@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { useCollection } from '../../lib/useCollection';
-import { useRolePermissions } from '../../auth/useSystemAccess';
-import { canEdit as computeCanEdit, SYSTEMS, permissionLevel } from '../../lib/permissions';
+import { db } from '../firebase';
+import { useCollection } from '../lib/useCollection';
+import { useRolePermissions } from '../auth/useSystemAccess';
+import { canEdit as computeCanEdit, SYSTEMS, permissionLevel } from '../lib/permissions';
 
 const LEVEL_CYCLE = { edit: 'view', view: 'none', none: 'edit' };
 const LEVEL_LABEL = { edit: '編輯', view: '檢視', none: '無' };
 
+// Shared between both systems (registered as the 'users' page for tsaipei
+// and foodfactory alike) — everything is parameterized off `system` from
+// the Layout's Outlet context, so it reads/writes `${system}_users` and
+// `${system}_rolePermissions`.
 export default function UsersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'users', role, overrides);
-  const { rows, loading, update, remove } = useCollection('tsaipei_users');
+  const { rows, loading, update, remove } = useCollection(`${system}_users`);
   const rolePermissions = useRolePermissions(system);
   const sys = SYSTEMS[system];
   const [editing, setEditing] = useState(null);
 
   async function createUser(data) {
-    await setDoc(doc(db, 'tsaipei_users', data.uid), {
+    await setDoc(doc(db, `${system}_users`, data.uid), {
       email: data.email, displayName: data.displayName, role: data.role,
     });
     setEditing(null);
@@ -27,7 +31,7 @@ export default function UsersPage() {
   async function cyclePermission(module, r) {
     const current = permissionLevel(system, module, r, rolePermissions);
     const next = LEVEL_CYCLE[current] || 'edit';
-    await setDoc(doc(db, 'tsaipei_rolePermissions', `${module}__${r}`), { level: next });
+    await setDoc(doc(db, `${system}_rolePermissions`, `${module}__${r}`), { level: next });
   }
 
   return (

@@ -12,7 +12,7 @@ export const IMPLEMENTED_MODULES = {
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
     'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport',
   ],
-  foodfactory: ['inventory'],
+  foodfactory: ['inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments', 'users'],
 };
 
 // A permission module can cover several routes at once (matches the
@@ -35,6 +35,18 @@ const GROUP_ROUTES = {
       { route: 'bonus', label: '內部獎金計算' },
       { route: 'clientFeeSetup', label: '客戶費用建檔' },
       { route: 'internalFeeSetup', label: '內部費用建檔' },
+    ],
+  },
+  foodfactory: {
+    inventory: [
+      { route: 'inventory', label: '原料主檔' },
+      { route: 'suppliers', label: '供應商' },
+      { route: 'purchases', label: '進貨單' },
+    ],
+    shipping: [
+      { route: 'products', label: '成品主檔' },
+      { route: 'customers', label: '客戶主檔' },
+      { route: 'shipments', label: '出貨單' },
     ],
   },
 };

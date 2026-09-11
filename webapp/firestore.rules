@@ -147,9 +147,58 @@ service cloud.firestore {
       allow read: if ffIsMember();
       allow write: if ffIsMember() && ffRole() == '系統管理員';
     }
+    // 原料與庫存 group
     match /foodfactory_materials/{docId} {
       allow read: if ffIsMember();
       allow write: if ffCanEdit('inventory');
+    }
+    match /foodfactory_suppliers/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('inventory');
+    }
+    match /foodfactory_purchases/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('inventory');
+    }
+    // 進貨單新增時同步寫入一筆入庫紀錄；生產用料時寫入一筆出庫紀錄 — 兩者都在
+    // 'inventory' 或 'production' 底下即可涵蓋，不需要額外放寬跨模組權限。
+    match /foodfactory_inventoryLogs/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('production');
+      allow update, delete: if ffCanEdit('inventory');
+    }
+
+    // 生產管理 group
+    match /foodfactory_productionBatches/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('production');
+    }
+    match /foodfactory_productionMaterialUsage/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('production');
+    }
+    match /foodfactory_productionExpenses/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('production');
+    }
+
+    // 成品與出貨 group
+    match /foodfactory_products/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping');
+    }
+    // 生產批次「完成入庫」寫入這裡，出貨單扣庫存也寫這裡 — 兩個權限模組都能寫。
+    match /foodfactory_productInventory/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping') || ffCanEdit('production');
+    }
+    match /foodfactory_customers/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping');
+    }
+    match /foodfactory_shipments/{docId} {
+      allow read: if ffIsMember();
+      allow write: if ffCanEdit('shipping');
     }
 
     match /{document=**} {

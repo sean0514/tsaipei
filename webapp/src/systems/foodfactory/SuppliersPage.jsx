@@ -2,27 +2,20 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import { materialStock } from '../../lib/foodInventory';
 
-// apps-script/Code.gs SHEET_FIELDS.Materials — full schema, all fields included.
 const FIELDS = [
-  { key: 'name', label: '原料名稱', required: true },
-  { key: 'category', label: '分類' },
-  { key: 'unit', label: '單位' },
-  { key: 'safetyStock', label: '安全庫存量', type: 'number' },
-  { key: 'storageCondition', label: '儲存條件' },
-  { key: 'note', label: '備註' },
+  { key: 'name', label: '供應商名稱', required: true },
+  { key: 'contact', label: '聯絡人' },
+  { key: 'phone', label: '電話' },
+  { key: 'address', label: '地址' },
+  { key: 'taxId', label: '統編' },
 ];
 
-export default function InventoryPage() {
+export default function SuppliersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'inventory', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('foodfactory_materials', { order: ['name', 'asc'] });
-  const { rows: inventoryLogs } = useCollection('foodfactory_inventoryLogs');
+  const { rows, loading, add, update, remove } = useCollection('foodfactory_suppliers', { order: ['name', 'asc'] });
   const [editing, setEditing] = useState(null);
-  const [q, setQ] = useState('');
-
-  const filtered = rows.filter((r) => !q || [r.name, r.category].some((v) => v?.includes(q)));
 
   async function handleSave(data) {
     if (data.id) {
@@ -37,25 +30,17 @@ export default function InventoryPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>原料與庫存 · 原料主檔</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增原料</button>}
+        <h2>原料與庫存 · 供應商</h2>
+        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增供應商</button>}
       </div>
       <div className="card">
-        <input placeholder="搜尋名稱/分類" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead>
-              <tr>
-                {FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}
-                <th>目前庫存</th>
-                {canEditPage && <th></th>}
-              </tr>
-            </thead>
+            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {filtered.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  <td>{materialStock(r.id, inventoryLogs)} {r.unit}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -64,33 +49,28 @@ export default function InventoryPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
-      {editing && <MaterialFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <SupplierFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function MaterialFormModal({ initial, onCancel, onSave }) {
+function SupplierFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? '編輯原料' : '新增原料'}</h3>
+        <h3>{initial.id ? '編輯供應商' : '新增供應商'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input
-                  type={f.type || 'text'}
-                  required={f.required}
-                  value={form[f.key] || ''}
-                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                />
+                <input required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </label>
             ))}
           </div>
