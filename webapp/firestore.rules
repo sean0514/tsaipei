@@ -50,6 +50,28 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('students');
     }
+    // 職缺媒合 group — all four collections share the single 'matching'
+    // permission module, same as the original app's DEFAULT_PERMISSIONS.
+    match /tsaipei_positions/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
+    match /tsaipei_matches/{docId} {
+      allow read: if tsIsMember();
+      // create is also allowed to anyone who can edit 'students': new-student
+      // save auto-creates a blank match record (see StudentsPage.jsx), and
+      // some roles (服務人員/行政人員) can edit students without editing matching.
+      allow create: if tsCanEdit('matching') || tsCanEdit('students');
+      allow update, delete: if tsCanEdit('matching');
+    }
+    match /tsaipei_secondInterviews/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
+    match /tsaipei_admittedList/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {

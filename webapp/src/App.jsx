@@ -4,6 +4,10 @@ import Login from './pages/Login';
 import SystemPicker from './pages/SystemPicker';
 import Layout, { IMPLEMENTED_MODULES, TodoModule } from './components/Layout';
 import StudentsPage from './systems/tsaipei/StudentsPage';
+import PositionsPage from './systems/tsaipei/PositionsPage';
+import MatchesPage from './systems/tsaipei/MatchesPage';
+import SecondInterviewsPage from './systems/tsaipei/SecondInterviewsPage';
+import AdmittedListPage from './systems/tsaipei/AdmittedListPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 
 function RequireAuth({ children }) {
@@ -14,7 +18,13 @@ function RequireAuth({ children }) {
 }
 
 const PAGES = {
-  tsaipei: { students: StudentsPage },
+  tsaipei: {
+    students: StudentsPage,
+    positions: PositionsPage,
+    matches: MatchesPage,
+    secondInterview: SecondInterviewsPage,
+    admitted: AdmittedListPage,
+  },
   foodfactory: { inventory: InventoryPage },
 };
 

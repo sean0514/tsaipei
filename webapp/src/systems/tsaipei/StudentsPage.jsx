@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 
@@ -29,12 +31,15 @@ export default function StudentsPage() {
 
   const filtered = rows.filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
 
+  // 新增學生存檔後自動在「媒合紀錄」建立一筆「媒合中」的空白紀錄（職缺待補），
+  // 沿用原本 Apps Script 版的行為。
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add(data);
+      const ref = await add(data);
+      await addDoc(collection(db, 'tsaipei_matches'), { studentId: ref.id, positionId: '', status: '媒合中' });
     }
     setEditing(null);
   }

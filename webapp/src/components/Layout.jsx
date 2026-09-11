@@ -7,8 +7,23 @@ import { canView } from '../lib/permissions';
 // Pages that actually exist as routes so far; every other module shows in
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
 export const IMPLEMENTED_MODULES = {
-  tsaipei: ['students'],
+  tsaipei: ['students', 'positions', 'matches', 'secondInterview', 'admitted'],
   foodfactory: ['inventory'],
+};
+
+// A permission module can cover several routes at once (matches the
+// original app's single 'matching' permission module governing
+// 實習單位/媒合紀錄/二面進度/錄取名單 together). Anything not listed here is
+// a single module == single route.
+const GROUP_ROUTES = {
+  tsaipei: {
+    matching: [
+      { route: 'positions', label: '實習單位' },
+      { route: 'matches', label: '媒合紀錄' },
+      { route: 'secondInterview', label: '二面進度' },
+      { route: 'admitted', label: '錄取名單' },
+    ],
+  },
 };
 
 export default function Layout() {
@@ -40,6 +55,27 @@ export default function Layout() {
           {Object.entries(sys.modules).map(([key, label]) => {
             const visible = canView(system, key, role, overrides);
             if (!visible) return null;
+            const group = GROUP_ROUTES[system]?.[key];
+            if (group) {
+              return (
+                <div key={key}>
+                  <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
+                  {group.map(({ route, label: subLabel }) => {
+                    const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
+                    return (
+                      <NavLink
+                        key={route}
+                        to={`/${system}/${implemented ? route : `todo/${route}`}`}
+                        className={({ isActive }) => (isActive ? 'active' : '')}
+                        style={{ paddingLeft: 28 }}
+                      >
+                        {subLabel}{!implemented && ' (建置中)'}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              );
+            }
             const implemented = IMPLEMENTED_MODULES[system]?.includes(key);
             return (
               <NavLink
