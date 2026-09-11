@@ -4,6 +4,7 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { downloadCustomerInvoiceXlsx } from '../../lib/customerInvoiceXlsx';
 
 function currentMonthStr() {
   const d = new Date();
@@ -16,14 +17,15 @@ export default function CustomerInvoicesPage() {
   const { rows: invoices, loading, update } = useCollection('foodfactory_customerInvoices', { order: ['issueDate', 'desc'] });
   const { rows: shipments, update: updateShipment } = useCollection('foodfactory_shipments');
   const { rows: customers } = useCollection('foodfactory_customers');
+  const { rows: products } = useCollection('foodfactory_products');
   const [creating, setCreating] = useState(false);
   const [receiving, setReceiving] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const customerName = (id) => customers.find((c) => c.id === id)?.name || '(未知)';
 
   // 把該客戶在期間內、還沒被請款單認領的出貨單全部撈出來加總成一張請款單，
   // 同時把這些出貨單標上 invoiceId，跟原本 createCustomerInvoice() 一致。
-  // （原本另外有 Excel 產生功能 generateClientInvoice，這裡還沒做，見 README。）
   async function handleCreate(customerId, periodStart, periodEnd) {
     const unbilled = shipments.filter((s) => s.customerId === customerId && !s.invoiceId && s.date >= periodStart && s.date <= periodEnd);
     if (!unbilled.length) { alert('該期間內找不到未請款的出貨紀錄'); return; }
@@ -37,6 +39,16 @@ export default function CustomerInvoicesPage() {
     setCreating(false);
   }
 
+  async function handleDownload(inv) {
+    setDownloadingId(inv.id);
+    try {
+      const items = shipments.filter((s) => s.invoiceId === inv.id);
+      await downloadCustomerInvoiceXlsx(inv, customers.find((c) => c.id === inv.customerId), items, products);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -46,7 +58,7 @@ export default function CustomerInvoicesPage() {
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th></th></tr></thead>
             <tbody>
               {invoices.map((inv) => (
                 <tr key={inv.id}>
@@ -56,7 +68,10 @@ export default function CustomerInvoicesPage() {
                   <td>{inv.totalAmount?.toLocaleString()}</td>
                   <td>{inv.status}</td>
                   <td>{inv.receivedDate || '—'}</td>
-                  {canEditPage && inv.status !== '已收款' && <td><button onClick={() => setReceiving(inv)}>登錄收款</button></td>}
+                  <td className="row-actions">
+                    <button disabled={downloadingId === inv.id} onClick={() => handleDownload(inv)}>{downloadingId === inv.id ? '產生中…' : '下載請款單'}</button>
+                    {canEditPage && inv.status !== '已收款' && <button onClick={() => setReceiving(inv)}>登錄收款</button>}
+                  </td>
                 </tr>
               ))}
               {invoices.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}

@@ -6,7 +6,7 @@ React + Vite 前端、Firestore 當資料庫、Firebase Auth 當登入機制，�
 
 ## 目前狀態
 
-**境外實習生管理系統的所有模組都已搬完。** 食品工廠管理系統還只有原料主檔一個模組。
+**兩套系統的所有操作模組都已搬完，含兩邊的請款單 Excel 產生功能。**
 
 - 登入（Firebase Auth email/password）
 - 系統選擇入口、側邊欄導覽（依角色權限顯示/隱藏模組）
@@ -21,9 +21,12 @@ React + Vite 前端、Firestore 當資料庫、Firebase Auth 當登入機制，�
   文件追蹤＋申辦進度追蹤→進度到「入台」→建在台簽證追蹤＋在台關懷紀錄＋住宿安排。
   學生資料、職缺媒合等表單欄位是常用子集，未涵蓋 SHEET_FIELDS 全部欄位（語言
   證明細節、簽證換發次數等），要用到時照既有 `FIELDS` 陣列的模式加。
-  **請款單 Excel 產生功能（`generateClientInvoice`）跟客戶請款計算報表本身還沒搬**
-  （原本就是技術債最重的一塊，需要先決定 Excel 產生方式——client-side 用
-  SheetJS 之類的套件，或另外寫一個 Cloud Function）。
+  **客戶請款計算**（`src/systems/tsaipei/ClientBillingPage.jsx`）現在也搬完了：
+  跟內部獎金計算同一套即時試算邏輯，換成客戶費用建檔的費率；每一列的
+  「下載請款單」會用 `src/lib/clientInvoice.js`（逐學生天數/金額試算＋期別
+  自動算「第 N 期」，完整移植自 `generateClientInvoice`）產生一份 xlsx，
+  含「請款單」「學生明細」兩個工作表，公司抬頭/銀行資訊沿用 Code.gs 裡
+  `COMPANY_INFO` 的實際值（現在存在 `src/lib/clientInvoice.js`）。
 - **食品工廠管理系統**（所有 nav 模組都已搬完）：
   原料與庫存群組（原料主檔／供應商／進貨單，含 `src/lib/foodInventory.js` 的
   庫存量即時計算——庫存從來不是存起來的欄位，是每次從 `InventoryLogs` 全部
@@ -39,9 +42,16 @@ React + Vite 前端、Firestore 當資料庫、Firebase Auth 當登入機制，�
   未請款出貨單彙總成一張請款單）、使用人員（跟境外系統共用同一個
   `src/components/UsersPage.jsx`，靠 `system` 參數區分要讀寫哪一套的
   collection，不用寫兩份）。
-  **還沒搬**：儀表板（側邊欄有這個模組但沒有對應頁面，目前連到「建置中」）；
-  客戶請款單本身的 Excel 產生功能（`generateCustomerInvoiceXlsx`）也還沒做，
-  跟境外系統的請款單 Excel 是同一類技術債，見上面的說明。
+  客戶請款明細的「下載請款單」也接上了 Excel 產生（`src/lib/
+  customerInvoiceXlsx.js`，移植自 `generateCustomerInvoiceXlsx`）。
+  **還沒搬**：儀表板（側邊欄有這個模組但沒有對應頁面，目前連到「建置中」）。
+
+### Excel 產生方式
+
+兩邊都用 `exceljs` 在瀏覽器端直接產生 `.xlsx`（`src/lib/xlsxExport.js`），
+不需要 Cloud Function。`exceljs` 體積較大（未壓縮約 1.9MB），用動態
+`import()` 讓它只在真的點下載按鈕時才載入，不會拖累首次進站的載入時間
+（build 出來會是獨立的 `exceljs.min-*.js` chunk）。
 
 ### 已知限制：跨權限模組的自動連動
 

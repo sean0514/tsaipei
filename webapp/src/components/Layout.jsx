@@ -10,7 +10,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
-    'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport',
+    'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
   ],
   foodfactory: [
     'inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
@@ -36,6 +36,7 @@ const GROUP_ROUTES = {
     ],
     bonus: [
       { route: 'bonus', label: '內部獎金計算' },
+      { route: 'clientBilling', label: '客戶請款計算' },
       { route: 'clientFeeSetup', label: '客戶費用建檔' },
       { route: 'internalFeeSetup', label: '內部費用建檔' },
     ],
