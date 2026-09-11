@@ -529,17 +529,26 @@ function renderDashboard(){
   const openPositions = state.positions.filter(p=>parseLocationGroups(p.locationGroups).some(g=>g.status==='開放中')).length;
   const unarrangedHousing = state.housingRecords.filter(h=>!h.checkIn && h.completed!=='是');
 
+  const todayStr = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const oneMonthAgoStr = new Date(now.getFullYear(), now.getMonth()-1, now.getDate()).toISOString().slice(0,10);
+  const oneMonthLaterStr = new Date(now.getFullYear(), now.getMonth()+1, now.getDate()).toISOString().slice(0,10);
+
   const upcomingEnd = state.students
-    .filter(s=>effectiveExitDate(s))
+    .filter(s=>{
+      const d = effectiveExitDate(s);
+      return d && d >= todayStr && d <= oneMonthLaterStr;
+    })
     .slice()
-    .sort((a,b)=>effectiveExitDate(a).localeCompare(effectiveExitDate(b)))
-    .slice(0,6);
+    .sort((a,b)=>effectiveExitDate(a).localeCompare(effectiveExitDate(b)));
 
   const recentEntries = state.students
-    .filter(s=>effectiveEntryDate(s))
+    .filter(s=>{
+      const d = effectiveEntryDate(s);
+      return d && d <= todayStr && d >= oneMonthAgoStr;
+    })
     .slice()
-    .sort((a,b)=>effectiveEntryDate(b).localeCompare(effectiveEntryDate(a)))
-    .slice(0,6);
+    .sort((a,b)=>effectiveEntryDate(b).localeCompare(effectiveEntryDate(a)));
 
   const needsCare = state.inTaiwanCareRecords
     .filter(c=>c.status==='待關心' && c.confirmedDeparture!=='是')
@@ -570,22 +579,22 @@ function renderDashboard(){
     </div>
     <div class="dash-cols">
       <div class="panel">
-        <h3>近期入境學生</h3>
+        <h3>近期入境學生<span class="cell-sub">（近一個月內）</span></h3>
         ${recentEntries.length ? recentEntries.map(s=>{
           return `<div class="alert-row"><div>
             <div class="alert-name">${studentFullLabel(s)}</div>
             <div class="alert-sub">入境日：${effectiveEntryDate(s)}</div>
           </div>${tag(s.status, STUDENT_TAG)}</div>`;
-        }).join('') : `<div class="empty-note">尚無設定入境日期的學生。</div>`}
+        }).join('') : `<div class="empty-note">近一個月內沒有入境的學生。</div>`}
       </div>
       <div class="panel">
-        <h3>近期實習到期學生</h3>
+        <h3>近期實習到期學生<span class="cell-sub">（一個月內到期）</span></h3>
         ${upcomingEnd.length ? upcomingEnd.map(s=>{
           return `<div class="alert-row"><div>
             <div class="alert-name">${studentFullLabel(s)}</div>
             <div class="alert-sub">離境日：${effectiveExitDate(s)}</div>
           </div>${tag(s.status, STUDENT_TAG)}</div>`;
-        }).join('') : `<div class="empty-note">尚無設定離境日期的學生。</div>`}
+        }).join('') : `<div class="empty-note">一個月內沒有即將到期的學生。</div>`}
       </div>
     </div>
     <div class="dash-cols">
