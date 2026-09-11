@@ -312,10 +312,14 @@ token, dormitoryId, month, data)`——找得到同宿舍+同月份的既有紀�
   欄位的 `change` 事件切換 `style.display`
 - 顏色標籤用共用的 `tag(text, map)` 函式 + 各分頁自己的 `xxx_TAG` 物件
   （例如 `STUDENT_TAG`、`CARE_TAG`、`POSITION_TAG`）
-- **所有新增分頁都要同時記得三件事**：(1) `NAV_STRUCTURE` 加項目 (2) `render()`
+- **所有新增分頁都要同時記得四件事**：(1) `NAV_STRUCTURE` 加項目 (2) `render()`
   裡加 `if(currentPage==='xxx') root.innerHTML = renderXxx();` 這行**非常容易漏掉**
   （曾經發生過漏加導致頁面整個空白的事故）(3) 如果權限 key 跟頁面 key 不同名，
-  要去 `pageModuleKey()` 加映射
+  要去 `pageModuleKey()` 加映射 (4) 去 `PERMISSION_MODULE_LABELS`（Index.html，
+  `renderUsers()`/`renderPermissionLegend()` 附近）加上這個權限模組的顯示名稱——
+  **這個也非常容易漏掉**：漏加的話後端權限（`DEFAULT_PERMISSIONS`/`getAllData()`）
+  完全正常運作，只是「使用人員」頁的權限矩陣不會顯示這一欄，導致主管/系統管理員
+  以為某角色沒辦法調整這個模組的權限（宿舍管理上線後就發生過一次）
 
 ## 11. 已知限制 / 技術債
 
