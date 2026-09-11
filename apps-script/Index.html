@@ -287,7 +287,7 @@ function startApp(){
 /* =========================================================
    State
 ========================================================= */
-let state = { students:[], positions:[], matches:[], secondInterviews:[], admittedList:[], applicationProgress:[], inTaiwanVisaRecords:[], inTaiwanCareRecords:[], internshipDocs:[], housingRecords:[], meetings:[], bonuses:[], clientBillingRecords:[], clientFeeSetupRecords:[], internalFeeSetupRecords:[], users:[], roleMatrix:null };
+let state = { students:[], positions:[], matches:[], secondInterviews:[], admittedList:[], applicationProgress:[], inTaiwanVisaRecords:[], inTaiwanCareRecords:[], internshipDocs:[], housingRecords:[], dormitories:[], meetings:[], bonuses:[], clientBillingRecords:[], clientFeeSetupRecords:[], internalFeeSetupRecords:[], users:[], roleMatrix:null };
 let permissions = {};
 let currentPage = 'dashboard';
 
@@ -306,6 +306,7 @@ async function loadAll(){
     state.inTaiwanCareRecords = data.inTaiwanCareRecords;
     state.internshipDocs = data.internshipDocs;
     state.housingRecords = data.housingRecords;
+    state.dormitories = data.dormitories;
     state.meetings = data.meetings;
     state.bonuses = data.bonuses;
     state.clientBillingRecords = data.clientBillingRecords;
@@ -388,6 +389,7 @@ const NAV_STRUCTURE = [
   ]},
   {type:'item', page:'managerReport', label:'主管報表', icon:'▲'},
   {type:'item', page:'housing', label:'住宿安排', icon:'⌂'},
+  {type:'item', page:'dormManagement', label:'宿舍管理', icon:'▤'},
   {type:'item', page:'meetings', label:'會議記錄', icon:'✎'},
   {type:'group', label:'會計專用', moduleKey:'bonus', items:[
     {page:'clientBilling', label:'客戶請款計算', icon:'⌗'},
@@ -475,6 +477,7 @@ function render(){
   if(currentPage==='inTaiwanCare') root.innerHTML = renderInTaiwanCare();
   if(currentPage==='internshipDocs') root.innerHTML = renderInternshipDocs();
   if(currentPage==='housing') root.innerHTML = renderHousing();
+  if(currentPage==='dormManagement') root.innerHTML = renderDormManagement();
   if(currentPage==='meetings') root.innerHTML = renderMeetings();
   if(currentPage==='bonus') root.innerHTML = renderBonus();
   if(currentPage==='clientBilling') root.innerHTML = renderClientBilling();
@@ -2408,6 +2411,97 @@ function housingFormModal(existing){
 }
 
 /* =========================================================
+   DORMITORY MANAGEMENT (宿舍管理)
+========================================================= */
+const DORMITORY_FIELDS = [
+  {key:'id',label:'ID'},{key:'name',label:'宿舍名稱'},{key:'location',label:'地點'},
+  {key:'leaseStart',label:'起租日'},{key:'leaseEnd',label:'退租日'},
+  {key:'deposit',label:'押金金額'},{key:'agentFee',label:'房仲費金額'},{key:'rent',label:'租金金額'},
+  {key:'capacity',label:'可住人數'},{key:'waterFee',label:'當月水費'},{key:'electricityFee',label:'當月電費'},
+  {key:'notes',label:'備註'}
+];
+let dormManagementSearchQuery = '';
+let dormManagementMonth = '';
+
+function renderDormManagement(){
+  const editable = canEdit('dormManagement');
+  if(!dormManagementMonth) dormManagementMonth = currentMonthStr();
+  const query = dormManagementSearchQuery.trim().toLowerCase();
+  const filtered = state.dormitories.filter(d=>{
+    if(!query) return true;
+    const text = `${d.name||''} ${d.location||''}`.toLowerCase();
+    return text.includes(query);
+  });
+  const rows = filtered.map(d=>`<tr>
+    <td style="font-weight:600;">${d.name||'—'}</td>
+    <td>${d.location||'—'}</td>
+    <td>${d.leaseStart||'—'}</td>
+    <td>${d.leaseEnd||'—'}</td>
+    <td>${d.deposit||'—'}</td>
+    <td>${d.agentFee||'—'}</td>
+    <td>${d.rent||'—'}</td>
+    <td>${d.capacity||'—'}</td>
+    <td>${d.waterFee||'—'}</td>
+    <td>${d.electricityFee||'—'}</td>
+    <td>${d.notes||'—'}</td>
+    <td>${editable ? `<div class="row-actions">
+      <button class="btn small ghost" data-edit-dormitory="${d.id}">編輯</button>
+      <button class="btn small danger-ghost" data-del-dormitory="${d.id}">刪除</button>
+    </div>` : ''}</td>
+  </tr>`).join('');
+
+  return `
+    <div class="page-head">
+      <div><h1>宿舍管理</h1><div class="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費與當月水電費${editable?'':'（唯讀）'}</div></div>
+      ${editable ? '<button class="btn" id="btn-add-dormitory">+ 新增宿舍</button>' : ''}
+      ${importExportButtonsHTML('dormitory', editable)}
+    </div>
+    ${editable ? `<div class="split-note" style="margin-top:-14px;margin-bottom:16px;">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。</div>` : ''}
+    <div class="toolbar">
+      <input type="text" id="dormitory-search" placeholder="搜尋宿舍名稱或地點…" value="${dormManagementSearchQuery}" style="min-width:260px;">
+      <input type="month" id="dormitory-month" value="${dormManagementMonth}">
+      <button class="btn secondary" id="btn-download-dormitory-month">下載本月清單</button>
+    </div>
+    <div class="panel"><div class="table-wrap"><table>
+      <thead><tr><th>宿舍名稱</th><th>地點</th><th>起租日</th><th>退租日</th><th>押金金額</th><th>房仲費金額</th><th>租金金額</th><th>可住人數</th><th>當月水費</th><th>當月電費</th><th>備註</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="12"><div class="empty-note">${query?'沒有符合搜尋條件的宿舍。':'尚無宿舍資料，點選「新增宿舍」開始建立。'}</div></td></tr>`}</tbody>
+    </table></div></div>
+  `;
+}
+
+function dormitoryFormModal(existing){
+  const d = existing || {name:'',location:'',leaseStart:'',leaseEnd:'',deposit:'',agentFee:'',rent:'',capacity:'',waterFee:'',electricityFee:'',notes:''};
+  return `
+    <h2>${existing?'編輯宿舍':'新增宿舍'}</h2>
+    <form id="dormitory-form">
+      <div class="field"><label>宿舍名稱</label><input type="text" name="name" value="${d.name||''}" required></div>
+      <div class="field"><label>地點</label><input type="text" name="location" value="${d.location||''}"></div>
+      <div class="field-row">
+        <div class="field"><label>起租日</label><input type="date" name="leaseStart" value="${d.leaseStart||''}"></div>
+        <div class="field"><label>退租日</label><input type="date" name="leaseEnd" value="${d.leaseEnd||''}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>押金金額</label><input type="number" name="deposit" min="0" step="1" value="${d.deposit||''}"></div>
+        <div class="field"><label>房仲費金額</label><input type="number" name="agentFee" min="0" step="1" value="${d.agentFee||''}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>租金金額</label><input type="number" name="rent" min="0" step="1" value="${d.rent||''}"></div>
+        <div class="field"><label>可住人數</label><input type="number" name="capacity" min="0" step="1" value="${d.capacity||''}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>當月水費</label><input type="number" name="waterFee" min="0" step="1" value="${d.waterFee||''}"></div>
+        <div class="field"><label>當月電費</label><input type="number" name="electricityFee" min="0" step="1" value="${d.electricityFee||''}"></div>
+      </div>
+      <div class="field"><label>備註</label><textarea name="notes">${d.notes||''}</textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="modal-cancel">取消</button>
+        <button type="submit" class="btn">${existing?'儲存變更':'新增宿舍'}</button>
+      </div>
+    </form>
+  `;
+}
+
+/* =========================================================
    STUDENT SELF-PAY HOUSING (學生自付宿舍)
 ========================================================= */
 let studentSelfPayHousingSearchQuery = '';
@@ -4081,6 +4175,58 @@ function attachPageEvents(){
   wireGenericImportExport('housing',
     ()=>exportEntityCSV(state.housingRecords, HOUSING_FIELDS, '住宿安排', [{label:'學生（參考用）', compute:h=>studentFullLabel(studentById(h.studentId))}]),
     {fields:HOUSING_FIELDS, fkValidators:[{key:'studentId', validate:v=>!!studentById(v)}], currentCount:state.housingRecords.length, entityLabel:'住宿紀錄', importFnName:'importHousingRecordsOverwrite'}
+  );
+
+  // Dormitory management
+  const addDormitoryBtn = document.getElementById('btn-add-dormitory');
+  if(addDormitoryBtn) addDormitoryBtn.addEventListener('click', ()=>{
+    openModal(dormitoryFormModal(null));
+    document.getElementById('dormitory-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const form = e.target; setFormBusy(form, true);
+      try{ await gsRun('addDormitory', authToken, formToObject(form)); closeModal(); await loadAll(); }
+      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+    });
+  });
+  document.querySelectorAll('[data-edit-dormitory]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const d = state.dormitories.find(x=>x.id===b.dataset.editDormitory);
+      openModal(dormitoryFormModal(d));
+      document.getElementById('dormitory-form').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const form = e.target; setFormBusy(form, true);
+        try{ await gsRun('updateDormitory', authToken, d.id, formToObject(form)); closeModal(); await loadAll(); }
+        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      });
+    });
+  });
+  document.querySelectorAll('[data-del-dormitory]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('確定要刪除這筆宿舍紀錄嗎？')) return;
+      try{ await gsRun('deleteDormitory', authToken, b.dataset.delDormitory); await loadAll(); }
+      catch(err){ alert(errMsg(err)); }
+    });
+  });
+  const dormMonthInput = document.getElementById('dormitory-month');
+  if(dormMonthInput){
+    dormMonthInput.addEventListener('change', ()=>{
+      dormManagementMonth = dormMonthInput.value || currentMonthStr();
+      render();
+    });
+  }
+  wireSearchInput('dormitory-search', v=>{ dormManagementSearchQuery = v; });
+  const downloadDormMonthBtn = document.getElementById('btn-download-dormitory-month');
+  if(downloadDormMonthBtn) downloadDormMonthBtn.addEventListener('click', ()=>{
+    const range = monthRange(dormManagementMonth);
+    const activeDorms = state.dormitories.filter(d=> range && dateOverlapDays(range.start, range.end, d.leaseStart, d.leaseEnd) > 0);
+    const exportFields = DORMITORY_FIELDS.filter(f=>f.key!=='id');
+    const header = exportFields.map(f=>f.label);
+    const csvRows = activeDorms.map(d=> exportFields.map(f=>d[f.key]||''));
+    downloadCalcReportCSV(header, csvRows, '宿舍管理', dormManagementMonth);
+  });
+  wireGenericImportExport('dormitory',
+    ()=>exportEntityCSV(state.dormitories, DORMITORY_FIELDS, '宿舍管理'),
+    {fields:DORMITORY_FIELDS, fkValidators:null, currentCount:state.dormitories.length, entityLabel:'宿舍', importFnName:'importDormitoriesOverwrite'}
   );
 
   // Manager report

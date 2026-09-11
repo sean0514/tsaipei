@@ -65,6 +65,13 @@ var SHEET_FIELDS = {
     {key:'payer',label:'付款方式'},
     {key:'checkIn',label:'入住日'},{key:'checkOut',label:'退宿日'},{key:'completed',label:'已完成'},{key:'notes',label:'備註'}
   ],
+  Dormitories: [
+    {key:'id',label:'ID'},{key:'name',label:'宿舍名稱'},{key:'location',label:'地點'},
+    {key:'leaseStart',label:'起租日'},{key:'leaseEnd',label:'退租日'},
+    {key:'deposit',label:'押金金額'},{key:'agentFee',label:'房仲費金額'},{key:'rent',label:'租金金額'},
+    {key:'capacity',label:'可住人數'},{key:'waterFee',label:'當月水費'},{key:'electricityFee',label:'當月電費'},
+    {key:'notes',label:'備註'}
+  ],
   Meetings: [
     {key:'id',label:'ID'},{key:'date',label:'會議日期'},{key:'title',label:'會議主題'},
     {key:'host',label:'主持人'},{key:'attendees',label:'出席人員'},
@@ -148,6 +155,7 @@ var DEFAULT_PERMISSIONS = {
   inTaiwanTracking: {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
   internshipDocs: {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
   housing:   {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+  dormManagement: {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
   meetings:  {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'view','會計人員':'view','宿管人員':'view'},
   bonus:     {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
   users:     {'系統管理員':'edit','主管':'view','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
@@ -427,6 +435,7 @@ function getAllData(token){
     inTaiwanCareRecords: perms.inTaiwanTracking !== 'none' ? readAll_('InTaiwanCare') : [],
     internshipDocs: perms.internshipDocs !== 'none' ? readAll_('InternshipDocs') : [],
     housingRecords: perms.housing !== 'none' ? readAll_('HousingRecords') : [],
+    dormitories: perms.dormManagement !== 'none' ? readAll_('Dormitories') : [],
     meetings: perms.meetings !== 'none' ? readAll_('Meetings') : [],
     bonuses: perms.bonus !== 'none' ? readAll_('Bonuses') : [],
     clientBillingRecords: perms.bonus !== 'none' ? readAll_('ClientBilling') : [],
@@ -579,6 +588,7 @@ function importSheetOverwrite_(sheetName, rows){
 }
 function importPositionsOverwrite(token, rows){ requireEdit_(token,'matching'); return importSheetOverwrite_('Positions', rows); }
 function importHousingRecordsOverwrite(token, rows){ requireEdit_(token,'housing'); return importSheetOverwrite_('HousingRecords', rows); }
+function importDormitoriesOverwrite(token, rows){ requireEdit_(token,'dormManagement'); return importSheetOverwrite_('Dormitories', rows); }
 function importMeetingsOverwrite(token, rows){ requireEdit_(token,'meetings'); return importSheetOverwrite_('Meetings', rows); }
 function importBonusesOverwrite(token, rows){ requireEdit_(token,'bonus'); return importSheetOverwrite_('Bonuses', rows); }
 function importClientBillingOverwrite(token, rows){ requireEdit_(token,'bonus'); return importSheetOverwrite_('ClientBilling', rows); }
@@ -842,6 +852,12 @@ function addHousingRecord(token, data){ requireEdit_(token,'housing'); return in
 function updateHousingRecord(token, id, data){ requireEdit_(token,'housing'); return updateRow_('HousingRecords', id, data); }
 function deleteHousingRecord(token, id){ requireEdit_(token,'housing'); return deleteRow_('HousingRecords', id); }
 
+/* ---------------------------------------------------------
+   10a. 宿舍管理 CRUD
+--------------------------------------------------------- */
+function addDormitory(token, data){ requireEdit_(token,'dormManagement'); return insertRow_('Dormitories', data); }
+function updateDormitory(token, id, data){ requireEdit_(token,'dormManagement'); return updateRow_('Dormitories', id, data); }
+function deleteDormitory(token, id){ requireEdit_(token,'dormManagement'); return deleteRow_('Dormitories', id); }
 
 /* ---------------------------------------------------------
    10b. 會議記錄 CRUD
