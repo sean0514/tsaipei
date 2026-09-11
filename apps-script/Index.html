@@ -970,6 +970,7 @@ function renderPositions(){
       <td>${matchCount} / ${totalHeadcount||'—'}</td>
       <td>${editable ? `<div class="row-actions">
         <button class="btn small ghost" data-edit-position="${p.id}">編輯</button>
+        <button class="btn small ghost" data-copy-position="${p.id}">複製</button>
         <button class="btn small danger-ghost" data-del-position="${p.id}">刪除</button>
       </div>` : ''}</td>
     </tr>`;
@@ -1109,8 +1110,9 @@ function positionFormModal(existing){
   const p = existing || {projectCode:'',company:'',industry:'',title:'',description:'',locationGroups:'[]',stipendAmount:'',boardDeduction:'',otherBenefits:'',specialNotes:'',
     bizDev:'',serviceSupervisor:'',serviceSpecialist:'',translationSupervisor:'',translationSpecialist:'',adminSupervisor:'',adminSpecialist:'',
     accountant:'',accountantAssistant:'',dormManager1:'',dormManager2:''};
+  const isEdit = existing && existing.id;
   return `
-    <h2>${existing?'編輯職缺':'新增職缺'}</h2>
+    <h2>${isEdit?'編輯職缺':(existing?'複製職缺（新增）':'新增職缺')}</h2>
     <div class="modal-sub">登錄合作企業釋出的實習職缺</div>
     <form id="position-form">
       <div class="field"><label>專案編號</label><input type="text" name="projectCode" value="${p.projectCode||''}"></div>
@@ -1161,7 +1163,7 @@ function positionFormModal(existing){
 
       <div class="modal-actions">
         <button type="button" class="btn ghost" id="modal-cancel">取消</button>
-        <button type="submit" class="btn">${existing?'儲存變更':'新增職缺'}</button>
+        <button type="submit" class="btn">${isEdit?'儲存變更':'新增職缺'}</button>
       </div>
     </form>
   `;
@@ -3711,6 +3713,24 @@ function attachPageEvents(){
         data.locationGroups = collectLocationGroups(form);
         data.otherBenefits = collectBenefits(form);
         try{ await gsRun('updatePosition', authToken, p.id, data); closeModal(); await loadAll(); }
+        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      });
+    });
+  });
+  document.querySelectorAll('[data-copy-position]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const p = positionById(b.dataset.copyPosition);
+      const clone = Object.assign({}, p, {id: undefined});
+      openModal(positionFormModal(clone));
+      wireLocationGroups(clone.locationGroups || '[]');
+      wireBenefitsList(clone.otherBenefits || '');
+      document.getElementById('position-form').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const form = e.target; setFormBusy(form, true);
+        const data = formToObject(form);
+        data.locationGroups = collectLocationGroups(form);
+        data.otherBenefits = collectBenefits(form);
+        try{ await gsRun('addPosition', authToken, data); closeModal(); await loadAll(); }
         catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
       });
     });
