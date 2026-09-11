@@ -113,6 +113,16 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('meetings');
     }
+    // 內部獎金計算/客戶費用建檔/內部費用建檔 share the 'bonus' permission
+    // module (matches the original app's pageModuleKey mapping).
+    match /tsaipei_internalFeeSetup/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
+    match /tsaipei_clientFeeSetup/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {

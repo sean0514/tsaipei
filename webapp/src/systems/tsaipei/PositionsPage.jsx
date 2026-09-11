@@ -3,9 +3,6 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 
-// apps-script/Code.gs SHEET_FIELDS.Positions — role-assignment fields
-// (bizDev..dormManager2) omitted for now; add them the same way once the
-// 內部獎金計算 module that reads them gets ported.
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
   { key: 'company', label: '公司名稱', required: true },
@@ -15,6 +12,22 @@ const FIELDS = [
   { key: 'stipendAmount', label: '實習津貼金額', type: 'number' },
   { key: 'boardDeduction', label: '膳宿費扣款金額', type: 'number' },
   { key: 'specialNotes', label: '特殊備註' },
+];
+
+// 內部獎金計算讀取的角色指派欄位（跟指派人員的名字綁在一起，用來對照領錢的人）——
+// 跟 lib/bonus.js 的 BONUS_ROLE_KEYS/BONUS_ROLE_LABELS 保持一致。
+export const ROLE_FIELDS = [
+  { key: 'bizDev', label: '開發業務' },
+  { key: 'serviceSupervisor', label: '服務主管' },
+  { key: 'serviceSpecialist', label: '服務專員' },
+  { key: 'translationSupervisor', label: '翻譯主管' },
+  { key: 'translationSpecialist', label: '翻譯專員' },
+  { key: 'adminSupervisor', label: '行政主管' },
+  { key: 'adminSpecialist', label: '行政專員' },
+  { key: 'accountant', label: '會計人員' },
+  { key: 'accountantAssistant', label: '會計助理' },
+  { key: 'dormManager1', label: '宿管人員1' },
+  { key: 'dormManager2', label: '宿管人員2' },
 ];
 
 export default function PositionsPage() {
@@ -112,6 +125,15 @@ function PositionFormModal({ initial, onCancel, onSave }) {
               <label key={f.key}>
                 {f.label}
                 <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+              </label>
+            ))}
+          </div>
+          <h4>角色指派（內部獎金計算對照用）</h4>
+          <div className="form-grid">
+            {ROLE_FIELDS.map((f) => (
+              <label key={f.key}>
+                {f.label}
+                <input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </label>
             ))}
           </div>

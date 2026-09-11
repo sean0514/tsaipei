@@ -10,7 +10,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
-    'dormManagement', 'meetings', 'users',
+    'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport',
   ],
   foodfactory: ['inventory'],
 };
@@ -30,6 +30,11 @@ const GROUP_ROUTES = {
     inTaiwanTracking: [
       { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
       { route: 'inTaiwanCare', label: '在台關懷紀錄' },
+    ],
+    bonus: [
+      { route: 'bonus', label: '內部獎金計算' },
+      { route: 'clientFeeSetup', label: '客戶費用建檔' },
+      { route: 'internalFeeSetup', label: '內部費用建檔' },
     ],
   },
 };

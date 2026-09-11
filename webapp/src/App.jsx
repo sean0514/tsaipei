@@ -17,6 +17,10 @@ import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
 import UsersPage from './systems/tsaipei/UsersPage';
 import DashboardPage from './systems/tsaipei/DashboardPage';
+import BonusPage from './systems/tsaipei/BonusPage';
+import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
+import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
+import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 
 function RequireAuth({ children }) {
@@ -42,6 +46,10 @@ const PAGES = {
     dormManagement: DormManagementPage,
     meetings: MeetingsPage,
     users: UsersPage,
+    bonus: BonusPage,
+    clientFeeSetup: ClientFeeSetupPage,
+    internalFeeSetup: InternalFeeSetupPage,
+    managerReport: ManagerReportPage,
   },
   foodfactory: { inventory: InventoryPage },
 };
