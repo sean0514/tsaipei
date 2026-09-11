@@ -69,8 +69,12 @@ var SHEET_FIELDS = {
     {key:'id',label:'ID'},{key:'name',label:'宿舍名稱'},{key:'location',label:'地點'},
     {key:'leaseStart',label:'起租日'},{key:'leaseEnd',label:'退租日'},
     {key:'deposit',label:'押金金額'},{key:'agentFee',label:'房仲費金額'},{key:'rent',label:'租金金額'},
-    {key:'capacity',label:'可住人數'},{key:'waterFee',label:'當月水費'},{key:'electricityFee',label:'當月電費'},
+    {key:'capacity',label:'可住人數'},{key:'waterFee',label:'當月水費（已改用「宿舍水電費」按月記錄，此欄保留供舊資料相容）'},{key:'electricityFee',label:'當月電費（已改用「宿舍水電費」按月記錄，此欄保留供舊資料相容）'},
     {key:'notes',label:'備註'}
+  ],
+  DormitoryUtilities: [
+    {key:'id',label:'ID'},{key:'dormitoryId',label:'宿舍ID'},{key:'month',label:'月份'},
+    {key:'waterFee',label:'水費'},{key:'electricityFee',label:'電費'}
   ],
   Meetings: [
     {key:'id',label:'ID'},{key:'date',label:'會議日期'},{key:'title',label:'會議主題'},
@@ -436,6 +440,7 @@ function getAllData(token){
     internshipDocs: perms.internshipDocs !== 'none' ? readAll_('InternshipDocs') : [],
     housingRecords: perms.housing !== 'none' ? readAll_('HousingRecords') : [],
     dormitories: perms.dormManagement !== 'none' ? readAll_('Dormitories') : [],
+    dormitoryUtilities: perms.dormManagement !== 'none' ? readAll_('DormitoryUtilities') : [],
     meetings: perms.meetings !== 'none' ? readAll_('Meetings') : [],
     bonuses: perms.bonus !== 'none' ? readAll_('Bonuses') : [],
     clientBillingRecords: perms.bonus !== 'none' ? readAll_('ClientBilling') : [],
@@ -858,6 +863,18 @@ function deleteHousingRecord(token, id){ requireEdit_(token,'housing'); return d
 function addDormitory(token, data){ requireEdit_(token,'dormManagement'); return insertRow_('Dormitories', data); }
 function updateDormitory(token, id, data){ requireEdit_(token,'dormManagement'); return updateRow_('Dormitories', id, data); }
 function deleteDormitory(token, id){ requireEdit_(token,'dormManagement'); return deleteRow_('Dormitories', id); }
+
+function saveDormitoryUtility(token, dormitoryId, month, data){
+  requireEdit_(token,'dormManagement');
+  var all = readAll_('DormitoryUtilities');
+  var existing = null;
+  for(var i=0;i<all.length;i++){
+    if(all[i].dormitoryId === dormitoryId && all[i].month === month){ existing = all[i]; break; }
+  }
+  var payload = {dormitoryId: dormitoryId, month: month, waterFee: data.waterFee, electricityFee: data.electricityFee};
+  if(existing) return updateRow_('DormitoryUtilities', existing.id, payload);
+  return insertRow_('DormitoryUtilities', payload);
+}
 
 /* ---------------------------------------------------------
    10b. 會議記錄 CRUD
