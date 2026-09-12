@@ -206,10 +206,10 @@ function LocationGroupsEditor({ groups, onChange }) {
               </select>
             </label>
           </div>
-          <button type="button" className="primary" onClick={() => removeRow(i)} style={{ marginTop: 8 }}>移除</button>
+          <button type="button" className="primary small" onClick={() => removeRow(i)} style={{ marginTop: 8 }}>移除</button>
         </div>
       ))}
-      <button type="button" className="primary" onClick={addRow}>新增地點</button>
+      <button type="button" className="primary small" onClick={addRow}>新增地點</button>
     </div>
   );
 }
