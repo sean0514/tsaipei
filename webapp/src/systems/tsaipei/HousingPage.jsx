@@ -21,6 +21,7 @@ export default function HousingPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
@@ -33,8 +34,14 @@ export default function HousingPage() {
     return '住宿中';
   }
 
+  const query = q.trim().toLowerCase();
   const groups = { 未安排: [], 住宿中: [], 已離宿: [] };
-  rows.forEach((r) => { const c = classify(r); if (c) groups[c].push(r); });
+  rows.forEach((r) => {
+    const c = classify(r);
+    if (!c) return;
+    if (query && !`${studentName(r.studentId)} ${r.type || ''}`.toLowerCase().includes(query)) return;
+    groups[c].push(r);
+  });
 
   async function handleSave(data) {
     if (data.id) {
@@ -55,6 +62,7 @@ export default function HousingPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      <input placeholder="搜尋學生或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>{label}（{list.length}）</h3>

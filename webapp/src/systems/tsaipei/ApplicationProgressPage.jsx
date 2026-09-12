@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -25,8 +26,11 @@ export default function ApplicationProgressPage() {
   const { rows, loading, update } = useCollection('tsaipei_applicationProgress');
   const { rows: students } = useCollection('tsaipei_students');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
+  const [q, setQ] = useState('');
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || studentName(r.studentId).toLowerCase().includes(query));
 
   // 進度到達「入台」時自動建立在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本
   // Apps Script 版的 ensureInTaiwanVisaForStudent 一致 —— 住宿安排的自動建立
@@ -51,11 +55,12 @@ export default function ApplicationProgressPage() {
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
       <div className="card">
+        <input placeholder="搜尋學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>學生</th><th>目前進度</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => {
+              {filteredRows.map((r) => {
                 const idx = STAGES.indexOf(r.currentStage);
                 return (
                   <tr key={r.id}>
@@ -72,7 +77,7 @@ export default function ApplicationProgressPage() {
                   </tr>
                 );
               })}
-              {rows.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
