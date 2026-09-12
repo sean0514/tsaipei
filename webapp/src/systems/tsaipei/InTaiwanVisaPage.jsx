@@ -72,7 +72,7 @@ export default function InTaiwanVisaPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>學生</th>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {visible.map((r) => (
@@ -94,7 +94,7 @@ export default function InTaiwanVisaPage() {
               ))}
               {visible.length === 0 && <tr><td colSpan={FIELDS.length + 3} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <VisaFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}

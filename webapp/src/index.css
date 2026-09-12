@@ -119,11 +119,11 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .content { padding: 24px; flex: 1; }
 
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
-/* Only cards that actually hold a table get horizontal scroll — applying
-   this to every .card (stat tiles, bar-chart cards, modals) was forcing
-   their width down and wrapping/squeezing content that was never meant to
-   scroll (回報「編排跑掉了」). */
-.card:has(table) { overflow-x: auto; }
+/* Matches the original app's .table-wrap: only the table itself scrolls
+   horizontally when it doesn't fit, not the whole card (stat tiles,
+   bar-chart cards, modals never needed this and previously got squeezed
+   by a blanket `.card { overflow-x: auto }` / `:has()` rule). */
+.table-wrap { overflow-x: auto; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { font-family: var(--heading-font); margin: 0; font-size: 20px; }
 

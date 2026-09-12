@@ -45,7 +45,7 @@ export default function MeetingsPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>日期</th><th>主題</th><th>主持人</th><th>出席人員</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
@@ -64,7 +64,7 @@ export default function MeetingsPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <MeetingFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}

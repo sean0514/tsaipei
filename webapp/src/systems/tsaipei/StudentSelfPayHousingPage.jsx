@@ -82,7 +82,7 @@ export default function StudentSelfPayHousingPage() {
             {groupKeys.map((key) => (
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
-                <table>
+                <div className="table-wrap"><table>
                   <thead><tr><th>學生</th><th>宿舍名稱</th><th>地址</th><th>宿舍管理員</th><th>入住期間</th></tr></thead>
                   <tbody>
                     {groups[key].map((h) => (
@@ -95,7 +95,7 @@ export default function StudentSelfPayHousingPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             ))}
           </div>

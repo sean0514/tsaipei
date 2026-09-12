@@ -48,7 +48,7 @@ export default function UsersPage() {
           複製它的 UID 貼在這裡，才能指定這個人在本系統的角色。
         </p>
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>Email</th><th>姓名</th><th>角色</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
@@ -67,14 +67,14 @@ export default function UsersPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>角色權限說明</h3>
         <p className="muted">點擊儲存格可循環切換「編輯 → 檢視 → 無 → 編輯」。系統管理員固定全模組編輯，不可調整。</p>
-        <table>
+        <div className="table-wrap"><table>
           <thead>
             <tr>
               <th>模組</th>
@@ -98,7 +98,7 @@ export default function UsersPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {editing && <UserFormModal roles={sys.roles} onCancel={() => setEditing(null)} onSave={createUser} />}

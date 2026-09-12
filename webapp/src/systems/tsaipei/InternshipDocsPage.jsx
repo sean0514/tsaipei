@@ -107,7 +107,7 @@ export default function InternshipDocsPage() {
                   <h4 style={{ margin: 0 }}>{studentName(studentId)} {allDone && <span className="muted">（已完成繳交）</span>}</h4>
                   {canEditPage && !allDone && <button onClick={() => confirmAll(studentId, docs)}>全部核准</button>}
                 </div>
-                <table>
+                <div className="table-wrap"><table>
                   <thead><tr><th>文件類型</th><th>狀態</th><th>額外資訊</th><th>收件日期</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {docs.map((d) => (
@@ -151,7 +151,7 @@ export default function InternshipDocsPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             );
           })

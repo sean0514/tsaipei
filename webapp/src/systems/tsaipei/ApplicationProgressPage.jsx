@@ -52,7 +52,7 @@ export default function ApplicationProgressPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>學生</th><th>目前進度</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => {
@@ -74,7 +74,7 @@ export default function ApplicationProgressPage() {
               })}
               {rows.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

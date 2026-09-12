@@ -76,7 +76,7 @@ export default function DormManagementPage() {
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead>
               <tr>
                 <th>宿舍名稱</th><th>地點</th><th>起租日</th><th>退租日</th><th>可住人數</th>
@@ -108,7 +108,7 @@ export default function DormManagementPage() {
               })}
               {filtered.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <DormFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
