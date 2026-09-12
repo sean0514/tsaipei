@@ -64,12 +64,16 @@ export default function DormManagementPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>宿舍管理</h2>
+        <div>
+          <h2>宿舍管理</h2>
+          <div className="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的水電費{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增宿舍</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增宿舍</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。水電費請改用清單上的「填寫水電費」依月份個別輸入。</p>}
       <div className="card">
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <input placeholder="搜尋名稱/地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />

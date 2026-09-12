@@ -24,7 +24,7 @@ export default function BonusPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>內部獎金計算</h2></div>
+      <div className="page-header"><div><h2>內部獎金計算</h2><div className="page-desc">依月份自動試算：內部費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總</div></div></div>
       <p className="muted">依月份自動試算：內部費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總。</p>
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />

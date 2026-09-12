@@ -36,12 +36,16 @@ export default function InternalFeeSetupPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>內部費用建檔</h2>
+        <div>
+          <h2>內部費用建檔</h2>
+          <div className="page-desc">依專案設定各客戶底下各職務的內部費用金額{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增費率</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增費率</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有內部費用設定，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「內部獎金計算」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
         <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />

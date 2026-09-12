@@ -172,9 +172,13 @@ export default function InternshipDocsPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>實習文件追蹤</h2>
+        <div>
+          <h2>實習文件追蹤</h2>
+          <div className="page-desc">追蹤每位學生的實習相關文件收件狀況（學生確認錄取後會自動加入此清單）{!canEditPage && '（唯讀）'}</div>
+        </div>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有文件追蹤資料，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或客戶/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

@@ -66,12 +66,16 @@ export default function InTaiwanVisaPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>在台簽證追蹤</h2>
+        <div>
+          <h2>在台簽證追蹤</h2>
+          <div className="page-desc">追蹤學生入出境與簽證換發時間（確認離台後將自動從此列表移除）{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有在台簽證追蹤資料，請先下載備份再匯入。</p>}
       <div className="card">
         <input placeholder="搜尋學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

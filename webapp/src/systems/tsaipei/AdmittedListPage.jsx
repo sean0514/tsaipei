@@ -77,9 +77,13 @@ export default function AdmittedListPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>錄取名單</h2>
+        <div>
+          <h2>錄取名單</h2>
+          <div className="page-desc">記錄最終確定錄取的學生（二面進度標記「通過」會自動加入此清單）{!canEditPage && '（唯讀）'}</div>
+        </div>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「媒合紀錄ID」欄位）；上傳後會完全取代目前所有錄取名單資料，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生姓名或公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections

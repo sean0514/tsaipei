@@ -36,12 +36,16 @@ export default function InTaiwanCarePage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>在台關懷紀錄</h2>
+        <div>
+          <h2>在台關懷紀錄</h2>
+          <div className="page-desc">記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有在台關懷紀錄，請先下載備份再匯入。</p>}
       <div className="card">
         <input placeholder="搜尋學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

@@ -84,7 +84,7 @@ export default function ManagerReportPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>主管報表</h2></div>
+      <div className="page-header"><div><h2>主管報表</h2><div className="page-desc">跨模組彙整的整體營運數據總覽</div></div></div>
       {canSeeFinance && (
         <>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />

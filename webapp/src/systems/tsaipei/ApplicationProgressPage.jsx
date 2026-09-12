@@ -117,12 +117,16 @@ export default function ApplicationProgressPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>申辦進度追蹤</h2>
+        <div>
+          <h2>申辦進度追蹤</h2>
+          <div className="page-desc">依客戶分類，追蹤每位學生從錄取到入台的整體申辦流程{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({ currentStage: STAGES[0] })}>新增進度紀錄</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ currentStage: STAGES[0] })}>+ 新增進度紀錄</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         filteredRows.length === 0 ? <p className="muted">尚無進度紀錄。學生「確認錄取」後會自動建立，也可以點選「新增進度紀錄」手動加入。</p> : (
