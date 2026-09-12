@@ -87,7 +87,9 @@ export default function StudentsPage() {
       await update(id, rest);
     } else {
       const ref = await add({ ...data, createdAt: serverTimestamp() });
-      await addDoc(collection(db, 'tsaipei_matches'), { studentId: ref.id, positionId: '', status: '媒合中' });
+      await addDoc(collection(db, 'tsaipei_matches'), {
+        studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）',
+      });
     }
     setEditing(null);
   }
@@ -123,7 +125,7 @@ export default function StudentsPage() {
       <div className="page-header">
         <h2>學生資料</h2>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增學生</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>新增學生</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
