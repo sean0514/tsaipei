@@ -46,6 +46,18 @@ function parseLocationGroups(json) {
   } catch { return []; }
 }
 
+// 依現有專案編號的規則（前綴 + 數字結尾）猜下一個編號，方便新增職缺時不用每次手動累加。
+function suggestNextProjectCode(rows) {
+  const codes = rows.map((r) => r.projectCode).filter(Boolean);
+  if (!codes.length) return '';
+  const latest = codes.slice().sort().pop();
+  const m = latest.match(/^(.*?)(\d+)$/);
+  if (!m) return '';
+  const [, prefix, digits] = m;
+  const next = String(Number(digits) + 1).padStart(digits.length, '0');
+  return `${prefix}${next}`;
+}
+
 function positionRowInfo(p, matches) {
   const groups = parseLocationGroups(p.locationGroups);
   const totalHeadcount = groups.reduce((sum, g) => sum + (Number(g.headcount) || 0), 0);
@@ -76,8 +88,10 @@ export default function PositionsPage() {
   }
 
   function copyAsNew(row) {
+    // 只留 rest（不含 id），不要再把 id: undefined 塞回去 —— Firestore 的
+    // addDoc 不接受欄位值是 undefined，之前這樣寫會讓「複製」存檔直接失敗。
     const { id, ...rest } = row;
-    setEditing({ ...rest, id: undefined });
+    setEditing(rest);
   }
 
   function renderRows(list) {
@@ -116,7 +130,7 @@ export default function PositionsPage() {
       <div className="page-header">
         <h2>實習單位</h2>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增職缺</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ projectCode: suggestNextProjectCode(rows) })}>新增職缺</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
