@@ -49,7 +49,7 @@ export default function ClientFeeSetupPage() {
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
@@ -66,7 +66,7 @@ export default function ClientFeeSetupPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <ClientFeeFormModal initial={editing} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}

@@ -40,7 +40,7 @@ export default function ClientBillingPage() {
       <p className="muted">依月份自動試算：依「實習單位（專案編號＋客戶）」把所有學生當月在台天數加總，乘以客戶費用建檔的月費率÷當月天數。</p>
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
       <div className="card" style={{ overflowX: 'auto' }}>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費</th><th>服務費</th><th>宿舍費</th><th>宿管費</th><th>合計</th><th>在台總天數</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
@@ -61,7 +61,7 @@ export default function ClientBillingPage() {
             })}
             {rows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

@@ -75,7 +75,7 @@ export default function StudentMasterSheetPage() {
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead>
               <tr>
                 <th>廠商</th><th>專案類別</th><th>姓名</th><th>護照</th><th>性別</th><th>入境日</th><th>離境日</th>
@@ -100,7 +100,7 @@ export default function StudentMasterSheetPage() {
               ))}
               {filtered.length === 0 && <tr><td colSpan={11} className="muted">{query ? '沒有符合搜尋條件的學生。' : '目前沒有學生資料。'}</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

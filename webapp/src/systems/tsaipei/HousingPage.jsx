@@ -58,7 +58,7 @@ export default function HousingPage() {
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>{label}（{list.length}）</h3>
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>學生</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {list.map((r) => (
@@ -79,7 +79,7 @@ export default function HousingPage() {
               ))}
               {list.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ))}
       {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} onCancel={() => setEditing(null)} onSave={handleSave} />}

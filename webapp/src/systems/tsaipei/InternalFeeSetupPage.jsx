@@ -41,7 +41,7 @@ export default function InternalFeeSetupPage() {
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「內部獎金計算」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>專案編號</th><th>客戶</th>{ROLE_FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
@@ -59,7 +59,7 @@ export default function InternalFeeSetupPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={ROLE_FIELDS.length + 3} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <FeeFormModal initial={editing} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}

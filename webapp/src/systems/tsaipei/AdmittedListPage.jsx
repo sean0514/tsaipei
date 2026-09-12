@@ -65,7 +65,7 @@ export default function AdmittedListPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>媒合</th><th>錄取日期</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
@@ -83,7 +83,7 @@ export default function AdmittedListPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <AdmittedFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}

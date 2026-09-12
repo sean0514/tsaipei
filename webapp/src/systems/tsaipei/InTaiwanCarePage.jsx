@@ -42,7 +42,7 @@ export default function InTaiwanCarePage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>學生</th><th>關懷時間</th><th>內容</th><th>狀態</th><th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {visible.map((r) => (
@@ -66,7 +66,7 @@ export default function InTaiwanCarePage() {
               ))}
               {visible.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && <CareFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}

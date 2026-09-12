@@ -31,7 +31,7 @@ export default function BonusPage() {
         <input placeholder="搜尋客戶或專案編號" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
       </div>
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>客戶</th>{BONUS_ROLE_LABELS.map((l) => <th key={l}>{l}</th>)}<th>在台總天數</th></tr></thead>
           <tbody>
             {rows.map((r, i) => (
@@ -48,12 +48,12 @@ export default function BonusPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>依人員加總</h3>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>姓名</th><th>總額</th><th>明細</th></tr></thead>
           <tbody>
             {byPerson.map((p) => (
@@ -65,7 +65,7 @@ export default function BonusPage() {
             ))}
             {byPerson.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

@@ -64,7 +64,7 @@ export default function MatchesPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
+          <div className="table-wrap"><table>
             <thead>
               <tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr>
             </thead>
@@ -86,7 +86,7 @@ export default function MatchesPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && (
