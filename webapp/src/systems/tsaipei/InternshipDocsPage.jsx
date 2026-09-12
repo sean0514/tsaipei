@@ -131,8 +131,12 @@ export default function InternshipDocsPage() {
                           {d.docType === '語言能力證明' && (
                             canEditPage ? (
                               <div style={{ display: 'flex', gap: 6 }}>
-                                <input placeholder="類別" style={{ width: 90 }} value={d.langProofType || ''} onChange={(e) => handleUpdate(d, { langProofType: e.target.value })} />
-                                <input placeholder="等級" style={{ width: 70 }} value={d.langProofLevel || ''} onChange={(e) => handleUpdate(d, { langProofLevel: e.target.value })} />
+                                <select value={d.langProofType || ''} onChange={(e) => handleUpdate(d, { langProofType: e.target.value })}>
+                                  {['', '華語', '多益', '雅思'].map((o) => <option key={o} value={o}>{o || '未提供'}</option>)}
+                                </select>
+                                <select value={d.langProofLevel || ''} onChange={(e) => handleUpdate(d, { langProofLevel: e.target.value })}>
+                                  {['', 'A1', 'A2', 'B1'].map((o) => <option key={o} value={o}>{o || '未提供'}</option>)}
+                                </select>
                               </div>
                             ) : ([d.langProofType, d.langProofLevel].filter(Boolean).join(' / ') || '—')
                           )}
