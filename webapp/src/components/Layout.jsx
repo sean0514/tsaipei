@@ -87,7 +87,7 @@ export default function Layout() {
   return (
     <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}`}>
       <aside className="sidebar">
-        <h1>{sys.label}</h1>
+        <h1>{system === 'tsaipei' && '🌸 '}{sys.label}</h1>
         <div className="back"><Link to="/">← 切換系統</Link></div>
         <nav>
           {Object.entries(sys.modules).map(([key, label]) => {
