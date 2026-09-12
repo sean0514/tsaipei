@@ -7,8 +7,44 @@
   --accent: #2563eb;
   --accent-soft: #eaf1fe;
   --danger: #dc2626;
+  --sidebar-bg: var(--panel);
+  --sidebar-border: var(--border);
+  --sidebar-text: var(--text);
+  --sidebar-text-muted: var(--text-muted);
+  --sidebar-active-bg: var(--accent-soft);
+  --sidebar-active-text: var(--accent);
+  --heading-font: inherit;
+  --radius: 8px;
+  --radius-lg: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
 }
+
+/* 境外實習生管理系統：沿用原本 Apps Script 版的視覺風格（粉調配色、深梅紫
+   側邊欄、Noto Serif TC 標題），只在這個系統的頁面範圍內生效，不影響
+   食品工廠系統或登入/選系統頁。 */
+.theme-tsaipei {
+  --bg: #FDF3F7;
+  --panel: #FFFFFF;
+  --border: #F3D9E5;
+  --text: #523F4D;
+  --text-muted: #9C8399;
+  --accent: #EA82A3;
+  --accent-soft: #FDE7EE;
+  --danger: #E8828C;
+  --sidebar-bg: #5A3A56;
+  --sidebar-border: rgba(255,255,255,0.12);
+  --sidebar-text: #E3C2D6;
+  --sidebar-text-muted: #C79BB8;
+  --sidebar-active-bg: #EA82A3;
+  --sidebar-active-text: #ffffff;
+  --heading-font: 'Noto Serif TC', serif;
+  --radius: 12px;
+  --radius-lg: 12px;
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.theme-tsaipei button.primary { background: var(--accent); border-color: var(--accent); }
+.theme-tsaipei button.primary:hover { background: #C85D82; border-color: #C85D82; }
+.theme-tsaipei h2, .theme-tsaipei h3, .theme-tsaipei h4 { font-family: var(--heading-font); color: #C85D82; }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
@@ -19,7 +55,7 @@ button {
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--panel);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 6px 14px;
 }
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -29,7 +65,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 input, select, textarea {
   font: inherit;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 6px 10px;
   background: var(--panel);
   color: var(--text);
@@ -39,19 +75,20 @@ table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
 th { color: var(--text-muted); font-weight: 600; }
 
-.app-shell { display: flex; min-height: 100vh; }
+.app-shell { display: flex; min-height: 100vh; background: var(--bg); }
 .sidebar {
-  width: 220px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
+  width: 220px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
   display: flex; flex-direction: column; padding: 16px 0;
 }
-.sidebar h1 { font-size: 15px; padding: 0 16px 12px; margin: 0; border-bottom: 1px solid var(--border); }
+.sidebar h1 { font-family: var(--heading-font); font-size: 15px; padding: 0 16px 12px; margin: 0; border-bottom: 1px solid var(--sidebar-border); color: var(--sidebar-text); }
 .sidebar nav { flex: 1; overflow-y: auto; padding-top: 8px; }
 .sidebar a {
-  display: block; padding: 9px 16px; text-decoration: none; font-size: 14px; color: var(--text);
+  display: block; padding: 9px 16px; text-decoration: none; font-size: 14px; color: var(--sidebar-text); border-radius: var(--radius); margin: 0 8px; width: calc(100% - 16px);
 }
-.sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.sidebar a.disabled { color: #c3c7d1; pointer-events: none; }
+.sidebar a.active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); font-weight: 600; }
+.sidebar a.disabled { color: var(--sidebar-text-muted); pointer-events: none; opacity: .6; }
 .sidebar .back { padding: 0 16px 8px; font-size: 12px; }
+.sidebar .back a { display: inline; padding: 0; margin: 0; width: auto; border-radius: 0; color: var(--sidebar-text-muted); }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -60,9 +97,9 @@ th { color: var(--text-muted); font-weight: 600; }
 }
 .content { padding: 24px; flex: 1; }
 
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h2 { margin: 0; font-size: 20px; }
+.page-header h2 { font-family: var(--heading-font); margin: 0; font-size: 20px; }
 
 .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 .login-card { width: 320px; display: flex; flex-direction: column; gap: 12px; }

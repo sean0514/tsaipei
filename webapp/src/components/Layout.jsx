@@ -84,7 +84,7 @@ export default function Layout() {
   const role = profile.role;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}`}>
       <aside className="sidebar">
         <h1>{sys.label}</h1>
         <div className="back"><Link to="/">← 切換系統</Link></div>
@@ -96,7 +96,7 @@ export default function Layout() {
             if (group) {
               return (
                 <div key={key}>
-                  <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
+                  <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
                   {group.map(({ route, label: subLabel }) => {
                     const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
                     return (
