@@ -8,6 +8,7 @@ import Tag from '../../components/Tag';
 import { INTERNSHIP_DOC_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import SegmentedControl from '../../components/SegmentedControl';
 
 export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '護照影本', '保險證明', '其他'];
 const STATUSES = ['未提供', '已收到', '審核中', '已核准', '需補件', '不適用'];
@@ -66,13 +67,24 @@ export default function InternshipDocsPage() {
   const { rows, loading, update, remove } = useCollection('tsaipei_internshipDocs');
   const { rows: students } = useCollection('tsaipei_students');
   const [studentFilter, setStudentFilter] = useState('');
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_internshipDocs', CSV_FIELDS, { entityLabel: '實習文件追蹤', requiredKeys: ['studentId', 'docType'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
+  const searchQuery = q.trim().toLowerCase();
   const byStudent = {};
   rows
     .filter((r) => !studentFilter || r.studentId === studentFilter)
+    .filter((r) => !searchQuery || studentName(r.studentId).toLowerCase().includes(searchQuery))
     .forEach((r) => { (byStudent[r.studentId] ||= []).push(r); });
+
+  // 依學生建檔時間排序，新進學生的文件清單排在最上面；沒有 createdAt 的既有
+  // 學生排在後面，維持原本順序。
+  const studentIds = Object.keys(byStudent).sort((a, b) => {
+    const at = students.find((s) => s.id === a)?.createdAt?.toMillis?.() ?? 0;
+    const bt = students.find((s) => s.id === b)?.createdAt?.toMillis?.() ?? 0;
+    return bt - at;
+  });
 
   async function handleUpdate(d, patch) {
     await update(d.id, patch);
@@ -93,13 +105,17 @@ export default function InternshipDocsPage() {
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
       <div className="card">
-        <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)} style={{ marginBottom: 12 }}>
-          <option value="">全部學生</option>
-          {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName}</option>)}
-        </select>
+        <div className="row-actions" style={{ marginBottom: 12 }}>
+          <input placeholder="搜尋學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+          <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)}>
+            <option value="">全部學生</option>
+            {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName}</option>)}
+          </select>
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
-          Object.keys(byStudent).length === 0 ? <p className="muted">沒有資料</p> :
-          Object.entries(byStudent).map(([studentId, docs]) => {
+          studentIds.length === 0 ? <p className="muted">沒有資料</p> :
+          studentIds.map((studentId) => {
+            const docs = byStudent[studentId];
             const allDone = docs.every((d) => d.status === '已核准' || d.status === '不適用');
             return (
               <div key={studentId} style={{ marginBottom: 20 }}>
@@ -115,9 +131,13 @@ export default function InternshipDocsPage() {
                         <td>{d.docType}</td>
                         <td>
                           {canEditPage ? (
-                            <select value={d.status || '未提供'} onChange={(e) => handleUpdate(d, { status: e.target.value })}>
-                              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                            <SegmentedControl
+                              name={`doc-status-${d.id}`}
+                              options={STATUSES}
+                              value={d.status || '未提供'}
+                              onChange={(v) => handleUpdate(d, { status: v })}
+                              compact
+                            />
                           ) : <Tag value={d.status} map={INTERNSHIP_DOC_TAG} />}
                         </td>
                         <td>
