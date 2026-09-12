@@ -4,6 +4,8 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { STUDENT_TAG } from '../../lib/tags';
 
 // Core fields shown here; the full schema (apps-script/Code.gs SHEET_FIELDS.Students)
 // has ~29 fields (language-proof docs, visa dates, etc.) — add them to FIELDS
@@ -65,7 +67,7 @@ export default function StudentsPage() {
               {filtered.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.slice(0, 6).map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  <td>{r.status || '—'}</td>
+                  <td><Tag value={r.status} map={STUDENT_TAG} /></td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>

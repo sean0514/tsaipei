@@ -5,6 +5,8 @@ import { db } from '../firebase';
 import { useCollection } from '../lib/useCollection';
 import { useRolePermissions } from '../auth/useSystemAccess';
 import { canEdit as computeCanEdit, SYSTEMS, permissionLevel } from '../lib/permissions';
+import Tag from './Tag';
+import { PERMISSION_LEVEL_TAG } from '../lib/tags';
 
 const LEVEL_CYCLE = { edit: 'view', view: 'none', none: 'edit' };
 const LEVEL_LABEL = { edit: '編輯', view: '檢視', none: '無' };
@@ -88,8 +90,8 @@ export default function UsersPage() {
                   return (
                     <td key={r}>
                       {canEditPage ? (
-                        <button onClick={() => cyclePermission(module, r)}>{LEVEL_LABEL[level]}</button>
-                      ) : LEVEL_LABEL[level]}
+                        <button className={`tag ${PERMISSION_LEVEL_TAG[level]}`} style={{ border: 'none' }} onClick={() => cyclePermission(module, r)}>{LEVEL_LABEL[level]}</button>
+                      ) : <Tag value={LEVEL_LABEL[level]} map={{ 編輯: PERMISSION_LEVEL_TAG.edit, 檢視: PERMISSION_LEVEL_TAG.view, 無: PERMISSION_LEVEL_TAG.none }} />}
                     </td>
                   );
                 })}

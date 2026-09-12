@@ -5,6 +5,8 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { DOC_TYPES } from './InternshipDocsPage';
+import Tag from '../../components/Tag';
+import { ADMITTED_TAG } from '../../lib/tags';
 
 const STATUSES = ['通過二面', '確認錄取', '放棄'];
 
@@ -62,7 +64,7 @@ export default function AdmittedListPage() {
                 <tr key={r.id}>
                   <td>{matchLabel(r.matchId)}</td>
                   <td>{r.admitDate || '—'}</td>
-                  <td>{r.status || '—'}</td>
+                  <td><Tag value={r.status} map={ADMITTED_TAG} /></td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>

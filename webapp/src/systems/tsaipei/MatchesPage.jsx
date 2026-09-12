@@ -4,6 +4,8 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { MATCH_TAG } from '../../lib/tags';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
 
@@ -61,7 +63,7 @@ export default function MatchesPage() {
                   <td>{studentName(r.studentId)}</td>
                   <td>{positionLabel(r.positionId)}</td>
                   <td>{r.venue || '—'}</td>
-                  <td>{r.status || '—'}</td>
+                  <td><Tag value={r.status} map={MATCH_TAG} /></td>
                   <td>{r.matchDate || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
