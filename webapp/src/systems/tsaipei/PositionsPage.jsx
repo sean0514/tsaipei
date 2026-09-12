@@ -206,10 +206,10 @@ function LocationGroupsEditor({ groups, onChange }) {
               </select>
             </label>
           </div>
-          <button type="button" onClick={() => removeRow(i)} style={{ marginTop: 8 }}>移除</button>
+          <button type="button" className="primary" onClick={() => removeRow(i)} style={{ marginTop: 8 }}>移除</button>
         </div>
       ))}
-      <button type="button" onClick={addRow}>新增地點</button>
+      <button type="button" className="primary" onClick={addRow}>新增地點</button>
     </div>
   );
 }
@@ -218,15 +218,25 @@ function PositionFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const groups = parseLocationGroups(form.locationGroups);
 
+  // 只更新原始內容，不要在這裡就把空白列濾掉——濾掉的話「新增地點」剛加的
+  // 空白列會在下一次 render 就消失，使用者根本來不及輸入（回報的「功能無法
+  // 作用」）。真正要濾掉沒填地點的列，留到送出表單那一刻再做（跟原本
+  // collectLocationGroups 只在送出時才過濾一樣）。
   function setGroups(next) {
-    setForm({ ...form, locationGroups: JSON.stringify(next.filter((g) => g.location || g.venue)) });
+    setForm({ ...form, locationGroups: JSON.stringify(next) });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const cleanedGroups = parseLocationGroups(form.locationGroups).filter((g) => g.location);
+    onSave({ ...form, locationGroups: JSON.stringify(cleanedGroups) });
   }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯職缺' : '新增職缺'}</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+        <form onSubmit={handleSubmit}>
           <div className="form-grid">
             {FIELDS.map((f) => (
               <label key={f.key}>
