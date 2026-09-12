@@ -70,14 +70,24 @@ export default function ApplicationProgressPage() {
   const studentById = (id) => students.find((s) => s.id === id);
   const searchQuery = q.trim().toLowerCase();
 
-  const byCompany = {};
-  rows
-    .filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery))
-    .forEach((r) => {
+  const filteredRows = rows.filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
+  // 先分成已入台／未入台兩大類，再各自依客戶/專案分組（跟原本一致）。
+  const arrived = filteredRows.filter((r) => r.currentStage === '入台');
+  const notArrived = filteredRows.filter((r) => r.currentStage !== '入台');
+
+  function groupByCompany(items) {
+    const byCompany = {};
+    items.forEach((r) => {
       const company = studentCompanyLabel(r.studentId, ctx);
       (byCompany[company] ||= []).push(r);
     });
-  const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
+    return Object.keys(byCompany).sort((a, b) => a.localeCompare(b)).map((company) => ({
+      company,
+      items: byCompany[company].slice().sort((a, b) =>
+        studentFullLabel(studentById(a.studentId)).localeCompare(studentFullLabel(studentById(b.studentId)))
+      ),
+    }));
+  }
 
   // 進度到達「入台」時自動建立在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本
   // Apps Script 版的 ensureInTaiwanVisaForStudent 一致 —— 住宿安排的自動建立
@@ -115,37 +125,26 @@ export default function ApplicationProgressPage() {
       </div>
       <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        companies.length === 0 ? <p className="muted">尚無進度紀錄。學生「確認錄取」後會自動建立，也可以點選「新增進度紀錄」手動加入。</p> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {companies.map((company) => {
-              const items = byCompany[company].slice().sort((a, b) =>
-                studentFullLabel(studentById(a.studentId)).localeCompare(studentFullLabel(studentById(b.studentId)))
-              );
-              return (
-                <div className="card" key={company}>
-                  <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{items.length} 位學生</span></h3>
-                  {items.map((r) => (
-                    <div key={r.id} className="progress-row">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{studentFullLabel(studentById(r.studentId))}</div>
-                          <div className="muted" style={{ fontSize: 12 }}>{studentCompanyLabel(r.studentId, ctx)}</div>
-                        </div>
-                        {canEditPage && (
-                          <div className="row-actions">
-                            <button onClick={() => setEditing(r)}>編輯</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ marginTop: 8 }}>
-                        <ProgressPipeline stage={r.currentStage} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+        filteredRows.length === 0 ? <p className="muted">尚無進度紀錄。學生「確認錄取」後會自動建立，也可以點選「新增進度紀錄」手動加入。</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <ArrivalSection
+              title="未入台"
+              groups={groupByCompany(notArrived)}
+              canEditPage={canEditPage}
+              ctx={ctx}
+              studentById={studentById}
+              onEdit={setEditing}
+              onRemove={remove}
+            />
+            <ArrivalSection
+              title="已入台"
+              groups={groupByCompany(arrived)}
+              canEditPage={canEditPage}
+              ctx={ctx}
+              studentById={studentById}
+              onEdit={setEditing}
+              onRemove={remove}
+            />
           </div>
         )
       )}
@@ -156,6 +155,45 @@ export default function ApplicationProgressPage() {
           onCancel={() => setEditing(null)}
           onSave={handleSave}
         />
+      )}
+    </div>
+  );
+}
+
+function ArrivalSection({ title, groups, canEditPage, ctx, studentById, onEdit, onRemove }) {
+  const total = groups.reduce((sum, g) => sum + g.items.length, 0);
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 12px' }}>{title} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {total} 位學生</span></h3>
+      {groups.length === 0 ? (
+        <p className="muted">目前沒有符合的學生。</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {groups.map(({ company, items }) => (
+            <div className="card" key={company}>
+              <h4 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{items.length} 位學生</span></h4>
+              {items.map((r) => (
+                <div key={r.id} className="progress-row">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{studentFullLabel(studentById(r.studentId))}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{studentCompanyLabel(r.studentId, ctx)}</div>
+                    </div>
+                    {canEditPage && (
+                      <div className="row-actions">
+                        <button onClick={() => onEdit(r)}>編輯</button>
+                        <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <ProgressPipeline stage={r.currentStage} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
