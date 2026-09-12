@@ -48,7 +48,13 @@ service cloud.firestore {
     }
     match /tsaipei_students/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('students');
+      allow create, delete: if tsCanEdit('students');
+      // update is also allowed to internshipDocs/inTaiwanTracking editors:
+      // InternshipDocsPage syncs doc-status fields back onto the student
+      // record, and InTaiwanVisaPage syncs entry/exit dates back the same
+      // way the original apps-script backend's syncStudentDocField_/
+      // syncStudentDatesFromVisa_ did.
+      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanTracking');
     }
     // 職缺媒合 group — all four collections share the single 'matching'
     // permission module, same as the original app's DEFAULT_PERMISSIONS.
@@ -62,44 +68,58 @@ service cloud.firestore {
       // save auto-creates a blank match record (see StudentsPage.jsx), and
       // some roles (服務人員/行政人員) can edit students without editing matching.
       allow create: if tsCanEdit('matching') || tsCanEdit('students');
-      allow update, delete: if tsCanEdit('matching');
+      allow update: if tsCanEdit('matching');
+      // delete also allowed to 'students' editors: deleting a student
+      // cascade-deletes their match records (see StudentsPage.jsx handleDelete,
+      // mirroring deleteStudent() in apps-script/Code.gs).
+      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
     }
     match /tsaipei_secondInterviews/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('matching');
+      allow create, update: if tsCanEdit('matching');
+      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
     }
     match /tsaipei_admittedList/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('matching');
+      allow create, update: if tsCanEdit('matching');
+      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
     }
     // 確認錄取 cascades into these two, written by whoever can edit 'matching'
     // even if they can't edit these modules directly (same reasoning as
     // tsaipei_matches' create above).
     match /tsaipei_internshipDocs/{docId} {
       allow read: if tsIsMember();
-      allow create, delete: if tsCanEdit('internshipDocs') || tsCanEdit('matching');
+      allow create: if tsCanEdit('internshipDocs') || tsCanEdit('matching');
       allow update: if tsCanEdit('internshipDocs');
+      allow delete: if tsCanEdit('internshipDocs') || tsCanEdit('matching') || tsCanEdit('students');
     }
     match /tsaipei_applicationProgress/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('applicationProgress') || tsCanEdit('matching');
-      allow update, delete: if tsCanEdit('applicationProgress');
+      allow update: if tsCanEdit('applicationProgress');
+      allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students');
     }
-    // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者。
+    // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者；
+    // inTaiwanVisa 存檔時也會連鎖補建 inTaiwanCare/housingRecords（見
+    // InTaiwanVisaPage.jsx afterVisaSave，對應原本的
+    // ensureInTaiwanCareForStudent_/ensureHousingRecordForStudent_）。
     match /tsaipei_inTaiwanVisa/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
-      allow update, delete: if tsCanEdit('inTaiwanTracking');
+      allow update: if tsCanEdit('inTaiwanTracking');
+      allow delete: if tsCanEdit('inTaiwanTracking') || tsCanEdit('students');
     }
     match /tsaipei_inTaiwanCare/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
-      allow update, delete: if tsCanEdit('inTaiwanTracking');
+      allow update: if tsCanEdit('inTaiwanTracking');
+      allow delete: if tsCanEdit('inTaiwanTracking') || tsCanEdit('students');
     }
     match /tsaipei_housingRecords/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress');
-      allow update, delete: if tsCanEdit('housing');
+      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanTracking');
+      allow update: if tsCanEdit('housing');
+      allow delete: if tsCanEdit('housing') || tsCanEdit('students');
     }
     match /tsaipei_dormitories/{docId} {
       allow read: if tsIsMember();

@@ -10,7 +10,7 @@ import { ADMITTED_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-const STATUSES = ['通過二面', '確認錄取', '放棄'];
+const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'admitDate', label: '錄取日期' },
   { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },

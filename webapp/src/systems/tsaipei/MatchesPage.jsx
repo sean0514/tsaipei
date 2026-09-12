@@ -96,8 +96,17 @@ export default function MatchesPage() {
   );
 }
 
+function parseLocationGroups(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
 function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const position = positions.find((p) => p.id === form.positionId);
+  const venues = position ? [...new Set(parseLocationGroups(position.locationGroups).map((g) => g.venue).filter(Boolean))] : [];
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -113,14 +122,21 @@ function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
             </label>
             <label>
               職缺
-              <select required value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value })}>
+              <select required value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value, venue: '' })}>
                 <option value="" disabled>請選擇</option>
                 {positions.map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.company}</option>)}
               </select>
             </label>
             <label>
               實習場域
-              <input value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
+              {venues.length ? (
+                <select value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })}>
+                  <option value="">請選擇實習場域</option>
+                  {venues.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              ) : (
+                <input value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })} placeholder={position ? '（此職缺未設定場域）' : '請先選擇職務'} />
+              )}
             </label>
             <label>
               狀態

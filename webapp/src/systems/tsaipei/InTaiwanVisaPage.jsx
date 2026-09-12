@@ -1,9 +1,36 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+
+async function existsForStudent(collectionName, studentId) {
+  const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
+  return !snap.empty;
+}
+
+// Ported from addInTaiwanVisa/updateInTaiwanVisa/syncStudentDatesFromVisa_ in
+// apps-script/Code.gs: every save also makes sure the student has an
+// InTaiwanCare and HousingRecords row, and pushes the entry/exit dates back
+// onto the student record (the Students list/dashboard read from there).
+async function afterVisaSave(studentId, row) {
+  if (!studentId) return;
+  if (!(await existsForStudent('tsaipei_inTaiwanCare', studentId))) {
+    await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId, status: '良好' });
+  }
+  if (!(await existsForStudent('tsaipei_housingRecords', studentId))) {
+    await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
+  }
+  await updateDoc(doc(db, 'tsaipei_students', studentId), {
+    firstEntryDate: row.firstEntryDate || '',
+    firstExitDate: row.firstExitDate || '',
+    secondEntryDate: row.secondEntryDate || '',
+    secondExitDate: row.secondExitDate || '',
+  });
+}
 
 const FIELDS = [
   { key: 'firstEntryDate', label: '第一次入台時間', type: 'date' },
@@ -30,6 +57,7 @@ export default function InTaiwanVisaPage() {
   async function handleSave(data) {
     const { id, ...rest } = data;
     await update(id, rest);
+    await afterVisaSave(rest.studentId, rest);
     setEditing(null);
   }
 
