@@ -1,0 +1,27 @@
+// Ported from the icon field in apps-script/Index.html's NAV_STRUCTURE —
+// small Unicode glyphs shown before each sidebar item's label, keyed by
+// route (matches, secondInterview, ... — the same keys used in
+// components/Layout.jsx's flat links and GROUP_ROUTES sub-items).
+export const NAV_ICONS = {
+  tsaipei: {
+    dashboard: '◆',
+    students: '◇',
+    positions: '⌘',
+    matches: '⇄',
+    secondInterview: '◐',
+    admitted: '✓',
+    internshipDocs: '▥',
+    applicationProgress: '▶',
+    inTaiwanVisa: '✈',
+    inTaiwanCare: '♡',
+    managerReport: '▲',
+    housing: '⌂',
+    dormManagement: '▤',
+    meetings: '✎',
+    clientBilling: '⌗',
+    users: '▣',
+    clientFeeSetup: '▦',
+    internalFeeSetup: '▧',
+    bonus: '◈',
+  },
+};

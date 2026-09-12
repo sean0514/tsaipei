@@ -86,6 +86,7 @@ th { color: var(--text-muted); font-weight: 600; }
   display: block; padding: 9px 16px; text-decoration: none; font-size: 14px; color: var(--sidebar-text); border-radius: var(--radius); margin: 0 8px; width: calc(100% - 16px);
 }
 .sidebar a.active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); font-weight: 600; }
+.nav-icon { display: inline-block; width: 16px; margin-right: 8px; text-align: center; opacity: .9; }
 .sidebar a.disabled { color: var(--sidebar-text-muted); pointer-events: none; opacity: .6; }
 .sidebar .back { padding: 0 16px 8px; font-size: 12px; }
 .sidebar .back a { display: inline; padding: 0; margin: 0; width: auto; border-radius: 0; color: var(--sidebar-text-muted); }
