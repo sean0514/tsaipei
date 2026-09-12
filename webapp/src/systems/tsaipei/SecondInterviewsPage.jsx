@@ -4,6 +4,8 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 
@@ -56,7 +58,7 @@ export default function SecondInterviewsPage() {
                   <td>{matchLabel(r.matchId)}</td>
                   <td>{r.date || '—'}</td>
                   <td>{r.method || '—'}</td>
-                  <td>{r.status || '—'}</td>
+                  <td><Tag value={r.status} map={SECOND_INTERVIEW_TAG} /></td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>

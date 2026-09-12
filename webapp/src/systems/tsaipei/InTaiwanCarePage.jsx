@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { CARE_TAG } from '../../lib/tags';
 
 const STATUSES = ['良好', '待關心', '預計離台'];
 
@@ -38,7 +40,7 @@ export default function InTaiwanCarePage() {
                   <td>{studentName(r.studentId)}</td>
                   <td>{r.careDate || '—'}</td>
                   <td>{r.content || '—'}</td>
-                  <td>{r.status || '—'}</td>
+                  <td><Tag value={r.status} map={CARE_TAG} /></td>
                   <td>
                     {canEditPage ? (
                       <input type="checkbox" checked={!!r.confirmedDeparture} onChange={(e) => update(r.id, { confirmedDeparture: e.target.checked })} />

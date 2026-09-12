@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { INTERNSHIP_DOC_TAG } from '../../lib/tags';
 
 // HANDOFF.md says "9 種文件" but only lists 7 — going with what's actually
 // named there (申請書/實習合約 were explicitly removed from the list).
@@ -47,7 +49,7 @@ export default function InternshipDocsPage() {
                             <select value={d.status || '未提供'} onChange={(e) => update(d.id, { status: e.target.value })}>
                               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
-                          ) : (d.status || '—')}
+                          ) : <Tag value={d.status} map={INTERNSHIP_DOC_TAG} />}
                         </td>
                         <td>{d.receivedDate || '—'}</td>
                         {canEditPage && <td><button className="danger" onClick={() => remove(d.id)}>刪除</button></td>}
