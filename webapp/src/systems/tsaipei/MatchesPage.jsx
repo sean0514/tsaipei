@@ -35,9 +35,9 @@ export default function MatchesPage() {
   // 依建立時間排序，新的媒合紀錄（含新增學生時系統自動建立的那筆）浮在最上面；
   // 沒有 createdAt 的既有資料維持原本順序排在後面。搜尋依學生姓名／職缺（原本
   // matchesSearchQuery 的過濾邏輯）。
-  const query = q.trim().toLowerCase();
+  const searchQuery = q.trim().toLowerCase();
   const sortedRows = [...rows]
-    .filter((r) => !query || `${studentName(r.studentId)} ${positionLabel(r.positionId)}`.toLowerCase().includes(query))
+    .filter((r) => !searchQuery || `${studentName(r.studentId)} ${positionLabel(r.positionId)}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => {
       const at = a.createdAt?.toMillis?.() ?? 0;
       const bt = b.createdAt?.toMillis?.() ?? 0;
