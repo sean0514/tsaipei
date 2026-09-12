@@ -35,12 +35,19 @@ const GROUP_ROUTES = {
       { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
       { route: 'inTaiwanCare', label: '在台關懷紀錄' },
     ],
-    bonus: [
-      { route: 'bonus', label: '內部獎金計算' },
-      { route: 'clientBilling', label: '客戶請款計算' },
-      { route: 'clientFeeSetup', label: '客戶費用建檔' },
-      { route: 'internalFeeSetup', label: '內部費用建檔' },
-    ],
+    // 跟原本 NAV_STRUCTURE 一樣分成「會計專用」「資料建檔」兩個子群組顯示，
+    // 雖然這裡兩組都是同一個 'bonus' 權限模組把關（跟原本 pageModuleKey()
+    // 把這幾頁都對到 'bonus' 一致）。
+    bonus: {
+      subgroups: [
+        { label: '會計專用', items: [{ route: 'clientBilling', label: '客戶請款計算' }] },
+        { label: '資料建檔', items: [
+          { route: 'clientFeeSetup', label: '客戶費用建檔' },
+          { route: 'internalFeeSetup', label: '內部費用建檔' },
+          { route: 'bonus', label: '內部獎金計算' },
+        ] },
+      ],
+    },
   },
   foodfactory: {
     inventory: [
@@ -63,6 +70,20 @@ const GROUP_ROUTES = {
     ],
   },
 };
+
+function NavItem({ system, route, label }) {
+  const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
+  const icon = NAV_ICONS[system]?.[route];
+  return (
+    <NavLink
+      to={`/${system}/${implemented ? route : `todo/${route}`}`}
+      className={({ isActive }) => (isActive ? 'active' : '')}
+      style={{ paddingLeft: 28 }}
+    >
+      {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
+    </NavLink>
+  );
+}
 
 export default function Layout() {
   const { system } = useParams();
@@ -94,24 +115,23 @@ export default function Layout() {
             const visible = canView(system, key, role, overrides);
             if (!visible) return null;
             const group = GROUP_ROUTES[system]?.[key];
+            if (group?.subgroups) {
+              return (
+                <div key={key}>
+                  {group.subgroups.map((sub) => (
+                    <div key={sub.label}>
+                      <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{sub.label}</div>
+                      {sub.items.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
+                    </div>
+                  ))}
+                </div>
+              );
+            }
             if (group) {
               return (
                 <div key={key}>
                   <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
-                  {group.map(({ route, label: subLabel }) => {
-                    const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
-                    const icon = NAV_ICONS[system]?.[route];
-                    return (
-                      <NavLink
-                        key={route}
-                        to={`/${system}/${implemented ? route : `todo/${route}`}`}
-                        className={({ isActive }) => (isActive ? 'active' : '')}
-                        style={{ paddingLeft: 28 }}
-                      >
-                        {icon && <span className="nav-icon">{icon}</span>}{subLabel}{!implemented && ' (建置中)'}
-                      </NavLink>
-                    );
-                  })}
+                  {group.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
                 </div>
               );
             }

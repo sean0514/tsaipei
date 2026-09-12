@@ -7,19 +7,25 @@ export const SYSTEMS = {
   tsaipei: {
     label: '境外實習生管理系統',
     roles: ['系統管理員', '主管', '業務人員', '服務人員', '翻譯人員', '國外供應', '行政人員', '會計人員', '宿管人員'],
+    // Key order here drives the sidebar order (Layout.jsx), matching
+    // NAV_STRUCTURE in apps-script/Index.html: dashboard, students, 職缺媒合
+    // group, internshipDocs, applicationProgress, 實習在台追蹤 group,
+    // managerReport, housing, dormManagement, meetings, then the
+    // 會計專用/資料建檔 groups (both gated by the 'bonus' permission here —
+    // see GROUP_ROUTES.tsaipei.bonus.subgroups in Layout.jsx), then users.
     modules: {
       dashboard: '儀表板',
       students: '學生資料',
       matching: '職缺媒合',
+      internshipDocs: '實習文件追蹤',
       applicationProgress: '申辦進度追蹤',
       inTaiwanTracking: '實習在台追蹤',
-      internshipDocs: '實習文件追蹤',
+      managerReport: '主管報表',
       housing: '住宿安排',
       dormManagement: '宿舍管理',
       meetings: '會議記錄',
-      bonus: '內部獎金計算',
+      bonus: '會計專用 / 資料建檔',
       users: '使用人員',
-      managerReport: '主管報表',
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'view', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },

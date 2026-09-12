@@ -6,6 +6,9 @@ import {
   BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, studentProjectClientPair, currentMonthStr,
 } from '../../lib/bonus';
 
+// 跟原本 renderManagerReport 一樣，狀態長條圖依固定的流程順序排列，未知狀態排在最後。
+const STUDENT_STATUS_ORDER = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
+
 function BarRow({ label, count, max }) {
   const pct = max ? Math.round((count / max) * 100) : 0;
   return (
@@ -38,7 +41,11 @@ export default function ManagerReportPage() {
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });
-  const statusRows = Object.entries(statusCounts).map(([label, count]) => ({ label, count }));
+  const orderedStatusKeys = [
+    ...STUDENT_STATUS_ORDER.filter((k) => statusCounts[k]),
+    ...Object.keys(statusCounts).filter((k) => !STUDENT_STATUS_ORDER.includes(k)),
+  ];
+  const statusRows = orderedStatusKeys.map((label) => ({ label, count: statusCounts[label] }));
   const maxStatus = Math.max(1, ...statusRows.map((r) => r.count));
 
   const nationalityCounts = {};
