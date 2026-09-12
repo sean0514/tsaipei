@@ -12,6 +12,7 @@ export const IMPLEMENTED_MODULES = {
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'housing',
     'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
+    'studentSelfPayHousing', 'studentMasterSheet',
   ],
   foodfactory: [
     'inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
@@ -40,7 +41,11 @@ const GROUP_ROUTES = {
     // 把這幾頁都對到 'bonus' 一致）。
     bonus: {
       subgroups: [
-        { label: '會計專用', items: [{ route: 'clientBilling', label: '客戶請款計算' }] },
+        { label: '會計專用', items: [
+          { route: 'clientBilling', label: '客戶請款計算' },
+          { route: 'studentSelfPayHousing', label: '學生自付宿舍' },
+          { route: 'studentMasterSheet', label: '學生資料總檔' },
+        ] },
         { label: '資料建檔', items: [
           { route: 'clientFeeSetup', label: '客戶費用建檔' },
           { route: 'internalFeeSetup', label: '內部費用建檔' },

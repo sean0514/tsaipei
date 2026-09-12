@@ -21,6 +21,8 @@ import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
 import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
 import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
 import ClientBillingPage from './systems/tsaipei/ClientBillingPage';
+import StudentSelfPayHousingPage from './systems/tsaipei/StudentSelfPayHousingPage';
+import StudentMasterSheetPage from './systems/tsaipei/StudentMasterSheetPage';
 import UsersPage from './components/UsersPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
@@ -65,6 +67,8 @@ const PAGES = {
     internalFeeSetup: InternalFeeSetupPage,
     managerReport: ManagerReportPage,
     clientBilling: ClientBillingPage,
+    studentSelfPayHousing: StudentSelfPayHousingPage,
+    studentMasterSheet: StudentMasterSheetPage,
   },
   foodfactory: {
     inventory: InventoryPage,

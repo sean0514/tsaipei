@@ -19,6 +19,8 @@ export const NAV_ICONS = {
     dormManagement: '▤',
     meetings: '✎',
     clientBilling: '⌗',
+    studentSelfPayHousing: '⌂',
+    studentMasterSheet: '▥',
     users: '▣',
     clientFeeSetup: '▦',
     internalFeeSetup: '▧',
