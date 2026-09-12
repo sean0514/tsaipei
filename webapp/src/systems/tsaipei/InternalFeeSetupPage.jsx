@@ -17,7 +17,11 @@ export default function InternalFeeSetupPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_internalFeeSetup');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_internalFeeSetup', CSV_FIELDS, { entityLabel: '內部費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
+
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || `${r.projectCode || ''} ${r.client || ''}`.toLowerCase().includes(query));
 
   async function handleSave(data) {
     if (data.id) {
@@ -40,11 +44,12 @@ export default function InternalFeeSetupPage() {
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「內部獎金計算」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
+        <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>專案編號</th><th>客戶</th>{ROLE_FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.projectCode}</td>
                   <td>{r.client}</td>
@@ -57,7 +62,7 @@ export default function InternalFeeSetupPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={ROLE_FIELDS.length + 3} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={ROLE_FIELDS.length + 3} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

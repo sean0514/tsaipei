@@ -8,6 +8,7 @@ import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
+import SegmentedControl from '../../components/SegmentedControl';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
@@ -23,6 +24,7 @@ export default function SecondInterviewsPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_secondInterviews', CSV_FIELDS, { entityLabel: '二面進度', requiredKeys: ['matchId'], canEdit: canEditPage });
 
   function matchLabel(matchId) {
@@ -32,6 +34,9 @@ export default function SecondInterviewsPage() {
     const p = positions.find((x) => x.id === m.positionId);
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
+
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || matchLabel(r.matchId).toLowerCase().includes(query));
 
   // 二面進度狀態變成「通過」時自動建立錄取名單（通過二面），跟原本
   // syncAdmittedFromSecondInterview 一樣先檢查該媒合是否已有錄取名單紀錄，
@@ -60,11 +65,13 @@ export default function SecondInterviewsPage() {
         <h2>二面進度</h2>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
+      <input placeholder="搜尋學生姓名或公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections
           statuses={STATUSES}
           tagMap={SECOND_INTERVIEW_TAG}
-          rows={rows}
+          rows={filteredRows}
+          sortKey="date"
           colSpan={canEditPage ? 4 : 3}
           headerCells={<><th>媒合</th><th>二面日期</th><th>面試方式</th>{canEditPage && <th></th>}</>}
           renderRow={(r) => (
@@ -103,17 +110,13 @@ function SecondInterviewFormModal({ initial, onCancel, onSave }) {
               面試方式
               <input value={form.method || ''} onChange={(e) => setForm({ ...form, method: e.target.value })} />
             </label>
-            <label>
-              進度狀態
-              <select value={form.status || '待安排'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </label>
-            <label>
-              備註
-              <input value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </label>
           </div>
+          <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>進度狀態</div>
+          <SegmentedControl name="second-status" options={STATUSES} value={form.status || '待安排'} onChange={(v) => setForm({ ...form, status: v })} />
+          <label>
+            備註
+            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ marginBottom: 16 }} />
+          </label>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>

@@ -25,7 +25,11 @@ export default function ClientFeeSetupPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_clientFeeSetup');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_clientFeeSetup', CSV_FIELDS, { entityLabel: '客戶費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
+
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || `${r.projectCode || ''} ${r.client || ''}`.toLowerCase().includes(query));
 
   async function handleSave(data) {
     if (data.id) {
@@ -48,11 +52,12 @@ export default function ClientFeeSetupPage() {
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
+        <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
                   <td>{r.billDormFee === '否' ? '否' : '是'}</td>
@@ -64,7 +69,7 @@ export default function ClientFeeSetupPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

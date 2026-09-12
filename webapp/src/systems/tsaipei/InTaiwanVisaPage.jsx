@@ -49,10 +49,12 @@ export default function InTaiwanVisaPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);
   const [showDeparted, setShowDeparted] = useState(false);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
-  const visible = rows.filter((r) => showDeparted || r.confirmedDeparture !== true);
+  const query = q.trim().toLowerCase();
+  const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!query || studentName(r.studentId).toLowerCase().includes(query)));
 
   async function handleSave(data) {
     const { id, ...rest } = data;
@@ -71,6 +73,7 @@ export default function InTaiwanVisaPage() {
         </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>學生</th>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>確認離台</th>{canEditPage && <th></th>}</tr></thead>

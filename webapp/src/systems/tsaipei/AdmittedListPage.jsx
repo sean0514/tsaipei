@@ -9,6 +9,7 @@ import { ADMITTED_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
+import SegmentedControl from '../../components/SegmentedControl';
 
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
@@ -24,6 +25,7 @@ export default function AdmittedListPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_admittedList', CSV_FIELDS, { entityLabel: '錄取名單', requiredKeys: ['matchId'], canEdit: canEditPage });
 
   function matchLabel(matchId) {
@@ -34,27 +36,42 @@ export default function AdmittedListPage() {
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
 
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || matchLabel(r.matchId).toLowerCase().includes(query));
+
   // 狀態變成「確認錄取」時自動建立實習文件追蹤整組清單、申辦進度追蹤紀錄；
   // 從「確認錄取」改回「通過二面」時自動刪除該學生的實習文件追蹤整組紀錄
   // （不可逆，跟原本 Apps Script 版行為一致）。
   async function handleSave(data) {
     const prevStatus = editing?.status;
     const { id, ...rest } = data;
-    await update(id, rest);
+    try {
+      await update(id, rest);
 
-    const match = matches.find((m) => m.id === rest.matchId);
-    const studentId = match?.studentId;
+      const match = matches.find((m) => m.id === rest.matchId);
+      const studentId = match?.studentId;
 
-    if (studentId && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
-      await Promise.all(DOC_TYPES.map((docType) =>
-        addDoc(collection(db, 'tsaipei_internshipDocs'), { studentId, docType, status: '未提供' })
-      ));
-      await addDoc(collection(db, 'tsaipei_applicationProgress'), { studentId, currentStage: '學生錄取' });
-    } else if (studentId && prevStatus === '確認錄取' && rest.status === '通過二面') {
-      const snap = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));
-      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      if (studentId && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
+        // 先確認這位學生還沒有實習文件追蹤紀錄，避免重複切換狀態時建立出
+        // 好幾組重複的文件清單。
+        const existingDocs = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));
+        if (existingDocs.empty) {
+          await Promise.all(DOC_TYPES.map((docType) =>
+            addDoc(collection(db, 'tsaipei_internshipDocs'), { studentId, docType, status: '未提供' })
+          ));
+        }
+        const existingProgress = await getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId)));
+        if (existingProgress.empty) {
+          await addDoc(collection(db, 'tsaipei_applicationProgress'), { studentId, currentStage: '學生錄取' });
+        }
+      } else if (studentId && prevStatus === '確認錄取' && rest.status === '通過二面') {
+        const snap = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));
+        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`存檔失敗：${err.message || err}`);
     }
-    setEditing(null);
   }
 
   return (
@@ -63,11 +80,12 @@ export default function AdmittedListPage() {
         <h2>錄取名單</h2>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
+      <input placeholder="搜尋學生姓名或公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections
           statuses={STATUSES}
           tagMap={ADMITTED_TAG}
-          rows={rows}
+          rows={filteredRows}
           colSpan={canEditPage ? 3 : 2}
           headerCells={<><th>媒合</th><th>錄取日期</th>{canEditPage && <th></th>}</>}
           renderRow={(r) => (
@@ -96,22 +114,16 @@ function AdmittedFormModal({ initial, onCancel, onSave }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>編輯錄取名單</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
-          <div className="form-grid">
-            <label>
-              錄取日期
-              <input type="date" value={form.admitDate || ''} onChange={(e) => setForm({ ...form, admitDate: e.target.value })} />
-            </label>
-            <label>
-              狀態
-              <select value={form.status || '通過二面'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </label>
-            <label>
-              備註
-              <input value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </label>
-          </div>
+          <label>
+            錄取日期
+            <input type="date" value={form.admitDate || ''} onChange={(e) => setForm({ ...form, admitDate: e.target.value })} style={{ marginBottom: 16 }} />
+          </label>
+          <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>狀態</div>
+          <SegmentedControl name="admitted-status" options={STATUSES} value={form.status || '通過二面'} onChange={(v) => setForm({ ...form, status: v })} />
+          <label>
+            備註
+            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ marginBottom: 16 }} />
+          </label>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>

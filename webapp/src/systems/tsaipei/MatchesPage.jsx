@@ -23,21 +23,26 @@ export default function MatchesPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
-
-  // 依建立時間排序，新的媒合紀錄（含新增學生時系統自動建立的那筆）浮在最上面；
-  // 沒有 createdAt 的既有資料維持原本順序排在後面。
-  const sortedRows = [...rows].sort((a, b) => {
-    const at = a.createdAt?.toMillis?.() ?? 0;
-    const bt = b.createdAt?.toMillis?.() ?? 0;
-    return bt - at;
-  });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未設定)';
   const positionLabel = (id) => {
     const p = positions.find((x) => x.id === id);
     return p ? `${p.projectCode} ${p.company}` : '(未設定)';
   };
+
+  // 依建立時間排序，新的媒合紀錄（含新增學生時系統自動建立的那筆）浮在最上面；
+  // 沒有 createdAt 的既有資料維持原本順序排在後面。搜尋依學生姓名／職缺（原本
+  // matchesSearchQuery 的過濾邏輯）。
+  const query = q.trim().toLowerCase();
+  const sortedRows = [...rows]
+    .filter((r) => !query || `${studentName(r.studentId)} ${positionLabel(r.positionId)}`.toLowerCase().includes(query))
+    .sort((a, b) => {
+      const at = a.createdAt?.toMillis?.() ?? 0;
+      const bt = b.createdAt?.toMillis?.() ?? 0;
+      return bt - at;
+    });
 
   // 媒合紀錄狀態改成「已媒合」時：媒合日期若空則帶入今天，並自動建立一筆
   // 二面進度（待安排），如同原本 Apps Script 版的自動連動邏輯。
@@ -70,6 +75,7 @@ export default function MatchesPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections
           statuses={STATUSES}

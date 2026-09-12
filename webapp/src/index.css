@@ -173,6 +173,14 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .row-actions { display: flex; flex-wrap: nowrap; gap: 8px; }
 .muted { color: var(--text-muted); font-size: 13px; }
 
+.segmented { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.segmented-option {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--border);
+  border-radius: 999px; cursor: pointer; font-size: 13px; color: var(--text-muted);
+}
+.segmented-option input { margin: 0; accent-color: var(--accent); }
+.segmented-option.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+
 .tag { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .tag-jade { background: #FDE7EE; color: #C85D82; }
 .tag-amber { background: #FCEEE0; color: #8A5219; }

@@ -22,7 +22,11 @@ export default function MeetingsPage() {
   const canEditPage = computeCanEdit(system, 'meetings', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_meetings', { order: ['date', 'desc'] });
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_meetings', CSV_FIELDS, { entityLabel: '會議記錄', requiredKeys: ['date', 'title'], canEdit: canEditPage });
+
+  const query = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !query || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(query));
 
   async function handleSave(data) {
     if (data.id) {
@@ -44,11 +48,12 @@ export default function MeetingsPage() {
         </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋主題/主持人/出席人員" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>日期</th><th>主題</th><th>主持人</th><th>出席人員</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.date}</td>
                   <td>{r.title}</td>
@@ -62,7 +67,7 @@ export default function MeetingsPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
