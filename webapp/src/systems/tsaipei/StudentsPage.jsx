@@ -132,12 +132,16 @@ export default function StudentsPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>學生資料</h2>
+        <div>
+          <h2>學生資料</h2>
+          <div className="page-desc">管理來台實習之國際學生基本資料與狀態{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>新增學生</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>+ 新增學生</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有學生資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋姓名/學校/國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

@@ -62,9 +62,13 @@ export default function SecondInterviewsPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>二面進度</h2>
+        <div>
+          <h2>二面進度</h2>
+          <div className="page-desc">依進度狀態自動分類，追蹤已媒合學生的第二輪面試進度{!canEditPage && '（唯讀）'}</div>
+        </div>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「媒合紀錄ID」欄位）；上傳後會完全取代目前所有二面進度資料，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生姓名或公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections

@@ -39,8 +39,11 @@ export default function UsersPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>使用人員</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增使用者</button>}
+        <div>
+          <h2>使用人員</h2>
+          <div className="page-desc">管理系統使用者與角色權限{!canEditPage && '（唯讀，僅系統管理員可編輯）'}</div>
+        </div>
+        {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增使用者</button>}
       </div>
       <div className="card" style={{ marginBottom: 16 }}>
         <p className="muted" style={{ marginTop: 0 }}>

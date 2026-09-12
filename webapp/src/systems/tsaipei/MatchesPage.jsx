@@ -69,12 +69,16 @@ export default function MatchesPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>媒合紀錄</h2>
+        <div>
+          <h2>媒合紀錄</h2>
+          <div className="page-desc">依狀態分類，將學生配對至職缺並追蹤媒合狀態{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增媒合</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增媒合</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」「職缺ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections

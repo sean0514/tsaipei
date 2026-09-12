@@ -56,12 +56,16 @@ export default function HousingPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>住宿安排</h2>
+        <div>
+          <h2>住宿安排</h2>
+          <div className="page-desc">依未安排／住宿中／已離宿分類{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增住宿</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增住宿</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有住宿紀錄，請先下載備份再匯入。填入「入住日」後會自動歸類到「住宿中」；「退宿日」到期後自動歸類到「已離宿」。</p>}
       <input placeholder="搜尋學生或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>

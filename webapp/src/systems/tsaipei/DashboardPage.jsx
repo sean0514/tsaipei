@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>儀表板</h2></div>
+      <div className="page-header"><div><h2>儀表板</h2><div className="page-desc">國際實習生整體狀況總覽</div></div></div>
       {loading ? <p className="muted">載入中…</p> : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>

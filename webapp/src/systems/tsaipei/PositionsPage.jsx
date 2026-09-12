@@ -128,12 +128,16 @@ export default function PositionsPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>實習單位</h2>
+        <div>
+          <h2>實習單位</h2>
+          <div className="page-desc">管理合作企業釋出的實習職缺{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({ projectCode: suggestNextProjectCode(rows) })}>新增職缺</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ projectCode: suggestNextProjectCode(rows) })}>+ 新增職缺</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。已結案的職缺按「已結案」後會移到下方「已結案」區塊，也可以按「取消已結案」移回上方列表。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋專案編號/公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

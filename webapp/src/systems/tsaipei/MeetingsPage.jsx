@@ -41,12 +41,16 @@ export default function MeetingsPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>會議記錄</h2>
+        <div>
+          <h2>會議記錄</h2>
+          <div className="page-desc">每週公司內部討論紀錄{!canEditPage && '（唯讀）'}</div>
+        </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增會議記錄</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增會議記錄</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有會議記錄，請先下載備份再匯入。</p>}
       <div className="card">
         <input placeholder="搜尋主題/主持人/出席人員" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

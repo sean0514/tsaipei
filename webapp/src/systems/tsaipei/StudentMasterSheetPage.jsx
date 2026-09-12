@@ -65,10 +65,12 @@ export default function StudentMasterSheetPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>學生資料總檔</h2>
+        <div>
+          <h2>學生資料總檔</h2>
+          <div className="page-desc">依月份彙整所有學生的廠商、專案、證件與計費資訊</div>
+        </div>
         <button onClick={handleDownload}>下載此月份資料</button>
       </div>
-      <p className="muted" style={{ marginTop: 0 }}>依月份彙整所有學生的廠商、專案、證件與計費資訊。</p>
       <div className="row-actions" style={{ marginBottom: 16 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         <input placeholder="搜尋學生、廠商或專案編號" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />

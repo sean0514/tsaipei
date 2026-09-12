@@ -36,7 +36,7 @@ export default function ClientBillingPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>客戶請款計算</h2></div>
+      <div className="page-header"><div><h2>客戶請款計算</h2><div className="page-desc">依月份自動試算：客戶費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總</div></div></div>
       <p className="muted">依月份自動試算：依「實習單位（專案編號＋客戶）」把所有學生當月在台天數加總，乘以客戶費用建檔的月費率÷當月天數。</p>
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
       <div className="card" style={{ overflowX: 'auto' }}>

@@ -71,10 +71,12 @@ export default function StudentSelfPayHousingPage() {
   return (
     <div className="content">
       <div className="page-header">
-        <h2>學生自付宿舍</h2>
+        <div>
+          <h2>學生自付宿舍</h2>
+          <div className="page-desc">列出住宿費由學生自行負擔的學生名單</div>
+        </div>
         <button onClick={handleDownload}>下載名單</button>
       </div>
-      <p className="muted" style={{ marginTop: 0 }}>列出住宿費由學生自行負擔的學生名單。</p>
       <input placeholder="搜尋學生、客戶或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         groupKeys.length === 0 ? <p className="muted">{query ? '沒有符合搜尋條件的紀錄。' : '目前沒有付款方式為「學生自付」的住宿紀錄。'}</p> : (
