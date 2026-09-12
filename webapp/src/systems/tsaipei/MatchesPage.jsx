@@ -4,10 +4,10 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import Tag from '../../components/Tag';
 import { MATCH_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import StatusSections from '../../components/StatusSections';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
 const CSV_FIELDS = [
@@ -70,33 +70,29 @@ export default function MatchesPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      <div className="card">
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead>
-              <tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((r) => (
-                <tr key={r.id}>
-                  <td>{studentName(r.studentId)}</td>
-                  <td>{positionLabel(r.positionId)}</td>
-                  <td>{r.venue || '—'}</td>
-                  <td><Tag value={r.status} map={MATCH_TAG} /></td>
-                  <td>{r.matchDate || '—'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {rows.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
-      </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <StatusSections
+          statuses={STATUSES}
+          tagMap={MATCH_TAG}
+          rows={sortedRows}
+          colSpan={canEditPage ? 5 : 4}
+          headerCells={<><th>學生</th><th>職缺</th><th>實習場域</th><th>媒合日期</th>{canEditPage && <th></th>}</>}
+          renderRow={(r) => (
+            <tr key={r.id}>
+              <td>{studentName(r.studentId)}</td>
+              <td>{positionLabel(r.positionId)}</td>
+              <td>{r.venue || '—'}</td>
+              <td>{r.matchDate || '—'}</td>
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => setEditing(r)}>編輯</button>
+                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          )}
+        />
+      )}
       {editing && (
         <MatchFormModal initial={editing} students={students} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />
       )}
