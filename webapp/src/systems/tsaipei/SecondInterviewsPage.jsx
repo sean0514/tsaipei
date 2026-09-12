@@ -4,10 +4,10 @@ import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import Tag from '../../components/Tag';
 import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import StatusSections from '../../components/StatusSections';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
@@ -60,30 +60,28 @@ export default function SecondInterviewsPage() {
         <h2>二面進度</h2>
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
-      <div className="card">
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr><th>媒合</th><th>二面日期</th><th>面試方式</th><th>進度狀態</th>{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{matchLabel(r.matchId)}</td>
-                  <td>{r.date || '—'}</td>
-                  <td>{r.method || '—'}</td>
-                  <td><Tag value={r.status} map={SECOND_INTERVIEW_TAG} /></td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {rows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
-      </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <StatusSections
+          statuses={STATUSES}
+          tagMap={SECOND_INTERVIEW_TAG}
+          rows={rows}
+          colSpan={canEditPage ? 4 : 3}
+          headerCells={<><th>媒合</th><th>二面日期</th><th>面試方式</th>{canEditPage && <th></th>}</>}
+          renderRow={(r) => (
+            <tr key={r.id}>
+              <td>{matchLabel(r.matchId)}</td>
+              <td>{r.date || '—'}</td>
+              <td>{r.method || '—'}</td>
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => setEditing(r)}>編輯</button>
+                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          )}
+        />
+      )}
       {editing && <SecondInterviewFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
