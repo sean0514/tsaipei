@@ -20,8 +20,8 @@ export default function InternalFeeSetupPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_internalFeeSetup', CSV_FIELDS, { entityLabel: '內部費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
 
-  const query = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !query || `${r.projectCode || ''} ${r.client || ''}`.toLowerCase().includes(query));
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || `${r.projectCode || ''} ${r.client || ''}`.toLowerCase().includes(searchQuery));
 
   async function handleSave(data) {
     if (data.id) {

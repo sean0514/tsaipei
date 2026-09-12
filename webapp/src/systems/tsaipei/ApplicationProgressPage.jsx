@@ -29,8 +29,8 @@ export default function ApplicationProgressPage() {
   const [q, setQ] = useState('');
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
-  const query = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !query || studentName(r.studentId).toLowerCase().includes(query));
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || studentName(r.studentId).toLowerCase().includes(searchQuery));
 
   // 進度到達「入台」時自動建立在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本
   // Apps Script 版的 ensureInTaiwanVisaForStudent 一致 —— 住宿安排的自動建立

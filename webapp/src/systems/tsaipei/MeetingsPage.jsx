@@ -25,8 +25,8 @@ export default function MeetingsPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_meetings', CSV_FIELDS, { entityLabel: '會議記錄', requiredKeys: ['date', 'title'], canEdit: canEditPage });
 
-  const query = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !query || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(query));
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(searchQuery));
 
   async function handleSave(data) {
     if (data.id) {

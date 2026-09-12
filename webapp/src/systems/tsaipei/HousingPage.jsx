@@ -34,12 +34,12 @@ export default function HousingPage() {
     return '住宿中';
   }
 
-  const query = q.trim().toLowerCase();
+  const searchQuery = q.trim().toLowerCase();
   const groups = { 未安排: [], 住宿中: [], 已離宿: [] };
   rows.forEach((r) => {
     const c = classify(r);
     if (!c) return;
-    if (query && !`${studentName(r.studentId)} ${r.type || ''}`.toLowerCase().includes(query)) return;
+    if (searchQuery && !`${studentName(r.studentId)} ${r.type || ''}`.toLowerCase().includes(searchQuery)) return;
     groups[c].push(r);
   });
 

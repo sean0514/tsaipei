@@ -35,8 +35,8 @@ export default function SecondInterviewsPage() {
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
 
-  const query = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !query || matchLabel(r.matchId).toLowerCase().includes(query));
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 二面進度狀態變成「通過」時自動建立錄取名單（通過二面），跟原本
   // syncAdmittedFromSecondInterview 一樣先檢查該媒合是否已有錄取名單紀錄，

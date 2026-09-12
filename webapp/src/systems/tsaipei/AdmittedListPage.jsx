@@ -36,8 +36,8 @@ export default function AdmittedListPage() {
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
 
-  const query = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !query || matchLabel(r.matchId).toLowerCase().includes(query));
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 狀態變成「確認錄取」時自動建立實習文件追蹤整組清單、申辦進度追蹤紀錄；
   // 從「確認錄取」改回「通過二面」時自動刪除該學生的實習文件追蹤整組紀錄

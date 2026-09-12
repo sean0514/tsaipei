@@ -24,8 +24,8 @@ export default function InTaiwanCarePage() {
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanCare', CSV_FIELDS, { entityLabel: '在台關懷紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
-  const query = q.trim().toLowerCase();
-  const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!query || studentName(r.studentId).toLowerCase().includes(query)));
+  const searchQuery = q.trim().toLowerCase();
+  const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!searchQuery || studentName(r.studentId).toLowerCase().includes(searchQuery)));
 
   async function handleSave(data) {
     const { id, ...rest } = data;
