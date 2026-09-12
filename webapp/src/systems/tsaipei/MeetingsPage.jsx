@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'date', label: '會議日期', type: 'date', required: true },
@@ -13,11 +15,14 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
 ];
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+
 export default function MeetingsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'meetings', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_meetings', { order: ['date', 'desc'] });
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_meetings', CSV_FIELDS, { entityLabel: '會議記錄', requiredKeys: ['date', 'title'], canEdit: canEditPage });
 
   async function handleSave(data) {
     if (data.id) {
@@ -33,7 +38,10 @@ export default function MeetingsPage() {
     <div className="content">
       <div className="page-header">
         <h2>會議記錄</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增會議記錄</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增會議記錄</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (

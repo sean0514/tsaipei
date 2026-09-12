@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -30,12 +32,15 @@ export const ROLE_FIELDS = [
   { key: 'dormManager2', label: '宿管人員2' },
 ];
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'closed', label: '已結案' }, ...ROLE_FIELDS];
+
 export default function PositionsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'matching', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_positions', { order: ['projectCode', 'asc'] });
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
 
   const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q))));
   const closed = rows.filter((r) => r.closed === '是');
@@ -59,7 +64,10 @@ export default function PositionsPage() {
     <div className="content">
       <div className="page-header">
         <h2>實習單位</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增職缺</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增職缺</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         <input placeholder="搜尋專案編號/公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'firstEntryDate', label: '第一次入台時間', type: 'date' },
@@ -11,6 +13,7 @@ const FIELDS = [
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
 ];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
 
 export default function InTaiwanVisaPage() {
   const { system, role, overrides } = useOutletContext();
@@ -19,6 +22,7 @@ export default function InTaiwanVisaPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);
   const [showDeparted, setShowDeparted] = useState(false);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const visible = rows.filter((r) => showDeparted || r.confirmedDeparture !== true);
@@ -33,7 +37,10 @@ export default function InTaiwanVisaPage() {
     <div className="content">
       <div className="page-header">
         <h2>在台簽證追蹤</h2>
-        <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+        <div className="row-actions">
+          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (

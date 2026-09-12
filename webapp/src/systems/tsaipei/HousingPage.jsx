@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const PAYERS = ['學生自付', '廠商代付'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'type', label: '宿舍名稱' },
+  { key: 'payer', label: '付款方式' }, { key: 'checkIn', label: '入住日' }, { key: 'checkOut', label: '退宿日' },
+  { key: 'completed', label: '已完成' },
+];
 
 export default function HousingPage() {
   const { system, role, overrides } = useOutletContext();
@@ -12,6 +19,7 @@ export default function HousingPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const today = new Date().toISOString().slice(0, 10);
@@ -40,7 +48,10 @@ export default function HousingPage() {
     <div className="content">
       <div className="page-header">
         <h2>住宿安排</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增住宿</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增住宿</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>

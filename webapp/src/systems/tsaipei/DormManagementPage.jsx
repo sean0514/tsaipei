@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'name', label: '宿舍名稱', required: true },
@@ -19,6 +21,8 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+
 export default function DormManagementPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'dormManagement', role, overrides);
@@ -28,6 +32,7 @@ export default function DormManagementPage() {
   const [utilEditing, setUtilEditing] = useState(null);
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dormitories', CSV_FIELDS, { entityLabel: '宿舍管理', requiredKeys: ['name'], canEdit: canEditPage });
 
   const filtered = rows.filter((r) => !q || [r.name, r.location].some((v) => v?.includes(q)));
 
@@ -60,7 +65,10 @@ export default function DormManagementPage() {
     <div className="content">
       <div className="page-header">
         <h2>宿舍管理</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增宿舍</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增宿舍</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>

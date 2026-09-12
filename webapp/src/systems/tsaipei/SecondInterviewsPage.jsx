@@ -6,8 +6,14 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'date', label: '二面日期' },
+  { key: 'method', label: '面試方式' }, { key: 'status', label: '進度狀態' }, { key: 'notes', label: '備註' },
+];
 
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -17,6 +23,7 @@ export default function SecondInterviewsPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_secondInterviews', CSV_FIELDS, { entityLabel: '二面進度', requiredKeys: ['matchId'], canEdit: canEditPage });
 
   function matchLabel(matchId) {
     const m = matches.find((x) => x.id === matchId);
@@ -47,6 +54,7 @@ export default function SecondInterviewsPage() {
     <div className="content">
       <div className="page-header">
         <h2>二面進度</h2>
+        <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (

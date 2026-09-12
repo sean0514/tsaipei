@@ -4,11 +4,17 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import { INTERNSHIP_DOC_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 // HANDOFF.md says "9 種文件" but only lists 7 — going with what's actually
 // named there (申請書/實習合約 were explicitly removed from the list).
 export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '護照影本', '保險證明', '其他'];
 const STATUSES = ['未提供', '已收到', '已核准', '不適用'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'docType', label: '文件類型' },
+  { key: 'status', label: '狀態' }, { key: 'receivedDate', label: '收件日期' },
+];
 
 export default function InternshipDocsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -16,6 +22,7 @@ export default function InternshipDocsPage() {
   const { rows, loading, update, remove } = useCollection('tsaipei_internshipDocs');
   const { rows: students } = useCollection('tsaipei_students');
   const [studentFilter, setStudentFilter] = useState('');
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_internshipDocs', CSV_FIELDS, { entityLabel: '實習文件追蹤', requiredKeys: ['studentId', 'docType'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const byStudent = {};
@@ -25,7 +32,10 @@ export default function InternshipDocsPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>實習文件追蹤</h2></div>
+      <div className="page-header">
+        <h2>實習文件追蹤</h2>
+        <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+      </div>
       <div className="card">
         <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)} style={{ marginBottom: 12 }}>
           <option value="">全部學生</option>

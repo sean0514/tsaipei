@@ -3,6 +3,8 @@ import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -15,11 +17,14 @@ export const STAGES = [
   '住宿安排', '預約體檢公司', '入台',
 ];
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'currentStage', label: '目前進度' }];
+
 export default function ApplicationProgressPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'applicationProgress', role, overrides);
   const { rows, loading, update } = useCollection('tsaipei_applicationProgress');
   const { rows: students } = useCollection('tsaipei_students');
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
 
@@ -42,7 +47,10 @@ export default function ApplicationProgressPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><h2>申辦進度追蹤</h2></div>
+      <div className="page-header">
+        <h2>申辦進度追蹤</h2>
+        <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+      </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>

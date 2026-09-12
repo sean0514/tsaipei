@@ -7,8 +7,14 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { DOC_TYPES } from './InternshipDocsPage';
 import Tag from '../../components/Tag';
 import { ADMITTED_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const STATUSES = ['通過二面', '確認錄取', '放棄'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'admitDate', label: '錄取日期' },
+  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+];
 
 export default function AdmittedListPage() {
   const { system, role, overrides } = useOutletContext();
@@ -18,6 +24,7 @@ export default function AdmittedListPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_admittedList', CSV_FIELDS, { entityLabel: '錄取名單', requiredKeys: ['matchId'], canEdit: canEditPage });
 
   function matchLabel(matchId) {
     const m = matches.find((x) => x.id === matchId);
@@ -54,6 +61,7 @@ export default function AdmittedListPage() {
     <div className="content">
       <div className="page-header">
         <h2>錄取名單</h2>
+        <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
