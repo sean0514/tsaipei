@@ -3,6 +3,7 @@ import { SYSTEMS } from '../lib/permissions';
 import { useAuth } from '../auth/AuthContext';
 import { useRolePermissions, useSystemProfile } from '../auth/useSystemAccess';
 import { canView } from '../lib/permissions';
+import { NAV_ICONS } from '../lib/navIcons';
 
 // Pages that actually exist as routes so far; every other module shows in
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
@@ -99,6 +100,7 @@ export default function Layout() {
                   <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
                   {group.map(({ route, label: subLabel }) => {
                     const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
+                    const icon = NAV_ICONS[system]?.[route];
                     return (
                       <NavLink
                         key={route}
@@ -106,7 +108,7 @@ export default function Layout() {
                         className={({ isActive }) => (isActive ? 'active' : '')}
                         style={{ paddingLeft: 28 }}
                       >
-                        {subLabel}{!implemented && ' (建置中)'}
+                        {icon && <span className="nav-icon">{icon}</span>}{subLabel}{!implemented && ' (建置中)'}
                       </NavLink>
                     );
                   })}
@@ -114,13 +116,14 @@ export default function Layout() {
               );
             }
             const implemented = IMPLEMENTED_MODULES[system]?.includes(key);
+            const icon = NAV_ICONS[system]?.[key];
             return (
               <NavLink
                 key={key}
                 to={`/${system}/${implemented ? key : `todo/${key}`}`}
                 className={({ isActive }) => (isActive ? 'active' : '')}
               >
-                {label}{!implemented && ' (建置中)'}
+                {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
               </NavLink>
             );
           })}
