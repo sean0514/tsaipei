@@ -90,7 +90,7 @@ input, select, textarea {
 }
 
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: top; }
 th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 
 .app-shell { display: flex; min-height: 100vh; background: var(--bg); }
