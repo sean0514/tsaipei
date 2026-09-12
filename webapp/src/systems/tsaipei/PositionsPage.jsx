@@ -185,14 +185,28 @@ function LocationGroupsEditor({ groups, onChange }) {
   return (
     <div>
       {list.map((g, i) => (
-        <div key={i} className="row-actions" style={{ marginBottom: 6, alignItems: 'center' }}>
-          <input placeholder="實習場域" style={{ width: 100 }} value={g.venue || ''} onChange={(e) => updateRow(i, { venue: e.target.value })} />
-          <input placeholder="實習地點" style={{ width: 140 }} value={g.location || ''} onChange={(e) => updateRow(i, { location: e.target.value })} />
-          <input type="number" placeholder="缺額" style={{ width: 70 }} value={g.headcount ?? 1} onChange={(e) => updateRow(i, { headcount: e.target.value })} />
-          <select value={g.status || '開放中'} onChange={(e) => updateRow(i, { status: e.target.value })}>
-            {POSITION_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button type="button" onClick={() => removeRow(i)}>移除</button>
+        <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+          <div className="form-grid">
+            <label>
+              實習場域
+              <input value={g.venue || ''} onChange={(e) => updateRow(i, { venue: e.target.value })} />
+            </label>
+            <label>
+              實習地點
+              <input value={g.location || ''} onChange={(e) => updateRow(i, { location: e.target.value })} />
+            </label>
+            <label>
+              缺額
+              <input type="number" value={g.headcount ?? 1} onChange={(e) => updateRow(i, { headcount: e.target.value })} />
+            </label>
+            <label>
+              狀態
+              <select value={g.status || '開放中'} onChange={(e) => updateRow(i, { status: e.target.value })}>
+                {POSITION_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+          </div>
+          <button type="button" onClick={() => removeRow(i)} style={{ marginTop: 8 }}>移除</button>
         </div>
       ))}
       <button type="button" onClick={addRow}>新增地點</button>
