@@ -23,6 +23,7 @@ export default function ClientFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_clientFeeSetup');
+  const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_clientFeeSetup', CSV_FIELDS, { entityLabel: '客戶費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
 
@@ -68,20 +69,38 @@ export default function ClientFeeSetupPage() {
           </table>
         )}
       </div>
-      {editing && <ClientFeeFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <ClientFeeFormModal initial={editing} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function ClientFeeFormModal({ initial, onCancel, onSave }) {
+function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const projectCodes = [...new Set(positions.map((p) => p.projectCode).filter(Boolean))].sort();
+  const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
+  if (form.client && !companies.includes(form.client)) companies.push(form.client);
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯費率' : '新增費率'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
-            {FIELDS.map((f) => (
+            <label>
+              專案編號
+              <select value={form.projectCode || ''} onChange={(e) => setForm({ ...form, projectCode: e.target.value })}>
+                <option value="">請選擇</option>
+                {projectCodes.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label>
+              客戶名稱
+              <select required value={form.client || ''} onChange={(e) => setForm({ ...form, client: e.target.value })}>
+                <option value="">請選擇客戶</option>
+                {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            {FIELDS.filter((f) => !['projectCode', 'client'].includes(f.key)).map((f) => (
               <label key={f.key}>
                 {f.label}
                 <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />

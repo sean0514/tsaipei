@@ -15,6 +15,7 @@ export default function InternalFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_internalFeeSetup');
+  const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_internalFeeSetup', CSV_FIELDS, { entityLabel: '內部費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
 
@@ -61,13 +62,17 @@ export default function InternalFeeSetupPage() {
           </table>
         )}
       </div>
-      {editing && <FeeFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <FeeFormModal initial={editing} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function FeeFormModal({ initial, onCancel, onSave }) {
+function FeeFormModal({ initial, positions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const projectCodes = [...new Set(positions.map((p) => p.projectCode).filter(Boolean))].sort();
+  const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
+  if (form.client && !companies.includes(form.client)) companies.push(form.client);
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -76,11 +81,17 @@ function FeeFormModal({ initial, onCancel, onSave }) {
           <div className="form-grid">
             <label>
               專案編號
-              <input required value={form.projectCode || ''} onChange={(e) => setForm({ ...form, projectCode: e.target.value })} />
+              <select value={form.projectCode || ''} onChange={(e) => setForm({ ...form, projectCode: e.target.value })}>
+                <option value="">請選擇</option>
+                {projectCodes.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </label>
             <label>
               客戶名稱
-              <input required value={form.client || ''} onChange={(e) => setForm({ ...form, client: e.target.value })} />
+              <select required value={form.client || ''} onChange={(e) => setForm({ ...form, client: e.target.value })}>
+                <option value="">請選擇客戶</option>
+                {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </label>
             {ROLE_FIELDS.map((f) => (
               <label key={f.key}>

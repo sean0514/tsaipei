@@ -15,27 +15,27 @@ const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補
 // Full schema ported from apps-script/Code.gs SHEET_FIELDS.Students.
 const FIELDS = [
   { key: 'chineseName', label: '中文姓名', required: true },
-  { key: 'originalName', label: '原始姓名' },
+  { key: 'originalName', label: '原始姓名(護照名稱)' },
   { key: 'school', label: '就讀學校' },
   { key: 'department1', label: '系所1' },
   { key: 'department2', label: '系所2' },
-  { key: 'nationality', label: '國籍' },
-  { key: 'gender', label: '性別' },
+  { key: 'nationality', label: '國籍', options: ['', '越南', '印尼', '泰國', '菲律賓', '台灣'] },
+  { key: 'gender', label: '性別', options: ['', '男', '女'] },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: '電話' },
   { key: 'startDate', label: '實習開始日', type: 'date' },
   { key: 'endDate', label: '實習結束日', type: 'date' },
-  { key: 'langProofType', label: '語言能力證明類別' },
-  { key: 'langProofLevel', label: '語言能力證明等級' },
-  { key: 'langProofStatus', label: '語言能力證明狀態' },
+  { key: 'langProofType', label: '語言能力證明類別', options: ['', '華語', '多益', '雅思'] },
+  { key: 'langProofLevel', label: '語言能力證明等級', options: ['', 'A1', 'A2', 'B1'] },
+  { key: 'langProofStatus', label: '語言能力證明狀態', options: ['未收到', '已收到'] },
   { key: 'enrollStart', label: '在學證明_入學年月' },
   { key: 'enrollEnd', label: '在學證明_畢業年月' },
-  { key: 'enrollProofStatus', label: '在學證明狀態' },
-  { key: 'passportCopy', label: '護照影本' },
+  { key: 'enrollProofStatus', label: '在學證明狀態', options: ['未收到', '已收到'] },
+  { key: 'passportCopy', label: '護照影本', options: ['未收到', '已收到'] },
   { key: 'passportNumber', label: '護照號碼' },
   { key: 'otherDocs', label: '其他文件' },
-  { key: 'extensionNeeded', label: '是否延畢' },
-  { key: 'extensionProof', label: '延畢證明' },
+  { key: 'extensionNeeded', label: '是否延畢', options: ['無', '有'] },
+  { key: 'extensionProof', label: '延畢證明（須載明實習結束後返國辦理畢業手續）', options: ['未收到', '已收到'] },
   { key: 'nightInternshipDoc', label: '夜間實習同意書' },
   { key: 'firstEntryDate', label: '第一次入境日期', type: 'date' },
   { key: 'firstExitDate', label: '第一次離境日期', type: 'date' },
@@ -181,6 +181,10 @@ function StudentFormModal({ initial, onCancel, onSave }) {
                 {f.key === 'status' ? (
                   <select value={form.status || STUDENT_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                     {STUDENT_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
                   </select>
                 ) : (
                   <input

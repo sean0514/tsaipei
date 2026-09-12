@@ -2,7 +2,7 @@
   --bg: #f4f5f7;
   --panel: #ffffff;
   --border: #e5e7eb;
-  --text: #1f2430;
+  --text: #333844;
   --text-muted: #6b7280;
   --accent: #2563eb;
   --accent-soft: #eaf1fe;
@@ -26,8 +26,8 @@
   --bg: #FDF3F7;
   --panel: #FFFFFF;
   --border: #F3D9E5;
-  --text: #523F4D;
-  --text-muted: #9C8399;
+  --text: #6B5568;
+  --text-muted: #A692A3;
   --accent: #EA82A3;
   --accent-soft: #FDE7EE;
   --danger: #E8828C;
@@ -47,8 +47,9 @@
 .theme-tsaipei h2, .theme-tsaipei h3, .theme-tsaipei h4 { font-family: var(--heading-font); color: #C85D82; }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); }
+body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
+h1, h2, h3, h4 { font-weight: 600; }
 
 button {
   font: inherit;

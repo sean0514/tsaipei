@@ -28,8 +28,10 @@ export default function ApplicationProgressPage() {
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
 
-  // 進度到達「入台」時自動建立在台簽證追蹤空白紀錄，接著連鎖建立在台關懷紀錄、
-  // 住宿安排空白紀錄（若尚未存在），跟原本 Apps Script 版一致。
+  // 進度到達「入台」時自動建立在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本
+  // Apps Script 版的 ensureInTaiwanVisaForStudent 一致 —— 住宿安排的自動建立
+  // 只發生在「新增/更新在台簽證追蹤」那一步（見 InTaiwanVisaPage.jsx 的
+  // afterVisaSave），這裡不重複建立。
   async function handleStageChange(row, stage) {
     await update(row.id, { currentStage: stage });
     if (stage !== '入台') return;
@@ -39,9 +41,6 @@ export default function ApplicationProgressPage() {
     }
     if (!(await existsForStudent('tsaipei_inTaiwanCare', studentId))) {
       await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId, status: '良好' });
-    }
-    if (!(await existsForStudent('tsaipei_housingRecords', studentId))) {
-      await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
     }
   }
 

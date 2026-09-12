@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -33,9 +33,10 @@ export default function SecondInterviewsPage() {
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }
 
-  // 二面進度狀態變成「通過」時自動建立錄取名單（通過二面）。
+  // 二面進度狀態變成「通過」時自動建立錄取名單（通過二面），跟原本
+  // syncAdmittedFromSecondInterview 一樣先檢查該媒合是否已有錄取名單紀錄，
+  // 避免重複建立，並帶上系統自動建立的備註。
   async function handleSave(data) {
-    const wasPassed = editing?.status === '通過';
     let id = data.id;
     if (id) {
       const { id: _id, ...rest } = data;
@@ -44,8 +45,11 @@ export default function SecondInterviewsPage() {
       const ref = await add(data);
       id = ref.id;
     }
-    if (data.status === '通過' && !wasPassed) {
-      await addDoc(collection(db, 'tsaipei_admittedList'), { matchId: data.matchId, status: '通過二面' });
+    if (data.status === '通過') {
+      const existing = await getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', '==', data.matchId)));
+      if (existing.empty) {
+        await addDoc(collection(db, 'tsaipei_admittedList'), { matchId: data.matchId, status: '通過二面', notes: '（系統依二面進度通過自動建立）' });
+      }
     }
     setEditing(null);
   }
