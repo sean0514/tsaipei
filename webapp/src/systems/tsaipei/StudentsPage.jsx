@@ -101,27 +101,32 @@ export default function StudentsPage() {
   // Ported from deleteStudent() in apps-script/Code.gs: cascade-delete every
   // record that references this student before removing the student itself.
   async function handleDelete(studentId) {
-    const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', studentId)));
-    const matchIds = matchesSnap.docs.map((d) => d.id);
-    const dependentSnaps = await Promise.all([
-      matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
-      matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
-      getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId))),
-      getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId))),
-      getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', studentId))),
-      getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', studentId))),
-      getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', studentId))),
-    ]);
-    const refs = [
-      ...matchesSnap.docs.map((d) => d.ref),
-      ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
-    ];
-    for (let i = 0; i < refs.length; i += 450) {
-      const batch = writeBatch(db);
-      refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
-      await batch.commit();
+    if (!window.confirm('確定要刪除這位學生嗎？')) return;
+    try {
+      const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', studentId)));
+      const matchIds = matchesSnap.docs.map((d) => d.id);
+      const dependentSnaps = await Promise.all([
+        matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', studentId))),
+      ]);
+      const refs = [
+        ...matchesSnap.docs.map((d) => d.ref),
+        ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+      ];
+      for (let i = 0; i < refs.length; i += 450) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+      await remove(studentId);
+    } catch (err) {
+      alert(`刪除失敗：${err.message || err}`);
     }
-    await remove(studentId);
   }
 
   return (

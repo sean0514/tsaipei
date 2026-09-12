@@ -9,6 +9,7 @@ import { ADMITTED_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
+import SegmentedControl from '../../components/SegmentedControl';
 
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
@@ -96,22 +97,16 @@ function AdmittedFormModal({ initial, onCancel, onSave }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>編輯錄取名單</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
-          <div className="form-grid">
-            <label>
-              錄取日期
-              <input type="date" value={form.admitDate || ''} onChange={(e) => setForm({ ...form, admitDate: e.target.value })} />
-            </label>
-            <label>
-              狀態
-              <select value={form.status || '通過二面'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </label>
-            <label>
-              備註
-              <input value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </label>
-          </div>
+          <label>
+            錄取日期
+            <input type="date" value={form.admitDate || ''} onChange={(e) => setForm({ ...form, admitDate: e.target.value })} style={{ marginBottom: 16 }} />
+          </label>
+          <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>狀態</div>
+          <SegmentedControl name="admitted-status" options={STATUSES} value={form.status || '通過二面'} onChange={(v) => setForm({ ...form, status: v })} />
+          <label>
+            備註
+            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ marginBottom: 16 }} />
+          </label>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
