@@ -82,16 +82,20 @@ export default function StudentsPage() {
   // 新增學生存檔後自動在「媒合紀錄」建立一筆「媒合中」的空白紀錄（職缺待補），
   // 沿用原本 Apps Script 版的行為。
   async function handleSave(data) {
-    if (data.id) {
-      const { id, ...rest } = data;
-      await update(id, rest);
-    } else {
-      const ref = await add({ ...data, createdAt: serverTimestamp() });
-      await addDoc(collection(db, 'tsaipei_matches'), {
-        studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）',
-      });
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+      } else {
+        const ref = await add({ ...data, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'tsaipei_matches'), {
+          studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）', createdAt: serverTimestamp(),
+        });
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`存檔失敗：${err.message || err}`);
     }
-    setEditing(null);
   }
 
   // Ported from deleteStudent() in apps-script/Code.gs: cascade-delete every

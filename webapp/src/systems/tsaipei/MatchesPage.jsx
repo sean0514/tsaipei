@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -25,6 +25,14 @@ export default function MatchesPage() {
   const [editing, setEditing] = useState(null);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
 
+  // 依建立時間排序，新的媒合紀錄（含新增學生時系統自動建立的那筆）浮在最上面；
+  // 沒有 createdAt 的既有資料維持原本順序排在後面。
+  const sortedRows = [...rows].sort((a, b) => {
+    const at = a.createdAt?.toMillis?.() ?? 0;
+    const bt = b.createdAt?.toMillis?.() ?? 0;
+    return bt - at;
+  });
+
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未設定)';
   const positionLabel = (id) => {
     const p = positions.find((x) => x.id === id);
@@ -44,7 +52,7 @@ export default function MatchesPage() {
       const { id, ...rest } = payload;
       await update(id, rest);
     } else {
-      const ref = await add(payload);
+      const ref = await add({ ...payload, createdAt: serverTimestamp() });
       matchId = ref.id;
     }
     if (payload.status === '已媒合' && !wasMatched) {
@@ -69,7 +77,7 @@ export default function MatchesPage() {
               <tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.id}>
                   <td>{studentName(r.studentId)}</td>
                   <td>{positionLabel(r.positionId)}</td>
