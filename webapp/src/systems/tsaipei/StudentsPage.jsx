@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, deleteDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -36,7 +36,7 @@ const FIELDS = [
   { key: 'otherDocs', label: '其他文件' },
   { key: 'extensionNeeded', label: '是否延畢', options: ['無', '有'] },
   { key: 'extensionProof', label: '延畢證明（須載明實習結束後返國辦理畢業手續）', options: ['未收到', '已收到'] },
-  { key: 'nightInternshipDoc', label: '夜間實習同意書' },
+  { key: 'nightInternshipDoc', label: '夜間實習同意書', options: ['未收到', '已收到', '不適用'] },
   { key: 'firstEntryDate', label: '第一次入境日期', type: 'date' },
   { key: 'firstExitDate', label: '第一次離境日期', type: 'date' },
   { key: 'secondEntryDate', label: '第二次入境日期', type: 'date' },
@@ -64,11 +64,19 @@ function docSummary(s) {
 export default function StudentsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'students', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('tsaipei_students', { order: ['chineseName', 'asc'] });
+  const { rows, loading, add, update, remove } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null); // null = closed, {} = new, {...} = editing
   const [q, setQ] = useState('');
 
-  const filtered = rows.filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
+  // 依使用者要求：新增的學生排在最上面。既有（遷移進來、沒有 createdAt）的
+  // 學生沒有時間戳記可比較，維持原本用中文姓名排序；新增的學生一律浮到最上面。
+  const sorted = [...rows].sort((a, b) => {
+    const at = a.createdAt?.toMillis?.() ?? 0;
+    const bt = b.createdAt?.toMillis?.() ?? 0;
+    if (at !== bt) return bt - at;
+    return (a.chineseName || '').localeCompare(b.chineseName || '');
+  });
+  const filtered = sorted.filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
 
   // 新增學生存檔後自動在「媒合紀錄」建立一筆「媒合中」的空白紀錄（職缺待補），
@@ -78,7 +86,7 @@ export default function StudentsPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      const ref = await add(data);
+      const ref = await add({ ...data, createdAt: serverTimestamp() });
       await addDoc(collection(db, 'tsaipei_matches'), { studentId: ref.id, positionId: '', status: '媒合中' });
     }
     setEditing(null);
