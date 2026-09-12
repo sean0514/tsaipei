@@ -55,9 +55,13 @@ export default function DashboardPage() {
   const total = students.length;
   const active = students.filter((s) => s.status === '已入台實習').length;
   const matching = students.filter((s) => ['媒合中', '待面試', '已面試'].includes(s.status)).length;
-  // apps-script 版依「地點群組」逐一判斷是否開放中；這裡的職缺沒有搬地點群組，
-  // 用 closed !== '是' 當替代判斷（見 PositionsPage.jsx 的已結案/未結案分類）。
-  const openPositions = positions.filter((p) => p.closed !== '是').length;
+  // 依「地點群組」逐一判斷是否開放中，跟原本 apps-script 版一致。
+  const openPositions = positions.filter((p) => {
+    try {
+      const groups = p.locationGroups ? JSON.parse(p.locationGroups) : [];
+      return Array.isArray(groups) && groups.some((g) => g.status === '開放中');
+    } catch { return false; }
+  }).length;
   const unarrangedHousing = housingRecords.filter((h) => !h.checkIn && !h.completed);
 
   // 固定一個月時間窗，不是「前 N 筆」：符合區間的全部顯示，見 HANDOFF.md。

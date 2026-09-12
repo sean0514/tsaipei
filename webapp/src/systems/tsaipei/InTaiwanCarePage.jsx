@@ -4,8 +4,14 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import { CARE_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const STATUSES = ['良好', '待關心', '預計離台'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'careDate', label: '關懷時間' },
+  { key: 'content', label: '內容' }, { key: 'status', label: '狀態' }, { key: 'confirmedDeparture', label: '確認離台' },
+];
 
 export default function InTaiwanCarePage() {
   const { system, role, overrides } = useOutletContext();
@@ -14,6 +20,7 @@ export default function InTaiwanCarePage() {
   const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);
   const [showDeparted, setShowDeparted] = useState(false);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanCare', CSV_FIELDS, { entityLabel: '在台關懷紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const visible = rows.filter((r) => showDeparted || r.confirmedDeparture !== true);
@@ -28,7 +35,10 @@ export default function InTaiwanCarePage() {
     <div className="content">
       <div className="page-header">
         <h2>在台關懷紀錄</h2>
-        <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+        <div className="row-actions">
+          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (

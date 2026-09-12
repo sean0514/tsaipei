@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -15,11 +17,14 @@ const FIELDS = [
   { key: 'billingSettleDay', label: '請款結算日' },
 ];
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'billDormFee', label: '是否請款住宿費' }];
+
 export default function ClientFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_clientFeeSetup');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_clientFeeSetup', CSV_FIELDS, { entityLabel: '客戶費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
 
   async function handleSave(data) {
     if (data.id) {
@@ -35,7 +40,10 @@ export default function ClientFeeSetupPage() {
     <div className="content">
       <div className="page-header">
         <h2>客戶費用建檔</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增費率</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增費率</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>

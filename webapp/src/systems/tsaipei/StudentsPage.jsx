@@ -1,28 +1,65 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import { STUDENT_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-// Core fields shown here; the full schema (apps-script/Code.gs SHEET_FIELDS.Students)
-// has ~29 fields (language-proof docs, visa dates, etc.) — add them to FIELDS
-// below following the same {key,label} pattern as more of this module is ported.
+// Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
+const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
+
+// Full schema ported from apps-script/Code.gs SHEET_FIELDS.Students.
 const FIELDS = [
   { key: 'chineseName', label: '中文姓名', required: true },
   { key: 'originalName', label: '原始姓名' },
   { key: 'school', label: '就讀學校' },
+  { key: 'department1', label: '系所1' },
+  { key: 'department2', label: '系所2' },
   { key: 'nationality', label: '國籍' },
   { key: 'gender', label: '性別' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: '電話' },
   { key: 'startDate', label: '實習開始日', type: 'date' },
   { key: 'endDate', label: '實習結束日', type: 'date' },
+  { key: 'langProofType', label: '語言能力證明類別' },
+  { key: 'langProofLevel', label: '語言能力證明等級' },
+  { key: 'langProofStatus', label: '語言能力證明狀態' },
+  { key: 'enrollStart', label: '在學證明_入學年月' },
+  { key: 'enrollEnd', label: '在學證明_畢業年月' },
+  { key: 'enrollProofStatus', label: '在學證明狀態' },
+  { key: 'passportCopy', label: '護照影本' },
+  { key: 'passportNumber', label: '護照號碼' },
+  { key: 'otherDocs', label: '其他文件' },
+  { key: 'extensionNeeded', label: '是否延畢' },
+  { key: 'extensionProof', label: '延畢證明' },
+  { key: 'nightInternshipDoc', label: '夜間實習同意書' },
+  { key: 'firstEntryDate', label: '第一次入境日期', type: 'date' },
+  { key: 'firstExitDate', label: '第一次離境日期', type: 'date' },
+  { key: 'secondEntryDate', label: '第二次入境日期', type: 'date' },
+  { key: 'secondExitDate', label: '第二次離境日期', type: 'date' },
   { key: 'status', label: '狀態' },
   { key: 'notes', label: '備註' },
+  { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+
+// Ported from docChecklist/docSummary in apps-script/Index.html — 5-item
+// checklist of document fields stored directly on the student record.
+function docSummary(s) {
+  const list = [
+    s.langProofStatus === '已收到',
+    s.enrollProofStatus === '已收到',
+    s.passportCopy === '已收到',
+    s.extensionNeeded === '無' || s.extensionProof === '已收到',
+    s.nightInternshipDoc === '已收到' || s.nightInternshipDoc === '不適用',
+  ];
+  const done = list.filter(Boolean).length;
+  return { done, total: list.length, complete: done === list.length };
+}
 
 export default function StudentsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -32,6 +69,7 @@ export default function StudentsPage() {
   const [q, setQ] = useState('');
 
   const filtered = rows.filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
 
   // 新增學生存檔後自動在「媒合紀錄」建立一筆「媒合中」的空白紀錄（職缺待補），
   // 沿用原本 Apps Script 版的行為。
@@ -46,37 +84,78 @@ export default function StudentsPage() {
     setEditing(null);
   }
 
+  // Ported from deleteStudent() in apps-script/Code.gs: cascade-delete every
+  // record that references this student before removing the student itself.
+  async function handleDelete(studentId) {
+    const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', studentId)));
+    const matchIds = matchesSnap.docs.map((d) => d.id);
+    const dependentSnaps = await Promise.all([
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId))),
+      getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId))),
+      getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', studentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', studentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', studentId))),
+    ]);
+    const refs = [
+      ...matchesSnap.docs.map((d) => d.ref),
+      ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+    ];
+    for (let i = 0; i < refs.length; i += 450) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+    await remove(studentId);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
         <h2>學生資料</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增學生</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增學生</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
-      <div className="card">
+      <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋姓名/學校/國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead>
               <tr>
-                {FIELDS.slice(0, 6).map((f) => <th key={f.key}>{f.label}</th>)}
-                <th>狀態</th>
+                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>狀態</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.slice(0, 6).map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  <td><Tag value={r.status} map={STUDENT_TAG} /></td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+              {filtered.map((r) => {
+                const doc = docSummary(r);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{r.nationality || '—'}</div>
                     </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+                    <td>
+                      {r.school || '—'}
+                      <div className="muted" style={{ fontSize: 12 }}>{[r.department1, r.department2].filter(Boolean).join(' / ')}</div>
+                    </td>
+                    <td>{r.phone || '—'}</td>
+                    <td>{r.firstEntryDate || '—'} ~ {r.firstExitDate || '—'}</td>
+                    <td><span className={`tag ${doc.complete ? 'tag-green' : 'tag-amber'}`}>{doc.done}/{doc.total}</span></td>
+                    <td><Tag value={r.status} map={STUDENT_TAG} /></td>
+                    {canEditPage && (
+                      <td className="row-actions">
+                        <button onClick={() => setEditing(r)}>編輯</button>
+                        <button className="danger" onClick={() => handleDelete(r.id)}>刪除</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -99,12 +178,18 @@ function StudentFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input
-                  type={f.type || 'text'}
-                  required={f.required}
-                  value={form[f.key] || ''}
-                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                />
+                {f.key === 'status' ? (
+                  <select value={form.status || STUDENT_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    {STUDENT_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type={f.type || 'text'}
+                    required={f.required}
+                    value={form[f.key] || ''}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                  />
+                )}
               </label>
             ))}
           </div>

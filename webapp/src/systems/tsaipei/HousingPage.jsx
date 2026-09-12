@@ -2,8 +2,17 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const PAYERS = ['學生自付', '廠商代付'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'type', label: '宿舍名稱' },
+  { key: 'address', label: '地址' }, { key: 'contactName', label: '宿舍管理員1' }, { key: 'contactName2', label: '宿舍管理員2' },
+  { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' },
+  { key: 'checkIn', label: '入住日' }, { key: 'checkOut', label: '退宿日' },
+  { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
+];
 
 export default function HousingPage() {
   const { system, role, overrides } = useOutletContext();
@@ -12,6 +21,7 @@ export default function HousingPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const today = new Date().toISOString().slice(0, 10);
@@ -40,7 +50,10 @@ export default function HousingPage() {
     <div className="content">
       <div className="page-header">
         <h2>住宿安排</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增住宿</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增住宿</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>
@@ -113,6 +126,26 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
             <label>
               退宿日
               <input type="date" value={form.checkOut || ''} onChange={(e) => setForm({ ...form, checkOut: e.target.value })} />
+            </label>
+            <label>
+              地址
+              <input value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            </label>
+            <label>
+              宿舍管理員1
+              <input value={form.contactName || ''} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+            </label>
+            <label>
+              宿舍管理員2
+              <input value={form.contactName2 || ''} onChange={(e) => setForm({ ...form, contactName2: e.target.value })} />
+            </label>
+            <label>
+              翻譯
+              <input value={form.contactPhone || ''} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
+            </label>
+            <label style={{ gridColumn: 'span 2' }}>
+              備註
+              <input value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </label>
           </div>
           <div className="row-actions">

@@ -1,7 +1,36 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+
+async function existsForStudent(collectionName, studentId) {
+  const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
+  return !snap.empty;
+}
+
+// Ported from addInTaiwanVisa/updateInTaiwanVisa/syncStudentDatesFromVisa_ in
+// apps-script/Code.gs: every save also makes sure the student has an
+// InTaiwanCare and HousingRecords row, and pushes the entry/exit dates back
+// onto the student record (the Students list/dashboard read from there).
+async function afterVisaSave(studentId, row) {
+  if (!studentId) return;
+  if (!(await existsForStudent('tsaipei_inTaiwanCare', studentId))) {
+    await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId, status: '良好' });
+  }
+  if (!(await existsForStudent('tsaipei_housingRecords', studentId))) {
+    await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
+  }
+  await updateDoc(doc(db, 'tsaipei_students', studentId), {
+    firstEntryDate: row.firstEntryDate || '',
+    firstExitDate: row.firstExitDate || '',
+    secondEntryDate: row.secondEntryDate || '',
+    secondExitDate: row.secondExitDate || '',
+  });
+}
 
 const FIELDS = [
   { key: 'firstEntryDate', label: '第一次入台時間', type: 'date' },
@@ -11,6 +40,7 @@ const FIELDS = [
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
 ];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
 
 export default function InTaiwanVisaPage() {
   const { system, role, overrides } = useOutletContext();
@@ -19,6 +49,7 @@ export default function InTaiwanVisaPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);
   const [showDeparted, setShowDeparted] = useState(false);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
   const visible = rows.filter((r) => showDeparted || r.confirmedDeparture !== true);
@@ -26,6 +57,7 @@ export default function InTaiwanVisaPage() {
   async function handleSave(data) {
     const { id, ...rest } = data;
     await update(id, rest);
+    await afterVisaSave(rest.studentId, rest);
     setEditing(null);
   }
 
@@ -33,7 +65,10 @@ export default function InTaiwanVisaPage() {
     <div className="content">
       <div className="page-header">
         <h2>在台簽證追蹤</h2>
-        <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+        <div className="row-actions">
+          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (

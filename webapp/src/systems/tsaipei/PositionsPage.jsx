@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -11,6 +14,7 @@ const FIELDS = [
   { key: 'description', label: '職務內容' },
   { key: 'stipendAmount', label: '實習津貼金額', type: 'number' },
   { key: 'boardDeduction', label: '膳宿費扣款金額', type: 'number' },
+  { key: 'otherBenefits', label: '其他福利' },
   { key: 'specialNotes', label: '特殊備註' },
 ];
 
@@ -30,12 +34,33 @@ export const ROLE_FIELDS = [
   { key: 'dormManager2', label: '宿管人員2' },
 ];
 
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'locationGroups', label: '實習場域/實習地點/缺額/狀態' }, { key: 'closed', label: '已結案' }, ...ROLE_FIELDS];
+
+const POSITION_STATUS = ['開放中', '已額滿', '已結束'];
+const POSITION_TAG = { 開放中: 'tag-green', 已額滿: 'tag-amber', 已結束: 'tag-grey' };
+
+function parseLocationGroups(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function positionRowInfo(p, matches) {
+  const groups = parseLocationGroups(p.locationGroups);
+  const totalHeadcount = groups.reduce((sum, g) => sum + (Number(g.headcount) || 0), 0);
+  const matchCount = matches.filter((m) => m.positionId === p.id && m.status !== '取消').length;
+  return { groups, totalHeadcount, matchCount };
+}
+
 export default function PositionsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'matching', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_positions', { order: ['projectCode', 'asc'] });
+  const { rows: matches } = useCollection('tsaipei_matches');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
 
   const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q))));
   const closed = rows.filter((r) => r.closed === '是');
@@ -55,55 +80,70 @@ export default function PositionsPage() {
     setEditing({ ...rest, id: undefined });
   }
 
+  function renderRows(list) {
+    return list.map((r) => {
+      const info = positionRowInfo(r, matches);
+      return (
+        <tr key={r.id}>
+          <td>{r.projectCode || '—'}</td>
+          <td><div style={{ fontWeight: 600 }}>{r.company}</div><div className="muted" style={{ fontSize: 12 }}>{r.industry || ''}</div></td>
+          <td>{r.title || '—'}</td>
+          <td>
+            {info.groups.length ? info.groups.map((g, i) => (
+              <div key={i} style={{ marginBottom: 4 }}>
+                {g.venue ? `${g.venue} · ` : ''}{g.location || '—'} · {g.headcount || 0}名 <Tag value={g.status} map={POSITION_TAG} />
+              </div>
+            )) : <span className="muted">尚未設定地點</span>}
+          </td>
+          <td>{info.matchCount} / {info.totalHeadcount || '—'}</td>
+          {canEditPage && (
+            <td className="row-actions">
+              <button onClick={() => setEditing(r)}>編輯</button>
+              <button onClick={() => copyAsNew(r)}>複製</button>
+              {r.closed === '是'
+                ? <button onClick={() => update(r.id, { closed: '' })}>取消已結案</button>
+                : <button onClick={() => update(r.id, { closed: '是' })}>已結案</button>}
+              <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+            </td>
+          )}
+        </tr>
+      );
+    });
+  }
+
   return (
     <div className="content">
       <div className="page-header">
         <h2>實習單位</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增職缺</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增職缺</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
-      <div className="card">
+      <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋專案編號/公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead>
               <tr>
-                {FIELDS.slice(0, 4).map((f) => <th key={f.key}>{f.label}</th>)}
+                <th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {open.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.slice(0, 4).map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button onClick={() => copyAsNew(r)}>複製</button>
-                      <button onClick={() => update(r.id, { closed: '是' })}>已結案</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {open.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+              {renderRows(open)}
+              {open.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
 
       {closed.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已結案</h3>
           <table>
-            <thead><tr>{FIELDS.slice(0, 4).map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {closed.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.slice(0, 4).map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  {canEditPage && <td><button onClick={() => update(r.id, { closed: '' })}>取消已結案</button></td>}
-                </tr>
-              ))}
-            </tbody>
+            <thead><tr><th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>{renderRows(closed)}</tbody>
           </table>
         </div>
       )}
@@ -113,8 +153,47 @@ export default function PositionsPage() {
   );
 }
 
+function LocationGroupsEditor({ groups, onChange }) {
+  const list = groups.length ? groups : [{ venue: '', location: '', headcount: 1, status: '開放中' }];
+
+  function updateRow(i, patch) {
+    const next = list.map((g, idx) => (idx === i ? { ...g, ...patch } : g));
+    onChange(next);
+  }
+  function removeRow(i) {
+    if (list.length > 1) onChange(list.filter((_, idx) => idx !== i));
+    else onChange([{ venue: '', location: '', headcount: 1, status: '開放中' }]);
+  }
+  function addRow() {
+    onChange([...list, { venue: '', location: '', headcount: 1, status: '開放中' }]);
+  }
+
+  return (
+    <div>
+      {list.map((g, i) => (
+        <div key={i} className="row-actions" style={{ marginBottom: 6, alignItems: 'center' }}>
+          <input placeholder="實習場域" style={{ width: 100 }} value={g.venue || ''} onChange={(e) => updateRow(i, { venue: e.target.value })} />
+          <input placeholder="實習地點" style={{ width: 140 }} value={g.location || ''} onChange={(e) => updateRow(i, { location: e.target.value })} />
+          <input type="number" placeholder="缺額" style={{ width: 70 }} value={g.headcount ?? 1} onChange={(e) => updateRow(i, { headcount: e.target.value })} />
+          <select value={g.status || '開放中'} onChange={(e) => updateRow(i, { status: e.target.value })}>
+            {POSITION_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button type="button" onClick={() => removeRow(i)}>移除</button>
+        </div>
+      ))}
+      <button type="button" onClick={addRow}>新增地點</button>
+    </div>
+  );
+}
+
 function PositionFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const groups = parseLocationGroups(form.locationGroups);
+
+  function setGroups(next) {
+    setForm({ ...form, locationGroups: JSON.stringify(next.filter((g) => g.location || g.venue)) });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -128,6 +207,8 @@ function PositionFormModal({ initial, onCancel, onSave }) {
               </label>
             ))}
           </div>
+          <h4>實習場域 / 地點 / 缺額 / 狀態</h4>
+          <LocationGroupsEditor groups={groups} onChange={setGroups} />
           <h4>角色指派（內部獎金計算對照用）</h4>
           <div className="form-grid">
             {ROLE_FIELDS.map((f) => (

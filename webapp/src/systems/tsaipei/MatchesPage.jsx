@@ -6,8 +6,15 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import { MATCH_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'positionId', label: '職缺ID' },
+  { key: 'venue', label: '實習場域' }, { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' },
+  { key: 'notes', label: '備註' },
+];
 
 export default function MatchesPage() {
   const { system, role, overrides } = useOutletContext();
@@ -16,6 +23,7 @@ export default function MatchesPage() {
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
+  const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
 
   const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未設定)';
   const positionLabel = (id) => {
@@ -49,7 +57,10 @@ export default function MatchesPage() {
     <div className="content">
       <div className="page-header">
         <h2>媒合紀錄</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增媒合</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增媒合</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
@@ -85,8 +96,17 @@ export default function MatchesPage() {
   );
 }
 
+function parseLocationGroups(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
 function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const position = positions.find((p) => p.id === form.positionId);
+  const venues = position ? [...new Set(parseLocationGroups(position.locationGroups).map((g) => g.venue).filter(Boolean))] : [];
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -102,14 +122,21 @@ function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
             </label>
             <label>
               職缺
-              <select required value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value })}>
+              <select required value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value, venue: '' })}>
                 <option value="" disabled>請選擇</option>
                 {positions.map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.company}</option>)}
               </select>
             </label>
             <label>
               實習場域
-              <input value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
+              {venues.length ? (
+                <select value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })}>
+                  <option value="">請選擇實習場域</option>
+                  {venues.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              ) : (
+                <input value={form.venue || ''} onChange={(e) => setForm({ ...form, venue: e.target.value })} placeholder={position ? '（此職缺未設定場域）' : '請先選擇職務'} />
+              )}
             </label>
             <label>
               狀態
