@@ -136,6 +136,14 @@ export default function InternshipDocsPage() {
     (allApproved ? completed : inProgress).push(sid);
   });
 
+  // 處理中的學生依客戶分類顯示（依使用者要求）。
+  const inProgressByCompany = {};
+  inProgress.forEach((sid) => {
+    const company = studentPositionLabel(sid, ctx);
+    (inProgressByCompany[company] ||= []).push(sid);
+  });
+  const inProgressCompanies = Object.keys(inProgressByCompany).sort((a, b) => a.localeCompare(b));
+
   async function handleUpdate(d, patch) {
     await update(d.id, patch);
     const merged = { ...d, ...patch };
@@ -182,17 +190,27 @@ export default function InternshipDocsPage() {
       <input placeholder="搜尋學生或客戶/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>處理中 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {inProgress.length} 位學生</span></h3>
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>學生</th><th>已繳交文件</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
-                <tbody>
-                  {inProgress.map((sid) => <StudentRow key={sid} sid={sid} />)}
-                  {inProgress.length === 0 && <tr><td colSpan={canEditPage ? 4 : 3} className="muted">目前沒有處理中的學生。</td></tr>}
-                </tbody>
-              </table>
-            </div>
+          <div>
+            <h3 style={{ margin: '0 0 12px' }}>處理中 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {inProgress.length} 位學生</span></h3>
+            {inProgress.length === 0 ? (
+              <p className="muted">目前沒有處理中的學生。</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {inProgressCompanies.map((company) => (
+                  <div className="card" key={company}>
+                    <h4 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{inProgressByCompany[company].length} 位學生</span></h4>
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>學生</th><th>已繳交文件</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
+                        <tbody>
+                          {inProgressByCompany[company].map((sid) => <StudentRow key={sid} sid={sid} />)}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="card">
             <h3 style={{ marginTop: 0 }}>已完成 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {completed.length} 位學生</span></h3>
