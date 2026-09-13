@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { SYSTEMS } from '../lib/permissions';
+import { SYSTEMS, canView } from '../lib/permissions';
 import { useAuth } from '../auth/AuthContext';
-import { useSystemProfile } from '../auth/useSystemAccess';
+import { useSystemProfile, useRolePermissions } from '../auth/useSystemAccess';
 
 const SYSTEM_META = {
   tsaipei: { icon: '🌸', desc: '學生建檔、職缺媒合、簽證/居留、實習文件、在台生活、財務結算' },
@@ -13,6 +13,7 @@ const SYSTEM_META = {
 export default function SystemPicker() {
   const { user, logout } = useAuth();
   const profiles = { tsaipei: useSystemProfile('tsaipei'), foodfactory: useSystemProfile('foodfactory') };
+  const overrides = { tsaipei: useRolePermissions('tsaipei'), foodfactory: useRolePermissions('foodfactory') };
   const loading = Object.values(profiles).some((p) => p === undefined);
   const visibleSystems = Object.entries(SYSTEMS).filter(([key]) => profiles[key]);
 
@@ -30,19 +31,26 @@ export default function SystemPicker() {
         <p className="muted">你的帳號還沒有被加到任何系統，請聯絡系統管理員在「使用人員」頁面新增你的帳號與角色。</p>
       ) : (
       <div className="picker-grid">
-        {visibleSystems.map(([key, sys]) => (
-          <Link key={key} to={`/${key}`} className="picker-card">
-            <div className="picker-card-icon">{SYSTEM_META[key]?.icon}</div>
-            <h2>{sys.label}</h2>
-            <p className="muted">{SYSTEM_META[key]?.desc}</p>
-            <span className="picker-card-enter">
-              進入系統
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </span>
-          </Link>
-        ))}
+        {visibleSystems.map(([key, sys]) => {
+          const role = profiles[key]?.role;
+          const showManageUsers = role && canView(key, 'users', role, overrides[key]);
+          return (
+            <div key={key} className="picker-card">
+              <Link to={`/${key}`} className="picker-card-link">
+                <div className="picker-card-icon">{SYSTEM_META[key]?.icon}</div>
+                <h2>{sys.label}</h2>
+                <p className="muted">{SYSTEM_META[key]?.desc}</p>
+                <span className="picker-card-enter">
+                  進入系統
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
+              </Link>
+              {showManageUsers && <Link to={`/${key}/users`} className="picker-card-manage-users">管理使用人員</Link>}
+            </div>
+          );
+        })}
       </div>
       )}
     </div>
