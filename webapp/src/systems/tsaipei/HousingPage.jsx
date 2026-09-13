@@ -24,7 +24,7 @@ export default function HousingPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
 
-  const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
+  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
   const today = new Date().toISOString().slice(0, 10);
 
   function classify(r) {
@@ -114,7 +114,7 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
               學生
               <select required value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
                 <option value="" disabled>請選擇</option>
-                {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName}</option>)}
+                {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
               </select>
             </label>
             <label>

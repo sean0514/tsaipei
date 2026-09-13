@@ -52,7 +52,7 @@ export default function InTaiwanVisaPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
-  const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未知)';
+  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
   const searchQuery = q.trim().toLowerCase();
   const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!searchQuery || studentName(r.studentId).toLowerCase().includes(searchQuery)));
 

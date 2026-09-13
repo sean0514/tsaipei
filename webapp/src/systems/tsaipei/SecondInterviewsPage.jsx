@@ -30,7 +30,8 @@ export default function SecondInterviewsPage() {
   function matchLabel(matchId) {
     const m = matches.find((x) => x.id === matchId);
     if (!m) return '(未設定)';
-    const s = students.find((x) => x.id === m.studentId)?.chineseName || '?';
+    const st = students.find((x) => x.id === m.studentId);
+    const s = st?.chineseName || st?.originalName || '?';
     const p = positions.find((x) => x.id === m.positionId);
     return `${s} · ${p ? `${p.projectCode} ${p.company}` : '?'}`;
   }

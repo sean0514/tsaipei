@@ -26,7 +26,7 @@ export default function MatchesPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
 
-  const studentName = (id) => students.find((s) => s.id === id)?.chineseName || '(未設定)';
+  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未設定)'; };
   const positionLabel = (id) => {
     const p = positions.find((x) => x.id === id);
     return p ? `${p.projectCode} ${p.company}` : '(未設定)';
@@ -131,7 +131,7 @@ function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
               學生
               <select required value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
                 <option value="" disabled>請選擇</option>
-                {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName}</option>)}
+                {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
               </select>
             </label>
             <label>
