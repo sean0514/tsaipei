@@ -81,6 +81,13 @@ function FeeFormModal({ initial, positions, onCancel, onSave }) {
   const projectCodes = [...new Set(positions.map((p) => p.projectCode).filter(Boolean))].sort();
   const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
   if (form.client && !companies.includes(form.client)) companies.push(form.client);
+  // 專案編號在「實習單位」裡已經跟公司名稱綁在一起，選了專案編號就自動帶入對應公司。
+  const companyByProjectCode = {};
+  positions.forEach((p) => { if (p.projectCode && p.company && !companyByProjectCode[p.projectCode]) companyByProjectCode[p.projectCode] = p.company; });
+
+  function handleProjectCodeChange(code) {
+    setForm({ ...form, projectCode: code, client: companyByProjectCode[code] || form.client });
+  }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -90,7 +97,7 @@ function FeeFormModal({ initial, positions, onCancel, onSave }) {
           <div className="form-grid">
             <label>
               專案編號
-              <select value={form.projectCode || ''} onChange={(e) => setForm({ ...form, projectCode: e.target.value })}>
+              <select value={form.projectCode || ''} onChange={(e) => handleProjectCodeChange(e.target.value)}>
                 <option value="">請選擇</option>
                 {projectCodes.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
