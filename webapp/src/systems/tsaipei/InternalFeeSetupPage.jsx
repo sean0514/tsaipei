@@ -33,6 +33,23 @@ export default function InternalFeeSetupPage() {
     setEditing(null);
   }
 
+  // 把「實習單位」裡有、但這裡還沒有的專案編號＋公司名稱直接複製成新的一列，
+  // 使用者再補上費用金額即可，不用手動一筆一筆新增選擇。
+  async function handleCopyFromPositions() {
+    const existing = new Set(rows.map((r) => r.projectCode));
+    const seen = new Set();
+    const toAdd = [];
+    positions.forEach((p) => {
+      if (!p.projectCode || !p.company) return;
+      if (existing.has(p.projectCode) || seen.has(p.projectCode)) return;
+      seen.add(p.projectCode);
+      toAdd.push({ projectCode: p.projectCode, client: p.company });
+    });
+    if (toAdd.length === 0) { alert('實習單位裡的專案編號都已經在這裡了，沒有新的可以帶入。'); return; }
+    for (const item of toAdd) await add(item);
+    alert(`已從實習單位複製帶入 ${toAdd.length} 筆，請補上費用金額。`);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -42,6 +59,7 @@ export default function InternalFeeSetupPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增費率</button>}
+          {canEditPage && <button onClick={handleCopyFromPositions}>從實習單位複製帶入</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
