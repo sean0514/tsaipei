@@ -14,6 +14,7 @@ export const NAV_ICONS = {
     applicationProgress: '▶',
     inTaiwanVisa: '✈',
     inTaiwanCare: '♡',
+    expectedArrival: '◷',
     managerReport: '▲',
     housing: '⌂',
     dormManagement: '▤',
