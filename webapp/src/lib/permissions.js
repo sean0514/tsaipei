@@ -59,10 +59,12 @@ export const SYSTEMS = {
     roles: ['系統管理員', '主管', '行政人員', '會計人員'],
     modules: {
       dashboard: '儀表板',
+      leases: '宿舍租賃主檔',
       users: '使用人員',
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 行政人員: 'view', 會計人員: 'view' },
+      leases: { 系統管理員: 'edit', 主管: 'edit', 行政人員: 'edit', 會計人員: 'view' },
       users: { 系統管理員: 'edit', 主管: 'view', 行政人員: 'none', 會計人員: 'none' },
     },
   },
