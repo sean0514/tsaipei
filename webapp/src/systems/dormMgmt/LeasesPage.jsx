@@ -12,6 +12,7 @@ const FIELDS = [
   { key: 'name', label: '分類' },
   { key: 'address', label: '地址' },
   { key: 'leaseStart', label: '起租日' },
+  { key: 'paymentCalcDay', label: '計算日期', type: 'number' },
   { key: 'leaseEnd', label: '結束日' },
   { key: 'terminationDate', label: '解約日' },
   { key: 'deposit', label: '押金', type: 'number' },
@@ -19,6 +20,7 @@ const FIELDS = [
   { key: 'rent', label: '金額', type: 'number' },
   { key: 'paymentDay', label: '每月付款時間' },
   { key: 'lesseeName', label: '承租單位名稱' },
+  { key: 'remittanceAccount', label: '匯款帳號' },
   { key: 'contactName', label: '聯絡人' },
   { key: 'contactPhone', label: '電話' },
   { key: 'bankAccountName', label: '帳戶名稱' },
@@ -27,6 +29,7 @@ const FIELDS = [
   { key: 'branchCode', label: '分支代號' },
   { key: 'bankAccount', label: '帳號' },
   { key: 'notes', label: '備註' },
+  { key: 'remittanceNotes', label: '匯款備註' },
 ];
 const ROC_DATE_KEYS = ['leaseStart', 'leaseEnd', 'terminationDate', 'depositRefundDate'];
 
@@ -203,7 +206,7 @@ function LeaseFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={ROC_DATE_KEYS.includes(f.key) ? '例如 112/02/01' : ''} />
+                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={ROC_DATE_KEYS.includes(f.key) ? '例如 112/02/01' : f.key === 'paymentCalcDay' ? '每月幾號付款，1-31' : ''} />
               </label>
             ))}
           </div>
