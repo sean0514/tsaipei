@@ -35,6 +35,7 @@ export const NAV_ICONS = {
   dormMgmt: {
     dashboard: '◆',
     leases: '⌂',
+    remittance: '⌗',
     users: '▣',
   },
 };
