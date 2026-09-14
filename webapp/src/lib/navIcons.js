@@ -31,4 +31,8 @@ export const NAV_ICONS = {
     dashboard: '◆',
     users: '▣',
   },
+  dormMgmt: {
+    dashboard: '◆',
+    users: '▣',
+  },
 };

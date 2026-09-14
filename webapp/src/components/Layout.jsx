@@ -20,6 +20,7 @@ export const IMPLEMENTED_MODULES = {
     'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'users',
   ],
   dispatch: ['dashboard', 'users'],
+  dormMgmt: ['dashboard', 'users'],
 };
 
 // A permission module can cover several routes at once (matches the
