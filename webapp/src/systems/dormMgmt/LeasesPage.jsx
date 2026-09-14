@@ -15,6 +15,7 @@ const FIELDS = [
   { key: 'leaseEnd', label: '結束日' },
   { key: 'terminationDate', label: '解約日' },
   { key: 'deposit', label: '押金', type: 'number' },
+  { key: 'depositRefundDate', label: '押金退還日' },
   { key: 'rent', label: '金額', type: 'number' },
   { key: 'paymentDay', label: '每月付款時間' },
   { key: 'lesseeName', label: '承租單位名稱' },
@@ -27,8 +28,37 @@ const FIELDS = [
   { key: 'bankAccount', label: '帳號' },
   { key: 'notes', label: '備註' },
 ];
+const ROC_DATE_KEYS = ['leaseStart', 'leaseEnd', 'terminationDate', 'depositRefundDate'];
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+
+const EXPIRY_REMINDER_DAYS = 60;
+
+// 租約日期是民國年格式（例如 112/02/01），這裡轉成西元 Date 才能算到期天數。
+function parseROCDate(str) {
+  if (!str) return null;
+  const parts = String(str).trim().split('/');
+  if (parts.length !== 3) return null;
+  const [y, m, d] = parts.map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y + 1911, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysUntil(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((date - today) / 86400000);
+}
+
+function ExpiryTag({ leaseEnd }) {
+  const date = parseROCDate(leaseEnd);
+  if (!date) return <span className="muted">—</span>;
+  const days = daysUntil(date);
+  if (days < 0) return <span className="tag tag-red">已到期 {Math.abs(days)} 天</span>;
+  if (days <= EXPIRY_REMINDER_DAYS) return <span className="tag tag-amber">即將到期（{days} 天）</span>;
+  return <span className="tag tag-green">承租中</span>;
+}
 
 export default function LeasesPage() {
   const { system, role, overrides } = useOutletContext();
@@ -41,6 +71,10 @@ export default function LeasesPage() {
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => !searchQuery || [r.category, r.name, r.address, r.lesseeName].some((v) => v?.toLowerCase().includes(searchQuery)));
 
+  // 有填「解約日」就視為已退租，跟原始試算表的紀錄習慣一致。
+  const active = filteredRows.filter((r) => !r.terminationDate);
+  const terminated = filteredRows.filter((r) => r.terminationDate);
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
@@ -51,41 +85,55 @@ export default function LeasesPage() {
     setEditing(null);
   }
 
+  function LeaseTable({ items, showExpiry }) {
+    return (
+      <div className="table-wrap"><table>
+        <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{showExpiry && <th>到期提醒</th>}{canEditPage && <th></th>}</tr></thead>
+        <tbody>
+          {items.map((r) => (
+            <tr key={r.id}>
+              {FIELDS.map((f) => <td key={f.key}>{f.type === 'number' ? (r[f.key] ? Number(r[f.key]).toLocaleString() : '—') : (r[f.key] || '—')}</td>)}
+              {showExpiry && <td><ExpiryTag leaseEnd={r.leaseEnd} /></td>}
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => setEditing(r)}>編輯</button>
+                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          ))}
+          {items.length === 0 && <tr><td colSpan={FIELDS.length + (showExpiry ? 1 : 0) + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+        </tbody>
+      </table></div>
+    );
+  }
+
   return (
     <div className="content">
       <div className="page-header">
         <div>
           <h2>宿舍租賃主檔</h2>
-          <div className="page-desc">記錄每筆宿舍/場地租約：地址、租期、押金、租金、每月付款時間與匯款資訊{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">分承租中／已退租（依「解約日」是否填寫判斷），承租中的租約會提示是否即將到期（{EXPIRY_REMINDER_DAYS} 天內）或已到期{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增租約</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有租賃主檔資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有租賃主檔資料，請先下載備份再匯入。日期欄位請維持民國年格式（例如 112/02/01）。</p>}
       <input placeholder="搜尋科目、分類、地址或承租單位" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
-      <div className="card" style={{ overflowX: 'auto' }}>
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {filteredRows.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.map((f) => <td key={f.key}>{f.type === 'number' ? (r[f.key] ? Number(r[f.key]).toLocaleString() : '—') : (r[f.key] || '—')}</td>)}
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filteredRows.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
-      </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div>
+            <h3 style={{ margin: '0 0 12px' }}>承租中 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {active.length} 筆</span></h3>
+            <div className="card"><LeaseTable items={active} showExpiry /></div>
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 12px' }}>已退租 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {terminated.length} 筆</span></h3>
+            <div className="card"><LeaseTable items={terminated} /></div>
+          </div>
+        </div>
+      )}
       {editing && <LeaseFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
@@ -102,7 +150,7 @@ function LeaseFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={f.key.includes('lease') || f.key === 'terminationDate' ? '例如 112/02/01' : ''} />
+                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={ROC_DATE_KEYS.includes(f.key) ? '例如 112/02/01' : ''} />
               </label>
             ))}
           </div>
