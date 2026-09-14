@@ -8,7 +8,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import SegmentedControl from '../../components/SegmentedControl';
 
-export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '護照影本', '保險證明', '其他'];
+export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '護照影本', '其他'];
 const STATUSES = ['未提供', '已收到', '審核中', '已核准', '需補件', '不適用'];
 const EXTENSION_OPTIONS = ['', '有延畢', '無延畢'];
 const CSV_FIELDS = [
