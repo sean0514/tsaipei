@@ -26,14 +26,48 @@ function isDueInMonth(lease, range) {
   return true;
 }
 
-const CSV_FIELDS = [
-  { key: 'category', label: '科目' }, { key: 'name', label: '分類' }, { key: 'lesseeName', label: '承租單位名稱' },
-  { key: 'remittanceAccount', label: '匯款帳號' },
-  { key: 'rent', label: '金額' }, { key: 'paymentDay', label: '每月付款時間' }, { key: 'bankAccountName', label: '帳戶名稱' },
-  { key: 'bank', label: '銀行' }, { key: 'branch', label: '分行' }, { key: 'branchCode', label: '分支代號' },
-  { key: 'bankAccount', label: '帳號' }, { key: 'notes', label: '備註' },
-  { key: 'remittanceNotes', label: '匯款備註' },
+// 下載內容比照銀行的「匯款格式」範本欄位順序/名稱（銀行 ACH 批次轉帳匯入用），
+// 跟畫面上顯示的完整明細表是兩回事。
+const REMIT_FORMAT_FIELDS = [
+  { key: 'payeeName', label: '收款人名稱' },
+  { key: 'payeeAccount', label: '收款人帳號' },
+  { key: 'payeeBankCode', label: '收款行銀行代號' },
+  { key: 'amount', label: '付款金額' },
+  { key: 'payeeTaxId', label: '收款人企業識別碼' },
+  { key: 'feeMethod', label: '手續費扣法' },
+  { key: 'payeeFax', label: '收款人傳真' },
+  { key: 'payeeEmail', label: '收款人email' },
+  { key: 'notes', label: '備註' },
+  { key: 'paymentAccount', label: '付款帳號' },
+  { key: 'transactionDate', label: '交易日期' },
 ];
+
+// 「計算日期」是租約裡記錄的每月幾號付款（1-31），交易日期＝所選月份＋計算
+// 日期，用西元 YYYYMMDD 純數字字串表示；超過該月天數（例如 2 月 30 號）就
+// 收斂到當月最後一天。
+function computeTransactionDate(monthStr, calcDay) {
+  if (!calcDay) return '';
+  const [y, m] = monthStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const day = Math.min(Math.max(Number(calcDay), 1), daysInMonth);
+  return `${y}${String(m).padStart(2, '0')}${String(day).padStart(2, '0')}`;
+}
+
+function toRemitRow(r, month) {
+  return {
+    payeeName: r.bankAccountName || '',
+    payeeAccount: r.bankAccount || '',
+    payeeBankCode: r.branchCode || '',
+    amount: r.rent || '',
+    payeeTaxId: '',
+    feeMethod: '0',
+    payeeFax: '',
+    payeeEmail: '',
+    notes: r.remittanceNotes || '',
+    paymentAccount: r.remittanceAccount || '',
+    transactionDate: computeTransactionDate(month, r.paymentCalcDay),
+  };
+}
 
 // 依所選月份，從宿舍租賃主檔（dormMgmt_leases）即時算出當月需要匯款的租約
 // 清單，純顯示＋下載，沒有另外的資料表——跟 tsaipei 系統裡「客戶請款計算」
@@ -49,7 +83,7 @@ export default function RemittancePage() {
   const total = due.reduce((sum, r) => sum + (Number(r.rent) || 0), 0);
 
   function handleDownload() {
-    exportEntityCSV(due, CSV_FIELDS, `宿舍匯款_${month}`);
+    exportEntityCSV(due.map((r) => toRemitRow(r, month)), REMIT_FORMAT_FIELDS, `宿舍匯款_${month}`);
   }
 
   if (!canViewPage) return <div className="content">你沒有檢視這個頁面的權限。</div>;
@@ -59,11 +93,11 @@ export default function RemittancePage() {
       <div className="page-header">
         <div>
           <h2>宿舍匯款</h2>
-          <div className="page-desc">依所選月份，列出當月需要付款的宿舍租約（承租中且租期涵蓋該月份），可下載當月轉帳清單（唯讀）</div>
+          <div className="page-desc">依所選月份，列出當月需要付款的宿舍租約（承租中且租期涵蓋該月份），可下載符合銀行匯款格式的當月轉帳清單（唯讀）</div>
         </div>
         <div className="row-actions">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-          <button onClick={handleDownload}>下載此月份轉帳清單</button>
+          <button onClick={handleDownload}>下載匯款格式</button>
         </div>
       </div>
       {error ? (
@@ -73,7 +107,7 @@ export default function RemittancePage() {
           <p className="muted" style={{ marginTop: 0 }}>共 {due.length} 筆，合計 {total.toLocaleString()} 元</p>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>科目</th><th>分類</th><th>承租單位名稱</th><th>匯款帳號</th><th>金額</th><th>每月付款時間</th><th>帳戶名稱</th><th>銀行</th><th>分行</th><th>分支代號</th><th>帳號</th><th>備註</th><th>匯款備註</th></tr></thead>
+              <thead><tr><th>科目</th><th>分類</th><th>承租單位名稱</th><th>匯款帳號</th><th>金額</th><th>計算日期</th><th>交易日期</th><th>帳戶名稱</th><th>銀行</th><th>分行</th><th>分支代號</th><th>帳號</th><th>備註</th><th>匯款備註</th></tr></thead>
               <tbody>
                 {due.map((r) => (
                   <tr key={r.id}>
@@ -82,7 +116,8 @@ export default function RemittancePage() {
                     <td>{r.lesseeName || '—'}</td>
                     <td>{r.remittanceAccount || '—'}</td>
                     <td>{r.rent ? Number(r.rent).toLocaleString() : '—'}</td>
-                    <td>{r.paymentDay || '—'}</td>
+                    <td>{r.paymentCalcDay || '—'}</td>
+                    <td>{computeTransactionDate(month, r.paymentCalcDay) || '—'}</td>
                     <td>{r.bankAccountName || '—'}</td>
                     <td>{r.bank || '—'}</td>
                     <td>{r.branch || '—'}</td>
@@ -92,7 +127,7 @@ export default function RemittancePage() {
                     <td>{r.remittanceNotes || '—'}</td>
                   </tr>
                 ))}
-                {due.length === 0 && <tr><td colSpan={13} className="muted">這個月份沒有需要付款的租約。</td></tr>}
+                {due.length === 0 && <tr><td colSpan={14} className="muted">這個月份沒有需要付款的租約。</td></tr>}
               </tbody>
             </table>
           </div>

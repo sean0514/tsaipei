@@ -12,6 +12,7 @@ const FIELDS = [
   { key: 'name', label: '分類' },
   { key: 'address', label: '地址' },
   { key: 'leaseStart', label: '起租日' },
+  { key: 'paymentCalcDay', label: '計算日期', type: 'number' },
   { key: 'leaseEnd', label: '結束日' },
   { key: 'terminationDate', label: '解約日' },
   { key: 'deposit', label: '押金', type: 'number' },
@@ -205,7 +206,7 @@ function LeaseFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={ROC_DATE_KEYS.includes(f.key) ? '例如 112/02/01' : ''} />
+                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} placeholder={ROC_DATE_KEYS.includes(f.key) ? '例如 112/02/01' : f.key === 'paymentCalcDay' ? '每月幾號付款，1-31' : ''} />
               </label>
             ))}
           </div>
