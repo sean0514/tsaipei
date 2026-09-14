@@ -303,6 +303,30 @@ service cloud.firestore {
       allow write: if dpIsMember() && dpRole() == '系統管理員';
     }
 
+    // ---------------- 宿舍管理系統 (dormMgmt) ----------------
+    function dmRole() {
+      return get(/databases/$(database)/documents/dormMgmt_users/$(request.auth.uid)).data.role;
+    }
+    function dmIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/dormMgmt_users/$(request.auth.uid));
+    }
+    function dmCanEdit(module) {
+      return dmIsMember() && (
+        dmRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole())) &&
+         get(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole())).data.level == 'edit')
+      );
+    }
+
+    match /dormMgmt_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || dmIsMember());
+      allow write: if dmIsMember() && dmRole() == '系統管理員';
+    }
+    match /dormMgmt_rolePermissions/{docId} {
+      allow read: if dmIsMember();
+      allow write: if dmIsMember() && dmRole() == '系統管理員';
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

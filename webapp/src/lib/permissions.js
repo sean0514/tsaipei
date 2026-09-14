@@ -54,6 +54,18 @@ export const SYSTEMS = {
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none', 會計人員: 'none' },
     },
   },
+  dormMgmt: {
+    label: '宿舍管理系統',
+    roles: ['系統管理員', '主管', '行政人員', '會計人員'],
+    modules: {
+      dashboard: '儀表板',
+      users: '使用人員',
+    },
+    defaultPermissions: {
+      dashboard: { 系統管理員: 'edit', 主管: 'edit', 行政人員: 'view', 會計人員: 'view' },
+      users: { 系統管理員: 'edit', 主管: 'view', 行政人員: 'none', 會計人員: 'none' },
+    },
+  },
   foodfactory: {
     label: '食品工廠管理系統',
     roles: ['系統管理員', '廠長主管', '倉管人員', '產線人員', '品管人員', '業務出貨人員', '會計人員'],
