@@ -32,6 +32,21 @@ const ROC_DATE_KEYS = ['leaseStart', 'leaseEnd', 'terminationDate', 'depositRefu
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
+const HIDDEN_COLUMNS_STORAGE_KEY = 'dormMgmt_leases_hiddenColumns';
+
+// 只是記住這個瀏覽器上次勾選的顯示欄位，不是關鍵資料，讀寫失敗（例如無痕視窗）
+// 就忽略，不影響頁面正常運作。
+function loadHiddenColumns() {
+  try {
+    const raw = localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? new Set(arr) : new Set();
+  } catch { return new Set(); }
+}
+function saveHiddenColumns(set) {
+  try { localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 const EXPIRY_REMINDER_DAYS = 60;
 
 // 租約日期是民國年格式（例如 112/02/01），這裡轉成西元 Date 才能算到期天數。
@@ -68,7 +83,18 @@ export default function LeasesPage() {
   const { rows, loading, error, add, update, remove } = useCollection('dormMgmt_leases');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [hiddenColumns, setHiddenColumns] = useState(loadHiddenColumns);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('dormMgmt_leases', CSV_FIELDS, { entityLabel: '宿舍租賃主檔', canEdit: canEditPage });
+
+  const visibleFields = FIELDS.filter((f) => !hiddenColumns.has(f.key));
+
+  function toggleColumn(key) {
+    const next = new Set(hiddenColumns);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setHiddenColumns(next);
+    saveHiddenColumns(next);
+  }
 
   async function handleDeleteAll() {
     if (rows.length === 0) return;
@@ -97,11 +123,11 @@ export default function LeasesPage() {
   function LeaseTable({ items, showExpiry }) {
     return (
       <div className="table-wrap"><table>
-        <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{showExpiry && <th>到期提醒</th>}{canEditPage && <th></th>}</tr></thead>
+        <thead><tr>{visibleFields.map((f) => <th key={f.key}>{f.label}</th>)}{showExpiry && <th>到期提醒</th>}{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {items.map((r) => (
             <tr key={r.id}>
-              {FIELDS.map((f) => <td key={f.key}>{f.type === 'number' ? (r[f.key] ? Number(r[f.key]).toLocaleString() : '—') : (r[f.key] || '—')}</td>)}
+              {visibleFields.map((f) => <td key={f.key}>{f.type === 'number' ? (r[f.key] ? Number(r[f.key]).toLocaleString() : '—') : (r[f.key] || '—')}</td>)}
               {showExpiry && <td><ExpiryTag leaseEnd={r.leaseEnd} /></td>}
               {canEditPage && (
                 <td className="row-actions">
@@ -111,7 +137,7 @@ export default function LeasesPage() {
               )}
             </tr>
           ))}
-          {items.length === 0 && <tr><td colSpan={FIELDS.length + (showExpiry ? 1 : 0) + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+          {items.length === 0 && <tr><td colSpan={visibleFields.length + (showExpiry ? 1 : 0) + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
@@ -131,7 +157,22 @@ export default function LeasesPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有租賃主檔資料，請先下載備份再匯入。日期欄位請維持民國年格式（例如 112/02/01）。</p>}
-      <input placeholder="搜尋科目、分類、地址或承租單位" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <input placeholder="搜尋科目、分類、地址或承租單位" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <button onClick={() => setShowColumnPicker((v) => !v)}>顯示欄位設定</button>
+      </div>
+      {showColumnPicker && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
+            {FIELDS.map((f) => (
+              <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+                <input type="checkbox" checked={!hiddenColumns.has(f.key)} onChange={() => toggleColumn(f.key)} />
+                {f.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       {error ? (
         <p className="muted">讀取失敗，可能是這個帳號還沒有「宿舍租賃主檔」的檢視權限，請聯絡系統管理員確認。（錯誤訊息：{error.message}）</p>
       ) : loading ? <p className="muted">載入中…</p> : (
