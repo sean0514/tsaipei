@@ -26,6 +26,7 @@ import ClientBillingPage from './systems/tsaipei/ClientBillingPage';
 import StudentSelfPayHousingPage from './systems/tsaipei/StudentSelfPayHousingPage';
 import StudentMasterSheetPage from './systems/tsaipei/StudentMasterSheetPage';
 import UsersPage from './components/UsersPage';
+import DispatchDashboardPage from './systems/dispatch/DashboardPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
 import PurchasesPage from './systems/foodfactory/PurchasesPage';
@@ -72,6 +73,10 @@ const PAGES = {
     clientBilling: ClientBillingPage,
     studentSelfPayHousing: StudentSelfPayHousingPage,
     studentMasterSheet: StudentMasterSheetPage,
+  },
+  dispatch: {
+    dashboard: DispatchDashboardPage,
+    users: UsersPage,
   },
   foodfactory: {
     inventory: InventoryPage,

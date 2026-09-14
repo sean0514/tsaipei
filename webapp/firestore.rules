@@ -279,6 +279,30 @@ service cloud.firestore {
       allow write: if ffCanEdit('billing');
     }
 
+    // ---------------- 派遣公司專用系統 (dispatch) ----------------
+    function dpRole() {
+      return get(/databases/$(database)/documents/dispatch_users/$(request.auth.uid)).data.role;
+    }
+    function dpIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/dispatch_users/$(request.auth.uid));
+    }
+    function dpCanEdit(module) {
+      return dpIsMember() && (
+        dpRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole())) &&
+         get(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole())).data.level == 'edit')
+      );
+    }
+
+    match /dispatch_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || dpIsMember());
+      allow write: if dpIsMember() && dpRole() == '系統管理員';
+    }
+    match /dispatch_rolePermissions/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpIsMember() && dpRole() == '系統管理員';
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

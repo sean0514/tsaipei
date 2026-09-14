@@ -19,6 +19,7 @@ export const IMPLEMENTED_MODULES = {
     'inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
     'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'users',
   ],
+  dispatch: ['dashboard', 'users'],
 };
 
 // A permission module can cover several routes at once (matches the

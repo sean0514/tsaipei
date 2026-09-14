@@ -7,6 +7,7 @@ import { useSystemProfile, useRolePermissions } from '../auth/useSystemAccess';
 const SYSTEM_META = {
   tsaipei: { icon: '🌸', desc: '學生建檔、職缺媒合、簽證/居留、實習文件、在台生活、財務結算' },
   foodfactory: { icon: '🏭', desc: '原料庫存、生產管理、成品出貨、品質食安、成本分析、財務報表' },
+  dispatch: { icon: '🧑‍💼', desc: '目前僅有基本骨架，業務功能陸續建置中' },
 };
 
 // 公司主頁：列出該公司底下有哪些系統可以選。只有系統管理員在「使用人員」頁面
@@ -20,10 +21,12 @@ export default function CompanyHomePage() {
 
   const tsaipeiProfile = useSystemProfile('tsaipei');
   const foodfactoryProfile = useSystemProfile('foodfactory');
+  const dispatchProfile = useSystemProfile('dispatch');
   const tsaipeiOverrides = useRolePermissions('tsaipei');
   const foodfactoryOverrides = useRolePermissions('foodfactory');
-  const profiles = { tsaipei: tsaipeiProfile, foodfactory: foodfactoryProfile };
-  const overrides = { tsaipei: tsaipeiOverrides, foodfactory: foodfactoryOverrides };
+  const dispatchOverrides = useRolePermissions('dispatch');
+  const profiles = { tsaipei: tsaipeiProfile, foodfactory: foodfactoryProfile, dispatch: dispatchProfile };
+  const overrides = { tsaipei: tsaipeiOverrides, foodfactory: foodfactoryOverrides, dispatch: dispatchOverrides };
 
   if (!company) return <div className="content">找不到這間公司。<Link to="/">回選擇公司</Link></div>;
 
