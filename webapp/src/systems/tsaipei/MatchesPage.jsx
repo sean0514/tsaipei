@@ -7,9 +7,10 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { MATCH_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
-import StatusSections from '../../components/StatusSections';
+import Tag from '../../components/Tag';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
+const NATIONALITIES = ['越南', '印尼', '泰國', '菲律賓', '台灣'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'positionId', label: '職缺ID' },
   { key: 'venue', label: '實習場域' }, { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' },
@@ -26,7 +27,9 @@ export default function MatchesPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
 
-  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未設定)'; };
+  const studentById = (id) => students.find((x) => x.id === id);
+  const studentName = (id) => { const s = studentById(id); return s?.chineseName || s?.originalName || '(未設定)'; };
+  const studentNationality = (id) => studentById(id)?.nationality || '未設定';
   const positionLabel = (id) => {
     const p = positions.find((x) => x.id === id);
     return p ? `${p.projectCode} ${p.company}` : '(未設定)';
@@ -43,6 +46,14 @@ export default function MatchesPage() {
       const bt = b.createdAt?.toMillis?.() ?? 0;
       return bt - at;
     });
+
+  // 依國籍分類，跟原本依狀態分類的邏輯改成同一套 group-by 寫法。
+  const byNationality = {};
+  sortedRows.forEach((r) => {
+    const nat = studentNationality(r.studentId);
+    (byNationality[nat] ||= []).push(r);
+  });
+  const nationalityKeys = [...NATIONALITIES, ...Object.keys(byNationality).filter((n) => !NATIONALITIES.includes(n))];
 
   // 媒合紀錄狀態改成「已媒合」時：媒合日期若空則帶入今天，並自動建立一筆
   // 二面進度（待安排），如同原本 Apps Script 版的自動連動邏輯。
@@ -71,7 +82,7 @@ export default function MatchesPage() {
       <div className="page-header">
         <div>
           <h2>媒合紀錄</h2>
-          <div className="page-desc">依狀態分類，將學生配對至職缺並追蹤媒合狀態{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依國籍分類，將學生配對至職缺並追蹤媒合狀態{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增媒合</button>}
@@ -81,27 +92,36 @@ export default function MatchesPage() {
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」「職缺ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        <StatusSections
-          statuses={STATUSES}
-          tagMap={MATCH_TAG}
-          rows={sortedRows}
-          colSpan={canEditPage ? 5 : 4}
-          headerCells={<><th>學生</th><th>職缺</th><th>實習場域</th><th>媒合日期</th>{canEditPage && <th></th>}</>}
-          renderRow={(r) => (
-            <tr key={r.id}>
-              <td>{studentName(r.studentId)}</td>
-              <td>{positionLabel(r.positionId)}</td>
-              <td>{r.venue || '—'}</td>
-              <td>{r.matchDate || '—'}</td>
-              {canEditPage && (
-                <td className="row-actions">
-                  <button onClick={() => setEditing(r)}>編輯</button>
-                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                </td>
-              )}
-            </tr>
-          )}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {nationalityKeys.filter((nat) => byNationality[nat]?.length).map((nat) => (
+            <div className="card" key={nat}>
+              <h3 style={{ marginTop: 0 }}>{nat} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {byNationality[nat].length} 筆</span></h3>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr></thead>
+                  <tbody>
+                    {byNationality[nat].map((r) => (
+                      <tr key={r.id}>
+                        <td>{studentName(r.studentId)}</td>
+                        <td>{positionLabel(r.positionId)}</td>
+                        <td>{r.venue || '—'}</td>
+                        <td><Tag value={r.status} map={MATCH_TAG} /></td>
+                        <td>{r.matchDate || '—'}</td>
+                        {canEditPage && (
+                          <td className="row-actions">
+                            <button onClick={() => setEditing(r)}>編輯</button>
+                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+          {sortedRows.length === 0 && <p className="muted">目前沒有符合條件的媒合紀錄。</p>}
+        </div>
       )}
       {editing && (
         <MatchFormModal initial={editing} students={students} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />
