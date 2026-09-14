@@ -19,6 +19,7 @@ const FIELDS = [
   { key: 'rent', label: '金額', type: 'number' },
   { key: 'paymentDay', label: '每月付款時間' },
   { key: 'lesseeName', label: '承租單位名稱' },
+  { key: 'remittanceAccount', label: '匯款帳號' },
   { key: 'contactName', label: '聯絡人' },
   { key: 'contactPhone', label: '電話' },
   { key: 'bankAccountName', label: '帳戶名稱' },
@@ -27,6 +28,7 @@ const FIELDS = [
   { key: 'branchCode', label: '分支代號' },
   { key: 'bankAccount', label: '帳號' },
   { key: 'notes', label: '備註' },
+  { key: 'remittanceNotes', label: '匯款備註' },
 ];
 const ROC_DATE_KEYS = ['leaseStart', 'leaseEnd', 'terminationDate', 'depositRefundDate'];
 

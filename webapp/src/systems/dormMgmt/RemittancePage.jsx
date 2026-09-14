@@ -28,9 +28,11 @@ function isDueInMonth(lease, range) {
 
 const CSV_FIELDS = [
   { key: 'category', label: '科目' }, { key: 'name', label: '分類' }, { key: 'lesseeName', label: '承租單位名稱' },
+  { key: 'remittanceAccount', label: '匯款帳號' },
   { key: 'rent', label: '金額' }, { key: 'paymentDay', label: '每月付款時間' }, { key: 'bankAccountName', label: '帳戶名稱' },
   { key: 'bank', label: '銀行' }, { key: 'branch', label: '分行' }, { key: 'branchCode', label: '分支代號' },
   { key: 'bankAccount', label: '帳號' }, { key: 'notes', label: '備註' },
+  { key: 'remittanceNotes', label: '匯款備註' },
 ];
 
 // 依所選月份，從宿舍租賃主檔（dormMgmt_leases）即時算出當月需要匯款的租約
@@ -71,13 +73,14 @@ export default function RemittancePage() {
           <p className="muted" style={{ marginTop: 0 }}>共 {due.length} 筆，合計 {total.toLocaleString()} 元</p>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>科目</th><th>分類</th><th>承租單位名稱</th><th>金額</th><th>每月付款時間</th><th>帳戶名稱</th><th>銀行</th><th>分行</th><th>分支代號</th><th>帳號</th><th>備註</th></tr></thead>
+              <thead><tr><th>科目</th><th>分類</th><th>承租單位名稱</th><th>匯款帳號</th><th>金額</th><th>每月付款時間</th><th>帳戶名稱</th><th>銀行</th><th>分行</th><th>分支代號</th><th>帳號</th><th>備註</th><th>匯款備註</th></tr></thead>
               <tbody>
                 {due.map((r) => (
                   <tr key={r.id}>
                     <td>{r.category || '—'}</td>
                     <td>{r.name || '—'}</td>
                     <td>{r.lesseeName || '—'}</td>
+                    <td>{r.remittanceAccount || '—'}</td>
                     <td>{r.rent ? Number(r.rent).toLocaleString() : '—'}</td>
                     <td>{r.paymentDay || '—'}</td>
                     <td>{r.bankAccountName || '—'}</td>
@@ -86,9 +89,10 @@ export default function RemittancePage() {
                     <td>{r.branchCode || '—'}</td>
                     <td>{r.bankAccount || '—'}</td>
                     <td>{r.notes || '—'}</td>
+                    <td>{r.remittanceNotes || '—'}</td>
                   </tr>
                 ))}
-                {due.length === 0 && <tr><td colSpan={11} className="muted">這個月份沒有需要付款的租約。</td></tr>}
+                {due.length === 0 && <tr><td colSpan={13} className="muted">這個月份沒有需要付款的租約。</td></tr>}
               </tbody>
             </table>
           </div>
