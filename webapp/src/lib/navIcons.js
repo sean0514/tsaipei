@@ -27,4 +27,8 @@ export const NAV_ICONS = {
     internalFeeSetup: '▧',
     bonus: '◈',
   },
+  dispatch: {
+    dashboard: '◆',
+    users: '▣',
+  },
 };

@@ -3,7 +3,7 @@
 export const COMPANIES = {
   junyu: { label: '鈞羽有限公司', icon: '🌸', systems: ['tsaipei'] },
   weizheng: { label: '瑋政有限公司', icon: '🏭', systems: ['foodfactory'] },
-  chenwei: { label: '宸暐企業有限公司', icon: '🏢', systems: [] },
+  chenwei: { label: '宸暐企業有限公司', icon: '🏢', systems: ['dispatch'] },
   finance: { label: '財務專用系統', icon: '💰', systems: [] },
 };
 
