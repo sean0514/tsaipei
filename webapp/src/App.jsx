@@ -30,6 +30,7 @@ import UsersPage from './components/UsersPage';
 import DispatchDashboardPage from './systems/dispatch/DashboardPage';
 import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
 import DormMgmtLeasesPage from './systems/dormMgmt/LeasesPage';
+import DormMgmtRemittancePage from './systems/dormMgmt/RemittancePage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
 import PurchasesPage from './systems/foodfactory/PurchasesPage';
@@ -85,6 +86,7 @@ const PAGES = {
   dormMgmt: {
     dashboard: DormMgmtDashboardPage,
     leases: DormMgmtLeasesPage,
+    remittance: DormMgmtRemittancePage,
     users: UsersPage,
   },
   foodfactory: {

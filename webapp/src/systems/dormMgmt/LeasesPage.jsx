@@ -35,7 +35,9 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 const EXPIRY_REMINDER_DAYS = 60;
 
 // 租約日期是民國年格式（例如 112/02/01），這裡轉成西元 Date 才能算到期天數。
-function parseROCDate(str) {
+// 這裡 export 出去讓「宿舍匯款」頁面（RemittancePage.jsx）判斷租約是否落在
+// 選定月份內時共用同一套解析邏輯。
+export function parseROCDate(str) {
   if (!str) return null;
   const parts = String(str).trim().split('/');
   if (parts.length !== 3) return null;
@@ -63,10 +65,17 @@ function ExpiryTag({ leaseEnd }) {
 export default function LeasesPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'leases', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('dormMgmt_leases');
+  const { rows, loading, error, add, update, remove } = useCollection('dormMgmt_leases');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dormMgmt_leases', CSV_FIELDS, { entityLabel: '宿舍租賃主檔', canEdit: canEditPage });
+
+  async function handleDeleteAll() {
+    if (rows.length === 0) return;
+    const ok = window.confirm(`即將刪除全部 ${rows.length} 筆租賃主檔資料，此動作無法復原，確定要繼續嗎？`);
+    if (!ok) return;
+    await Promise.all(rows.map((r) => remove(r.id)));
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => !searchQuery || [r.category, r.name, r.address, r.lesseeName].some((v) => v?.toLowerCase().includes(searchQuery)));
@@ -117,12 +126,15 @@ export default function LeasesPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增租約</button>}
+          {canEditPage && <button className="danger" onClick={handleDeleteAll}>全部刪除</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有租賃主檔資料，請先下載備份再匯入。日期欄位請維持民國年格式（例如 112/02/01）。</p>}
       <input placeholder="搜尋科目、分類、地址或承租單位" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
-      {loading ? <p className="muted">載入中…</p> : (
+      {error ? (
+        <p className="muted">讀取失敗，可能是這個帳號還沒有「宿舍租賃主檔」的檢視權限，請聯絡系統管理員確認。（錯誤訊息：{error.message}）</p>
+      ) : loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
             <h3 style={{ margin: '0 0 12px' }}>承租中 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {active.length} 筆</span></h3>
