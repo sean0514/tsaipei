@@ -14,7 +14,7 @@ const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補
 
 // Full schema ported from apps-script/Code.gs SHEET_FIELDS.Students.
 const FIELDS = [
-  { key: 'chineseName', label: '中文姓名', required: true },
+  { key: 'chineseName', label: '中文姓名' },
   { key: 'originalName', label: '原始姓名(護照名稱)' },
   { key: 'school', label: '就讀學校' },
   { key: 'department1', label: '系所1' },
