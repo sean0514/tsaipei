@@ -326,6 +326,10 @@ service cloud.firestore {
       allow read: if dmIsMember();
       allow write: if dmIsMember() && dmRole() == '系統管理員';
     }
+    match /dormMgmt_leases/{docId} {
+      allow read: if dmIsMember();
+      allow write: if dmCanEdit('leases');
+    }
 
     match /{document=**} {
       allow read, write: if false;
