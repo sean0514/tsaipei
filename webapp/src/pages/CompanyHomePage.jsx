@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { SYSTEMS, canView } from '../lib/permissions';
+import { COMPANIES } from '../lib/companies';
 import { useAuth } from '../auth/AuthContext';
 import { useSystemProfile, useRolePermissions } from '../auth/useSystemAccess';
 
@@ -8,14 +9,27 @@ const SYSTEM_META = {
   foodfactory: { icon: '🏭', desc: '原料庫存、生產管理、成品出貨、品質食安、成本分析、財務報表' },
 };
 
-// 只有系統管理員在「使用人員」頁面把帳號加進某個系統，這裡才會顯示那張卡片；
-// 只被加進一個系統的人員，選單就只會看到那一個。
-export default function SystemPicker() {
+// 公司主頁：列出該公司底下有哪些系統可以選。只有系統管理員在「使用人員」頁面
+// 把帳號加進某個系統，這裡才會顯示那張卡片；只被加進一個系統的人員，選單就
+// 只會看到那一個。目前只有 tsaipei/foodfactory 兩個系統存在，其餘公司（如
+// 宸暐企業有限公司）底下系統清單是空的，顯示「尚未建置」。
+export default function CompanyHomePage() {
+  const { companyKey } = useParams();
   const { user, logout } = useAuth();
-  const profiles = { tsaipei: useSystemProfile('tsaipei'), foodfactory: useSystemProfile('foodfactory') };
-  const overrides = { tsaipei: useRolePermissions('tsaipei'), foodfactory: useRolePermissions('foodfactory') };
-  const loading = Object.values(profiles).some((p) => p === undefined);
-  const visibleSystems = Object.entries(SYSTEMS).filter(([key]) => profiles[key]);
+  const company = COMPANIES[companyKey];
+
+  const tsaipeiProfile = useSystemProfile('tsaipei');
+  const foodfactoryProfile = useSystemProfile('foodfactory');
+  const tsaipeiOverrides = useRolePermissions('tsaipei');
+  const foodfactoryOverrides = useRolePermissions('foodfactory');
+  const profiles = { tsaipei: tsaipeiProfile, foodfactory: foodfactoryProfile };
+  const overrides = { tsaipei: tsaipeiOverrides, foodfactory: foodfactoryOverrides };
+
+  if (!company) return <div className="content">找不到這間公司。<Link to="/">回選擇公司</Link></div>;
+
+  const companySystemKeys = company.systems;
+  const loading = companySystemKeys.some((key) => profiles[key] === undefined);
+  const visibleSystems = Object.entries(SYSTEMS).filter(([key]) => companySystemKeys.includes(key) && profiles[key]);
 
   return (
     <div className="picker-wrap">
@@ -24,11 +38,14 @@ export default function SystemPicker() {
         <button onClick={logout}>登出</button>
       </div>
       <div className="picker-hero">
-        <h1>選擇系統</h1>
+        <div className="picker-back"><Link to="/">← 切換公司</Link></div>
+        <h1>{company.label}</h1>
         <p className="muted">選擇要進入的管理系統</p>
       </div>
-      {loading ? <p className="muted">載入中…</p> : visibleSystems.length === 0 ? (
-        <p className="muted">你的帳號還沒有被加到任何系統，請聯絡系統管理員在「使用人員」頁面新增你的帳號與角色。</p>
+      {companySystemKeys.length === 0 ? (
+        <p className="muted">這間公司的系統尚未建置，敬請期待。</p>
+      ) : loading ? <p className="muted">載入中…</p> : visibleSystems.length === 0 ? (
+        <p className="muted">你的帳號還沒有被加到這間公司底下的任何系統，請聯絡系統管理員在「使用人員」頁面新增你的帳號與角色。</p>
       ) : (
       <div className="picker-grid">
         {visibleSystems.map(([key, sys]) => {
