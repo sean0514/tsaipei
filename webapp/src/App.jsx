@@ -9,6 +9,7 @@ import PositionsPage from './systems/tsaipei/PositionsPage';
 import MatchesPage from './systems/tsaipei/MatchesPage';
 import SecondInterviewsPage from './systems/tsaipei/SecondInterviewsPage';
 import AdmittedListPage from './systems/tsaipei/AdmittedListPage';
+import VisaReminderPage from './systems/tsaipei/VisaReminderPage';
 import InternshipDocsPage from './systems/tsaipei/InternshipDocsPage';
 import ApplicationProgressPage from './systems/tsaipei/ApplicationProgressPage';
 import InTaiwanVisaPage from './systems/tsaipei/InTaiwanVisaPage';
@@ -58,6 +59,7 @@ const PAGES = {
     matches: MatchesPage,
     secondInterview: SecondInterviewsPage,
     admitted: AdmittedListPage,
+    visaReminder: VisaReminderPage,
     internshipDocs: InternshipDocsPage,
     applicationProgress: ApplicationProgressPage,
     inTaiwanVisa: InTaiwanVisaPage,

@@ -10,7 +10,7 @@ import { companyKeyForSystem } from '../lib/companies';
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
 export const IMPLEMENTED_MODULES = {
   tsaipei: [
-    'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted',
+    'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'housing',
     'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
     'studentSelfPayHousing', 'studentMasterSheet',
@@ -34,6 +34,7 @@ const GROUP_ROUTES = {
       { route: 'matches', label: '媒合紀錄' },
       { route: 'secondInterview', label: '二面進度' },
       { route: 'admitted', label: '錄取名單' },
+      { route: 'visaReminder', label: '辦理簽證提醒' },
     ],
     inTaiwanTracking: [
       { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
