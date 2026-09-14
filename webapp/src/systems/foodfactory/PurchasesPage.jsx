@@ -5,8 +5,9 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 
-const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note'];
+const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note', 'billingCycle', 'paymentMethod', 'bankAccount', 'bankBranch', 'accountName'];
 const INSPECTION_STATUSES = ['待驗收', '合格', '不合格'];
+const PAYMENT_METHODS = ['現金', '匯款'];
 
 export default function PurchasesPage() {
   const { system, role, overrides } = useOutletContext();
@@ -50,8 +51,8 @@ export default function PurchasesPage() {
       </div>
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
-          <table>
-            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th>{canEditPage && <th></th>}</tr></thead>
+          <div className="table-wrap"><table>
+            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -63,6 +64,8 @@ export default function PurchasesPage() {
                   <td>{r.unitPrice}</td>
                   <td>{r.amount}</td>
                   <td>{r.inspectionStatus || '—'}</td>
+                  <td>{r.billingCycle || '—'}</td>
+                  <td>{r.paymentMethod || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -71,9 +74,9 @@ export default function PurchasesPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
       {editing && (
@@ -86,6 +89,7 @@ export default function PurchasesPage() {
 function PurchaseFormModal({ initial, materials, suppliers, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const isNew = !initial.id;
+  const isTransfer = form.paymentMethod === '匯款';
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -137,6 +141,33 @@ function PurchaseFormModal({ initial, materials, suppliers, onCancel, onSave }) 
                 {INSPECTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
+            <label>
+              計算週期
+              <input value={form.billingCycle || ''} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })} />
+            </label>
+            <label>
+              付款方式
+              <select value={form.paymentMethod || ''} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
+                <option value="">請選擇</option>
+                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+            {isTransfer && (
+              <>
+                <label>
+                  帳號
+                  <input value={form.bankAccount || ''} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} />
+                </label>
+                <label>
+                  分行
+                  <input value={form.bankBranch || ''} onChange={(e) => setForm({ ...form, bankBranch: e.target.value })} />
+                </label>
+                <label>
+                  戶名
+                  <input value={form.accountName || ''} onChange={(e) => setForm({ ...form, accountName: e.target.value })} />
+                </label>
+              </>
+            )}
             <label>
               備註
               <input value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} />
