@@ -47,13 +47,19 @@ export default function MatchesPage() {
       return bt - at;
     });
 
-  // 依國籍分類，跟原本依狀態分類的邏輯改成同一套 group-by 寫法。
-  const byNationality = {};
-  sortedRows.forEach((r) => {
-    const nat = studentNationality(r.studentId);
-    (byNationality[nat] ||= []).push(r);
-  });
-  const nationalityKeys = [...NATIONALITIES, ...Object.keys(byNationality).filter((n) => !NATIONALITIES.includes(n))];
+  // 先分已媒合／未媒合（媒合中＋取消），底下再依國籍分類。
+  function groupByNationality(items) {
+    const grouped = {};
+    items.forEach((r) => {
+      const nat = studentNationality(r.studentId);
+      (grouped[nat] ||= []).push(r);
+    });
+    return [...NATIONALITIES, ...Object.keys(grouped).filter((n) => !NATIONALITIES.includes(n))].filter((n) => grouped[n]?.length).map((n) => [n, grouped[n]]);
+  }
+  const matchedRows = sortedRows.filter((r) => r.status === '已媒合');
+  const unmatchedRows = sortedRows.filter((r) => r.status !== '已媒合');
+  const matchedByNationality = groupByNationality(matchedRows);
+  const unmatchedByNationality = groupByNationality(unmatchedRows);
 
   // 媒合紀錄狀態改成「已媒合」時：媒合日期若空則帶入今天，並自動建立一筆
   // 二面進度（待安排），如同原本 Apps Script 版的自動連動邏輯。
@@ -82,7 +88,7 @@ export default function MatchesPage() {
       <div className="page-header">
         <div>
           <h2>媒合紀錄</h2>
-          <div className="page-desc">依國籍分類，將學生配對至職缺並追蹤媒合狀態{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">先分已媒合／未媒合，底下再依國籍分類，將學生配對至職缺並追蹤媒合狀態{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增媒合</button>}
@@ -92,15 +98,50 @@ export default function MatchesPage() {
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」「職缺ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <MatchSection
+            title="已媒合"
+            groups={matchedByNationality}
+            canEditPage={canEditPage}
+            studentName={studentName}
+            positionLabel={positionLabel}
+            setEditing={setEditing}
+            remove={remove}
+          />
+          <MatchSection
+            title="未媒合"
+            groups={unmatchedByNationality}
+            canEditPage={canEditPage}
+            studentName={studentName}
+            positionLabel={positionLabel}
+            setEditing={setEditing}
+            remove={remove}
+          />
+          {sortedRows.length === 0 && <p className="muted">目前沒有符合條件的媒合紀錄。</p>}
+        </div>
+      )}
+      {editing && (
+        <MatchFormModal initial={editing} students={students} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />
+      )}
+    </div>
+  );
+}
+
+function MatchSection({ title, groups, canEditPage, studentName, positionLabel, setEditing, remove }) {
+  const total = groups.reduce((sum, [, items]) => sum + items.length, 0);
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 12px' }}>{title} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {total} 筆</span></h3>
+      {groups.length === 0 ? <p className="muted">目前沒有此分類的紀錄。</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {nationalityKeys.filter((nat) => byNationality[nat]?.length).map((nat) => (
+          {groups.map(([nat, items]) => (
             <div className="card" key={nat}>
-              <h3 style={{ marginTop: 0 }}>{nat} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {byNationality[nat].length} 筆</span></h3>
+              <h4 style={{ marginTop: 0 }}>{nat} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {items.length} 筆</span></h4>
               <div className="table-wrap">
                 <table>
                   <thead><tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
-                    {byNationality[nat].map((r) => (
+                    {items.map((r) => (
                       <tr key={r.id}>
                         <td>{studentName(r.studentId)}</td>
                         <td>{positionLabel(r.positionId)}</td>
@@ -120,11 +161,7 @@ export default function MatchesPage() {
               </div>
             </div>
           ))}
-          {sortedRows.length === 0 && <p className="muted">目前沒有符合條件的媒合紀錄。</p>}
         </div>
-      )}
-      {editing && (
-        <MatchFormModal initial={editing} students={students} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />
       )}
     </div>
   );
