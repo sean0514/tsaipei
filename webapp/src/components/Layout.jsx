@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useRolePermissions, useSystemProfile } from '../auth/useSystemAccess';
 import { canView } from '../lib/permissions';
 import { NAV_ICONS } from '../lib/navIcons';
+import { companyKeyForSystem } from '../lib/companies';
 
 // Pages that actually exist as routes so far; every other module shows in
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
@@ -97,6 +98,8 @@ export default function Layout() {
   const sys = SYSTEMS[system];
   const profile = useSystemProfile(system);
   const overrides = useRolePermissions(system);
+  const companyKey = companyKeyForSystem(system);
+  const backTo = companyKey ? `/company/${companyKey}` : '/';
 
   if (!sys) return <div className="content">找不到這個系統</div>;
   if (profile === undefined) return <div className="content">載入中…</div>;
@@ -104,7 +107,7 @@ export default function Layout() {
     return (
       <div className="content">
         <p>你的帳號還沒有被加到「{sys.label}」，請聯絡系統管理員在「使用人員」頁面新增你的帳號與角色。</p>
-        <Link to="/">回系統選擇</Link>
+        <Link to={backTo}>回系統選擇</Link>
       </div>
     );
   }
@@ -119,7 +122,7 @@ export default function Layout() {
         ) : (
           <h1>{sys.label}</h1>
         )}
-        <div className="back"><Link to="/">← 切換系統</Link></div>
+        <div className="back"><Link to={backTo}>← 切換系統</Link></div>
         <nav>
           {Object.entries(sys.modules).map(([key, label]) => {
             const visible = canView(system, key, role, overrides);

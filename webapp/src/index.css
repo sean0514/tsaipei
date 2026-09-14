@@ -153,6 +153,9 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .picker-topbar button { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3); }
 .picker-topbar button:hover { background: rgba(255,255,255,.22); }
 .picker-hero { text-align: center; margin-bottom: 36px; }
+.picker-back { text-align: left; margin-bottom: 12px; }
+.picker-back a { color: #E3C2D6; font-size: 13px; text-decoration: none; }
+.picker-back a:hover { text-decoration: underline; }
 .picker-hero h1 { font-family: 'Noto Serif TC', serif; font-size: 30px; color: #fff; margin: 0 0 8px; }
 .picker-hero .muted { color: #E3C2D6; font-size: 14px; }
 .picker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 760px; margin: 0 auto; }

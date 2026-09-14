@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
-import SystemPicker from './pages/SystemPicker';
+import CompanyPicker from './pages/CompanyPicker';
+import CompanyHomePage from './pages/CompanyHomePage';
 import Layout, { IMPLEMENTED_MODULES, TodoModule } from './components/Layout';
 import StudentsPage from './systems/tsaipei/StudentsPage';
 import PositionsPage from './systems/tsaipei/PositionsPage';
@@ -102,7 +103,8 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<RequireAuth><SystemPicker /></RequireAuth>} />
+        <Route path="/" element={<RequireAuth><CompanyPicker /></RequireAuth>} />
+        <Route path="/company/:companyKey" element={<RequireAuth><CompanyHomePage /></RequireAuth>} />
         <Route path="/:system" element={<RequireAuth><Layout /></RequireAuth>}>
           <Route index element={<RedirectToFirstModule />} />
           <Route path="todo/:module" element={<TodoModule />} />
