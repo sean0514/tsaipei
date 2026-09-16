@@ -11,6 +11,14 @@ export function useCollection(name, { order = null } = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // 呼叫端常常直接寫 useCollection('x', { order: ['name', 'asc'] })，每次
+  // render 都會產生新的物件/陣列參考。如果 effect 依賴陣列直接放 order，
+  // React 會認定它「變了」而重跑 effect → 重新訂閱 onSnapshot → 觸發
+  // setRows/setLoading → 這個元件重新 render → 又產生新的 order 參考 →
+  // 無限迴圈，整頁甚至整個分頁都會卡死。改成依賴由 order 內容算出來的
+  // 穩定字串，值沒變就不會重跑。
+  const orderKey = order ? order.join('|') : '';
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -28,7 +36,8 @@ export function useCollection(name, { order = null } = {}) {
       setLoading(false);
     });
     return unsub;
-  }, [name, order]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, orderKey]);
 
   return {
     rows,
