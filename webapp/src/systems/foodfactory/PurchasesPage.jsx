@@ -10,10 +10,10 @@ const CSV_FIELDS = [
   { key: 'purchaseNo', label: '進貨單號' }, { key: 'materialName', label: '原料' }, { key: 'supplierName', label: '供應商' },
   { key: 'batchNo', label: '批號' }, { key: 'date', label: '日期' }, { key: 'quantity', label: '數量' },
   { key: 'unitPrice', label: '單價' }, { key: 'amount', label: '金額' }, { key: 'inspectionStatus', label: '驗收狀態' },
-  { key: 'billingCycle', label: '計算週期' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'note', label: '備註' },
+  { key: 'billingCycle', label: '計算週期' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'paymentDate', label: '付款日期' }, { key: 'note', label: '備註' },
 ];
 
-const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note', 'billingCycle', 'paymentMethod', 'bankAccount', 'bankBranch', 'accountName'];
+const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note', 'billingCycle', 'paymentMethod', 'paymentDate', 'bankAccount', 'bankBranch', 'accountName'];
 const INSPECTION_STATUSES = ['待驗收', '合格', '不合格'];
 const PAYMENT_METHODS = ['現金', '匯款'];
 
@@ -72,7 +72,7 @@ export default function PurchasesPage() {
         <input placeholder="搜尋進貨單號/原料/供應商/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th><th>付款日期</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
@@ -86,6 +86,7 @@ export default function PurchasesPage() {
                   <td>{r.inspectionStatus || '—'}</td>
                   <td>{r.billingCycle || '—'}</td>
                   <td>{r.paymentMethod || '—'}</td>
+                  <td>{r.paymentDate || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -94,7 +95,7 @@ export default function PurchasesPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -171,6 +172,10 @@ function PurchaseFormModal({ initial, materials, suppliers, onCancel, onSave }) 
                 <option value="">請選擇</option>
                 {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
+            </label>
+            <label>
+              付款日期
+              <input type="date" value={form.paymentDate || ''} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} />
             </label>
             {isTransfer && (
               <>
