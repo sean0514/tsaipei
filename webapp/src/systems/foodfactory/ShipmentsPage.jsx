@@ -113,7 +113,15 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
             </label>
             <label>
               成品
-              <select required disabled={!isNew} value={form.productId || ''} onChange={(e) => setForm({ ...form, productId: e.target.value, batchNo: '' })}>
+              <select
+                required
+                disabled={!isNew}
+                value={form.productId || ''}
+                onChange={(e) => {
+                  const product = products.find((p) => p.id === e.target.value);
+                  setForm({ ...form, productId: e.target.value, batchNo: '', unitPrice: product?.price ?? form.unitPrice });
+                }}
+              >
                 <option value="" disabled>請選擇</option>
                 {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
