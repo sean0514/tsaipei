@@ -6,15 +6,18 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { nextBatchNo } from '../../lib/foodInventory';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const CSV_FIELDS = [
   { key: 'batchNo', label: '批號' }, { key: 'productName', label: '成品' }, { key: 'date', label: '日期' },
   { key: 'line', label: '產線' }, { key: 'responsible', label: '負責人' }, { key: 'plannedQty', label: '計畫產量' },
-  { key: 'actualQty', label: '實際產量' }, { key: 'status', label: '狀態' },
+  { key: 'actualQty', label: '實際產量' }, { key: 'status', label: '狀態' }, { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function ProductionBatchesPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'production', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_productionBatches', { order: ['date', 'desc'] });
   const { rows: products } = useCollection('foodfactory_products');
@@ -47,6 +50,7 @@ export default function ProductionBatchesPage() {
 
   // 已完成入庫的批次若修改實際產量，要同步調整已經計入的成品庫存，避免兩邊對不起來。
   async function handleSave(data) {
+    const updatedAt = nowIso();
     if (data.id) {
       const { id, ...rest } = data;
       const existing = rows.find((r) => r.id === id);
@@ -57,9 +61,12 @@ export default function ProductionBatchesPage() {
           if (inv) await updateInv(inv.id, { quantity: (Number(inv.quantity) || 0) + diff });
         }
       }
-      await update(id, { date: rest.date, line: rest.line, responsible: rest.responsible, plannedQty: rest.plannedQty, actualQty: rest.actualQty });
+      await update(id, { date: rest.date, line: rest.line, responsible: rest.responsible, plannedQty: rest.plannedQty, actualQty: rest.actualQty, updatedAt });
+      await logChange('生產批次', '編輯', existing.batchNo, user?.email);
     } else {
-      await add({ ...data, batchNo: data.batchNo || nextBatchNo(rows, data.date), status: '生產中' });
+      const batchNo = data.batchNo || nextBatchNo(rows, data.date);
+      await add({ ...data, batchNo, status: '生產中', updatedAt });
+      await logChange('生產批次', '新增', batchNo, user?.email);
     }
     setEditing(null);
   }
@@ -71,6 +78,7 @@ export default function ProductionBatchesPage() {
       if (inv) await updateInv(inv.id, { quantity: (Number(inv.quantity) || 0) - (Number(batch.actualQty) || 0) });
     }
     await remove(batch.id);
+    await logChange('生產批次', '刪除', batch.batchNo, user?.email);
   }
 
   // 完成入庫：把實際產量計入成品庫存（同批號+同成品就加總），並依成品保存期限算出效期。
@@ -90,7 +98,8 @@ export default function ProductionBatchesPage() {
     } else {
       await addInv({ batchNo: batch.batchNo, productId: batch.productId, quantity: qty, expiryDate, location: '' });
     }
-    await update(batch.id, { status: '完成' });
+    await update(batch.id, { status: '完成', updatedAt: nowIso() });
+    await logChange('生產批次', '完成入庫', batch.batchNo, user?.email);
   }
 
   return (
@@ -106,7 +115,7 @@ export default function ProductionBatchesPage() {
         <input placeholder="搜尋批號/成品/產線/負責人" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>批號</th><th>成品</th><th>日期</th><th>產線</th><th>負責人</th><th>計畫產量</th><th>實際產量</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>批號</th><th>成品</th><th>日期</th><th>產線</th><th>負責人</th><th>計畫產量</th><th>實際產量</th><th>狀態</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
@@ -118,6 +127,7 @@ export default function ProductionBatchesPage() {
                   <td>{r.plannedQty || '—'}</td>
                   <td>{r.actualQty || '—'}</td>
                   <td>{r.status}</td>
+                  <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setUsageFor(r)}>用料明細</button>
@@ -128,7 +138,7 @@ export default function ProductionBatchesPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

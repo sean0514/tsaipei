@@ -4,11 +4,13 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { incomeStatementMonth } from '../../lib/incomeStatement';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
-const PARTNER_CSV_FIELDS = [{ key: 'name', label: '合夥人姓名' }, { key: 'sharePct', label: '分潤比例(%)' }];
+const PARTNER_CSV_FIELDS = [{ key: 'name', label: '合夥人姓名' }, { key: 'sharePct', label: '分潤比例(%)' }, { key: 'updatedAt', label: '最後修改時間' }];
 const PAYOUT_CSV_FIELDS = [
   { key: 'partnerName', label: '合夥人' }, { key: 'dueAmount', label: '應分金額' }, { key: 'paidAmount', label: '已給付' },
-  { key: 'paidDate', label: '給付日期' }, { key: 'status', label: '狀態' },
+  { key: 'paidDate', label: '給付日期' }, { key: 'status', label: '狀態' }, { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 function currentMonthStr() {
@@ -17,6 +19,7 @@ function currentMonthStr() {
 
 export default function PartnersPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'incomeStatement', role, overrides);
   const { rows: partners, add: addPartner, update: updatePartner, remove: removePartner } = useCollection('foodfactory_partners');
   const { rows: payouts, add: addPayout, update: updatePayout } = useCollection('foodfactory_profitPayouts');
@@ -43,21 +46,29 @@ export default function PartnersPage() {
     exportEntityCSV(monthPayouts.map((p) => ({ ...p, partnerName: partnerName(p.partnerId) })), PAYOUT_CSV_FIELDS, `合夥分潤_${month}`);
   }
 
+  async function handleDeletePartner(partner) {
+    await removePartner(partner.id);
+    await logChange('合夥人', '刪除', partner.name, user?.email);
+  }
+
   // 依當月淨利 × 分潤比例算應分金額，找得到既有紀錄就更新、找不到就新增（upsert），
   // 跟原本 computeProfitPayouts() 一致。
   async function computePayouts() {
+    const updatedAt = nowIso();
     await Promise.all(partners.map(async (p) => {
       const due = (statement.netProfit * (Number(p.sharePct) || 0)) / 100;
       const existing = monthPayouts.find((e) => e.partnerId === p.id);
-      if (existing) await updatePayout(existing.id, { dueAmount: due });
-      else await addPayout({ month, partnerId: p.id, dueAmount: due, paidAmount: 0, paidDate: '', status: '未付' });
+      if (existing) await updatePayout(existing.id, { dueAmount: due, updatedAt });
+      else await addPayout({ month, partnerId: p.id, dueAmount: due, paidAmount: 0, paidDate: '', status: '未付', updatedAt });
     }));
+    await logChange('合夥分潤', '試算/更新', month, user?.email);
   }
 
   async function markPaid(payout, paidAmount, paidDate) {
     const due = Number(payout.dueAmount) || 0;
     const status = Number(paidAmount) >= due ? '已付' : (Number(paidAmount) > 0 ? '部分給付' : '未付');
-    await updatePayout(payout.id, { paidAmount, paidDate, status });
+    await updatePayout(payout.id, { paidAmount, paidDate, status, updatedAt: nowIso() });
+    await logChange('合夥分潤', '登錄給付', partnerName(payout.partnerId), user?.email);
     setPaying(null);
   }
 
@@ -72,20 +83,21 @@ export default function PartnersPage() {
       </div>
       <div className="card" style={{ marginBottom: 16 }}>
         <table>
-          <thead><tr><th>合夥人姓名</th><th>分潤比例</th>{canEditPage && <th></th>}</tr></thead>
+          <thead><tr><th>合夥人姓名</th><th>分潤比例</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {partners.map((p) => (
               <tr key={p.id}>
                 <td>{p.name}</td><td>{p.sharePct}%</td>
+                <td>{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—'}</td>
                 {canEditPage && (
                   <td className="row-actions">
                     <button onClick={() => setEditingPartner(p)}>編輯</button>
-                    <button className="danger" onClick={() => removePartner(p.id)}>刪除</button>
+                    <button className="danger" onClick={() => handleDeletePartner(p)}>刪除</button>
                   </td>
                 )}
               </tr>
             ))}
-            {partners.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
+            {partners.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
           </tbody>
         </table>
       </div>
@@ -100,7 +112,7 @@ export default function PartnersPage() {
           </div>
         </div>
         <table>
-          <thead><tr><th>合夥人</th><th>應分金額</th><th>已給付</th><th>給付日期</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
+          <thead><tr><th>合夥人</th><th>應分金額</th><th>已給付</th><th>給付日期</th><th>狀態</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {monthPayouts.map((p) => (
               <tr key={p.id}>
@@ -109,22 +121,35 @@ export default function PartnersPage() {
                 <td>{p.paidAmount || 0}</td>
                 <td>{p.paidDate || '—'}</td>
                 <td>{p.status}</td>
+                <td>{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—'}</td>
                 {canEditPage && <td><button onClick={() => setPaying(p)}>登錄給付</button></td>}
               </tr>
             ))}
-            {monthPayouts.length === 0 && <tr><td colSpan={6} className="muted">尚未試算</td></tr>}
+            {monthPayouts.length === 0 && <tr><td colSpan={7} className="muted">尚未試算</td></tr>}
           </tbody>
         </table>
       </div>
 
       {addingPartner && (
-        <PartnerFormModal onCancel={() => setAddingPartner(false)} onSave={async (data) => { await addPartner(data); setAddingPartner(false); }} />
+        <PartnerFormModal
+          onCancel={() => setAddingPartner(false)}
+          onSave={async (data) => {
+            await addPartner({ ...data, updatedAt: nowIso() });
+            await logChange('合夥人', '新增', data.name, user?.email);
+            setAddingPartner(false);
+          }}
+        />
       )}
       {editingPartner && (
         <PartnerFormModal
           initial={editingPartner}
           onCancel={() => setEditingPartner(null)}
-          onSave={async (data) => { const { id, ...rest } = data; await updatePartner(id, rest); setEditingPartner(null); }}
+          onSave={async (data) => {
+            const { id, ...rest } = data;
+            await updatePartner(id, { ...rest, updatedAt: nowIso() });
+            await logChange('合夥人', '編輯', rest.name, user?.email);
+            setEditingPartner(null);
+          }}
         />
       )}
       {paying && <PayFormModal payout={paying} onCancel={() => setPaying(null)} onSave={markPaid} />}

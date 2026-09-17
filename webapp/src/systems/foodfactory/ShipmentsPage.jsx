@@ -4,15 +4,19 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
 import { nextShipmentNo } from '../../lib/foodInventory';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const CSV_FIELDS = [
   { key: 'shipmentNo', label: '出貨單號' }, { key: 'date', label: '日期' }, { key: 'customerName', label: '客戶' }, { key: 'productName', label: '成品' },
   { key: 'batchNo', label: '批號' }, { key: 'quantity', label: '數量' }, { key: 'unitPrice', label: '單價' },
   { key: 'amount', label: '金額' }, { key: 'tax', label: '稅金' }, { key: 'total', label: '總額' }, { key: 'note', label: '備註' },
+  { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function ShipmentsPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'shipping', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_shipments', { order: ['date', 'desc'] });
   const { rows: products } = useCollection('foodfactory_products');
@@ -35,11 +39,13 @@ export default function ShipmentsPage() {
   const TAX_RATE = 0.05;
 
   async function handleSave(data) {
+    const updatedAt = nowIso();
     if (data.id) {
       const existing = rows.find((r) => r.id === data.id);
       const amount = (Number(existing.quantity) || 0) * (Number(data.unitPrice) || 0);
       const tax = Math.round(amount * TAX_RATE);
-      await update(data.id, { date: data.date, unitPrice: data.unitPrice, note: data.note, amount, tax, total: amount + tax });
+      await update(data.id, { date: data.date, unitPrice: data.unitPrice, note: data.note, amount, tax, total: amount + tax, updatedAt });
+      await logChange('出貨單', '編輯', existing.shipmentNo, user?.email);
     } else {
       const qty = Number(data.quantity) || 0;
       const inv = productInventory.find((i) => i.productId === data.productId && i.batchNo === data.batchNo);
@@ -49,8 +55,10 @@ export default function ShipmentsPage() {
       const amount = qty * (Number(data.unitPrice) || 0);
       const tax = Math.round(amount * TAX_RATE);
       const total = amount + tax;
-      await add({ ...data, shipmentNo: nextShipmentNo(rows, data.date), amount, tax, total });
+      const shipmentNo = nextShipmentNo(rows, data.date);
+      await add({ ...data, shipmentNo, amount, tax, total, updatedAt });
       await updateInv(inv.id, { quantity: stockQty - qty });
+      await logChange('出貨單', '新增', shipmentNo, user?.email);
     }
     setEditing(null);
   }
@@ -59,6 +67,7 @@ export default function ShipmentsPage() {
     const inv = productInventory.find((i) => i.productId === r.productId && i.batchNo === r.batchNo);
     if (inv) await updateInv(inv.id, { quantity: (Number(inv.quantity) || 0) + (Number(r.quantity) || 0) });
     await remove(r.id);
+    await logChange('出貨單', '刪除', r.shipmentNo, user?.email);
   }
 
   return (
@@ -74,7 +83,7 @@ export default function ShipmentsPage() {
         <input placeholder="搜尋出貨單號/客戶/成品/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>出貨單號</th><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>出貨單號</th><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
@@ -88,6 +97,7 @@ export default function ShipmentsPage() {
                   <td>{r.amount}</td>
                   <td>{r.tax}</td>
                   <td>{r.total}</td>
+                  <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -96,7 +106,7 @@ export default function ShipmentsPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 11 : 10} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 12 : 11} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

@@ -6,6 +6,8 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { downloadCustomerInvoiceXlsx } from '../../lib/customerInvoiceXlsx';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 function currentMonthStr() {
   const d = new Date();
@@ -18,11 +20,13 @@ const CSV_FIELDS = [
   { key: 'invoiceNo', label: '請款單號' }, { key: 'customerName', label: '客戶' },
   { key: 'periodStart', label: '期間起' }, { key: 'periodEnd', label: '期間迄' },
   { key: 'totalAmount', label: '總金額' }, { key: 'status', label: '狀態' },
-  { key: 'issueDate', label: '開立日期' }, { key: 'receivedDate', label: '收款日期' }, { key: 'receivedMethod', label: '收款方式' }, { key: 'note', label: '備註' },
+  { key: 'issueDate', label: '開立日期' }, { key: 'receivedDate', label: '收款日期' }, { key: 'receivedMethod', label: '收款方式' },
+  { key: 'note', label: '備註' }, { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function CustomerInvoicesPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'billing', role, overrides);
   const { rows: invoices, loading, update } = useCollection('foodfactory_customerInvoices', { order: ['issueDate', 'desc'] });
   const { rows: shipments, update: updateShipment } = useCollection('foodfactory_shipments');
@@ -49,11 +53,13 @@ export default function CustomerInvoicesPage() {
     if (!unbilled.length) { alert('該期間內找不到未請款的出貨紀錄'); return; }
     const totalAmount = unbilled.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
     const today = new Date().toISOString().slice(0, 10);
+    const invoiceNo = `INV${today.replace(/-/g, '')}`;
     const ref = await addDoc(collection(db, 'foodfactory_customerInvoices'), {
-      invoiceNo: `INV${today.replace(/-/g, '')}`, customerId, periodStart, periodEnd,
-      totalAmount, status: '已請款', issueDate: today, receivedDate: '', note: '',
+      invoiceNo, customerId, periodStart, periodEnd,
+      totalAmount, status: '已請款', issueDate: today, receivedDate: '', note: '', updatedAt: nowIso(),
     });
     await Promise.all(unbilled.map((s) => updateShipment(s.id, { invoiceId: ref.id })));
+    await logChange('客戶請款明細', '新增', invoiceNo, user?.email);
     setCreating(false);
   }
 
@@ -80,7 +86,7 @@ export default function CustomerInvoicesPage() {
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th>收款方式</th><th></th></tr></thead>
+            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th>收款方式</th><th>最後修改時間</th><th></th></tr></thead>
             <tbody>
               {filteredInvoices.map((inv) => (
                 <tr key={inv.id}>
@@ -91,6 +97,7 @@ export default function CustomerInvoicesPage() {
                   <td>{inv.status}</td>
                   <td>{inv.receivedDate || '—'}</td>
                   <td>{inv.receivedMethod || '—'}</td>
+                  <td>{inv.updatedAt ? new Date(inv.updatedAt).toLocaleString() : '—'}</td>
                   <td className="row-actions">
                     <button disabled={downloadingId === inv.id} onClick={() => handleDownload(inv)}>{downloadingId === inv.id ? '產生中…' : '下載請款單'}</button>
                     {canEditPage && <button onClick={() => setEditing(inv)}>編輯</button>}
@@ -98,7 +105,7 @@ export default function CustomerInvoicesPage() {
                   </td>
                 </tr>
               ))}
-              {filteredInvoices.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+              {filteredInvoices.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -108,14 +115,22 @@ export default function CustomerInvoicesPage() {
         <ReceiveModal
           invoice={receiving}
           onCancel={() => setReceiving(null)}
-          onSave={async (date, method) => { await update(receiving.id, { status: '已收款', receivedDate: date, receivedMethod: method }); setReceiving(null); }}
+          onSave={async (date, method) => {
+            await update(receiving.id, { status: '已收款', receivedDate: date, receivedMethod: method, updatedAt: nowIso() });
+            await logChange('客戶請款明細', '登錄收款', receiving.invoiceNo, user?.email);
+            setReceiving(null);
+          }}
         />
       )}
       {editing && (
         <EditInvoiceModal
           invoice={editing}
           onCancel={() => setEditing(null)}
-          onSave={async (data) => { await update(editing.id, data); setEditing(null); }}
+          onSave={async (data) => {
+            await update(editing.id, { ...data, updatedAt: nowIso() });
+            await logChange('客戶請款明細', '編輯', data.invoiceNo, user?.email);
+            setEditing(null);
+          }}
         />
       )}
     </div>

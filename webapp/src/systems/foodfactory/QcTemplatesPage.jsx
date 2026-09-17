@@ -3,16 +3,20 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const DATA_TYPES = ['合格判定', '數值', '文字'];
 
 const CSV_FIELDS = [
   { key: 'templateName', label: '範本名稱' }, { key: 'appliesTo', label: '適用對象' },
   { key: 'itemName', label: '檢驗項目' }, { key: 'spec', label: '標準值/規格' }, { key: 'dataType', label: '資料型態' },
+  { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function QcTemplatesPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'qc', role, overrides);
   const { rows: templates, loading, add, update, remove } = useCollection('foodfactory_qcTemplates');
   const { rows: items, add: addItem, update: updateItem, remove: removeItem } = useCollection('foodfactory_qcTemplateItems');
@@ -27,19 +31,32 @@ export default function QcTemplatesPage() {
   function handleDownload() {
     const data = items.map((it) => {
       const t = templates.find((tt) => tt.id === it.templateId);
-      return { templateName: t?.name || '', appliesTo: t?.appliesTo || '', itemName: it.itemName, spec: it.spec, dataType: it.dataType };
+      return { templateName: t?.name || '', appliesTo: t?.appliesTo || '', itemName: it.itemName, spec: it.spec, dataType: it.dataType, updatedAt: it.updatedAt };
     });
     exportEntityCSV(data, CSV_FIELDS, '檢驗範本');
   }
 
   async function handleSave(data) {
+    const updatedAt = nowIso();
     if (data.id) {
       const { id, ...rest } = data;
-      await update(id, rest);
+      await update(id, { ...rest, updatedAt });
+      await logChange('檢驗範本', '編輯', rest.name, user?.email);
     } else {
-      await add(data);
+      await add({ ...data, updatedAt });
+      await logChange('檢驗範本', '新增', data.name, user?.email);
     }
     setEditing(null);
+  }
+
+  async function handleDeleteTemplate(template) {
+    await remove(template.id);
+    await logChange('檢驗範本', '刪除', template.name, user?.email);
+  }
+
+  async function handleDeleteItem(item, templateName) {
+    await removeItem(item.id);
+    await logChange('檢驗範本項目', '刪除', `${templateName} / ${item.itemName}`, user?.email);
   }
 
   return (
@@ -55,24 +72,29 @@ export default function QcTemplatesPage() {
       {loading ? <p className="muted">載入中…</p> : filteredTemplates.map((t) => (
         <div className="card" key={t.id} style={{ marginBottom: 16 }}>
           <div className="page-header" style={{ marginBottom: 8 }}>
-            <div><strong>{t.name}</strong><span className="muted" style={{ marginLeft: 8 }}>適用對象：{t.appliesTo || '—'}</span></div>
+            <div>
+              <strong>{t.name}</strong>
+              <span className="muted" style={{ marginLeft: 8 }}>適用對象：{t.appliesTo || '—'}</span>
+              <span className="muted" style={{ marginLeft: 8 }}>最後修改：{t.updatedAt ? new Date(t.updatedAt).toLocaleString() : '—'}</span>
+            </div>
             {canEditPage && (
               <div className="row-actions">
                 <button onClick={() => setEditing(t)}>編輯範本</button>
-                <button className="danger" onClick={() => remove(t.id)}>刪除範本</button>
+                <button className="danger" onClick={() => handleDeleteTemplate(t)}>刪除範本</button>
               </div>
             )}
           </div>
           <table>
-            <thead><tr><th>檢驗項目</th><th>標準值/規格</th><th>資料型態</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>檢驗項目</th><th>標準值/規格</th><th>資料型態</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {items.filter((it) => it.templateId === t.id).map((it) => (
                 <tr key={it.id}>
                   <td>{it.itemName}</td><td>{it.spec || '—'}</td><td>{it.dataType}</td>
+                  <td>{it.updatedAt ? new Date(it.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditingItem(it)}>編輯</button>
-                      <button className="danger" onClick={() => removeItem(it.id)}>刪除</button>
+                      <button className="danger" onClick={() => handleDeleteItem(it, t.name)}>刪除</button>
                     </td>
                   )}
                 </tr>
@@ -87,14 +109,23 @@ export default function QcTemplatesPage() {
         <ItemFormModal
           initial={{ dataType: '合格判定' }}
           onCancel={() => setItemFormFor(null)}
-          onSave={async (data) => { await addItem({ ...data, templateId: itemFormFor }); setItemFormFor(null); }}
+          onSave={async (data) => {
+            await addItem({ ...data, templateId: itemFormFor, updatedAt: nowIso() });
+            await logChange('檢驗範本項目', '新增', `${templates.find((t) => t.id === itemFormFor)?.name || ''} / ${data.itemName}`, user?.email);
+            setItemFormFor(null);
+          }}
         />
       )}
       {editingItem && (
         <ItemFormModal
           initial={editingItem}
           onCancel={() => setEditingItem(null)}
-          onSave={async (data) => { const { id, templateId, ...rest } = data; await updateItem(id, rest); setEditingItem(null); }}
+          onSave={async (data) => {
+            const { id, templateId, ...rest } = data;
+            await updateItem(id, { ...rest, updatedAt: nowIso() });
+            await logChange('檢驗範本項目', '編輯', `${templates.find((t) => t.id === templateId)?.name || ''} / ${rest.itemName}`, user?.email);
+            setEditingItem(null);
+          }}
         />
       )}
     </div>
