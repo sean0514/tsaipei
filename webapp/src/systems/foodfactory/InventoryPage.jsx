@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { useAuth } from '../../auth/AuthContext';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
@@ -14,17 +17,38 @@ const FIELDS = [
   { key: 'note', label: '備註' },
 ];
 
+const LOG_CSV_FIELDS = [
+  { key: 'date', label: '時間' }, { key: 'action', label: '動作' },
+  { key: 'materialName', label: '原料名稱' }, { key: 'operator', label: '操作人員' },
+];
+
 export default function InventoryPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'inventory', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_materials', { order: ['name', 'asc'] });
+  const { rows: changeLogs, loading: logsLoading } = useCollection('foodfactory_materialChangeLogs', { order: ['date', 'desc'] });
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [logQ, setLogQ] = useState('');
 
   const filtered = rows.filter((r) => !q || [r.name, r.category].some((v) => v?.includes(q)));
+  const logSearchQuery = logQ.trim().toLowerCase();
+  const filteredLogs = changeLogs.filter((l) => !logSearchQuery || `${l.action || ''} ${l.materialName || ''} ${l.operator || ''}`.toLowerCase().includes(logSearchQuery));
 
   function handleDownload() {
     exportEntityCSV(rows, [...FIELDS, { key: 'updatedAt', label: '修改日期' }], '原料主檔');
+  }
+
+  function handleDownloadLogs() {
+    exportEntityCSV(changeLogs, LOG_CSV_FIELDS, '原料修改紀錄');
+  }
+
+  // 每一次新增/編輯/刪除都寫一筆修改紀錄，方便追蹤誰在什麼時候動過哪筆原料。
+  async function logChange(action, materialName) {
+    await addDoc(collection(db, 'foodfactory_materialChangeLogs'), {
+      date: new Date().toISOString(), action, materialName, operator: user?.email || '(未知)',
+    });
   }
 
   async function handleSave(data) {
@@ -32,10 +56,17 @@ export default function InventoryPage() {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, { ...rest, updatedAt });
+      await logChange('編輯', rest.name);
     } else {
       await add({ ...data, updatedAt });
+      await logChange('新增', data.name);
     }
     setEditing(null);
+  }
+
+  async function handleDelete(material) {
+    await remove(material.id);
+    await logChange('刪除', material.name);
   }
 
   return (
@@ -66,7 +97,7 @@ export default function InventoryPage() {
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      <button className="danger" onClick={() => handleDelete(r)}>刪除</button>
                     </td>
                   )}
                 </tr>
@@ -76,6 +107,31 @@ export default function InventoryPage() {
           </table>
         )}
       </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="page-header" style={{ marginBottom: 8 }}>
+          <h3 style={{ margin: 0 }}>修改紀錄</h3>
+          <button onClick={handleDownloadLogs}>下載完整資料</button>
+        </div>
+        <input placeholder="搜尋動作/原料名稱/操作人員" value={logQ} onChange={(e) => setLogQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        {logsLoading ? <p className="muted">載入中…</p> : (
+          <table>
+            <thead><tr><th>時間</th><th>動作</th><th>原料名稱</th><th>操作人員</th></tr></thead>
+            <tbody>
+              {filteredLogs.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.date ? new Date(l.date).toLocaleString() : '—'}</td>
+                  <td>{l.action}</td>
+                  <td>{l.materialName || '—'}</td>
+                  <td>{l.operator || '—'}</td>
+                </tr>
+              ))}
+              {filteredLogs.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {editing && <MaterialFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
