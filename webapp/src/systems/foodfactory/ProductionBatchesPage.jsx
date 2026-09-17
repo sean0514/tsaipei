@@ -45,14 +45,32 @@ export default function ProductionBatchesPage() {
     setUsageFor(null);
   }
 
+  // 已完成入庫的批次若修改實際產量，要同步調整已經計入的成品庫存，避免兩邊對不起來。
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
+      const existing = rows.find((r) => r.id === id);
+      if (existing.status === '完成') {
+        const diff = (Number(rest.actualQty) || 0) - (Number(existing.actualQty) || 0);
+        if (diff !== 0) {
+          const inv = productInventory.find((i) => i.productId === existing.productId && i.batchNo === existing.batchNo);
+          if (inv) await updateInv(inv.id, { quantity: (Number(inv.quantity) || 0) + diff });
+        }
+      }
       await update(id, { date: rest.date, line: rest.line, responsible: rest.responsible, plannedQty: rest.plannedQty, actualQty: rest.actualQty });
     } else {
       await add({ ...data, batchNo: data.batchNo || nextBatchNo(rows, data.date), status: '生產中' });
     }
     setEditing(null);
+  }
+
+  // 刪除已完成入庫的批次要把當初計入的成品庫存扣回去，避免留下多餘庫存。
+  async function handleDelete(batch) {
+    if (batch.status === '完成') {
+      const inv = productInventory.find((i) => i.productId === batch.productId && i.batchNo === batch.batchNo);
+      if (inv) await updateInv(inv.id, { quantity: (Number(inv.quantity) || 0) - (Number(batch.actualQty) || 0) });
+    }
+    await remove(batch.id);
   }
 
   // 完成入庫：把實際產量計入成品庫存（同批號+同成品就加總），並依成品保存期限算出效期。
@@ -103,9 +121,9 @@ export default function ProductionBatchesPage() {
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setUsageFor(r)}>用料明細</button>
-                      {r.status !== '完成' && <button onClick={() => setEditing(r)}>編輯</button>}
+                      <button onClick={() => setEditing(r)}>編輯</button>
                       {r.status !== '完成' && <button onClick={() => completeBatch(r)}>完成入庫</button>}
-                      {r.status !== '完成' && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
+                      <button className="danger" onClick={() => handleDelete(r)}>刪除</button>
                     </td>
                   )}
                 </tr>
