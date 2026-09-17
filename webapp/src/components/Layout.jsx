@@ -16,7 +16,7 @@ export const IMPLEMENTED_MODULES = {
     'studentSelfPayHousing', 'studentMasterSheet',
   ],
   foodfactory: [
-    'inventory', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
+    'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
     'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'users',
   ],
   dispatch: ['dashboard', 'users'],
@@ -62,6 +62,7 @@ const GROUP_ROUTES = {
   foodfactory: {
     inventory: [
       { route: 'inventory', label: '原料主檔' },
+      { route: 'stock', label: '庫存' },
       { route: 'suppliers', label: '供應商' },
       { route: 'purchases', label: '進貨單' },
     ],

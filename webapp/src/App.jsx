@@ -32,6 +32,7 @@ import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
 import DormMgmtLeasesPage from './systems/dormMgmt/LeasesPage';
 import DormMgmtRemittancePage from './systems/dormMgmt/RemittancePage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
+import StockPage from './systems/foodfactory/StockPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
 import PurchasesPage from './systems/foodfactory/PurchasesPage';
 import ProductsPage from './systems/foodfactory/ProductsPage';
@@ -91,6 +92,7 @@ const PAGES = {
   },
   foodfactory: {
     inventory: InventoryPage,
+    stock: StockPage,
     suppliers: SuppliersPage,
     purchases: PurchasesPage,
     products: ProductsPage,
