@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
@@ -46,6 +47,10 @@ import PettyCashPage from './systems/foodfactory/PettyCashPage';
 import IncomeStatementPage from './systems/foodfactory/IncomeStatementPage';
 import PartnersPage from './systems/foodfactory/PartnersPage';
 import CustomerInvoicesPage from './systems/foodfactory/CustomerInvoicesPage';
+
+// Bundles ~2.7MB of migrated legacy spreadsheet data — code-split so it's
+// only fetched when someone actually opens 歷史資料, not on every page load.
+const HistoryPage = lazy(() => import('./systems/foodfactory/HistoryPage'));
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -106,6 +111,7 @@ const PAGES = {
     incomeStatement: IncomeStatementPage,
     partners: PartnersPage,
     billing: CustomerInvoicesPage,
+    history: HistoryPage,
     users: UsersPage,
   },
 };
@@ -113,7 +119,12 @@ const PAGES = {
 function ModuleRoute() {
   const { system, module } = useParams();
   const Page = PAGES[system]?.[module];
-  return Page ? <Page /> : <TodoModule />;
+  if (!Page) return <TodoModule />;
+  return (
+    <Suspense fallback={<div className="content">載入中…</div>}>
+      <Page />
+    </Suspense>
+  );
 }
 
 export default function App() {
