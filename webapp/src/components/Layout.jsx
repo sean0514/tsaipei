@@ -17,7 +17,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   foodfactory: [
     'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
-    'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'users',
+    'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'history', 'users',
   ],
   dispatch: ['dashboard', 'users'],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],

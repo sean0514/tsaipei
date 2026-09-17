@@ -83,6 +83,7 @@ export const SYSTEMS = {
       cost: '成本分析',
       pettyCash: '零用金對帳',
       incomeStatement: '損益表',
+      history: '歷史資料',
       users: '使用人員',
     },
     defaultPermissions: buildFoodFactoryDefaults(),
@@ -91,7 +92,7 @@ export const SYSTEMS = {
 
 function buildFoodFactoryDefaults() {
   const roles = ['系統管理員', '廠長主管', '倉管人員', '產線人員', '品管人員', '業務出貨人員', '會計人員'];
-  const modules = ['dashboard', 'inventory', 'production', 'shipping', 'billing', 'qc', 'cost', 'pettyCash', 'incomeStatement', 'users'];
+  const modules = ['dashboard', 'inventory', 'production', 'shipping', 'billing', 'qc', 'cost', 'pettyCash', 'incomeStatement', 'history', 'users'];
   const out = {};
   modules.forEach((m) => {
     out[m] = {};
