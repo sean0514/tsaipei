@@ -3,12 +3,22 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { monthlyCostReport } from '../../lib/foodCost';
+import { exportEntityCSV } from '../../lib/csv';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
 const EXPENSE_ALLOCATIONS = ['批次直接費用', '月共同費用'];
+const REPORT_CSV_FIELDS = [
+  { key: 'batchNo', label: '批號' }, { key: 'productName', label: '成品' }, { key: 'materialCost', label: '用料成本' },
+  { key: 'directExpense', label: '直接費用' }, { key: 'commonExpense', label: '共同費用' }, { key: 'totalCost', label: '總成本' },
+  { key: 'actualQty', label: '產量' }, { key: 'unitCost', label: '單位成本' }, { key: 'price', label: '售價' }, { key: 'unitMargin', label: '單位毛利' },
+];
+const EXPENSE_CSV_FIELDS = [
+  { key: 'month', label: '月份' }, { key: 'batchNo', label: '批號' }, { key: 'type', label: '費用類型' },
+  { key: 'amount', label: '金額' }, { key: 'note', label: '備註' },
+];
 
 export default function CostAnalysisPage() {
   const { system, role, overrides } = useOutletContext();
@@ -16,18 +26,33 @@ export default function CostAnalysisPage() {
   const { rows: batches } = useCollection('foodfactory_productionBatches');
   const { rows: usage } = useCollection('foodfactory_productionMaterialUsage');
   const { rows: purchases } = useCollection('foodfactory_purchases');
-  const { rows: expenses, add: addExpense, remove: removeExpense } = useCollection('foodfactory_productionExpenses');
+  const { rows: expenses, add: addExpense, update: updateExpense, remove: removeExpense } = useCollection('foodfactory_productionExpenses');
   const { rows: products } = useCollection('foodfactory_products');
   const [month, setMonth] = useState(currentMonthStr());
   const [addingExpense, setAddingExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [q, setQ] = useState('');
 
   const report = monthlyCostReport(month, { batches, usage, purchases, expenses, products });
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
   const batchProduct = (batchNo) => productName(batches.find((b) => b.batchNo === batchNo)?.productId);
+  const searchQuery = q.trim().toLowerCase();
+  const filteredExpenses = expenses.filter((e) => !searchQuery || `${e.batchNo || ''} ${e.type || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownloadReport() {
+    exportEntityCSV(report.rows.map((r) => ({ ...r, productName: batchProduct(r.batchNo) })), REPORT_CSV_FIELDS, `成本分析_${month}`);
+  }
+
+  function handleDownloadExpenses() {
+    exportEntityCSV(expenses, EXPENSE_CSV_FIELDS, '生產費用登錄');
+  }
 
   return (
     <div className="content">
-      <div className="page-header"><h2>成本分析</h2></div>
+      <div className="page-header">
+        <h2>成本分析</h2>
+        <button onClick={handleDownloadReport}>下載成本分析</button>
+      </div>
       <p className="muted">依月份試算：用料成本（原料平均單價 × 用量）＋ 該批直接費用 ＋ 當月共同費用依產量分攤。</p>
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
@@ -62,35 +87,52 @@ export default function CostAnalysisPage() {
       <div className="card" style={{ marginTop: 16 }}>
         <div className="page-header" style={{ marginBottom: 8 }}>
           <h3 style={{ margin: 0 }}>生產費用登錄</h3>
-          {canEditPage && <button className="primary" onClick={() => setAddingExpense(true)}>新增費用</button>}
+          <div className="row-actions">
+            {canEditPage && <button className="primary" onClick={() => setAddingExpense(true)}>新增費用</button>}
+            <button onClick={handleDownloadExpenses}>下載完整資料</button>
+          </div>
         </div>
         <p className="muted" style={{ marginTop: 0 }}>指定批號＝該批直接費用；不指定批號、只填月份＝當月共同費用，依各批產量比例分攤。</p>
+        <input placeholder="搜尋批號/費用類型" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         <table>
           <thead><tr><th>月份</th><th>批號</th><th>費用類型</th><th>金額</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
-            {expenses.map((e) => (
+            {filteredExpenses.map((e) => (
               <tr key={e.id}>
                 <td>{e.month}</td><td>{e.batchNo || '（月共同費用）'}</td><td>{e.type || '—'}</td><td>{e.amount}</td>
-                {canEditPage && <td><button className="danger" onClick={() => removeExpense(e.id)}>刪除</button></td>}
+                {canEditPage && (
+                  <td className="row-actions">
+                    <button onClick={() => setEditingExpense(e)}>編輯</button>
+                    <button className="danger" onClick={() => removeExpense(e.id)}>刪除</button>
+                  </td>
+                )}
               </tr>
             ))}
-            {expenses.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+            {filteredExpenses.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
           </tbody>
         </table>
       </div>
       {addingExpense && (
         <ExpenseFormModal batches={batches} onCancel={() => setAddingExpense(false)} onSave={async (data) => { await addExpense(data); setAddingExpense(false); }} />
       )}
+      {editingExpense && (
+        <ExpenseFormModal
+          batches={batches}
+          initial={editingExpense}
+          onCancel={() => setEditingExpense(null)}
+          onSave={async (data) => { const { id, ...rest } = data; await updateExpense(id, rest); setEditingExpense(null); }}
+        />
+      )}
     </div>
   );
 }
 
-function ExpenseFormModal({ batches, onCancel, onSave }) {
-  const [form, setForm] = useState({});
+function ExpenseFormModal({ batches, initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial || {});
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新增生產費用</h3>
+        <h3>{form.id ? '編輯生產費用' : '新增生產費用'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>

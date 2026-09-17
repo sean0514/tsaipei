@@ -2,16 +2,35 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { exportEntityCSV } from '../../lib/csv';
 
 const DATA_TYPES = ['合格判定', '數值', '文字'];
+
+const CSV_FIELDS = [
+  { key: 'templateName', label: '範本名稱' }, { key: 'appliesTo', label: '適用對象' },
+  { key: 'itemName', label: '檢驗項目' }, { key: 'spec', label: '標準值/規格' }, { key: 'dataType', label: '資料型態' },
+];
 
 export default function QcTemplatesPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'qc', role, overrides);
   const { rows: templates, loading, add, update, remove } = useCollection('foodfactory_qcTemplates');
-  const { rows: items, add: addItem, remove: removeItem } = useCollection('foodfactory_qcTemplateItems');
+  const { rows: items, add: addItem, update: updateItem, remove: removeItem } = useCollection('foodfactory_qcTemplateItems');
   const [editing, setEditing] = useState(null);
   const [itemFormFor, setItemFormFor] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [q, setQ] = useState('');
+
+  const searchQuery = q.trim().toLowerCase();
+  const filteredTemplates = templates.filter((t) => !searchQuery || `${t.name || ''} ${t.appliesTo || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    const data = items.map((it) => {
+      const t = templates.find((tt) => tt.id === it.templateId);
+      return { templateName: t?.name || '', appliesTo: t?.appliesTo || '', itemName: it.itemName, spec: it.spec, dataType: it.dataType };
+    });
+    exportEntityCSV(data, CSV_FIELDS, '檢驗範本');
+  }
 
   async function handleSave(data) {
     if (data.id) {
@@ -27,9 +46,13 @@ export default function QcTemplatesPage() {
     <div className="content">
       <div className="page-header">
         <h2>品質/食安 · 檢驗範本</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增範本</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增範本</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
-      {loading ? <p className="muted">載入中…</p> : templates.map((t) => (
+      <input placeholder="搜尋範本名稱/適用對象" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+      {loading ? <p className="muted">載入中…</p> : filteredTemplates.map((t) => (
         <div className="card" key={t.id} style={{ marginBottom: 16 }}>
           <div className="page-header" style={{ marginBottom: 8 }}>
             <div><strong>{t.name}</strong><span className="muted" style={{ marginLeft: 8 }}>適用對象：{t.appliesTo || '—'}</span></div>
@@ -46,7 +69,12 @@ export default function QcTemplatesPage() {
               {items.filter((it) => it.templateId === t.id).map((it) => (
                 <tr key={it.id}>
                   <td>{it.itemName}</td><td>{it.spec || '—'}</td><td>{it.dataType}</td>
-                  {canEditPage && <td><button className="danger" onClick={() => removeItem(it.id)}>刪除</button></td>}
+                  {canEditPage && (
+                    <td className="row-actions">
+                      <button onClick={() => setEditingItem(it)}>編輯</button>
+                      <button className="danger" onClick={() => removeItem(it.id)}>刪除</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -57,8 +85,16 @@ export default function QcTemplatesPage() {
       {editing && <TemplateFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
       {itemFormFor && (
         <ItemFormModal
+          initial={{ dataType: '合格判定' }}
           onCancel={() => setItemFormFor(null)}
           onSave={async (data) => { await addItem({ ...data, templateId: itemFormFor }); setItemFormFor(null); }}
+        />
+      )}
+      {editingItem && (
+        <ItemFormModal
+          initial={editingItem}
+          onCancel={() => setEditingItem(null)}
+          onSave={async (data) => { const { id, templateId, ...rest } = data; await updateItem(id, rest); setEditingItem(null); }}
         />
       )}
     </div>
@@ -86,12 +122,12 @@ function TemplateFormModal({ initial, onCancel, onSave }) {
   );
 }
 
-function ItemFormModal({ onCancel, onSave }) {
-  const [form, setForm] = useState({ dataType: '合格判定' });
+function ItemFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial || { dataType: '合格判定' });
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新增檢驗項目</h3>
+        <h3>{form.id ? '編輯檢驗項目' : '新增檢驗項目'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>檢驗項目<input required value={form.itemName || ''} onChange={(e) => setForm({ ...form, itemName: e.target.value })} /></label>
@@ -107,7 +143,7 @@ function ItemFormModal({ onCancel, onSave }) {
             </label>
           </div>
           <div className="row-actions">
-            <button type="submit" className="primary">新增</button>
+            <button type="submit" className="primary">{form.id ? '儲存' : '新增'}</button>
             <button type="button" onClick={onCancel}>取消</button>
           </div>
         </form>

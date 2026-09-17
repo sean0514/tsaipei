@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { exportEntityCSV } from '../../lib/csv';
+
+const CSV_FIELDS = [
+  { key: 'date', label: '日期' }, { key: 'customerName', label: '客戶' }, { key: 'productName', label: '成品' },
+  { key: 'batchNo', label: '批號' }, { key: 'quantity', label: '數量' }, { key: 'unitPrice', label: '單價' },
+  { key: 'amount', label: '金額' }, { key: 'tax', label: '稅金' }, { key: 'total', label: '總額' }, { key: 'note', label: '備註' },
+];
 
 export default function ShipmentsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -11,9 +18,16 @@ export default function ShipmentsPage() {
   const { rows: customers } = useCollection('foodfactory_customers');
   const { rows: productInventory, update: updateInv } = useCollection('foodfactory_productInventory');
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
 
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
   const customerName = (id) => customers.find((c) => c.id === id)?.name || '(未知)';
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || `${customerName(r.customerId)} ${productName(r.productId)} ${r.batchNo || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    exportEntityCSV(rows.map((r) => ({ ...r, customerName: customerName(r.customerId), productName: productName(r.productId) })), CSV_FIELDS, '出貨單');
+  }
 
   // 稅金固定 5%，依金額自動算，不用手動輸入；出貨會從成品庫存扣數量，刪除
   // 出貨單要把數量還原回去，跟原本 Apps Script 版一致。
@@ -50,14 +64,18 @@ export default function ShipmentsPage() {
     <div className="content">
       <div className="page-header">
         <h2>成品與出貨 · 出貨單</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增出貨單</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增出貨單</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋客戶/成品/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.date}</td>
                   <td>{customerName(r.customerId)}</td>
@@ -76,7 +94,7 @@ export default function ShipmentsPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

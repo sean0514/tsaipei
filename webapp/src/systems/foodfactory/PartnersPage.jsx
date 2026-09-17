@@ -3,6 +3,13 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { incomeStatementMonth } from '../../lib/incomeStatement';
+import { exportEntityCSV } from '../../lib/csv';
+
+const PARTNER_CSV_FIELDS = [{ key: 'name', label: '合夥人姓名' }, { key: 'sharePct', label: '分潤比例(%)' }];
+const PAYOUT_CSV_FIELDS = [
+  { key: 'partnerName', label: '合夥人' }, { key: 'dueAmount', label: '應分金額' }, { key: 'paidAmount', label: '已給付' },
+  { key: 'paidDate', label: '給付日期' }, { key: 'status', label: '狀態' },
+];
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -11,7 +18,7 @@ function currentMonthStr() {
 export default function PartnersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'incomeStatement', role, overrides);
-  const { rows: partners, add: addPartner, remove: removePartner } = useCollection('foodfactory_partners');
+  const { rows: partners, add: addPartner, update: updatePartner, remove: removePartner } = useCollection('foodfactory_partners');
   const { rows: payouts, add: addPayout, update: updatePayout } = useCollection('foodfactory_profitPayouts');
   const { rows: accountCategories } = useCollection('foodfactory_accountCategories');
   const { rows: manualLedgerEntries } = useCollection('foodfactory_manualLedgerEntries');
@@ -21,11 +28,20 @@ export default function PartnersPage() {
   const { rows: productionExpenses } = useCollection('foodfactory_productionExpenses');
   const [month, setMonth] = useState(currentMonthStr());
   const [addingPartner, setAddingPartner] = useState(false);
+  const [editingPartner, setEditingPartner] = useState(null);
   const [paying, setPaying] = useState(null);
 
   const statement = incomeStatementMonth(month, { accountCategories, manualLedgerEntries, shipments, purchases, pettyCashTransactions, productionExpenses });
   const monthPayouts = payouts.filter((p) => p.month === month);
   const partnerName = (id) => partners.find((p) => p.id === id)?.name || '(未知)';
+
+  function handleDownloadPartners() {
+    exportEntityCSV(partners, PARTNER_CSV_FIELDS, '合夥人');
+  }
+
+  function handleDownloadPayouts() {
+    exportEntityCSV(monthPayouts.map((p) => ({ ...p, partnerName: partnerName(p.partnerId) })), PAYOUT_CSV_FIELDS, `合夥分潤_${month}`);
+  }
 
   // 依當月淨利 × 分潤比例算應分金額，找得到既有紀錄就更新、找不到就新增（upsert），
   // 跟原本 computeProfitPayouts() 一致。
@@ -49,7 +65,10 @@ export default function PartnersPage() {
     <div className="content">
       <div className="page-header">
         <h2>損益表 · 合夥分潤</h2>
-        {canEditPage && <button className="primary" onClick={() => setAddingPartner(true)}>新增合夥人</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setAddingPartner(true)}>新增合夥人</button>}
+          <button onClick={handleDownloadPartners}>下載合夥人資料</button>
+        </div>
       </div>
       <div className="card" style={{ marginBottom: 16 }}>
         <table>
@@ -58,7 +77,12 @@ export default function PartnersPage() {
             {partners.map((p) => (
               <tr key={p.id}>
                 <td>{p.name}</td><td>{p.sharePct}%</td>
-                {canEditPage && <td><button className="danger" onClick={() => removePartner(p.id)}>刪除</button></td>}
+                {canEditPage && (
+                  <td className="row-actions">
+                    <button onClick={() => setEditingPartner(p)}>編輯</button>
+                    <button className="danger" onClick={() => removePartner(p.id)}>刪除</button>
+                  </td>
+                )}
               </tr>
             ))}
             {partners.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
@@ -72,6 +96,7 @@ export default function PartnersPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
             {canEditPage && <button onClick={computePayouts}>試算/更新分潤</button>}
+            <button onClick={handleDownloadPayouts}>下載完整資料</button>
           </div>
         </div>
         <table>
@@ -95,17 +120,24 @@ export default function PartnersPage() {
       {addingPartner && (
         <PartnerFormModal onCancel={() => setAddingPartner(false)} onSave={async (data) => { await addPartner(data); setAddingPartner(false); }} />
       )}
+      {editingPartner && (
+        <PartnerFormModal
+          initial={editingPartner}
+          onCancel={() => setEditingPartner(null)}
+          onSave={async (data) => { const { id, ...rest } = data; await updatePartner(id, rest); setEditingPartner(null); }}
+        />
+      )}
       {paying && <PayFormModal payout={paying} onCancel={() => setPaying(null)} onSave={markPaid} />}
     </div>
   );
 }
 
-function PartnerFormModal({ onCancel, onSave }) {
-  const [form, setForm] = useState({});
+function PartnerFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial || {});
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新增合夥人</h3>
+        <h3>{form.id ? '編輯合夥人' : '新增合夥人'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>姓名<input required value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
