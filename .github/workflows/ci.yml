@@ -1,0 +1,30 @@
+name: CI
+
+# Runs the webapp build on every pull request so a broken change never
+# reaches main. Set this as a required status check under Settings >
+# Branches > main once branch protection is turned on (see CONTRIBUTING.md).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Build
+        working-directory: webapp
+        run: npm run build
