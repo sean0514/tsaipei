@@ -8,15 +8,23 @@ export function materialStock(materialId, inventoryLogs) {
     .reduce((qty, l) => qty + (l.type === '入庫' ? 1 : -1) * (Number(l.quantity) || 0), 0);
 }
 
-export function nextBatchNo(rows, dateStr) {
+function nextSequenceNo(rows, dateStr, field) {
   const d = dateStr ? new Date(dateStr) : new Date();
   const prefix = d.toISOString().slice(0, 10).replace(/-/g, '');
   let maxSeq = 0;
   rows.forEach((r) => {
-    if (r.batchNo && String(r.batchNo).indexOf(prefix) === 0) {
-      const seq = parseInt(String(r.batchNo).split('-')[1], 10);
+    if (r[field] && String(r[field]).indexOf(prefix) === 0) {
+      const seq = parseInt(String(r[field]).split('-')[1], 10);
       if (!Number.isNaN(seq) && seq > maxSeq) maxSeq = seq;
     }
   });
   return `${prefix}-${String(maxSeq + 1).padStart(3, '0')}`;
+}
+
+export function nextBatchNo(rows, dateStr) {
+  return nextSequenceNo(rows, dateStr, 'batchNo');
+}
+
+export function nextShipmentNo(rows, dateStr) {
+  return nextSequenceNo(rows, dateStr, 'shipmentNo');
 }
