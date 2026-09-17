@@ -109,7 +109,8 @@ export default function ShipmentsPage() {
 function ShipmentFormModal({ initial, products, customers, productInventory, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const isNew = !initial.id;
-  const batchOptions = productInventory.filter((i) => i.productId === form.productId && Number(i.quantity) > 0);
+  const selectedProduct = products.find((p) => p.id === form.productId);
+  const matchedInv = productInventory.find((i) => i.productId === form.productId && i.batchNo === form.batchNo);
 
   // 金額／稅金只是即時預覽，讓使用者送出前就能看到算出來的結果；實際存檔的
   // 金額/稅金/總額是 handleSave 依同一套 5% 稅率重新算一次。
@@ -137,7 +138,7 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
                 value={form.productId || ''}
                 onChange={(e) => {
                   const product = products.find((p) => p.id === e.target.value);
-                  setForm({ ...form, productId: e.target.value, batchNo: '', unitPrice: product?.price ?? form.unitPrice });
+                  setForm({ ...form, productId: e.target.value, batchNo: product?.batchNo || '', unitPrice: product?.price ?? form.unitPrice });
                 }}
               >
                 <option value="" disabled>請選擇</option>
@@ -146,10 +147,12 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
             </label>
             <label>
               批號
-              <select required disabled={!isNew} value={form.batchNo || ''} onChange={(e) => setForm({ ...form, batchNo: e.target.value })}>
-                <option value="" disabled>請選擇</option>
-                {batchOptions.map((b) => <option key={b.id} value={b.batchNo}>{b.batchNo}（庫存 {b.quantity}）</option>)}
-              </select>
+              <input required disabled={!isNew} value={form.batchNo || ''} onChange={(e) => setForm({ ...form, batchNo: e.target.value })} />
+              {isNew && selectedProduct && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  依成品主檔「{selectedProduct.name}」自動帶入{matchedInv ? `，目前庫存 ${matchedInv.quantity}` : '（尚無此批號的庫存紀錄）'}
+                </span>
+              )}
             </label>
             <label>
               日期
