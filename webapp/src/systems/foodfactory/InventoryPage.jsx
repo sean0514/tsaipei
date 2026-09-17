@@ -24,15 +24,16 @@ export default function InventoryPage() {
   const filtered = rows.filter((r) => !q || [r.name, r.category].some((v) => v?.includes(q)));
 
   function handleDownload() {
-    exportEntityCSV(rows, FIELDS, '原料主檔');
+    exportEntityCSV(rows, [...FIELDS, { key: 'updatedAt', label: '修改日期' }], '原料主檔');
   }
 
   async function handleSave(data) {
+    const updatedAt = new Date().toISOString().slice(0, 10);
     if (data.id) {
       const { id, ...rest } = data;
-      await update(id, rest);
+      await update(id, { ...rest, updatedAt });
     } else {
-      await add(data);
+      await add({ ...data, updatedAt });
     }
     setEditing(null);
   }
@@ -53,6 +54,7 @@ export default function InventoryPage() {
             <thead>
               <tr>
                 {FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}
+                <th>修改日期</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -60,6 +62,7 @@ export default function InventoryPage() {
               {filtered.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
+                  <td>{r.updatedAt || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -68,7 +71,7 @@ export default function InventoryPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
