@@ -3,9 +3,10 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { nextShipmentNo } from '../../lib/foodInventory';
 
 const CSV_FIELDS = [
-  { key: 'date', label: '日期' }, { key: 'customerName', label: '客戶' }, { key: 'productName', label: '成品' },
+  { key: 'shipmentNo', label: '出貨單號' }, { key: 'date', label: '日期' }, { key: 'customerName', label: '客戶' }, { key: 'productName', label: '成品' },
   { key: 'batchNo', label: '批號' }, { key: 'quantity', label: '數量' }, { key: 'unitPrice', label: '單價' },
   { key: 'amount', label: '金額' }, { key: 'tax', label: '稅金' }, { key: 'total', label: '總額' }, { key: 'note', label: '備註' },
 ];
@@ -23,7 +24,7 @@ export default function ShipmentsPage() {
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
   const customerName = (id) => customers.find((c) => c.id === id)?.name || '(未知)';
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !searchQuery || `${customerName(r.customerId)} ${productName(r.productId)} ${r.batchNo || ''}`.toLowerCase().includes(searchQuery));
+  const filteredRows = rows.filter((r) => !searchQuery || `${r.shipmentNo || ''} ${customerName(r.customerId)} ${productName(r.productId)} ${r.batchNo || ''}`.toLowerCase().includes(searchQuery));
 
   function handleDownload() {
     exportEntityCSV(rows.map((r) => ({ ...r, customerName: customerName(r.customerId), productName: productName(r.productId) })), CSV_FIELDS, '出貨單');
@@ -48,7 +49,7 @@ export default function ShipmentsPage() {
       const amount = qty * (Number(data.unitPrice) || 0);
       const tax = Math.round(amount * TAX_RATE);
       const total = amount + tax;
-      await add({ ...data, amount, tax, total });
+      await add({ ...data, shipmentNo: nextShipmentNo(rows, data.date), amount, tax, total });
       await updateInv(inv.id, { quantity: stockQty - qty });
     }
     setEditing(null);
@@ -70,13 +71,14 @@ export default function ShipmentsPage() {
         </div>
       </div>
       <div className="card">
-        <input placeholder="搜尋客戶/成品/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <input placeholder="搜尋出貨單號/客戶/成品/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>出貨單號</th><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
+                  <td>{r.shipmentNo || '—'}</td>
                   <td>{r.date}</td>
                   <td>{customerName(r.customerId)}</td>
                   <td>{productName(r.productId)}</td>
@@ -94,22 +96,23 @@ export default function ShipmentsPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 11 : 10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
       {editing && (
-        <ShipmentFormModal initial={editing} products={products} customers={customers} productInventory={productInventory} onCancel={() => setEditing(null)} onSave={handleSave} />
+        <ShipmentFormModal initial={editing} products={products} customers={customers} productInventory={productInventory} shipments={rows} onCancel={() => setEditing(null)} onSave={handleSave} />
       )}
     </div>
   );
 }
 
-function ShipmentFormModal({ initial, products, customers, productInventory, onCancel, onSave }) {
+function ShipmentFormModal({ initial, products, customers, productInventory, shipments, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const isNew = !initial.id;
   const batchOptions = productInventory.filter((i) => i.productId === form.productId && Number(i.quantity) > 0);
+  const previewShipmentNo = isNew ? nextShipmentNo(shipments, form.date) : form.shipmentNo;
 
   // 金額／稅金只是即時預覽，讓使用者送出前就能看到算出來的結果；實際存檔的
   // 金額/稅金/總額是 handleSave 依同一套 5% 稅率重新算一次。
@@ -122,6 +125,10 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
         <h3>{isNew ? '新增出貨單' : '編輯出貨單'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
+            <label>
+              出貨單號
+              <input value={previewShipmentNo || ''} disabled />
+            </label>
             <label>
               客戶
               <select required disabled={!isNew} value={form.customerId || ''} onChange={(e) => setForm({ ...form, customerId: e.target.value })}>

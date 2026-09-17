@@ -13,11 +13,12 @@ function currentMonthStr() {
 }
 
 const STATUSES = ['已請款', '已收款'];
+const RECEIVE_METHODS = ['匯款', '現金', '支票'];
 const CSV_FIELDS = [
   { key: 'invoiceNo', label: '請款單號' }, { key: 'customerName', label: '客戶' },
   { key: 'periodStart', label: '期間起' }, { key: 'periodEnd', label: '期間迄' },
   { key: 'totalAmount', label: '總金額' }, { key: 'status', label: '狀態' },
-  { key: 'issueDate', label: '開立日期' }, { key: 'receivedDate', label: '收款日期' }, { key: 'note', label: '備註' },
+  { key: 'issueDate', label: '開立日期' }, { key: 'receivedDate', label: '收款日期' }, { key: 'receivedMethod', label: '收款方式' }, { key: 'note', label: '備註' },
 ];
 
 export default function CustomerInvoicesPage() {
@@ -79,7 +80,7 @@ export default function CustomerInvoicesPage() {
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th></th></tr></thead>
+            <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th>收款方式</th><th></th></tr></thead>
             <tbody>
               {filteredInvoices.map((inv) => (
                 <tr key={inv.id}>
@@ -89,6 +90,7 @@ export default function CustomerInvoicesPage() {
                   <td>{inv.totalAmount?.toLocaleString()}</td>
                   <td>{inv.status}</td>
                   <td>{inv.receivedDate || '—'}</td>
+                  <td>{inv.receivedMethod || '—'}</td>
                   <td className="row-actions">
                     <button disabled={downloadingId === inv.id} onClick={() => handleDownload(inv)}>{downloadingId === inv.id ? '產生中…' : '下載請款單'}</button>
                     {canEditPage && <button onClick={() => setEditing(inv)}>編輯</button>}
@@ -96,14 +98,18 @@ export default function CustomerInvoicesPage() {
                   </td>
                 </tr>
               ))}
-              {filteredInvoices.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+              {filteredInvoices.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
       </div>
       {creating && <CreateInvoiceModal customers={customers} onCancel={() => setCreating(false)} onSave={handleCreate} />}
       {receiving && (
-        <ReceiveModal invoice={receiving} onCancel={() => setReceiving(null)} onSave={async (date) => { await update(receiving.id, { status: '已收款', receivedDate: date }); setReceiving(null); }} />
+        <ReceiveModal
+          invoice={receiving}
+          onCancel={() => setReceiving(null)}
+          onSave={async (date, method) => { await update(receiving.id, { status: '已收款', receivedDate: date, receivedMethod: method }); setReceiving(null); }}
+        />
       )}
       {editing && (
         <EditInvoiceModal
@@ -177,6 +183,13 @@ function EditInvoiceModal({ invoice, onCancel, onSave }) {
               收款日期
               <input type="date" value={form.receivedDate || ''} onChange={(e) => setForm({ ...form, receivedDate: e.target.value })} />
             </label>
+            <label>
+              收款方式
+              <select value={form.receivedMethod || ''} onChange={(e) => setForm({ ...form, receivedMethod: e.target.value })}>
+                <option value="">請選擇</option>
+                {RECEIVE_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
             <label style={{ gridColumn: 'span 2' }}>
               備註
               <input value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} />
@@ -194,13 +207,20 @@ function EditInvoiceModal({ invoice, onCancel, onSave }) {
 
 function ReceiveModal({ invoice, onCancel, onSave }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState(RECEIVE_METHODS[0]);
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>登錄收款 · {invoice.invoiceNo}</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(date); }}>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(date, method); }}>
           <div className="form-grid">
             <label>收款日期<input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></label>
+            <label>
+              收款方式
+              <select value={method} onChange={(e) => setMethod(e.target.value)}>
+                {RECEIVE_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
           </div>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
