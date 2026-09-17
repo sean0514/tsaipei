@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import { materialStock } from '../../lib/foodInventory';
 import { exportEntityCSV } from '../../lib/csv';
 
 // apps-script/Code.gs SHEET_FIELDS.Materials — full schema, all fields included.
@@ -19,14 +18,13 @@ export default function InventoryPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'inventory', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_materials', { order: ['name', 'asc'] });
-  const { rows: inventoryLogs } = useCollection('foodfactory_inventoryLogs');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
 
   const filtered = rows.filter((r) => !q || [r.name, r.category].some((v) => v?.includes(q)));
 
   function handleDownload() {
-    exportEntityCSV(rows.map((r) => ({ ...r, stock: materialStock(r.id, inventoryLogs) })), [...FIELDS, { key: 'stock', label: '目前庫存' }], '原料主檔');
+    exportEntityCSV(rows, FIELDS, '原料主檔');
   }
 
   async function handleSave(data) {
@@ -55,7 +53,6 @@ export default function InventoryPage() {
             <thead>
               <tr>
                 {FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}
-                <th>目前庫存</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -63,7 +60,6 @@ export default function InventoryPage() {
               {filtered.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  <td>{materialStock(r.id, inventoryLogs)} {r.unit}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -72,7 +68,7 @@ export default function InventoryPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
