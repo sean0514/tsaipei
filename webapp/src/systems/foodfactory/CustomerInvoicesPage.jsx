@@ -5,11 +5,20 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { downloadCustomerInvoiceXlsx } from '../../lib/customerInvoiceXlsx';
+import { exportEntityCSV } from '../../lib/csv';
 
 function currentMonthStr() {
   const d = new Date();
   return { start: `${d.toISOString().slice(0, 7)}-01`, end: d.toISOString().slice(0, 10) };
 }
+
+const STATUSES = ['已請款', '已收款'];
+const CSV_FIELDS = [
+  { key: 'invoiceNo', label: '請款單號' }, { key: 'customerName', label: '客戶' },
+  { key: 'periodStart', label: '期間起' }, { key: 'periodEnd', label: '期間迄' },
+  { key: 'totalAmount', label: '總金額' }, { key: 'status', label: '狀態' },
+  { key: 'issueDate', label: '開立日期' }, { key: 'receivedDate', label: '收款日期' }, { key: 'note', label: '備註' },
+];
 
 export default function CustomerInvoicesPage() {
   const { system, role, overrides } = useOutletContext();
@@ -20,9 +29,17 @@ export default function CustomerInvoicesPage() {
   const { rows: products } = useCollection('foodfactory_products');
   const [creating, setCreating] = useState(false);
   const [receiving, setReceiving] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [q, setQ] = useState('');
 
   const customerName = (id) => customers.find((c) => c.id === id)?.name || '(未知)';
+  const searchQuery = q.trim().toLowerCase();
+  const filteredInvoices = invoices.filter((inv) => !searchQuery || `${inv.invoiceNo || ''} ${customerName(inv.customerId)}`.toLowerCase().includes(searchQuery));
+
+  function handleExportAll() {
+    exportEntityCSV(invoices.map((inv) => ({ ...inv, customerName: customerName(inv.customerId) })), CSV_FIELDS, '客戶請款明細');
+  }
 
   // 把該客戶在期間內、還沒被請款單認領的出貨單全部撈出來加總成一張請款單，
   // 同時把這些出貨單標上 invoiceId，跟原本 createCustomerInvoice() 一致。
@@ -53,14 +70,18 @@ export default function CustomerInvoicesPage() {
     <div className="content">
       <div className="page-header">
         <h2>客戶請款明細</h2>
-        {canEditPage && <button className="primary" onClick={() => setCreating(true)}>建立請款單</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setCreating(true)}>建立請款單</button>}
+          <button onClick={handleExportAll}>下載完整資料</button>
+        </div>
       </div>
+      <input placeholder="搜尋請款單號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>請款單號</th><th>客戶</th><th>期間</th><th>總金額</th><th>狀態</th><th>收款日期</th><th></th></tr></thead>
             <tbody>
-              {invoices.map((inv) => (
+              {filteredInvoices.map((inv) => (
                 <tr key={inv.id}>
                   <td>{inv.invoiceNo}</td>
                   <td>{customerName(inv.customerId)}</td>
@@ -70,11 +91,12 @@ export default function CustomerInvoicesPage() {
                   <td>{inv.receivedDate || '—'}</td>
                   <td className="row-actions">
                     <button disabled={downloadingId === inv.id} onClick={() => handleDownload(inv)}>{downloadingId === inv.id ? '產生中…' : '下載請款單'}</button>
+                    {canEditPage && <button onClick={() => setEditing(inv)}>編輯</button>}
                     {canEditPage && inv.status !== '已收款' && <button onClick={() => setReceiving(inv)}>登錄收款</button>}
                   </td>
                 </tr>
               ))}
-              {invoices.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+              {filteredInvoices.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -82,6 +104,13 @@ export default function CustomerInvoicesPage() {
       {creating && <CreateInvoiceModal customers={customers} onCancel={() => setCreating(false)} onSave={handleCreate} />}
       {receiving && (
         <ReceiveModal invoice={receiving} onCancel={() => setReceiving(null)} onSave={async (date) => { await update(receiving.id, { status: '已收款', receivedDate: date }); setReceiving(null); }} />
+      )}
+      {editing && (
+        <EditInvoiceModal
+          invoice={editing}
+          onCancel={() => setEditing(null)}
+          onSave={async (data) => { await update(editing.id, data); setEditing(null); }}
+        />
       )}
     </div>
   );
@@ -110,6 +139,51 @@ function CreateInvoiceModal({ customers, onCancel, onSave }) {
           </div>
           <div className="row-actions">
             <button type="submit" className="primary">建立</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditInvoiceModal({ invoice, onCancel, onSave }) {
+  const [form, setForm] = useState(invoice);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>編輯請款單 · {invoice.invoiceNo}</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            <label>
+              請款單號
+              <input required value={form.invoiceNo || ''} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} />
+            </label>
+            <label>
+              總金額
+              <input type="number" value={form.totalAmount ?? ''} onChange={(e) => setForm({ ...form, totalAmount: Number(e.target.value) || 0 })} />
+            </label>
+            <label>
+              狀態
+              <select value={form.status || STATUSES[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label>
+              開立日期
+              <input type="date" value={form.issueDate || ''} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
+            </label>
+            <label>
+              收款日期
+              <input type="date" value={form.receivedDate || ''} onChange={(e) => setForm({ ...form, receivedDate: e.target.value })} />
+            </label>
+            <label style={{ gridColumn: 'span 2' }}>
+              備註
+              <input value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
           </div>
         </form>
