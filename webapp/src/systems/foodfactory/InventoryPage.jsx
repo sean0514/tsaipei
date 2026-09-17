@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { materialStock } from '../../lib/foodInventory';
+import { exportEntityCSV } from '../../lib/csv';
 
 // apps-script/Code.gs SHEET_FIELDS.Materials — full schema, all fields included.
 const FIELDS = [
@@ -24,6 +25,10 @@ export default function InventoryPage() {
 
   const filtered = rows.filter((r) => !q || [r.name, r.category].some((v) => v?.includes(q)));
 
+  function handleDownload() {
+    exportEntityCSV(rows.map((r) => ({ ...r, stock: materialStock(r.id, inventoryLogs) })), [...FIELDS, { key: 'stock', label: '目前庫存' }], '原料主檔');
+  }
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
@@ -38,7 +43,10 @@ export default function InventoryPage() {
     <div className="content">
       <div className="page-header">
         <h2>原料與庫存 · 原料主檔</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增原料</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增原料</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
         <input placeholder="搜尋名稱/分類" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />

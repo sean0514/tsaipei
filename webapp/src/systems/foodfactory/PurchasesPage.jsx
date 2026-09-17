@@ -4,6 +4,14 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { exportEntityCSV } from '../../lib/csv';
+
+const CSV_FIELDS = [
+  { key: 'purchaseNo', label: '進貨單號' }, { key: 'materialName', label: '原料' }, { key: 'supplierName', label: '供應商' },
+  { key: 'batchNo', label: '批號' }, { key: 'date', label: '日期' }, { key: 'quantity', label: '數量' },
+  { key: 'unitPrice', label: '單價' }, { key: 'amount', label: '金額' }, { key: 'inspectionStatus', label: '驗收狀態' },
+  { key: 'billingCycle', label: '計算週期' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'note', label: '備註' },
+];
 
 const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note', 'billingCycle', 'paymentMethod', 'bankAccount', 'bankBranch', 'accountName'];
 const INSPECTION_STATUSES = ['待驗收', '合格', '不合格'];
@@ -17,8 +25,16 @@ export default function PurchasesPage() {
   const { rows: suppliers } = useCollection('foodfactory_suppliers');
   const [editing, setEditing] = useState(null);
 
+  const [q, setQ] = useState('');
   const materialName = (id) => materials.find((m) => m.id === id)?.name || '(未知)';
   const supplierName = (id) => suppliers.find((s) => s.id === id)?.name || '(未知)';
+
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || `${r.purchaseNo || ''} ${materialName(r.materialId)} ${supplierName(r.supplierId)} ${r.batchNo || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    exportEntityCSV(rows.map((r) => ({ ...r, materialName: materialName(r.materialId), supplierName: supplierName(r.supplierId) })), CSV_FIELDS, '進貨單');
+  }
 
   // 新增進貨單同時建立一筆入庫的庫存異動紀錄，庫存量完全由 InventoryLogs 加總算出，
   // 不是 Purchases 表本身的欄位 — 跟原本 Apps Script 版 addPurchase() 一致。
@@ -47,14 +63,18 @@ export default function PurchasesPage() {
     <div className="content">
       <div className="page-header">
         <h2>原料與庫存 · 進貨單</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增進貨單</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增進貨單</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋進貨單號/原料/供應商/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.date}</td>
                   <td>{materialName(r.materialId)}</td>
@@ -74,7 +94,7 @@ export default function PurchasesPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

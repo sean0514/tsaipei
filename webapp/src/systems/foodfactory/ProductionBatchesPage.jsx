@@ -5,6 +5,13 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { nextBatchNo } from '../../lib/foodInventory';
+import { exportEntityCSV } from '../../lib/csv';
+
+const CSV_FIELDS = [
+  { key: 'batchNo', label: '批號' }, { key: 'productName', label: '成品' }, { key: 'date', label: '日期' },
+  { key: 'line', label: '產線' }, { key: 'responsible', label: '負責人' }, { key: 'plannedQty', label: '計畫產量' },
+  { key: 'actualQty', label: '實際產量' }, { key: 'status', label: '狀態' },
+];
 
 export default function ProductionBatchesPage() {
   const { system, role, overrides } = useOutletContext();
@@ -16,9 +23,16 @@ export default function ProductionBatchesPage() {
   const { rows: usage, add: addUsage } = useCollection('foodfactory_productionMaterialUsage');
   const [editing, setEditing] = useState(null);
   const [usageFor, setUsageFor] = useState(null);
+  const [q, setQ] = useState('');
 
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
   const materialName = (id) => materials.find((m) => m.id === id)?.name || '(未知)';
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || `${r.batchNo || ''} ${productName(r.productId)} ${r.line || ''} ${r.responsible || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    exportEntityCSV(rows.map((r) => ({ ...r, productName: productName(r.productId) })), CSV_FIELDS, '生產批次');
+  }
 
   // 記一筆用料同時寫一筆出庫的庫存異動紀錄，庫存扣帳完全靠 InventoryLogs 加總，
   // 跟 addProductionMaterialUsage() 一致。
@@ -65,14 +79,18 @@ export default function ProductionBatchesPage() {
     <div className="content">
       <div className="page-header">
         <h2>生產管理 · 生產批次</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增生產批次</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增生產批次</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋批號/成品/產線/負責人" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>批號</th><th>成品</th><th>日期</th><th>產線</th><th>負責人</th><th>計畫產量</th><th>實際產量</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.batchNo}</td>
                   <td>{productName(r.productId)}</td>
@@ -92,7 +110,7 @@ export default function ProductionBatchesPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

@@ -3,10 +3,12 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { incomeStatementMonth } from '../../lib/incomeStatement';
+import { exportEntityCSV } from '../../lib/csv';
 
 const TYPES = ['收入', '變動成本', '固定成本'];
 const AUTO_SOURCES = ['shipmentIncome', 'materialCost', 'pettyCashOther', 'productionExpense'];
 const AUTO_SOURCE_LABELS = { shipmentIncome: '出貨收入', materialCost: '原料進貨成本', pettyCashOther: '零用金其他支出', productionExpense: '生產費用' };
+const STATEMENT_CSV_FIELDS = [{ key: 'name', label: '科目' }, { key: 'type', label: '類型' }, { key: 'amount', label: '金額' }];
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -15,22 +17,31 @@ function currentMonthStr() {
 export default function IncomeStatementPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'incomeStatement', role, overrides);
-  const { rows: accountCategories, add: addCategory, remove: removeCategory } = useCollection('foodfactory_accountCategories');
-  const { rows: manualLedgerEntries, add: addEntry, remove: removeEntry } = useCollection('foodfactory_manualLedgerEntries');
+  const { rows: accountCategories, add: addCategory, update: updateCategory, remove: removeCategory } = useCollection('foodfactory_accountCategories');
+  const { rows: manualLedgerEntries, add: addEntry, update: updateEntry, remove: removeEntry } = useCollection('foodfactory_manualLedgerEntries');
   const { rows: shipments } = useCollection('foodfactory_shipments');
   const { rows: purchases } = useCollection('foodfactory_purchases');
   const { rows: pettyCashTransactions } = useCollection('foodfactory_pettyCashTransactions');
   const { rows: productionExpenses } = useCollection('foodfactory_productionExpenses');
   const [month, setMonth] = useState(currentMonthStr());
   const [addingCategory, setAddingCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
 
   const ctx = { accountCategories, manualLedgerEntries, shipments, purchases, pettyCashTransactions, productionExpenses };
   const statement = incomeStatementMonth(month, ctx);
 
+  function handleDownload() {
+    exportEntityCSV(statement.lines, STATEMENT_CSV_FIELDS, `損益表_${month}`);
+  }
+
   return (
     <div className="content">
-      <div className="page-header"><h2>損益表</h2></div>
+      <div className="page-header">
+        <h2>損益表</h2>
+        <button onClick={handleDownload}>下載損益表</button>
+      </div>
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -59,7 +70,12 @@ export default function IncomeStatementPage() {
               <tr key={c.id}>
                 <td>{c.name}</td><td>{c.type}</td><td>{c.source === 'auto' ? '自動' : '手動輸入'}</td>
                 <td>{c.source === 'auto' ? AUTO_SOURCE_LABELS[c.autoSource] : '—'}</td>
-                {canEditPage && <td><button className="danger" onClick={() => removeCategory(c.id)}>刪除</button></td>}
+                {canEditPage && (
+                  <td className="row-actions">
+                    <button onClick={() => setEditingCategory(c)}>編輯</button>
+                    <button className="danger" onClick={() => removeCategory(c.id)}>刪除</button>
+                  </td>
+                )}
               </tr>
             ))}
             {accountCategories.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
@@ -79,7 +95,12 @@ export default function IncomeStatementPage() {
               <tr key={e.id}>
                 <td>{accountCategories.find((c) => c.id === e.categoryId)?.name || '(未知)'}</td>
                 <td>{e.counterparty || '—'}</td><td>{e.amount}</td><td>{e.note || '—'}</td>
-                {canEditPage && <td><button className="danger" onClick={() => removeEntry(e.id)}>刪除</button></td>}
+                {canEditPage && (
+                  <td className="row-actions">
+                    <button onClick={() => setEditingEntry(e)}>編輯</button>
+                    <button className="danger" onClick={() => removeEntry(e.id)}>刪除</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -89,19 +110,35 @@ export default function IncomeStatementPage() {
       {addingCategory && (
         <CategoryFormModal onCancel={() => setAddingCategory(false)} onSave={async (data) => { await addCategory(data); setAddingCategory(false); }} />
       )}
+      {editingCategory && (
+        <CategoryFormModal
+          initial={editingCategory}
+          onCancel={() => setEditingCategory(null)}
+          onSave={async (data) => { const { id, ...rest } = data; await updateCategory(id, rest); setEditingCategory(null); }}
+        />
+      )}
       {addingEntry && (
         <EntryFormModal month={month} categories={accountCategories.filter((c) => c.source !== 'auto')} onCancel={() => setAddingEntry(false)} onSave={async (data) => { await addEntry(data); setAddingEntry(false); }} />
+      )}
+      {editingEntry && (
+        <EntryFormModal
+          month={month}
+          categories={accountCategories.filter((c) => c.source !== 'auto')}
+          initial={editingEntry}
+          onCancel={() => setEditingEntry(null)}
+          onSave={async (data) => { const { id, ...rest } = data; await updateEntry(id, rest); setEditingEntry(null); }}
+        />
       )}
     </div>
   );
 }
 
-function CategoryFormModal({ onCancel, onSave }) {
-  const [form, setForm] = useState({ type: '收入', source: 'manual' });
+function CategoryFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial || { type: '收入', source: 'manual' });
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新增會計科目</h3>
+        <h3>{form.id ? '編輯會計科目' : '新增會計科目'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>科目名稱<input required value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -138,12 +175,12 @@ function CategoryFormModal({ onCancel, onSave }) {
   );
 }
 
-function EntryFormModal({ month, categories, onCancel, onSave }) {
-  const [form, setForm] = useState({ month });
+function EntryFormModal({ month, categories, initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial || { month });
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新增手動分錄</h3>
+        <h3>{form.id ? '編輯手動分錄' : '新增手動分錄'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>

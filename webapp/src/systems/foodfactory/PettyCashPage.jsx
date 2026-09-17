@@ -4,9 +4,15 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { exportEntityCSV } from '../../lib/csv';
 
 const DIRECTIONS = ['支出', '收入'];
 const PAYMENT_METHODS = ['現金', '轉帳', '信用卡'];
+const CSV_FIELDS = [
+  { key: 'date', label: '日期' }, { key: 'vendor', label: '廠商' }, { key: 'categoryName', label: '類別' },
+  { key: 'itemName', label: '品名' }, { key: 'direction', label: '收支別' }, { key: 'total', label: '總計' },
+  { key: 'runningBalance', label: '累計餘額' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'note', label: '備註' },
+];
 
 export default function PettyCashPage() {
   const { system, role, overrides } = useOutletContext();
@@ -17,6 +23,7 @@ export default function PettyCashPage() {
   const { rows: suppliers, add: addSupplier } = useCollection('foodfactory_suppliers');
   const [editing, setEditing] = useState(null);
   const [addingCategory, setAddingCategory] = useState(false);
+  const [q, setQ] = useState('');
 
   const categoryName = (id) => categories.find((c) => c.id === id)?.name || '(未分類)';
 
@@ -26,6 +33,13 @@ export default function PettyCashPage() {
     balance += t.direction === '支出' ? -total : total;
     return { ...t, runningBalance: balance };
   });
+
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = withBalance.filter((t) => !searchQuery || `${t.vendor || ''} ${categoryName(t.categoryId)} ${t.itemName || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    exportEntityCSV(withBalance.map((t) => ({ ...t, categoryName: categoryName(t.categoryId) })), CSV_FIELDS, '零用金對帳');
+  }
 
   // 支出且類別勾選「連動原料庫存」時，自動找/建原料、供應商，並用 addPurchase 邏輯
   // 建一筆進貨紀錄（連帶建立入庫的庫存異動）——跟原本 addPettyCashTransaction() 一致。
@@ -75,14 +89,18 @@ export default function PettyCashPage() {
     <div className="content">
       <div className="page-header">
         <h2>零用金對帳</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增紀錄</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增紀錄</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
+        <input placeholder="搜尋廠商/類別/品名" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>日期</th><th>廠商</th><th>類別</th><th>品名</th><th>收支別</th><th>總計</th><th>累計餘額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {withBalance.map((t) => (
+              {filteredRows.map((t) => (
                 <tr key={t.id}>
                   <td>{t.date}</td><td>{t.vendor || '—'}</td><td>{categoryName(t.categoryId)}</td><td>{t.itemName}</td>
                   <td>{t.direction}</td><td>{t.total}</td><td>{t.runningBalance.toLocaleString()}</td>
@@ -94,7 +112,7 @@ export default function PettyCashPage() {
                   )}
                 </tr>
               ))}
-              {withBalance.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

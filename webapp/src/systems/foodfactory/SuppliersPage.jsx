@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { exportEntityCSV } from '../../lib/csv';
 
 const FIELDS = [
   { key: 'name', label: '供應商名稱', required: true },
@@ -23,6 +24,14 @@ export default function SuppliersPage() {
   const canEditPage = computeCanEdit(system, 'inventory', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_suppliers', { order: ['name', 'asc'] });
   const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
+
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRows = rows.filter((r) => !searchQuery || [r.name, r.contact, r.phone].some((v) => v?.toLowerCase().includes(searchQuery)));
+
+  function handleDownload() {
+    exportEntityCSV(rows, FIELDS, '供應商');
+  }
 
   async function handleSave(data) {
     if (data.id) {
@@ -38,14 +47,18 @@ export default function SuppliersPage() {
     <div className="content">
       <div className="page-header">
         <h2>原料與庫存 · 供應商</h2>
-        {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增供應商</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>新增供應商</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋名稱/聯絡人/電話" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id}>
                   {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
                   {canEditPage && (
@@ -56,7 +69,7 @@ export default function SuppliersPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={FIELDS.length + 1} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

@@ -5,17 +5,37 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { evalQcItemPass } from '../../lib/qc';
+import { exportEntityCSV } from '../../lib/csv';
+
+const CSV_FIELDS = [
+  { key: 'date', label: '日期' }, { key: 'templateName', label: '範本' }, { key: 'refType', label: '關聯類型' },
+  { key: 'refBatchNo', label: '關聯批號' }, { key: 'inspector', label: '檢驗人' }, { key: 'result', label: '總結果' },
+];
 
 export default function QcRecordsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'qc', role, overrides);
-  const { rows: records, loading, remove } = useCollection('foodfactory_qcRecords', { order: ['date', 'desc'] });
+  const { rows: records, loading, update, remove } = useCollection('foodfactory_qcRecords', { order: ['date', 'desc'] });
   const { rows: recordItems } = useCollection('foodfactory_qcRecordItems');
   const { rows: templates } = useCollection('foodfactory_qcTemplates');
   const { rows: templateItems } = useCollection('foodfactory_qcTemplateItems');
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
 
   const templateName = (id) => templates.find((t) => t.id === id)?.name || '(未知)';
+  const searchQuery = q.trim().toLowerCase();
+  const filteredRecords = records.filter((r) => !searchQuery || `${templateName(r.templateId)} ${r.refType || ''} ${r.refBatchNo || ''} ${r.inspector || ''}`.toLowerCase().includes(searchQuery));
+
+  function handleDownload() {
+    exportEntityCSV(records.map((r) => ({ ...r, templateName: templateName(r.templateId) })), CSV_FIELDS, '檢驗紀錄');
+  }
+
+  async function handleEditSave(data) {
+    const { id, ...rest } = data;
+    await update(id, { date: rest.date, refType: rest.refType, refBatchNo: rest.refBatchNo, inspector: rest.inspector });
+    setEditing(null);
+  }
 
   // 每個檢驗項目依範本的資料型態/標準值判定合不合格，全部合格記錄的總結果才是「合格」，
   // 跟原本 addQcRecord() 一致。
@@ -36,24 +56,33 @@ export default function QcRecordsPage() {
     <div className="content">
       <div className="page-header">
         <h2>品質/食安 · 檢驗紀錄</h2>
-        {canEditPage && <button className="primary" onClick={() => setCreating(true)}>新增檢驗紀錄</button>}
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setCreating(true)}>新增檢驗紀錄</button>}
+          <button onClick={handleDownload}>下載完整資料</button>
+        </div>
       </div>
       <div className="card">
+        <input placeholder="搜尋範本/關聯類型/批號/檢驗人" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>日期</th><th>範本</th><th>關聯批號</th><th>檢驗人</th><th>總結果</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {records.map((r) => (
+              {filteredRecords.map((r) => (
                 <tr key={r.id}>
                   <td>{r.date}</td>
                   <td>{templateName(r.templateId)}</td>
                   <td>{r.refType} {r.refBatchNo}</td>
                   <td>{r.inspector || '—'}</td>
                   <td>{r.result}</td>
-                  {canEditPage && <td><button className="danger" onClick={() => remove(r.id)}>刪除</button></td>}
+                  {canEditPage && (
+                    <td className="row-actions">
+                      <button onClick={() => setEditing(r)}>編輯</button>
+                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                    </td>
+                  )}
                 </tr>
               ))}
-              {records.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+              {filteredRecords.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -61,6 +90,7 @@ export default function QcRecordsPage() {
       {creating && (
         <QcRecordFormModal templates={templates} templateItems={templateItems} recordItems={recordItems} onCancel={() => setCreating(false)} onSave={handleCreate} />
       )}
+      {editing && <QcRecordEditModal initial={editing} onCancel={() => setEditing(null)} onSave={handleEditSave} />}
     </div>
   );
 }
@@ -107,6 +137,30 @@ function QcRecordFormModal({ templates, templateItems, onCancel, onSave }) {
               </div>
             </>
           )}
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function QcRecordEditModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>編輯檢驗紀錄</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            <label>日期<input type="date" required value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
+            <label>關聯類型<input value={form.refType || ''} onChange={(e) => setForm({ ...form, refType: e.target.value })} /></label>
+            <label>關聯批號<input value={form.refBatchNo || ''} onChange={(e) => setForm({ ...form, refBatchNo: e.target.value })} /></label>
+            <label>檢驗人<input value={form.inspector || ''} onChange={(e) => setForm({ ...form, inspector: e.target.value })} /></label>
+          </div>
+          <p className="muted">範本與檢驗項目數值請刪除重建，避免跟合格判定結果對不起來。</p>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
