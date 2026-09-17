@@ -5,12 +5,15 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const CSV_FIELDS = [
   { key: 'purchaseNo', label: '進貨單號' }, { key: 'materialName', label: '原料' }, { key: 'supplierName', label: '供應商' },
   { key: 'batchNo', label: '批號' }, { key: 'date', label: '日期' }, { key: 'quantity', label: '數量' },
   { key: 'unitPrice', label: '單價' }, { key: 'amount', label: '金額' }, { key: 'inspectionStatus', label: '驗收狀態' },
-  { key: 'billingCycle', label: '計算週期' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'paymentDate', label: '付款日期' }, { key: 'note', label: '備註' },
+  { key: 'billingCycle', label: '計算週期' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'paymentDate', label: '付款日期' },
+  { key: 'note', label: '備註' }, { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 const EDITABLE_FIELDS = ['date', 'batchNo', 'unitPrice', 'expiryDate', 'inspectionStatus', 'note', 'billingCycle', 'paymentMethod', 'paymentDate', 'bankAccount', 'bankBranch', 'accountName'];
@@ -19,6 +22,7 @@ const PAYMENT_METHODS = ['現金', '匯款'];
 
 export default function PurchasesPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'inventory', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('foodfactory_purchases', { order: ['date', 'desc'] });
   const { rows: materials } = useCollection('foodfactory_materials');
@@ -40,23 +44,32 @@ export default function PurchasesPage() {
   // 不是 Purchases 表本身的欄位 — 跟原本 Apps Script 版 addPurchase() 一致。
   // 只允許改不影響庫存/成本連動的欄位；數量/原料/供應商要改的話刪除重建。
   async function handleSave(data) {
+    const updatedAt = nowIso();
     if (data.id) {
       const { id } = data;
       const patch = {};
       EDITABLE_FIELDS.forEach((k) => { patch[k] = data[k] || ''; });
       const existing = rows.find((r) => r.id === id);
       patch.amount = (Number(existing.quantity) || 0) * (Number(data.unitPrice) || 0);
+      patch.updatedAt = updatedAt;
       await update(id, patch);
+      await logChange('進貨單', '編輯', existing.purchaseNo || materialName(existing.materialId), user?.email);
     } else {
       const amount = (Number(data.quantity) || 0) * (Number(data.unitPrice) || 0);
-      const payload = { ...data, amount, source: data.source || '進貨單' };
+      const payload = { ...data, amount, source: data.source || '進貨單', updatedAt };
       const ref = await add(payload);
       await addDoc(collection(db, 'foodfactory_inventoryLogs'), {
         materialId: data.materialId, batchNo: data.batchNo, type: '入庫', quantity: data.quantity,
         date: data.date, refType: '進貨單', refId: ref.id, note: `進貨單 ${data.purchaseNo || ''}`,
       });
+      await logChange('進貨單', '新增', data.purchaseNo || materialName(data.materialId), user?.email);
     }
     setEditing(null);
+  }
+
+  async function handleDelete(purchase) {
+    await remove(purchase.id);
+    await logChange('進貨單', '刪除', purchase.purchaseNo || materialName(purchase.materialId), user?.email);
   }
 
   return (
@@ -72,7 +85,7 @@ export default function PurchasesPage() {
         <input placeholder="搜尋進貨單號/原料/供應商/批號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th><th>付款日期</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>日期</th><th>原料</th><th>供應商</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>驗收狀態</th><th>計算週期</th><th>付款方式</th><th>付款日期</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
@@ -87,15 +100,16 @@ export default function PurchasesPage() {
                   <td>{r.billingCycle || '—'}</td>
                   <td>{r.paymentMethod || '—'}</td>
                   <td>{r.paymentDate || '—'}</td>
+                  <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      <button className="danger" onClick={() => handleDelete(r)}>刪除</button>
                     </td>
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

@@ -5,6 +5,8 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const DIRECTIONS = ['支出', '收入'];
 const PAYMENT_METHODS = ['現金', '轉帳', '信用卡', '支票'];
@@ -12,10 +14,12 @@ const CSV_FIELDS = [
   { key: 'date', label: '日期' }, { key: 'vendor', label: '廠商' }, { key: 'categoryName', label: '類別' },
   { key: 'itemName', label: '品名' }, { key: 'direction', label: '收支別' }, { key: 'total', label: '總計' },
   { key: 'runningBalance', label: '累計餘額' }, { key: 'paymentMethod', label: '付款方式' }, { key: 'note', label: '備註' },
+  { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function PettyCashPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'pettyCash', role, overrides);
   const { rows: transactions, loading, add, update, remove } = useCollection('foodfactory_pettyCashTransactions', { order: ['date', 'asc'] });
   const { rows: categories, add: addCategory } = useCollection('foodfactory_expenseCategories');
@@ -43,18 +47,25 @@ export default function PettyCashPage() {
 
   // 支出且類別勾選「連動原料庫存」時，自動找/建原料、供應商，並用 addPurchase 邏輯
   // 建一筆進貨紀錄（連帶建立入庫的庫存異動）——跟原本 addPettyCashTransaction() 一致。
+  async function handleDelete(transaction) {
+    await remove(transaction.id);
+    await logChange('零用金對帳', '刪除', transaction.itemName, user?.email);
+  }
+
   async function handleSave(data) {
+    const updatedAt = nowIso();
     if (data.id) {
       const { id, ...rest } = data;
       const amount = (Number(rest.quantity) || 0) * (Number(rest.unitPrice) || 0);
-      await update(id, { ...rest, amount, total: amount + (Number(rest.tax) || 0) });
+      await update(id, { ...rest, amount, total: amount + (Number(rest.tax) || 0), updatedAt });
+      await logChange('零用金對帳', '編輯', rest.itemName, user?.email);
       setEditing(null);
       return;
     }
 
     const amount = (Number(data.quantity) || 0) * (Number(data.unitPrice) || 0);
     const total = amount + (Number(data.tax) || 0);
-    const payload = { ...data, amount, total };
+    const payload = { ...data, amount, total, updatedAt };
 
     const category = categories.find((c) => c.id === data.categoryId);
     if (category?.linkInventory && data.direction === '支出') {
@@ -82,6 +93,7 @@ export default function PettyCashPage() {
       payload.linkedPurchaseId = purchaseRef.id;
     }
     await add(payload);
+    await logChange('零用金對帳', '新增', data.itemName, user?.email);
     setEditing(null);
   }
 
@@ -98,21 +110,22 @@ export default function PettyCashPage() {
         <input placeholder="搜尋廠商/類別/品名" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>日期</th><th>廠商</th><th>類別</th><th>品名</th><th>收支別</th><th>總計</th><th>累計餘額</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>日期</th><th>廠商</th><th>類別</th><th>品名</th><th>收支別</th><th>總計</th><th>累計餘額</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((t) => (
                 <tr key={t.id}>
                   <td>{t.date}</td><td>{t.vendor || '—'}</td><td>{categoryName(t.categoryId)}</td><td>{t.itemName}</td>
                   <td>{t.direction}</td><td>{t.total}</td><td>{t.runningBalance.toLocaleString()}</td>
+                  <td>{t.updatedAt ? new Date(t.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(t)}>編輯</button>
-                      <button className="danger" onClick={() => remove(t.id)}>刪除</button>
+                      <button className="danger" onClick={() => handleDelete(t)}>刪除</button>
                     </td>
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

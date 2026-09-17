@@ -6,14 +6,18 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { evalQcItemPass } from '../../lib/qc';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const CSV_FIELDS = [
   { key: 'date', label: '日期' }, { key: 'templateName', label: '範本' }, { key: 'refType', label: '關聯類型' },
   { key: 'refBatchNo', label: '關聯批號' }, { key: 'inspector', label: '檢驗人' }, { key: 'result', label: '總結果' },
+  { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function QcRecordsPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'qc', role, overrides);
   const { rows: records, loading, update, remove } = useCollection('foodfactory_qcRecords', { order: ['date', 'desc'] });
   const { rows: recordItems } = useCollection('foodfactory_qcRecordItems');
@@ -33,8 +37,15 @@ export default function QcRecordsPage() {
 
   async function handleEditSave(data) {
     const { id, ...rest } = data;
-    await update(id, { date: rest.date, refType: rest.refType, refBatchNo: rest.refBatchNo, inspector: rest.inspector });
+    const updatedAt = nowIso();
+    await update(id, { date: rest.date, refType: rest.refType, refBatchNo: rest.refBatchNo, inspector: rest.inspector, updatedAt });
+    await logChange('檢驗紀錄', '編輯', `${templateName(rest.templateId)} ${rest.refBatchNo || ''}`, user?.email);
     setEditing(null);
+  }
+
+  async function handleDelete(record) {
+    await remove(record.id);
+    await logChange('檢驗紀錄', '刪除', `${templateName(record.templateId)} ${record.refBatchNo || ''}`, user?.email);
   }
 
   // 每個檢驗項目依範本的資料型態/標準值判定合不合格，全部合格記錄的總結果才是「合格」，
@@ -45,10 +56,12 @@ export default function QcRecordsPage() {
       return { ...it, pass: tpl ? evalQcItemPass(tpl.dataType, tpl.spec, it.value) : false };
     });
     const allPass = evaluated.every((it) => it.pass);
-    const recordRef = await addDoc(collection(db, 'foodfactory_qcRecords'), { ...record, result: allPass ? '合格' : '不合格' });
+    const updatedAt = nowIso();
+    const recordRef = await addDoc(collection(db, 'foodfactory_qcRecords'), { ...record, result: allPass ? '合格' : '不合格', updatedAt });
     await Promise.all(evaluated.map((it) =>
       addDoc(collection(db, 'foodfactory_qcRecordItems'), { recordId: recordRef.id, templateItemId: it.templateItemId, value: it.value, pass: it.pass })
     ));
+    await logChange('檢驗紀錄', '新增', `${templateName(record.templateId)} ${record.refBatchNo || ''}`, user?.email);
     setCreating(false);
   }
 
@@ -65,7 +78,7 @@ export default function QcRecordsPage() {
         <input placeholder="搜尋範本/關聯類型/批號/檢驗人" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>日期</th><th>範本</th><th>關聯批號</th><th>檢驗人</th><th>總結果</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>日期</th><th>範本</th><th>關聯批號</th><th>檢驗人</th><th>總結果</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRecords.map((r) => (
                 <tr key={r.id}>
@@ -74,15 +87,16 @@ export default function QcRecordsPage() {
                   <td>{r.refType} {r.refBatchNo}</td>
                   <td>{r.inspector || '—'}</td>
                   <td>{r.result}</td>
+                  <td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      <button className="danger" onClick={() => handleDelete(r)}>刪除</button>
                     </td>
                   )}
                 </tr>
               ))}
-              {filteredRecords.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+              {filteredRecords.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}

@@ -4,6 +4,8 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { incomeStatementMonth } from '../../lib/incomeStatement';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 const TYPES = ['收入', '變動成本', '固定成本'];
 const AUTO_SOURCES = ['shipmentIncome', 'materialCost', 'pettyCashOther', 'productionExpense'];
@@ -16,6 +18,7 @@ function currentMonthStr() {
 
 export default function IncomeStatementPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'incomeStatement', role, overrides);
   const { rows: accountCategories, add: addCategory, update: updateCategory, remove: removeCategory } = useCollection('foodfactory_accountCategories');
   const { rows: manualLedgerEntries, add: addEntry, update: updateEntry, remove: removeEntry } = useCollection('foodfactory_manualLedgerEntries');
@@ -34,6 +37,16 @@ export default function IncomeStatementPage() {
 
   function handleDownload() {
     exportEntityCSV(statement.lines, STATEMENT_CSV_FIELDS, `損益表_${month}`);
+  }
+
+  async function handleDeleteCategory(category) {
+    await removeCategory(category.id);
+    await logChange('會計科目', '刪除', category.name, user?.email);
+  }
+
+  async function handleDeleteEntry(entry) {
+    await removeEntry(entry.id);
+    await logChange('手動分錄', '刪除', accountCategories.find((c) => c.id === entry.categoryId)?.name || '', user?.email);
   }
 
   return (
@@ -64,21 +77,22 @@ export default function IncomeStatementPage() {
           {canEditPage && <button onClick={() => setAddingCategory(true)}>新增科目</button>}
         </div>
         <table>
-          <thead><tr><th>科目名稱</th><th>類型</th><th>資料來源</th><th>自動來源</th>{canEditPage && <th></th>}</tr></thead>
+          <thead><tr><th>科目名稱</th><th>類型</th><th>資料來源</th><th>自動來源</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {accountCategories.map((c) => (
               <tr key={c.id}>
                 <td>{c.name}</td><td>{c.type}</td><td>{c.source === 'auto' ? '自動' : '手動輸入'}</td>
                 <td>{c.source === 'auto' ? AUTO_SOURCE_LABELS[c.autoSource] : '—'}</td>
+                <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString() : '—'}</td>
                 {canEditPage && (
                   <td className="row-actions">
                     <button onClick={() => setEditingCategory(c)}>編輯</button>
-                    <button className="danger" onClick={() => removeCategory(c.id)}>刪除</button>
+                    <button className="danger" onClick={() => handleDeleteCategory(c)}>刪除</button>
                   </td>
                 )}
               </tr>
             ))}
-            {accountCategories.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+            {accountCategories.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
           </tbody>
         </table>
       </div>
@@ -89,16 +103,17 @@ export default function IncomeStatementPage() {
           {canEditPage && <button onClick={() => setAddingEntry(true)}>新增分錄</button>}
         </div>
         <table>
-          <thead><tr><th>科目</th><th>對象</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+          <thead><tr><th>科目</th><th>對象</th><th>金額</th><th>備註</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {manualLedgerEntries.filter((e) => e.month === month).map((e) => (
               <tr key={e.id}>
                 <td>{accountCategories.find((c) => c.id === e.categoryId)?.name || '(未知)'}</td>
                 <td>{e.counterparty || '—'}</td><td>{e.amount}</td><td>{e.note || '—'}</td>
+                <td>{e.updatedAt ? new Date(e.updatedAt).toLocaleString() : '—'}</td>
                 {canEditPage && (
                   <td className="row-actions">
                     <button onClick={() => setEditingEntry(e)}>編輯</button>
-                    <button className="danger" onClick={() => removeEntry(e.id)}>刪除</button>
+                    <button className="danger" onClick={() => handleDeleteEntry(e)}>刪除</button>
                   </td>
                 )}
               </tr>
@@ -108,17 +123,38 @@ export default function IncomeStatementPage() {
       </div>
 
       {addingCategory && (
-        <CategoryFormModal onCancel={() => setAddingCategory(false)} onSave={async (data) => { await addCategory(data); setAddingCategory(false); }} />
+        <CategoryFormModal
+          onCancel={() => setAddingCategory(false)}
+          onSave={async (data) => {
+            await addCategory({ ...data, updatedAt: nowIso() });
+            await logChange('會計科目', '新增', data.name, user?.email);
+            setAddingCategory(false);
+          }}
+        />
       )}
       {editingCategory && (
         <CategoryFormModal
           initial={editingCategory}
           onCancel={() => setEditingCategory(null)}
-          onSave={async (data) => { const { id, ...rest } = data; await updateCategory(id, rest); setEditingCategory(null); }}
+          onSave={async (data) => {
+            const { id, ...rest } = data;
+            await updateCategory(id, { ...rest, updatedAt: nowIso() });
+            await logChange('會計科目', '編輯', rest.name, user?.email);
+            setEditingCategory(null);
+          }}
         />
       )}
       {addingEntry && (
-        <EntryFormModal month={month} categories={accountCategories.filter((c) => c.source !== 'auto')} onCancel={() => setAddingEntry(false)} onSave={async (data) => { await addEntry(data); setAddingEntry(false); }} />
+        <EntryFormModal
+          month={month}
+          categories={accountCategories.filter((c) => c.source !== 'auto')}
+          onCancel={() => setAddingEntry(false)}
+          onSave={async (data) => {
+            await addEntry({ ...data, updatedAt: nowIso() });
+            await logChange('手動分錄', '新增', accountCategories.find((c) => c.id === data.categoryId)?.name || '', user?.email);
+            setAddingEntry(false);
+          }}
+        />
       )}
       {editingEntry && (
         <EntryFormModal
@@ -126,7 +162,12 @@ export default function IncomeStatementPage() {
           categories={accountCategories.filter((c) => c.source !== 'auto')}
           initial={editingEntry}
           onCancel={() => setEditingEntry(null)}
-          onSave={async (data) => { const { id, ...rest } = data; await updateEntry(id, rest); setEditingEntry(null); }}
+          onSave={async (data) => {
+            const { id, ...rest } = data;
+            await updateEntry(id, { ...rest, updatedAt: nowIso() });
+            await logChange('手動分錄', '編輯', accountCategories.find((c) => c.id === rest.categoryId)?.name || '', user?.email);
+            setEditingEntry(null);
+          }}
         />
       )}
     </div>

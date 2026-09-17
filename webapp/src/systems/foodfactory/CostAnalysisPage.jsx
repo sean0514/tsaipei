@@ -4,6 +4,8 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { monthlyCostReport } from '../../lib/foodCost';
 import { exportEntityCSV } from '../../lib/csv';
+import { useAuth } from '../../auth/AuthContext';
+import { logChange, nowIso } from '../../lib/changeLog';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -17,11 +19,12 @@ const REPORT_CSV_FIELDS = [
 ];
 const EXPENSE_CSV_FIELDS = [
   { key: 'month', label: '月份' }, { key: 'batchNo', label: '批號' }, { key: 'type', label: '費用類型' },
-  { key: 'amount', label: '金額' }, { key: 'note', label: '備註' },
+  { key: 'amount', label: '金額' }, { key: 'note', label: '備註' }, { key: 'updatedAt', label: '最後修改時間' },
 ];
 
 export default function CostAnalysisPage() {
   const { system, role, overrides } = useOutletContext();
+  const { user } = useAuth();
   const canEditPage = computeCanEdit(system, 'cost', role, overrides);
   const { rows: batches } = useCollection('foodfactory_productionBatches');
   const { rows: usage } = useCollection('foodfactory_productionMaterialUsage');
@@ -45,6 +48,11 @@ export default function CostAnalysisPage() {
 
   function handleDownloadExpenses() {
     exportEntityCSV(expenses, EXPENSE_CSV_FIELDS, '生產費用登錄');
+  }
+
+  async function handleDeleteExpense(expense) {
+    await removeExpense(expense.id);
+    await logChange('生產費用登錄', '刪除', expense.batchNo || `${expense.month}（共同費用）`, user?.email);
   }
 
   return (
@@ -95,32 +103,46 @@ export default function CostAnalysisPage() {
         <p className="muted" style={{ marginTop: 0 }}>指定批號＝該批直接費用；不指定批號、只填月份＝當月共同費用，依各批產量比例分攤。</p>
         <input placeholder="搜尋批號/費用類型" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         <table>
-          <thead><tr><th>月份</th><th>批號</th><th>費用類型</th><th>金額</th>{canEditPage && <th></th>}</tr></thead>
+          <thead><tr><th>月份</th><th>批號</th><th>費用類型</th><th>金額</th><th>最後修改時間</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {filteredExpenses.map((e) => (
               <tr key={e.id}>
                 <td>{e.month}</td><td>{e.batchNo || '（月共同費用）'}</td><td>{e.type || '—'}</td><td>{e.amount}</td>
+                <td>{e.updatedAt ? new Date(e.updatedAt).toLocaleString() : '—'}</td>
                 {canEditPage && (
                   <td className="row-actions">
                     <button onClick={() => setEditingExpense(e)}>編輯</button>
-                    <button className="danger" onClick={() => removeExpense(e.id)}>刪除</button>
+                    <button className="danger" onClick={() => handleDeleteExpense(e)}>刪除</button>
                   </td>
                 )}
               </tr>
             ))}
-            {filteredExpenses.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+            {filteredExpenses.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
           </tbody>
         </table>
       </div>
       {addingExpense && (
-        <ExpenseFormModal batches={batches} onCancel={() => setAddingExpense(false)} onSave={async (data) => { await addExpense(data); setAddingExpense(false); }} />
+        <ExpenseFormModal
+          batches={batches}
+          onCancel={() => setAddingExpense(false)}
+          onSave={async (data) => {
+            await addExpense({ ...data, updatedAt: nowIso() });
+            await logChange('生產費用登錄', '新增', data.batchNo || `${data.month}（共同費用）`, user?.email);
+            setAddingExpense(false);
+          }}
+        />
       )}
       {editingExpense && (
         <ExpenseFormModal
           batches={batches}
           initial={editingExpense}
           onCancel={() => setEditingExpense(null)}
-          onSave={async (data) => { const { id, ...rest } = data; await updateExpense(id, rest); setEditingExpense(null); }}
+          onSave={async (data) => {
+            const { id, ...rest } = data;
+            await updateExpense(id, { ...rest, updatedAt: nowIso() });
+            await logChange('生產費用登錄', '編輯', rest.batchNo || `${rest.month}（共同費用）`, user?.email);
+            setEditingExpense(null);
+          }}
         />
       )}
     </div>

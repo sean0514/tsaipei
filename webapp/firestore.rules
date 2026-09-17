@@ -195,6 +195,13 @@ service cloud.firestore {
       allow read: if ffIsMember();
       allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
     }
+    // 共用修改紀錄 — 其餘各頁面（供應商/進貨單/成品/客戶/出貨單/生產批次/
+    // 品質/成本/零用金/損益表/合夥分潤/客戶請款）新增/編輯/刪除時都寫一筆到
+    // 這裡，用 entity 欄位區分來源。唯讀、只能新增不能改/刪。
+    match /foodfactory_changeLogs/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffIsMember();
+    }
 
     // 生產管理 group — 成本分析頁面登錄生產費用，所以 create 額外放行 'cost'。
     match /foodfactory_productionBatches/{docId} {
