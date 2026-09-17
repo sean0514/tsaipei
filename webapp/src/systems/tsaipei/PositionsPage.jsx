@@ -77,6 +77,17 @@ export default function PositionsPage() {
   const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q))));
   const closed = rows.filter((r) => r.closed === '是');
 
+  // 產業類別需求：把未結案職缺依產業別加總（總缺額 - 已媒合），顯示目前還缺
+  // 多少人，跟每一列自己顯示的「已媒合/總名額」算法一致。
+  const industryDemand = {};
+  rows.filter((r) => r.closed !== '是').forEach((r) => {
+    const industry = r.industry || '未分類';
+    const info = positionRowInfo(r, matches);
+    const remaining = Math.max(info.totalHeadcount - info.matchCount, 0);
+    industryDemand[industry] = (industryDemand[industry] || 0) + remaining;
+  });
+  const industryList = Object.entries(industryDemand).sort((a, b) => a[0].localeCompare(b[0]));
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
@@ -138,6 +149,16 @@ export default function PositionsPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。已結案的職缺按「已結案」後會移到下方「已結案」區塊，也可以按「取消已結案」移回上方列表。</p>}
+      {industryList.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0 }}>產業類別需求 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>依產業別統計目前剩餘缺額（總缺額－已媒合）</span></h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {industryList.map(([industry, remaining]) => (
+              <span key={industry} className="tag" style={{ fontSize: 13 }}>{industry} 剩餘 {remaining} 名</span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋專案編號/公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (

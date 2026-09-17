@@ -15,12 +15,16 @@ export default function ShipmentsPage() {
   const productName = (id) => products.find((p) => p.id === id)?.name || '(未知)';
   const customerName = (id) => customers.find((c) => c.id === id)?.name || '(未知)';
 
-  // 出貨會從成品庫存扣數量；刪除出貨單要把數量還原回去，跟原本 Apps Script 版一致。
+  // 稅金固定 5%，依金額自動算，不用手動輸入；出貨會從成品庫存扣數量，刪除
+  // 出貨單要把數量還原回去，跟原本 Apps Script 版一致。
+  const TAX_RATE = 0.05;
+
   async function handleSave(data) {
     if (data.id) {
       const existing = rows.find((r) => r.id === data.id);
       const amount = (Number(existing.quantity) || 0) * (Number(data.unitPrice) || 0);
-      await update(data.id, { date: data.date, unitPrice: data.unitPrice, tax: data.tax, note: data.note, amount, total: amount + (Number(data.tax) || 0) });
+      const tax = Math.round(amount * TAX_RATE);
+      await update(data.id, { date: data.date, unitPrice: data.unitPrice, note: data.note, amount, tax, total: amount + tax });
     } else {
       const qty = Number(data.quantity) || 0;
       const inv = productInventory.find((i) => i.productId === data.productId && i.batchNo === data.batchNo);
@@ -28,8 +32,9 @@ export default function ShipmentsPage() {
       const stockQty = Number(inv.quantity) || 0;
       if (stockQty < qty) { alert(`庫存不足：批號 ${data.batchNo} 目前庫存 ${stockQty}，出貨數量 ${qty}`); return; }
       const amount = qty * (Number(data.unitPrice) || 0);
-      const total = amount + (Number(data.tax) || 0);
-      await add({ ...data, amount, total });
+      const tax = Math.round(amount * TAX_RATE);
+      const total = amount + tax;
+      await add({ ...data, amount, tax, total });
       await updateInv(inv.id, { quantity: stockQty - qty });
     }
     setEditing(null);
@@ -50,7 +55,7 @@ export default function ShipmentsPage() {
       <div className="card">
         {loading ? <p className="muted">載入中…</p> : (
           <table>
-            <thead><tr><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>總計</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>日期</th><th>客戶</th><th>成品</th><th>批號</th><th>數量</th><th>單價</th><th>金額</th><th>稅金(5%)</th><th>總額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -60,6 +65,8 @@ export default function ShipmentsPage() {
                   <td>{r.batchNo}</td>
                   <td>{r.quantity}</td>
                   <td>{r.unitPrice}</td>
+                  <td>{r.amount}</td>
+                  <td>{r.tax}</td>
                   <td>{r.total}</td>
                   {canEditPage && (
                     <td className="row-actions">
@@ -69,7 +76,7 @@ export default function ShipmentsPage() {
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table>
         )}
@@ -124,10 +131,6 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
             <label>
               單價
               <input type="number" value={form.unitPrice || ''} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} />
-            </label>
-            <label>
-              稅金
-              <input type="number" value={form.tax || ''} onChange={(e) => setForm({ ...form, tax: e.target.value })} />
             </label>
             <label>
               備註
