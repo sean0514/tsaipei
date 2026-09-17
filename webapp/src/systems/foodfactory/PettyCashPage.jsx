@@ -7,7 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
 
 const DIRECTIONS = ['支出', '收入'];
-const PAYMENT_METHODS = ['現金', '轉帳', '信用卡'];
+const PAYMENT_METHODS = ['現金', '轉帳', '信用卡', '支票'];
 const CSV_FIELDS = [
   { key: 'date', label: '日期' }, { key: 'vendor', label: '廠商' }, { key: 'categoryName', label: '類別' },
   { key: 'itemName', label: '品名' }, { key: 'direction', label: '收支別' }, { key: 'total', label: '總計' },
