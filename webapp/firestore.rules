@@ -190,6 +190,11 @@ service cloud.firestore {
       allow create: if ffCanEdit('inventory') || ffCanEdit('production') || ffCanEdit('pettyCash');
       allow update, delete: if ffCanEdit('inventory');
     }
+    // 原料主檔每次新增/編輯/刪除都會同步寫一筆修改紀錄，唯讀、只能新增不能改/刪。
+    match /foodfactory_materialChangeLogs/{docId} {
+      allow read: if ffIsMember();
+      allow create: if ffCanEdit('inventory') || ffCanEdit('pettyCash');
+    }
 
     // 生產管理 group — 成本分析頁面登錄生產費用，所以 create 額外放行 'cost'。
     match /foodfactory_productionBatches/{docId} {
