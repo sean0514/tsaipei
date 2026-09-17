@@ -93,6 +93,11 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
   const isNew = !initial.id;
   const batchOptions = productInventory.filter((i) => i.productId === form.productId && Number(i.quantity) > 0);
 
+  // 金額／稅金只是即時預覽，讓使用者送出前就能看到算出來的結果；實際存檔的
+  // 金額/稅金/總額是 handleSave 依同一套 5% 稅率重新算一次。
+  const previewAmount = (Number(form.quantity) || 0) * (Number(form.unitPrice) || 0);
+  const previewTax = Math.round(previewAmount * 0.05);
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -131,6 +136,14 @@ function ShipmentFormModal({ initial, products, customers, productInventory, onC
             <label>
               單價
               <input type="number" value={form.unitPrice || ''} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} />
+            </label>
+            <label>
+              金額
+              <input value={previewAmount.toLocaleString()} disabled />
+            </label>
+            <label>
+              稅金(5%)
+              <input value={previewTax.toLocaleString()} disabled />
             </label>
             <label>
               備註
