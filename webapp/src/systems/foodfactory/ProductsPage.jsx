@@ -5,8 +5,9 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 
 const FIELDS = [
   { key: 'name', label: '品名', required: true },
-  { key: 'spec', label: '規格' },
-  { key: 'unit', label: '單位' },
+  { key: 'batchNo', label: '批號' },
+  { key: 'spec', label: '規格(容量)' },
+  { key: 'unit', label: '單位(重量)' },
   { key: 'shelfLifeDays', label: '保存期限(天)', type: 'number' },
   { key: 'price', label: '售價', type: 'number' },
 ];
