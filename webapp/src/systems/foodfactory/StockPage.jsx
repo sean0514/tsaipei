@@ -27,11 +27,11 @@ export default function StockPage() {
 
   const materialSearchQuery = materialQ.trim().toLowerCase();
   const filteredMaterials = materials
-    .filter((m) => !materialSearchQuery || [m.name, m.category].some((v) => v?.toLowerCase().includes(materialSearchQuery)))
+    .filter((m) => !materialSearchQuery || [m.name, m.category, m.unit, m.safetyStock, m.storageCondition, m.note].some((v) => String(v ?? '').toLowerCase().includes(materialSearchQuery)))
     .filter((m) => !lowStockOnly || isLowStock(m));
 
   const productSearchQuery = productQ.trim().toLowerCase();
-  const filteredProductInventory = productInventory.filter((i) => !productSearchQuery || `${productName(i.productId)} ${i.batchNo || ''}`.toLowerCase().includes(productSearchQuery));
+  const filteredProductInventory = productInventory.filter((i) => !productSearchQuery || [productName(i.productId), i.batchNo, i.quantity, i.expiryDate, i.location].some((v) => String(v ?? '').toLowerCase().includes(productSearchQuery)));
 
   function handleDownloadMaterials() {
     exportEntityCSV(materials.map((m) => ({ ...m, stock: materialStock(m.id, inventoryLogs) })), MATERIAL_CSV_FIELDS, '原料庫存');
@@ -54,7 +54,7 @@ export default function StockPage() {
           <button onClick={handleDownloadMaterials}>下載完整資料</button>
         </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
-          <input placeholder="搜尋名稱/分類" value={materialQ} onChange={(e) => setMaterialQ(e.target.value)} style={{ width: 260 }} />
+          <input placeholder="搜尋名稱/分類/單位/安全庫存量/儲存條件/備註" value={materialQ} onChange={(e) => setMaterialQ(e.target.value)} style={{ width: 260 }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
             只顯示庫存過低
@@ -87,7 +87,7 @@ export default function StockPage() {
           <h3 style={{ margin: 0 }}>成品庫存</h3>
           <button onClick={handleDownloadProducts}>下載完整資料</button>
         </div>
-        <input placeholder="搜尋成品/批號" value={productQ} onChange={(e) => setProductQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <input placeholder="搜尋成品/批號/數量/效期/儲放位置" value={productQ} onChange={(e) => setProductQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {productInventoryLoading ? <p className="muted">載入中…</p> : (
           <table>
             <thead><tr><th>成品名稱</th><th>批號</th><th>數量</th><th>效期</th><th>儲放位置</th></tr></thead>
