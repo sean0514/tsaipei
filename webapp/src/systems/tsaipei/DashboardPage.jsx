@@ -58,17 +58,10 @@ export default function DashboardPage() {
   // 不用學生資料的「狀態」欄位——那個欄位全系統沒有任何地方會自動更新，
   // 純手動維護，容易忘記改而跟實際進度脫節。
   const active = applicationProgress.filter((r) => r.currentStage === '入台').length;
-  const matching = students.filter((s) => ['媒合中', '待面試', '已面試'].includes(s.status)).length;
-  // 已媒合只算「已媒合但還沒確認錄取」的不重複學生，避免同一位學生有多筆
-  // 媒合紀錄被重複計算，也避免已經錄取/入台的學生（媒合紀錄狀態不會再往
-  // 後更新，永遠停在「已媒合」）被誤算進這個階段。
-  const admittedStudentIds = new Set(
-    admittedList.map((a) => matches.find((m) => m.id === a.matchId)?.studentId).filter(Boolean)
-  );
-  const matchedStudentIds = new Set(
-    matches.filter((m) => m.status === '已媒合' && !admittedStudentIds.has(m.studentId)).map((m) => m.studentId)
-  );
-  const matched = matchedStudentIds.size;
+  // 媒合中／已媒合都直接依媒合紀錄本身的狀態計算，跟媒合紀錄頁面看到的
+  // 狀態一致。
+  const matching = matches.filter((m) => m.status === '媒合中').length;
+  const matched = matches.filter((m) => m.status === '已媒合').length;
   // 依「地點群組」逐一判斷是否開放中，跟原本 apps-script 版一致。
   const openPositions = positions.filter((p) => {
     try {
@@ -109,7 +102,7 @@ export default function DashboardPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
             {[
-              ['學生總數', total], ['已入台實習', active], ['媒合/面試處理中', matching], ['已媒合', matched],
+              ['學生總數', total], ['已入台實習', active], ['媒合中', matching], ['已媒合', matched],
               ['開放中職缺', openPositions], ['宿舍待安排學生', unarrangedHousing.length],
             ].map(([label, num]) => (
               <div className="card" key={label}>
