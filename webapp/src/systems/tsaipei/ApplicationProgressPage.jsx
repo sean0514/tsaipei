@@ -6,6 +6,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { hasActiveHousingRecord } from '../../lib/housingRecords';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -95,7 +96,7 @@ export default function ApplicationProgressPage() {
   // 一致。住宿安排另外也會在「新增/更新在台簽證追蹤」那一步補建一次（見
   // InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用 existsForStudent 檢查避免重複建立。
   async function afterStageChange(studentId, stage) {
-    if (stage === '辦理簽證' && !(await existsForStudent('tsaipei_housingRecords', studentId))) {
+    if (stage === '辦理簽證' && !(await hasActiveHousingRecord(studentId))) {
       await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
     }
     if (stage !== '入台') return;
