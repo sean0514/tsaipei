@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { STAGES } from './ApplicationProgressPage';
-
-const VISA_STAGE_INDEX = STAGES.indexOf('辦理簽證');
 
 function studentFullLabel(s) {
   if (!s) return '(已刪除)';
@@ -26,8 +23,8 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
 }
 
 // 學生「確認錄取」後（見 AdmittedListPage.jsx）會自動建立一筆申辦進度追蹤
-// 紀錄，本頁只是把申辦進度追蹤裡「辦理簽證」這一步還沒走完（含正在辦理中）
-// 的學生名單，依客戶整理出來提醒；進度一旦超過「辦理簽證」就會自動從這裡
+// 紀錄，本頁只把申辦進度追蹤裡目前進度剛好顯示為「辦理簽證」的學生名單，
+// 依客戶整理出來提醒；進度離開「辦理簽證」（不論往前或往後）就自動從這裡
 // 消失。純顯示用途，沒有編輯功能，要更新進度請到申辦進度追蹤頁面。
 export default function VisaReminderPage() {
   useOutletContext();
@@ -43,10 +40,7 @@ export default function VisaReminderPage() {
   const searchQuery = q.trim().toLowerCase();
 
   const pending = rows
-    .filter((r) => {
-      const idx = STAGES.indexOf(r.currentStage);
-      return idx < 0 || idx <= VISA_STAGE_INDEX;
-    })
+    .filter((r) => r.currentStage === '辦理簽證')
     .filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
 
   const byCompany = {};
@@ -66,7 +60,7 @@ export default function VisaReminderPage() {
       <div className="page-header">
         <div>
           <h2>辦理簽證提醒</h2>
-          <div className="page-desc">依客戶分類，列出申辦進度追蹤裡「辦理簽證」尚未完成的學生；進度更新到辦理簽證之後的步驟即自動從清單移除（唯讀）</div>
+          <div className="page-desc">依客戶分類，列出申辦進度追蹤裡目前進度顯示為「辦理簽證」的學生；進度離開辦理簽證即自動從清單移除（唯讀）</div>
         </div>
       </div>
       <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />

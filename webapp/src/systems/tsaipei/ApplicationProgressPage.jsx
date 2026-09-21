@@ -89,11 +89,15 @@ export default function ApplicationProgressPage() {
     }));
   }
 
-  // 進度到達「入台」時自動建立在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本
-  // Apps Script 版的 ensureInTaiwanVisaForStudent 一致 —— 住宿安排的自動建立
-  // 只發生在「新增/更新在台簽證追蹤」那一步（見 InTaiwanVisaPage.jsx 的
-  // afterVisaSave），這裡不重複建立。
+  // 進度到達「辦理簽證」時就先建立住宿安排空白紀錄（未安排），讓宿舍安排
+  // 提早準備，不用等到學生實際入台；進度到達「入台」時自動建立在台簽證追蹤、
+  // 在台關懷紀錄空白紀錄，跟原本 Apps Script 版的 ensureInTaiwanVisaForStudent
+  // 一致。住宿安排另外也會在「新增/更新在台簽證追蹤」那一步補建一次（見
+  // InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用 existsForStudent 檢查避免重複建立。
   async function afterStageChange(studentId, stage) {
+    if (stage === '辦理簽證' && !(await existsForStudent('tsaipei_housingRecords', studentId))) {
+      await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
+    }
     if (stage !== '入台') return;
     if (!(await existsForStudent('tsaipei_inTaiwanVisa', studentId))) {
       await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId });
