@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const { rows: positions } = useCollection('tsaipei_positions');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
+  const { rows: applicationProgress } = useCollection('tsaipei_applicationProgress');
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: careRecords } = useCollection('tsaipei_inTaiwanCare');
   const { rows: internshipDocs } = useCollection('tsaipei_internshipDocs');
@@ -53,9 +54,21 @@ export default function DashboardPage() {
   const monthAhead = addDays(today, 30);
 
   const total = students.length;
-  const active = students.filter((s) => s.status === '已入台實習').length;
+  // 改用申辦進度追蹤的實際進度（跟在台簽證追蹤/預計入台離台同一套判斷），
+  // 不用學生資料的「狀態」欄位——那個欄位全系統沒有任何地方會自動更新，
+  // 純手動維護，容易忘記改而跟實際進度脫節。
+  const active = applicationProgress.filter((r) => r.currentStage === '入台').length;
   const matching = students.filter((s) => ['媒合中', '待面試', '已面試'].includes(s.status)).length;
-  const matched = matches.filter((m) => m.status === '已媒合').length;
+  // 已媒合只算「已媒合但還沒確認錄取」的不重複學生，避免同一位學生有多筆
+  // 媒合紀錄被重複計算，也避免已經錄取/入台的學生（媒合紀錄狀態不會再往
+  // 後更新，永遠停在「已媒合」）被誤算進這個階段。
+  const admittedStudentIds = new Set(
+    admittedList.map((a) => matches.find((m) => m.id === a.matchId)?.studentId).filter(Boolean)
+  );
+  const matchedStudentIds = new Set(
+    matches.filter((m) => m.status === '已媒合' && !admittedStudentIds.has(m.studentId)).map((m) => m.studentId)
+  );
+  const matched = matchedStudentIds.size;
   // 依「地點群組」逐一判斷是否開放中，跟原本 apps-script 版一致。
   const openPositions = positions.filter((p) => {
     try {
