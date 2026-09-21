@@ -46,6 +46,32 @@ function parseCSV(text) {
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }
 
+function countHeaderMatches(text, fields) {
+  const rows = parseCSV(text);
+  if (!rows.length) return 0;
+  const header = rows[0].map((h) => h.trim());
+  const labels = new Set(fields.map((f) => f.label));
+  return header.filter((h) => labels.has(h)).length;
+}
+
+// file.text() always decodes as UTF-8, but a downloaded CSV that gets
+// edited and re-saved through Excel on Traditional-Chinese Windows is often
+// silently written back out as Big5 (Excel's "CSV" file type doesn't ask).
+// Decoded as UTF-8 that comes out as garbled header cells that match none
+// of our field labels, so every data row gets skipped with no clue why.
+// Try UTF-8 first (what we export), and only fall back to Big5 if literally
+// no header cell matched.
+export async function decodeCsvFile(file, fields) {
+  const buffer = await file.arrayBuffer();
+  const utf8Text = new TextDecoder('utf-8').decode(buffer);
+  if (countHeaderMatches(utf8Text, fields) > 0) return utf8Text;
+  try {
+    const big5Text = new TextDecoder('big5').decode(buffer);
+    if (countHeaderMatches(big5Text, fields) > 0) return big5Text;
+  } catch { /* Big5 decoder unavailable in this browser */ }
+  return utf8Text;
+}
+
 // Returns { imported, skipped } or { error }.
 export function parseImportRows(text, fields, requiredKeys = []) {
   const rows = parseCSV(text);
