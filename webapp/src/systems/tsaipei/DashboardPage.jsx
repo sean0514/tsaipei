@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const total = students.length;
   const active = students.filter((s) => s.status === '已入台實習').length;
   const matching = students.filter((s) => ['媒合中', '待面試', '已面試'].includes(s.status)).length;
+  const matched = matches.filter((m) => m.status === '已媒合').length;
   // 依「地點群組」逐一判斷是否開放中，跟原本 apps-script 版一致。
   const openPositions = positions.filter((p) => {
     try {
@@ -95,7 +96,7 @@ export default function DashboardPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
             {[
-              ['學生總數', total], ['已入台實習', active], ['媒合/面試處理中', matching],
+              ['學生總數', total], ['已入台實習', active], ['媒合/面試處理中', matching], ['已媒合', matched],
               ['開放中職缺', openPositions], ['宿舍待安排學生', unarrangedHousing.length],
             ].map(([label, num]) => (
               <div className="card" key={label}>
