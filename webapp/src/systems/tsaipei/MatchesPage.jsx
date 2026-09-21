@@ -10,11 +10,12 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import Tag from '../../components/Tag';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
+const PROGRAMS = ['經濟部', '交通部'];
 const NATIONALITIES = ['越南', '印尼', '泰國', '菲律賓', '台灣'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'positionId', label: '職缺ID' },
   { key: 'venue', label: '實習場域' }, { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' },
-  { key: 'notes', label: '備註' },
+  { key: 'program', label: '來台方案' }, { key: 'notes', label: '備註' },
 ];
 
 export default function MatchesPage() {
@@ -98,7 +99,7 @@ export default function MatchesPage() {
               <h3 style={{ marginTop: 0 }}>{nat} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {byNationality[nat].length} 筆</span></h3>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th>{canEditPage && <th></th>}</tr></thead>
+                  <thead><tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th><th>來台方案</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {byNationality[nat].map((r) => (
                       <tr key={r.id}>
@@ -107,6 +108,7 @@ export default function MatchesPage() {
                         <td>{r.venue || '—'}</td>
                         <td><Tag value={r.status} map={MATCH_TAG} /></td>
                         <td>{r.matchDate || '—'}</td>
+                        <td>{r.program || '—'}</td>
                         {canEditPage && (
                           <td className="row-actions">
                             <button onClick={() => setEditing(r)}>編輯</button>
@@ -181,6 +183,13 @@ function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
             <label>
               媒合日期
               <input type="date" value={form.matchDate || ''} onChange={(e) => setForm({ ...form, matchDate: e.target.value })} />
+            </label>
+            <label>
+              來台方案
+              <select value={form.program || ''} onChange={(e) => setForm({ ...form, program: e.target.value })}>
+                <option value="">請選擇</option>
+                {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
             </label>
             <label>
               備註
