@@ -24,10 +24,29 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
   return [p.projectCode, p.company, m.venue].filter(Boolean).join(' ') || '未指定客戶';
 }
 
+// 基資表的組成項目；全部收齊才自動視為基資表完成，不用另外手動勾基資表本身。
+const BASIC_DOC_ITEMS = [
+  { key: 'applicationForm', label: '申請書' },
+  { key: 'employmentCert', label: '在職證明' },
+  { key: 'passportOriginal', label: '護照正本' },
+  { key: 'passportCopy', label: '護照影本' },
+  { key: 'visaOriginal', label: '簽證正本' },
+  { key: 'visaCopy', label: '簽證影本' },
+  { key: 'approvalLetterOriginal', label: '核准函正本' },
+];
+
+function isBasicDocsComplete(p) {
+  return BASIC_DOC_ITEMS.every((d) => p?.[d.key]);
+}
+function basicDocsCount(p) {
+  return BASIC_DOC_ITEMS.filter((d) => p?.[d.key]).length;
+}
+
 const CSV_FIELDS = [
   { key: 'studentName', label: '學生' }, { key: 'company', label: '客戶' },
-  { key: 'firstEntryDate', label: '入台日期' }, { key: 'basicDocsReceived', label: '基資表' },
-  { key: 'bankAccountReceived', label: '銀行帳戶' },
+  { key: 'firstEntryDate', label: '入台日期' },
+  ...BASIC_DOC_ITEMS.map((d) => ({ key: d.key, label: d.label })),
+  { key: 'basicDocsReceived', label: '基資表(全部收齊)' }, { key: 'bankAccountReceived', label: '銀行帳戶' },
 ];
 
 export default function BankAccountProgressPage() {
@@ -40,6 +59,7 @@ export default function BankAccountProgressPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [q, setQ] = useState('');
+  const [managingStudentId, setManagingStudentId] = useState(null);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -59,22 +79,30 @@ export default function BankAccountProgressPage() {
   });
   const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
 
-  async function toggle(studentId, field, checked) {
+  async function toggleDoc(studentId, field, checked) {
     const existing = progressByStudent[studentId];
     if (existing) await updateProgress(existing.id, { [field]: checked });
-    else await addProgress({ studentId, basicDocsReceived: false, bankAccountReceived: false, [field]: checked });
+    else await addProgress({ studentId, bankAccountReceived: false, [field]: checked });
+  }
+
+  async function toggleBankAccount(studentId, checked) {
+    const existing = progressByStudent[studentId];
+    if (existing) await updateProgress(existing.id, { bankAccountReceived: checked });
+    else await addProgress({ studentId, bankAccountReceived: checked });
   }
 
   function handleDownload() {
     const data = arrived.map((v) => {
       const p = progressByStudent[v.studentId] || {};
-      return {
+      const row = {
         studentName: studentFullLabel(studentById(v.studentId)),
         company: studentCompanyLabel(v.studentId, ctx),
         firstEntryDate: v.firstEntryDate,
-        basicDocsReceived: p.basicDocsReceived ? '是' : '否',
+        basicDocsReceived: isBasicDocsComplete(p) ? '是' : '否',
         bankAccountReceived: p.bankAccountReceived ? '是' : '否',
       };
+      BASIC_DOC_ITEMS.forEach((d) => { row[d.key] = p[d.key] ? '是' : '否'; });
+      return row;
     });
     exportEntityCSV(data, CSV_FIELDS, '開戶進度追蹤');
   }
@@ -87,18 +115,20 @@ export default function BankAccountProgressPage() {
           <tbody>
             {items.map((v) => {
               const p = progressByStudent[v.studentId] || {};
+              const complete = isBasicDocsComplete(p);
               return (
                 <tr key={v.id}>
                   <td>{studentFullLabel(studentById(v.studentId))}</td>
                   <td>{v.firstEntryDate}</td>
                   <td>
-                    {canEditPage ? (
-                      <input type="checkbox" checked={!!p.basicDocsReceived} onChange={(e) => toggle(v.studentId, 'basicDocsReceived', e.target.checked)} />
-                    ) : (p.basicDocsReceived ? '是' : '否')}
+                    <span className={`tag ${complete ? 'tag-green' : 'tag-amber'}`} style={{ marginRight: 8 }}>
+                      {complete ? '已收齊' : `${basicDocsCount(p)}/${BASIC_DOC_ITEMS.length}`}
+                    </span>
+                    {canEditPage && <button onClick={() => setManagingStudentId(v.studentId)}>管理</button>}
                   </td>
                   <td>
                     {canEditPage ? (
-                      <input type="checkbox" checked={!!p.bankAccountReceived} onChange={(e) => toggle(v.studentId, 'bankAccountReceived', e.target.checked)} />
+                      <input type="checkbox" checked={!!p.bankAccountReceived} onChange={(e) => toggleBankAccount(v.studentId, e.target.checked)} />
                     ) : (p.bankAccountReceived ? '是' : '否')}
                   </td>
                 </tr>
@@ -111,13 +141,15 @@ export default function BankAccountProgressPage() {
     );
   }
 
+  const managingVisa = managingStudentId ? arrived.find((v) => v.studentId === managingStudentId) : null;
+
   return (
     <div className="content">
       <div className="page-header">
         <div>
           <h2>開戶進度追蹤</h2>
           <div className="page-desc">
-            在台簽證追蹤裡填了第一次入台時間的學生會自動列入此清單；基資表包含申請書、在職證明、護照、簽證，收齊才勾選
+            在台簽證追蹤裡填了第一次入台時間的學生會自動列入此清單；基資表包含申請書、在職證明、護照正本、護照影本、簽證正本、簽證影本、核准函正本，全部收齊後自動標示為已收齊
             {!canEditPage && '（唯讀）'}
           </div>
         </div>
@@ -136,6 +168,42 @@ export default function BankAccountProgressPage() {
           </div>
         )
       )}
+      {managingVisa && (
+        <BasicDocsModal
+          studentLabel={studentFullLabel(studentById(managingStudentId))}
+          progress={progressByStudent[managingStudentId] || {}}
+          canEditPage={canEditPage}
+          onToggle={(field, checked) => toggleDoc(managingStudentId, field, checked)}
+          onClose={() => setManagingStudentId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BasicDocsModal({ studentLabel, progress, canEditPage, onToggle, onClose }) {
+  const complete = isBasicDocsComplete(progress);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{studentLabel} · 基資表 {complete && <span className="tag tag-green">已收齊</span>}</h3>
+        <div className="form-grid">
+          {BASIC_DOC_ITEMS.map((d) => (
+            <label key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                disabled={!canEditPage}
+                checked={!!progress[d.key]}
+                onChange={(e) => onToggle(d.key, e.target.checked)}
+              />
+              {d.label}
+            </label>
+          ))}
+        </div>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button onClick={onClose}>關閉</button>
+        </div>
+      </div>
     </div>
   );
 }
