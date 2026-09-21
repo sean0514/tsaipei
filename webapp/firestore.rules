@@ -121,6 +121,11 @@ service cloud.firestore {
       allow update: if tsCanEdit('housing');
       allow delete: if tsCanEdit('housing') || tsCanEdit('students');
     }
+    // 開戶進度追蹤：一位學生一筆，勾選框第一次操作時才建立，所以 create/update 都放行。
+    match /tsaipei_bankAccountProgress/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('inTaiwanTracking');
+    }
     match /tsaipei_dormitories/{docId} {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('dormManagement');

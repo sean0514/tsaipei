@@ -16,6 +16,7 @@ import ApplicationProgressPage from './systems/tsaipei/ApplicationProgressPage';
 import InTaiwanVisaPage from './systems/tsaipei/InTaiwanVisaPage';
 import InTaiwanCarePage from './systems/tsaipei/InTaiwanCarePage';
 import ExpectedArrivalPage from './systems/tsaipei/ExpectedArrivalPage';
+import BankAccountProgressPage from './systems/tsaipei/BankAccountProgressPage';
 import HousingPage from './systems/tsaipei/HousingPage';
 import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
@@ -73,6 +74,7 @@ const PAGES = {
     inTaiwanVisa: InTaiwanVisaPage,
     inTaiwanCare: InTaiwanCarePage,
     expectedArrival: ExpectedArrivalPage,
+    bankAccountProgress: BankAccountProgressPage,
     housing: HousingPage,
     dormManagement: DormManagementPage,
     meetings: MeetingsPage,
