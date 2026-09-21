@@ -14,16 +14,32 @@ const CSV_FIELDS = [
   { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
 ];
 
+// Ported from studentCompanyName/matchPositionLabel in apps-script/Index.html —
+// 這裡只取「實習場域」當分店名稱，不是完整的專案＋客戶標籤。
+function studentVenueLabel(studentId, { matches, admittedList, positions }) {
+  const admitted = admittedList.find((a) => {
+    const m = matches.find((mm) => mm.id === a.matchId);
+    return m && m.studentId === studentId;
+  });
+  let m = admitted ? matches.find((mm) => mm.id === admitted.matchId) : null;
+  if (!m) m = matches.find((x) => x.studentId === studentId);
+  return m?.venue || '—';
+}
+
 export default function HousingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'housing', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
+  const { rows: matches } = useCollection('tsaipei_matches');
+  const { rows: admittedList } = useCollection('tsaipei_admittedList');
+  const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
 
+  const ctx = { matches, admittedList, positions };
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
   const today = new Date().toISOString().slice(0, 10);
 
@@ -39,7 +55,7 @@ export default function HousingPage() {
   rows.forEach((r) => {
     const c = classify(r);
     if (!c) return;
-    if (searchQuery && !`${studentName(r.studentId)} ${r.type || ''}`.toLowerCase().includes(searchQuery)) return;
+    if (searchQuery && !`${studentName(r.studentId)} ${studentVenueLabel(r.studentId, ctx)} ${r.type || ''}`.toLowerCase().includes(searchQuery)) return;
     groups[c].push(r);
   });
 
@@ -66,16 +82,17 @@ export default function HousingPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有住宿紀錄，請先下載備份再匯入。填入「入住日」後會自動歸類到「住宿中」；「退宿日」到期後自動歸類到「已離宿」。</p>}
-      <input placeholder="搜尋學生或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <input placeholder="搜尋學生、分店或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>{label}（{list.length}）</h3>
           <div className="table-wrap"><table>
-            <thead><tr><th>學生</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>學生</th><th>分店</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {list.map((r) => (
                 <tr key={r.id}>
                   <td>{studentName(r.studentId)}</td>
+                  <td>{studentVenueLabel(r.studentId, ctx)}</td>
                   <td>{r.type || '—'}</td>
                   <td>{r.payer || '—'}</td>
                   <td>{r.checkIn || '—'}</td>
@@ -89,7 +106,7 @@ export default function HousingPage() {
                   )}
                 </tr>
               ))}
-              {list.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+              {list.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         </div>
