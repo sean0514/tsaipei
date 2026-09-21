@@ -66,6 +66,7 @@ export default function ApplicationProgressPage() {
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState(null);
+  const [checkingHousing, setCheckingHousing] = useState(false);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -119,6 +120,26 @@ export default function ApplicationProgressPage() {
     setEditing(null);
   }
 
+  // 補救用：把目前所有「辦理簽證」的學生都檢查一次，缺住宿安排紀錄的補上。
+  // 用來修正在住宿安排自動連動邏輯修好之前，就已經卡在辦理簽證但沒被
+  // 補到的學生（例如當時該學生已有一筆「已完成」的舊住宿紀錄被誤判為已處理）。
+  async function reconcileHousingForVisaStage() {
+    setCheckingHousing(true);
+    try {
+      const visaRows = rows.filter((r) => r.currentStage === '辦理簽證');
+      let fixed = 0;
+      for (const r of visaRows) {
+        if (!(await hasActiveHousingRecord(r.studentId))) {
+          await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: r.studentId });
+          fixed++;
+        }
+      }
+      alert(`檢查完成：目前共 ${visaRows.length} 位學生進度為「辦理簽證」，其中補上了 ${fixed} 筆缺少的住宿安排紀錄。`);
+    } finally {
+      setCheckingHousing(false);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -128,6 +149,11 @@ export default function ApplicationProgressPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ currentStage: STAGES[0] })}>+ 新增進度紀錄</button>}
+          {canEditPage && (
+            <button onClick={reconcileHousingForVisaStage} disabled={checkingHousing}>
+              {checkingHousing ? '檢查中…' : '核對辦理簽證學生的住宿安排'}
+            </button>
+          )}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
