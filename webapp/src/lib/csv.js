@@ -46,11 +46,15 @@ function parseCSV(text) {
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }
 
+// Only labels containing a non-ASCII (Chinese) character are useful for
+// telling UTF-8 and Big5 decodes apart — a plain-ASCII label like "ID"
+// matches identically either way, so counting it would make a garbled
+// decode look "matched" and short-circuit the fallback below.
 function countHeaderMatches(text, fields) {
   const rows = parseCSV(text);
   if (!rows.length) return 0;
   const header = rows[0].map((h) => h.trim());
-  const labels = new Set(fields.map((f) => f.label));
+  const labels = new Set(fields.map((f) => f.label).filter((l) => /[^\x00-\x7f]/.test(l)));
   return header.filter((h) => labels.has(h)).length;
 }
 
