@@ -22,11 +22,13 @@ export default function MeetingsPage() {
   const canEditPage = computeCanEdit(system, 'meetings', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_meetings', { order: ['date', 'desc'] });
   const [editing, setEditing] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_meetings', CSV_FIELDS, { entityLabel: '會議記錄', requiredKeys: ['date', 'title'], canEdit: canEditPage });
 
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => !searchQuery || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(searchQuery));
+  const selected = rows.find((r) => r.id === selectedId) || null;
 
   async function handleSave(data) {
     if (data.id) {
@@ -58,13 +60,17 @@ export default function MeetingsPage() {
             <thead><tr><th>日期</th><th>主題</th><th>主持人</th><th>出席人員</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
-                <tr key={r.id}>
+                <tr
+                  key={r.id}
+                  onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}
+                  style={{ cursor: 'pointer', background: r.id === selectedId ? 'var(--row-selected-bg, #eef4ff)' : undefined }}
+                >
                   <td>{r.date}</td>
                   <td>{r.title}</td>
                   <td>{r.host || '—'}</td>
                   <td>{r.attendees || '—'}</td>
                   {canEditPage && (
-                    <td className="row-actions">
+                    <td className="row-actions" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => setEditing(r)}>編輯</button>
                       <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                     </td>
@@ -76,6 +82,21 @@ export default function MeetingsPage() {
           </table></div>
         )}
       </div>
+      {selected && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="page-header" style={{ marginBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>{selected.title} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{selected.date}</span></h3>
+            <button onClick={() => setSelectedId(null)}>關閉</button>
+          </div>
+          <div className="form-grid">
+            <div><div className="muted" style={{ fontSize: 12 }}>主持人</div><div>{selected.host || '—'}</div></div>
+            <div><div className="muted" style={{ fontSize: 12 }}>出席人員</div><div>{selected.attendees || '—'}</div></div>
+            <div style={{ gridColumn: 'span 2' }}><div className="muted" style={{ fontSize: 12 }}>討論內容</div><div style={{ whiteSpace: 'pre-wrap' }}>{selected.content || '—'}</div></div>
+            <div style={{ gridColumn: 'span 2' }}><div className="muted" style={{ fontSize: 12 }}>待辦事項</div><div style={{ whiteSpace: 'pre-wrap' }}>{selected.actionItems || '—'}</div></div>
+            <div style={{ gridColumn: 'span 2' }}><div className="muted" style={{ fontSize: 12 }}>備註</div><div style={{ whiteSpace: 'pre-wrap' }}>{selected.notes || '—'}</div></div>
+          </div>
+        </div>
+      )}
       {editing && <MeetingFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
