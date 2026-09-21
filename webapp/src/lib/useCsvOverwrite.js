@@ -1,6 +1,6 @@
 import { collection, deleteDoc, doc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { exportEntityCSV, parseImportRows } from './csv';
+import { decodeCsvFile, exportEntityCSV, parseImportRows } from './csv';
 
 // Ported from importSheetOverwrite_ in apps-script/Code.gs: clears every
 // existing row in the sheet, then re-appends the imported rows (keeping a
@@ -29,7 +29,7 @@ export function useCsvOverwrite(collectionName, fields, { entityLabel, requiredK
   async function handleImport(file, currentCount) {
     if (!canEdit) return;
     let text;
-    try { text = await file.text(); } catch { alert('無法讀取檔案。'); return; }
+    try { text = await decodeCsvFile(file, fields); } catch { alert('無法讀取檔案。'); return; }
     const result = parseImportRows(text, fields, requiredKeys);
     if (result.error) { alert(result.error); return; }
     if (!result.imported.length) {
