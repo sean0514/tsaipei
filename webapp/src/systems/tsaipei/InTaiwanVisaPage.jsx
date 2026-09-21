@@ -6,6 +6,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { hasActiveHousingRecord } from '../../lib/housingRecords';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -21,7 +22,7 @@ async function afterVisaSave(studentId, row) {
   if (!(await existsForStudent('tsaipei_inTaiwanCare', studentId))) {
     await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId, status: '良好' });
   }
-  if (!(await existsForStudent('tsaipei_housingRecords', studentId))) {
+  if (!(await hasActiveHousingRecord(studentId))) {
     await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
   }
   await updateDoc(doc(db, 'tsaipei_students', studentId), {
