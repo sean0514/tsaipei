@@ -47,7 +47,12 @@ export const NAV_ICONS = {
     dashboard: '◆',
     workers: '◇',
     employers: '⌂',
-    matching: '⇄',
+    matches: '⇄',
+    secondInterview: '◐',
+    admitted: '✓',
+    applicationProgress: '▶',
+    meetings: '✎',
+    dailyExpenseApplication: '🧾',
     users: '▣',
   },
 };

@@ -41,6 +41,11 @@ import YujianDashboardPage from './systems/yujian/DashboardPage';
 import YujianWorkersPage from './systems/yujian/WorkersPage';
 import YujianEmployersPage from './systems/yujian/EmployersPage';
 import YujianMatchesPage from './systems/yujian/MatchesPage';
+import YujianSecondInterviewsPage from './systems/yujian/SecondInterviewsPage';
+import YujianAdmittedListPage from './systems/yujian/AdmittedListPage';
+import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressPage';
+import YujianMeetingsPage from './systems/yujian/MeetingsPage';
+import YujianDailyExpenseApplicationPage from './systems/yujian/DailyExpenseApplicationPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import StockPage from './systems/foodfactory/StockPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
@@ -113,7 +118,12 @@ const PAGES = {
     dashboard: YujianDashboardPage,
     workers: YujianWorkersPage,
     employers: YujianEmployersPage,
-    matching: YujianMatchesPage,
+    matches: YujianMatchesPage,
+    secondInterview: YujianSecondInterviewsPage,
+    admitted: YujianAdmittedListPage,
+    applicationProgress: YujianApplicationProgressPage,
+    meetings: YujianMeetingsPage,
+    dailyExpenseApplication: YujianDailyExpenseApplicationPage,
     users: UsersPage,
   },
   foodfactory: {

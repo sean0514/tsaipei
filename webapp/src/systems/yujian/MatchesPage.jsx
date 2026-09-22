@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
@@ -27,12 +29,20 @@ export default function MatchesPage() {
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${workerName(r.workerId)} ${employerName(r.employerId)}`.toLowerCase().includes(searchQuery));
 
+  // 狀態變成「已媒合」時自動建立一筆二面進度（待安排），比照境外實習生系統
+  // 媒合紀錄→二面進度的自動連動。
   async function handleSave(data) {
-    if (data.id) {
+    const wasMatched = editing?.status === '已媒合';
+    let matchId = data.id;
+    if (matchId) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '媒合中', ...data });
+      const ref = await add({ status: '媒合中', ...data });
+      matchId = ref.id;
+    }
+    if (data.status === '已媒合' && !wasMatched) {
+      await addDoc(collection(db, 'yujian_secondInterviews'), { matchId, status: '待安排' });
     }
     setEditing(null);
   }

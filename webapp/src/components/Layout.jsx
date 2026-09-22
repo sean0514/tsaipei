@@ -21,7 +21,10 @@ export const IMPLEMENTED_MODULES = {
   ],
   dispatch: ['dashboard', 'users'],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
-  yujian: ['dashboard', 'workers', 'employers', 'matching', 'users'],
+  yujian: [
+    'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted',
+    'applicationProgress', 'meetings', 'dailyExpenseApplication', 'users',
+  ],
 };
 
 // A permission module can cover several routes at once (matches the
@@ -88,6 +91,16 @@ const GROUP_ROUTES = {
       { route: 'partners', label: '合夥分潤' },
     ],
   },
+  yujian: {
+    matching: [
+      { route: 'matches', label: '媒合紀錄' },
+      { route: 'secondInterview', label: '二面進度' },
+      { route: 'admitted', label: '錄取名單' },
+    ],
+    applicationForms: [
+      { route: 'dailyExpenseApplication', label: '日常支出申請' },
+    ],
+  },
 };
 
 function NavItem({ system, route, label }) {
@@ -127,10 +140,12 @@ export default function Layout() {
   const role = profile.role;
 
   return (
-    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}`}>
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}`}>
       <aside className="sidebar">
         {system === 'tsaipei' ? (
           <h1 className="brand-mark">🌸 鈞羽有限公司<br />境外實習生管理系統<div className="brand-sub">International Internship Desk</div></h1>
+        ) : system === 'yujian' ? (
+          <h1 className="brand-mark">🤝 聿見國際有限公司<br />外勞仲介管理系統<div className="brand-sub">Overseas Caregiver Placement</div></h1>
         ) : (
           <h1>{sys.label}</h1>
         )}
