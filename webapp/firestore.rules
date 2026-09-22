@@ -62,10 +62,6 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('matching');
     }
-    match /tsaipei_postageFeeRecords/{docId} {
-      allow read: if tsIsMember();
-      allow write: if tsCanEdit('matching');
-    }
     match /tsaipei_matches/{docId} {
       allow read: if tsIsMember();
       // create is also allowed to anyone who can edit 'students': new-student
@@ -145,6 +141,10 @@ service cloud.firestore {
     // 申請表格：國外補助申請/日常支出申請 share the 'applicationForms'
     // permission module.
     match /tsaipei_foreignSubsidyApplications/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('applicationForms');
+    }
+    match /tsaipei_postageFeeRecords/{docId} {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('applicationForms');
     }

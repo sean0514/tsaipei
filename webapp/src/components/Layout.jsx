@@ -35,7 +35,6 @@ const GROUP_ROUTES = {
       { route: 'secondInterview', label: '二面進度' },
       { route: 'admitted', label: '錄取名單' },
       { route: 'visaReminder', label: '辦理簽證提醒' },
-      { route: 'postageFee', label: '郵資費用紀錄' },
     ],
     inTaiwanTracking: [
       { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
@@ -46,6 +45,7 @@ const GROUP_ROUTES = {
     applicationForms: [
       { route: 'foreignSubsidyApplication', label: '國外補助申請' },
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
+      { route: 'postageFee', label: '郵資費用紀錄' },
     ],
     // 跟原本 NAV_STRUCTURE 一樣分成「會計專用」「資料建檔」兩個子群組顯示，
     // 雖然這裡兩組都是同一個 'bonus' 權限模組把關（跟原本 pageModuleKey()
