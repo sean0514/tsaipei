@@ -140,10 +140,12 @@ export default function Layout() {
   const role = profile.role;
 
   return (
-    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}`}>
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}`}>
       <aside className="sidebar">
         {system === 'tsaipei' ? (
           <h1 className="brand-mark">🌸 鈞羽有限公司<br />境外實習生管理系統<div className="brand-sub">International Internship Desk</div></h1>
+        ) : system === 'yujian' ? (
+          <h1 className="brand-mark">🤝 聿見國際有限公司<br />外勞仲介管理系統<div className="brand-sub">Overseas Caregiver Placement</div></h1>
         ) : (
           <h1>{sys.label}</h1>
         )}

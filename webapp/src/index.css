@@ -59,6 +59,44 @@
 .theme-tsaipei .modal { border-radius: 20px; box-shadow: 0 20px 60px rgba(90,58,86,0.25); }
 .theme-tsaipei .tag { border-radius: 999px; }
 
+/* 聿見國際（外勞仲介管理系統）：暖陶橘 + 深藍綠側邊欄，跟境外實習生系統的
+   粉色系做出區隔，只在這個系統的頁面範圍內生效。 */
+.theme-yujian {
+  --bg: #FBF6F2;
+  --panel: #FFFFFF;
+  --border: #EFDDD1;
+  --text: #4A3F38;
+  --text-muted: #93857B;
+  --accent: #D97757;
+  --accent-soft: #FBEAE2;
+  --danger: #C4574A;
+  --sidebar-bg: #2C4A52;
+  --sidebar-border: rgba(255,255,255,0.12);
+  --sidebar-text: #D7E4E3;
+  --sidebar-text-muted: #9FB8B6;
+  --sidebar-active-bg: #D97757;
+  --sidebar-active-text: #ffffff;
+  --heading-font: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 10px;
+  --radius-lg: 12px;
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.theme-yujian button.primary { background: var(--accent); border-color: var(--accent); }
+.theme-yujian button.primary:hover { background: #C15E40; border-color: #C15E40; }
+.theme-yujian h2, .theme-yujian h3, .theme-yujian h4 { font-family: var(--heading-font); color: #C15E40; font-weight: 700; }
+.theme-yujian button { border-radius: 10px; border-color: #EFDDD1; }
+.theme-yujian button:not(.primary):not(.danger):hover { background: #FBEAE2; border-color: #F0C9B4; }
+.theme-yujian button.danger { background: #FBEDEA; color: #C15E40; border-color: #F0C4B4; }
+.theme-yujian button.danger:hover { background: #F7DDD6; }
+.theme-yujian input, .theme-yujian select, .theme-yujian textarea { border-radius: 8px; border-color: #EFDDD1; }
+.theme-yujian input:focus, .theme-yujian select:focus, .theme-yujian textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,87,0.15);
+}
+.theme-yujian .card { border-radius: 14px; box-shadow: 0 4px 18px rgba(44,74,82,0.06); }
+.theme-yujian .modal { border-radius: 16px; box-shadow: 0 20px 60px rgba(44,74,82,0.25); }
+.theme-yujian .tag { border-radius: 999px; }
+.theme-yujian .brand-sub { color: #B7D2CE; }
+
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }

@@ -5,7 +5,7 @@ export const COMPANIES = {
   weizheng: { label: '瑋政有限公司', icon: '🏭', systems: ['foodfactory'] },
   chenwei: { label: '宸暐企業有限公司', icon: '🏢', systems: ['dispatch'] },
   finance: { label: '財務專用系統', icon: '💰', systems: ['dormMgmt'] },
-  yujian: { label: '聿見國際有限公司', icon: '🏠', systems: ['yujian'] },
+  yujian: { label: '聿見國際有限公司', icon: '🤝', systems: ['yujian'] },
 };
 
 export function companyKeyForSystem(systemKey) {
