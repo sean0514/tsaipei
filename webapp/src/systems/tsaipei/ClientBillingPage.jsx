@@ -4,6 +4,8 @@ import { useCollection } from '../../lib/useCollection';
 import { computeClientBillingForMonth, currentMonthStr } from '../../lib/bonus';
 import { computeClientInvoice } from '../../lib/clientInvoice';
 import { downloadClientInvoiceXlsx } from '../../lib/clientInvoiceXlsx';
+import { downloadFilledXlsxTemplate } from '../../lib/xlsxExport';
+import { fillInvoiceTemplate, parseCellMap, base64ToArrayBuffer } from '../../lib/clientInvoiceTemplate';
 
 export default function ClientBillingPage() {
   useOutletContext();
@@ -28,7 +30,17 @@ export default function ClientBillingPage() {
         alert('此專案／客戶在該月份沒有可計算的學生資料，請確認在台簽證追蹤與客戶費用建檔是否都已設定。');
         return;
       }
-      await downloadClientInvoiceXlsx(row.client, invoice);
+      const feeSetup = clientFeeSetupRecords.find((r) => (r.projectCode || '') === (row.projectCode || '') && r.client === row.client);
+      if (feeSetup?.invoiceTemplateData) {
+        const cellMap = parseCellMap(feeSetup.invoiceCellMap);
+        const templateBuffer = base64ToArrayBuffer(feeSetup.invoiceTemplateData);
+        const filename = feeSetup.invoiceTemplateName || `${row.client}_請款單.xlsx`;
+        await downloadFilledXlsxTemplate(filename, templateBuffer, (workbook) => {
+          fillInvoiceTemplate(workbook, invoice, row.client, row.projectCode, cellMap);
+        });
+      } else {
+        await downloadClientInvoiceXlsx(row.client, invoice);
+      }
     } finally {
       setBusyKey(null);
     }
