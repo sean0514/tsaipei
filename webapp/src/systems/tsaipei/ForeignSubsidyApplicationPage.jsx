@@ -1,28 +1,34 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-// 核准後自動在「國外付款紀錄」帶入一筆待付款紀錄，單位名稱直接用學生來源
-// (國外供應商)，方便該頁依供應商分類、對帳。用 sourceApplicationId 避免
-// 同一筆申請因為狀態來回切換（已核准→退回→已核准）而重複帶入。
+// 核准後自動在「國外付款紀錄」帶入/同步一筆待付款紀錄，單位名稱直接用學生
+// 來源(國外供應商)，方便該頁依供應商分類、對帳。用 sourceApplicationId 找
+// 對應的付款紀錄：還沒有就新增（預設未付款），已經有就更新欄位內容——這樣
+// 已核准後才修改申請內容（金額、學生來源…）也會同步過去，但不會動使用者
+// 自己在國外付款紀錄那邊維護的「是否已付款」狀態。
 async function syncApprovedPayment(app) {
   if (app.status !== '已核准') return;
   const snap = await getDocs(query(collection(db, 'tsaipei_foreignPayments'), where('sourceApplicationId', '==', app.id)));
-  if (!snap.empty) return;
-  await addDoc(collection(db, 'tsaipei_foreignPayments'), {
+  const payload = {
     sourceApplicationId: app.id,
     company: app.sourceSupplier || '',
     studentId: app.studentId || '',
     amount: app.amount || '',
+    currency: app.currency || '台幣',
     paymentDate: app.remittanceDate || '',
     notes: app.purpose || '',
-    paid: '否',
-  });
+  };
+  if (snap.empty) {
+    await addDoc(collection(db, 'tsaipei_foreignPayments'), { ...payload, paid: '否' });
+  } else {
+    await updateDoc(snap.docs[0].ref, payload);
+  }
 }
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
