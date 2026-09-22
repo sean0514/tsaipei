@@ -373,6 +373,42 @@ service cloud.firestore {
       allow write: if dmCanEdit('leases');
     }
 
+    // ---------------- 外勞仲介管理系統 (yujian) ----------------
+    function yjRole() {
+      return get(/databases/$(database)/documents/yujian_users/$(request.auth.uid)).data.role;
+    }
+    function yjIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/yujian_users/$(request.auth.uid));
+    }
+    function yjCanEdit(module) {
+      return yjIsMember() && (
+        yjRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole())) &&
+         get(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole())).data.level == 'edit')
+      );
+    }
+
+    match /yujian_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || yjIsMember());
+      allow write: if yjIsMember() && yjRole() == '系統管理員';
+    }
+    match /yujian_rolePermissions/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjIsMember() && yjRole() == '系統管理員';
+    }
+    match /yujian_workers/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('workers');
+    }
+    match /yujian_employers/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('employers');
+    }
+    match /yujian_matches/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('matching');
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

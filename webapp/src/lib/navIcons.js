@@ -43,4 +43,11 @@ export const NAV_ICONS = {
     remittance: '⌗',
     users: '▣',
   },
+  yujian: {
+    dashboard: '◆',
+    workers: '◇',
+    employers: '⌂',
+    matching: '⇄',
+    users: '▣',
+  },
 };

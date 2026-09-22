@@ -56,6 +56,27 @@ export const SYSTEMS = {
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none', 會計人員: 'none' },
     },
   },
+  yujian: {
+    label: '外勞仲介管理系統',
+    roles: ['系統管理員', '主管', '業務人員', '行政人員'],
+    // 先建儀表板 + 核心三個模組（看護/家事人員資料、雇主家庭/需求單、媒合紀錄），
+    // 比照鈞羽 tsaipei 系統的模式，其他模組（文件追蹤、住宿安排、會計專用…）
+    // 之後再依需求陸續加上去。
+    modules: {
+      dashboard: '儀表板',
+      workers: '看護/家事人員資料',
+      employers: '雇主家庭/需求單',
+      matching: '媒合紀錄',
+      users: '使用人員',
+    },
+    defaultPermissions: {
+      dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
+      employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
+      matching: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none' },
+    },
+  },
   dormMgmt: {
     label: '宿舍管理系統',
     roles: ['系統管理員', '主管', '行政人員', '會計人員'],
