@@ -4,6 +4,11 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { exportEntityCSV } from '../../lib/csv';
+
+function currentMonthStr() {
+  return new Date().toISOString().slice(0, 7);
+}
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
@@ -24,7 +29,13 @@ export default function DailyExpenseApplicationPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dailyExpenseApplications');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [month, setMonth] = useState(currentMonthStr());
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dailyExpenseApplications', CSV_FIELDS, { entityLabel: '日常支出申請', requiredKeys: ['purpose'], canEdit: canEditPage });
+
+  function handleDownloadMonth() {
+    const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
+    exportEntityCSV(monthRows, CSV_FIELDS, `日常支出申請_${month}`);
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.applicant || ''} ${r.item || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
@@ -51,10 +62,12 @@ export default function DailyExpenseApplicationPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          <button onClick={handleDownloadMonth}>下載此月份資料</button>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有日常支出申請紀錄，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有日常支出申請紀錄，請先下載備份再匯入。「下載此月份資料」依「日期」篩選。</p>}
       <input placeholder="搜尋申請人、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

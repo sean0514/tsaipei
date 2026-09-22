@@ -4,6 +4,11 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { exportEntityCSV } from '../../lib/csv';
+
+function currentMonthStr() {
+  return new Date().toISOString().slice(0, 7);
+}
 
 const STATUSES = ['未匯款', '已匯款', '退回'];
 
@@ -28,7 +33,13 @@ export default function PostageFeeRecordPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_postageFeeRecords');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [month, setMonth] = useState(currentMonthStr());
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_postageFeeRecords', CSV_FIELDS, { entityLabel: '郵資費用紀錄', requiredKeys: ['trackingNumber'], canEdit: canEditPage });
+
+  function handleDownloadMonth() {
+    const monthRows = rows.filter((r) => (r.shipDate || '').slice(0, 7) === month);
+    exportEntityCSV(monthRows, CSV_FIELDS, `郵資費用紀錄_${month}`);
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.trackingNumber || ''} ${r.senderName || ''} ${r.recipientName || ''} ${r.documentContent || ''}`.toLowerCase().includes(searchQuery));
@@ -55,10 +66,12 @@ export default function PostageFeeRecordPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          <button onClick={handleDownloadMonth}>下載此月份資料</button>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有郵資費用紀錄，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有郵資費用紀錄，請先下載備份再匯入。「下載此月份資料」依「寄件日期」篩選。</p>}
       <input placeholder="搜尋寄件編號、寄件人、收件人或文件內容" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 280 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
