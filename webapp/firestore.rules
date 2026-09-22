@@ -138,6 +138,16 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('meetings');
     }
+    // 申請表格：國外補助申請/日常支出申請 share the 'applicationForms'
+    // permission module.
+    match /tsaipei_foreignSubsidyApplications/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('applicationForms');
+    }
+    match /tsaipei_dailyExpenseApplications/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('applicationForms');
+    }
     // 內部獎金計算/客戶費用建檔/內部費用建檔 share the 'bonus' permission
     // module (matches the original app's pageModuleKey mapping).
     match /tsaipei_internalFeeSetup/{docId} {
