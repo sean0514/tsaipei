@@ -24,7 +24,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', labe
 
 export default function PostageFeeRecordPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_postageFeeRecords');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
