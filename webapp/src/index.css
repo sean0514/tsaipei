@@ -185,7 +185,8 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
   position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 10;
 }
 .modal { background: var(--panel); border-radius: 12px; padding: 24px; width: 480px; max-width: 90vw; max-height: 85vh; overflow-y: auto; }
-.row-actions { display: flex; flex-wrap: nowrap; gap: 8px; }
+.row-actions { display: flex; flex-wrap: nowrap; gap: 8px; align-items: flex-start; }
+td.row-actions { flex-wrap: wrap; }
 .muted { color: var(--text-muted); font-size: 13px; }
 
 .segmented { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
