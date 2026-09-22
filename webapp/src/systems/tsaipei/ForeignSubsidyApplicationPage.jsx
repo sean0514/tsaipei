@@ -1,9 +1,29 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+
+// 核准後自動在「國外付款紀錄」帶入一筆待付款紀錄，單位名稱直接用學生來源
+// (國外供應商)，方便該頁依供應商分類、對帳。用 sourceApplicationId 避免
+// 同一筆申請因為狀態來回切換（已核准→退回→已核准）而重複帶入。
+async function syncApprovedPayment(app) {
+  if (app.status !== '已核准') return;
+  const snap = await getDocs(query(collection(db, 'tsaipei_foreignPayments'), where('sourceApplicationId', '==', app.id)));
+  if (!snap.empty) return;
+  await addDoc(collection(db, 'tsaipei_foreignPayments'), {
+    sourceApplicationId: app.id,
+    company: app.sourceSupplier || '',
+    studentId: app.studentId || '',
+    amount: app.amount || '',
+    paymentDate: app.remittanceDate || '',
+    notes: app.purpose || '',
+    paid: '否',
+  });
+}
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
@@ -36,6 +56,7 @@ export default function ForeignSubsidyApplicationPage() {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
+      await syncApprovedPayment({ ...rest, id });
     } else {
       await add({ status: '待審核', currency: '台幣', ...data });
     }
@@ -76,7 +97,7 @@ export default function ForeignSubsidyApplicationPage() {
                       {canEditPage && (
                         <td className="row-actions">
                           {STATUSES.filter((s) => s !== status).map((s) => (
-                            <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
+                            <button key={s} onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
