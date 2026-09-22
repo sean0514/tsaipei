@@ -12,7 +12,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
-    'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
+    'dormManagement', 'meetings', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
     'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment',
   ],
   foodfactory: [
@@ -41,6 +41,10 @@ const GROUP_ROUTES = {
       { route: 'inTaiwanCare', label: '在台關懷紀錄' },
       { route: 'expectedArrival', label: '預計入台/離台' },
       { route: 'bankAccountProgress', label: '開戶進度追蹤' },
+    ],
+    applicationForms: [
+      { route: 'foreignSubsidyApplication', label: '國外補助申請' },
+      { route: 'dailyExpenseApplication', label: '日常支出申請' },
     ],
     // 跟原本 NAV_STRUCTURE 一樣分成「會計專用」「資料建檔」兩個子群組顯示，
     // 雖然這裡兩組都是同一個 'bonus' 權限模組把關（跟原本 pageModuleKey()
