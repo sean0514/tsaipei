@@ -62,6 +62,10 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('matching');
     }
+    match /tsaipei_postageFeeRecords/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('matching');
+    }
     match /tsaipei_matches/{docId} {
       allow read: if tsIsMember();
       // create is also allowed to anyone who can edit 'students': new-student
@@ -158,12 +162,13 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('bonus');
     }
-    // create 額外放行 applicationForms：國外補助申請核准時會自動在這裡帶入
-    // 一筆待付款紀錄，經辦人不一定有 bonus 權限。
+    // create/update 額外放行 applicationForms：國外補助申請核准（或核准後
+    // 又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人不一定有
+    // bonus 權限。delete 仍只限 bonus，避免誤刪已維護的付款紀錄。
     match /tsaipei_foreignPayments/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('bonus') || tsCanEdit('applicationForms');
-      allow update, delete: if tsCanEdit('bonus');
+      allow create, update: if tsCanEdit('bonus') || tsCanEdit('applicationForms');
+      allow delete: if tsCanEdit('bonus');
     }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------

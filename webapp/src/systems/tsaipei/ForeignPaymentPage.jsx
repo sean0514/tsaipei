@@ -5,10 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
+const CURRENCIES = ['台幣', '美金'];
+
 const FIELDS = [
   { key: 'paymentDate', label: '付款時間', type: 'date' },
   { key: 'company', label: '單位名稱', required: true },
   { key: 'studentId', label: '學生', type: 'student' },
+  { key: 'currency', label: '幣別', type: 'currency' },
   { key: 'amount', label: '金額', type: 'number' },
   { key: 'notes', label: '備註' },
 ];
@@ -44,7 +47,7 @@ export default function ForeignPaymentPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add(data);
+      await add({ currency: '台幣', ...data });
     }
     setEditing(null);
   }
@@ -76,7 +79,7 @@ export default function ForeignPaymentPage() {
                       <tr key={r.id}>
                         <td>{r.paymentDate || '—'}</td>
                         <td>{studentName(r.studentId) || '—'}</td>
-                        <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                        <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                         <td>{r.paid === '是' ? '已付款' : '未付款'}</td>
                         <td>{r.notes || '—'}</td>
                         {canEditPage && (
@@ -108,20 +111,35 @@ function ForeignPaymentFormModal({ initial, students, onCancel, onSave }) {
         <h3>{initial.id ? '編輯付款紀錄' : '新增付款紀錄'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
-            {FIELDS.map((f) => f.key === 'studentId' ? (
-              <label key={f.key}>
-                學生
-                <select value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
-                  <option value="">（未指定）</option>
-                  {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
-                </select>
-              </label>
-            ) : (
-              <label key={f.key}>
-                {f.label}
-                <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
-              </label>
-            ))}
+            {FIELDS.map((f) => {
+              if (f.key === 'studentId') {
+                return (
+                  <label key={f.key}>
+                    學生
+                    <select value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
+                      <option value="">（未指定）</option>
+                      {students.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
+                    </select>
+                  </label>
+                );
+              }
+              if (f.type === 'currency') {
+                return (
+                  <label key={f.key}>
+                    {f.label}
+                    <select value={form.currency || '台幣'} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                      {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </label>
+                );
+              }
+              return (
+                <label key={f.key}>
+                  {f.label}
+                  <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                </label>
+              );
+            })}
             <label>
               是否已付款
               <select value={form.paid === '是' ? '是' : '否'} onChange={(e) => setForm({ ...form, paid: e.target.value })}>

@@ -11,6 +11,7 @@ export const NAV_ICONS = {
     secondInterview: '◐',
     admitted: '✓',
     visaReminder: '⏰',
+    postageFee: '✉',
     internshipDocs: '▥',
     applicationProgress: '▶',
     inTaiwanVisa: '✈',

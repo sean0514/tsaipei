@@ -13,7 +13,7 @@ export const IMPLEMENTED_MODULES = {
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
     'dormManagement', 'meetings', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
-    'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment',
+    'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee',
   ],
   foodfactory: [
     'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
@@ -35,6 +35,7 @@ const GROUP_ROUTES = {
       { route: 'secondInterview', label: '二面進度' },
       { route: 'admitted', label: '錄取名單' },
       { route: 'visaReminder', label: '辦理簽證提醒' },
+      { route: 'postageFee', label: '郵資費用紀錄' },
     ],
     inTaiwanTracking: [
       { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
