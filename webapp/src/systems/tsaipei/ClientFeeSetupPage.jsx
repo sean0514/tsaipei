@@ -113,7 +113,7 @@ export default function ClientFeeSetupPage() {
   function otherFeesSummary(r) {
     const fees = parseOtherFees(r.otherFees);
     if (!fees.length) return '—';
-    return fees.map((f) => `${f.label || '未命名'}：${f.amount ? Number(f.amount).toLocaleString() : 0}`).join('、');
+    return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}`).join('、');
   }
 
   const detailColumns = (billingType) => [...COMMON_FIELDS.filter((f) => f.key !== 'billingType'), ...typeFields(billingType)];
@@ -218,7 +218,7 @@ function OtherFeesEditor({ fees, onChange }) {
           </label>
           <label>
             金額
-            <input type="number" value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+            <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
           </label>
           <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
         </div>
