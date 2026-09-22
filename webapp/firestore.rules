@@ -408,6 +408,33 @@ service cloud.firestore {
       allow read: if yjIsMember();
       allow write: if yjCanEdit('matching');
     }
+    // 媒合紀錄狀態變「已媒合」會自動建立二面進度，二面進度「通過」會自動建立
+    // 錄取名單，所以 create 都放行 matching。
+    match /yujian_secondInterviews/{docId} {
+      allow read: if yjIsMember();
+      allow create, update: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching');
+    }
+    match /yujian_admittedList/{docId} {
+      allow read: if yjIsMember();
+      allow create, update: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching');
+    }
+    // 錄取名單狀態變「確認錄取」會自動建立申辦進度追蹤紀錄，所以 create 也
+    // 放行 matching。
+    match /yujian_applicationProgress/{docId} {
+      allow read: if yjIsMember();
+      allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
+      allow update, delete: if yjCanEdit('applicationProgress');
+    }
+    match /yujian_meetings/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('meetings');
+    }
+    match /yujian_dailyExpenseApplications/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('applicationForms');
+    }
 
     match /{document=**} {
       allow read, write: if false;

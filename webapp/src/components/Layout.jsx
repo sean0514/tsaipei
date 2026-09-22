@@ -21,7 +21,10 @@ export const IMPLEMENTED_MODULES = {
   ],
   dispatch: ['dashboard', 'users'],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
-  yujian: ['dashboard', 'workers', 'employers', 'matching', 'users'],
+  yujian: [
+    'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted',
+    'applicationProgress', 'meetings', 'dailyExpenseApplication', 'users',
+  ],
 };
 
 // A permission module can cover several routes at once (matches the
@@ -86,6 +89,16 @@ const GROUP_ROUTES = {
     incomeStatement: [
       { route: 'incomeStatement', label: '損益表' },
       { route: 'partners', label: '合夥分潤' },
+    ],
+  },
+  yujian: {
+    matching: [
+      { route: 'matches', label: '媒合紀錄' },
+      { route: 'secondInterview', label: '二面進度' },
+      { route: 'admitted', label: '錄取名單' },
+    ],
+    applicationForms: [
+      { route: 'dailyExpenseApplication', label: '日常支出申請' },
     ],
   },
 };
