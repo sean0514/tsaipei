@@ -16,12 +16,15 @@ const COMMON_FIELDS = [
   { key: 'billingSettleDay', label: '請款結算日' },
 ];
 
-// 固定制：一次性收兩筆款項，各自有金額跟時間，不是按月比例分攤。
+// 收費時間不是選日曆日期，是相對學生入境（或錄取）時間點的規則。
+const CHARGE_TIMING_OPTIONS = ['入境當月收取', '入境3個月收取', '入境6個月收取', '確認錄取即收取'];
+
+// 固定制：一次性收兩筆款項，各自有金額跟收費時間規則，不是按月比例分攤。
 const FIXED_FIELDS = [
   { key: 'firstChargeAmount', label: '第一次收費金額', type: 'number' },
-  { key: 'firstChargeDate', label: '第一次收費時間', type: 'date' },
+  { key: 'firstChargeDate', label: '第一次收費時間', options: CHARGE_TIMING_OPTIONS },
   { key: 'secondChargeAmount', label: '第二次收費金額', type: 'number' },
-  { key: 'secondChargeDate', label: '第二次收費時間', type: 'date' },
+  { key: 'secondChargeDate', label: '第二次收費時間', options: CHARGE_TIMING_OPTIONS },
 ];
 
 const MONTHLY_FIELDS = [
@@ -271,7 +274,14 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
             {form.billingType ? typeFields(form.billingType).map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             )) : <p className="muted" style={{ gridColumn: 'span 2' }}>請先選擇收費類型，才會顯示對應的費用欄位。</p>}
             <label>
