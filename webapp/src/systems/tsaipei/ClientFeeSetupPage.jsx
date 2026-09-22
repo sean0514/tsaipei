@@ -57,6 +57,18 @@ const CSV_FIELDS = [
   { key: 'billDormFee', label: '是否請款住宿費' }, { key: 'otherFees', label: '其他費用(JSON)' }, { key: 'reviewStatus', label: '審核狀態' },
 ];
 
+// 欄位選擇器用：COMMON_FIELDS + 固定制/月費制各自的欄位（去重）+ 其他費用/
+// 是否請款住宿費這兩個額外欄位，涵蓋列表可能出現的每一欄。
+const TOGGLE_COLUMNS = (() => {
+  const seen = new Map();
+  [...COMMON_FIELDS.filter((f) => f.key !== 'billingType'), ...FIXED_FIELDS, ...MONTHLY_FIELDS].forEach((f) => {
+    if (!seen.has(f.key)) seen.set(f.key, f);
+  });
+  seen.set('otherFees', { key: 'otherFees', label: '其他費用' });
+  seen.set('billDormFee', { key: 'billDormFee', label: '是否請款住宿費' });
+  return [...seen.values()];
+})();
+
 function parseOtherFees(json) {
   try {
     const arr = json ? JSON.parse(json) : [];
@@ -71,7 +83,16 @@ export default function ClientFeeSetupPage() {
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [visibleKeys, setVisibleKeys] = useState(() => new Set(TOGGLE_COLUMNS.map((f) => f.key)));
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_clientFeeSetup', CSV_FIELDS, { entityLabel: '客戶費用建檔', requiredKeys: ['projectCode', 'client'], canEdit: canEditPage });
+
+  function toggleColumn(key) {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows
@@ -113,10 +134,12 @@ export default function ClientFeeSetupPage() {
   function otherFeesSummary(r) {
     const fees = parseOtherFees(r.otherFees);
     if (!fees.length) return '—';
-    return fees.map((f) => `${f.label || '未命名'}：${f.amount ? Number(f.amount).toLocaleString() : 0}`).join('、');
+    return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}`).join('、');
   }
 
-  const detailColumns = (billingType) => [...COMMON_FIELDS.filter((f) => f.key !== 'billingType'), ...typeFields(billingType)];
+  const detailColumns = (billingType) => [...COMMON_FIELDS.filter((f) => f.key !== 'billingType'), ...typeFields(billingType)].filter((f) => visibleKeys.has(f.key));
+  const showOtherFees = visibleKeys.has('otherFees');
+  const showBillDormFee = visibleKeys.has('billDormFee');
 
   return (
     <div className="content">
@@ -134,7 +157,20 @@ export default function ClientFeeSetupPage() {
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有客戶費用設定，請先下載備份再匯入。新增的費率預設「待審核」，按下「審核」後才會歸入固定制／月費制分類。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
-        <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <details>
+            <summary style={{ cursor: 'pointer' }}>選擇顯示欄位</summary>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '8px 4px', maxWidth: 480 }}>
+              {TOGGLE_COLUMNS.map((f) => (
+                <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                  <input type="checkbox" checked={visibleKeys.has(f.key)} onChange={() => toggleColumn(f.key)} />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
@@ -168,13 +204,13 @@ export default function ClientFeeSetupPage() {
                 <div key={type}>
                   <h3 style={{ margin: '0 0 8px' }}>{type} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[type].length} 筆</span></h3>
                   <div className="table-wrap"><table>
-                    <thead><tr>{tableFields.map((f) => <th key={f.key}>{f.label}</th>)}<th>其他費用</th><th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
+                    <thead><tr>{tableFields.map((f) => <th key={f.key}>{f.label}</th>)}{showOtherFees && <th>其他費用</th>}{showBillDormFee && <th>是否請款住宿費</th>}{canEditPage && <th></th>}</tr></thead>
                     <tbody>
                       {groups[type].map((r) => (
                         <tr key={r.id}>
                           {tableFields.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                          <td>{otherFeesSummary(r)}</td>
-                          <td>{r.billDormFee === '否' ? '否' : '是'}</td>
+                          {showOtherFees && <td>{otherFeesSummary(r)}</td>}
+                          {showBillDormFee && <td>{r.billDormFee === '否' ? '否' : '是'}</td>}
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(r)}>編輯</button>
@@ -183,7 +219,7 @@ export default function ClientFeeSetupPage() {
                           )}
                         </tr>
                       ))}
-                      {groups[type].length === 0 && <tr><td colSpan={tableFields.length + (canEditPage ? 3 : 2)} className="muted">沒有資料</td></tr>}
+                      {groups[type].length === 0 && <tr><td colSpan={tableFields.length + (showOtherFees ? 1 : 0) + (showBillDormFee ? 1 : 0) + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
                     </tbody>
                   </table></div>
                 </div>
@@ -218,7 +254,7 @@ function OtherFeesEditor({ fees, onChange }) {
           </label>
           <label>
             金額
-            <input type="number" value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+            <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
           </label>
           <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
         </div>
