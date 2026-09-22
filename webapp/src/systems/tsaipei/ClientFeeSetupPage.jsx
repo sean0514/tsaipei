@@ -4,8 +4,10 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { SUMMARY_MAP_FIELDS, DETAIL_MAP_FIELDS, parseCellMap, fileToBase64 } from '../../lib/clientInvoiceTemplate';
 
 const BILLING_TYPES = ['固定制', '月費制'];
+const MAX_TEMPLATE_SIZE = 700 * 1024;
 
 const COMMON_FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -273,6 +275,7 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
   const companyByProjectCode = {};
   positions.forEach((p) => { if (p.projectCode && p.company && !companyByProjectCode[p.projectCode]) companyByProjectCode[p.projectCode] = p.company; });
   const otherFees = parseOtherFees(form.otherFees);
+  const cellMap = parseCellMap(form.invoiceCellMap);
 
   function handleProjectCodeChange(code) {
     setForm({ ...form, projectCode: code, client: companyByProjectCode[code] || form.client });
@@ -280,6 +283,26 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
 
   function setOtherFees(next) {
     setForm({ ...form, otherFees: JSON.stringify(next) });
+  }
+
+  function setCellMap(next) {
+    setForm({ ...form, invoiceCellMap: JSON.stringify(next) });
+  }
+
+  async function handleTemplateUpload(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_TEMPLATE_SIZE) {
+      alert('範本檔案太大（上限約 700KB），請精簡後再上傳。');
+      return;
+    }
+    const base64 = await fileToBase64(file);
+    setForm({ ...form, invoiceTemplateData: base64, invoiceTemplateName: file.name });
+  }
+
+  function removeTemplate() {
+    setForm({ ...form, invoiceTemplateData: '', invoiceTemplateName: '', invoiceCellMap: '' });
   }
 
   function handleSubmit(e) {
@@ -344,6 +367,55 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
           </div>
           <h4>其他費用（可自行新增）</h4>
           <OtherFeesEditor fees={otherFees} onChange={setOtherFees} />
+          <h4>客戶請款格式（選填）</h4>
+          <p className="muted" style={{ marginTop: 0 }}>上傳這個客戶自己要求的請款單 Excel 格式，並設定各項資料要填入哪個儲存格；「客戶請款計算」下載請款單時會改用這份格式，沒有上傳就照原本系統內建的格式產生。</p>
+          {form.invoiceTemplateName ? (
+            <p>目前範本：{form.invoiceTemplateName} <button type="button" onClick={removeTemplate}>移除範本</button></p>
+          ) : (
+            <label style={{ display: 'block', marginBottom: 8 }}>
+              上傳範本（.xlsx）
+              <input type="file" accept=".xlsx" onChange={handleTemplateUpload} />
+            </label>
+          )}
+          {form.invoiceTemplateName && (
+            <div>
+              <p className="muted">欄位對應：填入儲存格位置（例如 B5），留空就不會被填入。</p>
+              <div className="form-grid">
+                {SUMMARY_MAP_FIELDS.map((f) => (
+                  <label key={f.key}>
+                    {f.label}
+                    <input
+                      placeholder="例如 B5"
+                      value={cellMap.summary[f.key] || ''}
+                      onChange={(e) => setCellMap({ ...cellMap, summary: { ...cellMap.summary, [f.key]: e.target.value } })}
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="muted" style={{ marginBottom: 4 }}>學生明細列表：設定從第幾列開始逐行填入（每位學生一列），以及每個欄位對應哪一欄。</p>
+              <div className="form-grid">
+                <label>
+                  起始列
+                  <input
+                    type="number"
+                    placeholder="例如 3"
+                    value={cellMap.detail.startRow}
+                    onChange={(e) => setCellMap({ ...cellMap, detail: { ...cellMap.detail, startRow: e.target.value } })}
+                  />
+                </label>
+                {DETAIL_MAP_FIELDS.map((f) => (
+                  <label key={f.key}>
+                    {f.label}欄
+                    <input
+                      placeholder="例如 B"
+                      value={cellMap.detail.columns[f.key] || ''}
+                      onChange={(e) => setCellMap({ ...cellMap, detail: { ...cellMap.detail, columns: { ...cellMap.detail.columns, [f.key]: e.target.value } } })}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
