@@ -158,9 +158,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('bonus');
     }
+    // create 額外放行 matching：新增實習單位時會自動在這裡帶入一筆空白費率，
+    // 經辦人不一定有 bonus 權限。
     match /tsaipei_clientFeeSetup/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('bonus');
+      allow create: if tsCanEdit('bonus') || tsCanEdit('matching');
+      allow update, delete: if tsCanEdit('bonus');
     }
     // create/update 額外放行 applicationForms：國外補助申請核准（或核准後
     // 又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人不一定有

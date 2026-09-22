@@ -22,6 +22,13 @@ const FIELDS = [
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'billDormFee', label: '是否請款住宿費' }];
 
+// 半年制是固定金額、不是按月計算，欄位名稱不該掛「每月」——但 FIELDS/
+// CSV_FIELDS 的 label 要維持不變（CSV 匯出入靠它比對欄位），所以只在畫面
+// 顯示時依收費類型動態拿掉「每月」二字。
+function feeFieldLabel(label, billingType) {
+  return billingType === '半年制' ? label.replace(/^每月/, '') : label;
+}
+
 export default function ClientFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
@@ -90,7 +97,7 @@ export default function ClientFeeSetupPage() {
                 <div key={type}>
                   <h3 style={{ margin: '0 0 8px' }}>{type} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[type].length} 筆</span></h3>
                   <div className="table-wrap"><table>
-                    <thead><tr>{tableFields.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
+                    <thead><tr>{tableFields.map((f) => <th key={f.key}>{feeFieldLabel(f.label, type)}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
                     <tbody>
                       {groups[type].map((r) => (
                         <tr key={r.id}>
@@ -153,7 +160,7 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
             </label>
             {FIELDS.filter((f) => !['projectCode', 'client'].includes(f.key)).map((f) => (
               <label key={f.key}>
-                {f.label}
+                {feeFieldLabel(f.label, form.billingType)}
                 {f.options ? (
                   <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     <option value="">請選擇</option>
