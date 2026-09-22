@@ -5,10 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
+const BILLING_TYPES = ['半年制', '月費制'];
+
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
   { key: 'client', label: '客戶名稱', required: true },
   { key: 'taxId', label: '統一編號' },
+  { key: 'billingType', label: '收費類型', options: BILLING_TYPES },
   { key: 'monthlyProcessingFee', label: '每月辦件費', type: 'number' },
   { key: 'monthlyServiceFee', label: '每月服務費', type: 'number' },
   { key: 'monthlyDormFee', label: '每月宿舍費', type: 'number' },
@@ -32,6 +35,8 @@ export default function ClientFeeSetupPage() {
   const filteredRows = rows
     .filter((r) => !searchQuery || `${r.projectCode || ''} ${r.client || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => (a.projectCode || '').localeCompare(b.projectCode || ''));
+  const groups = { 半年制: [], 月費制: [] };
+  filteredRows.forEach((r) => groups[r.billingType === '半年制' ? '半年制' : '月費制'].push(r));
 
   async function handleSave(data) {
     if (data.id) {
@@ -78,24 +83,34 @@ export default function ClientFeeSetupPage() {
         <p className="muted" style={{ marginTop: 0 }}>「客戶請款」的費率來源，一個專案＋客戶一列，不是計算結果本身。</p>
         <input placeholder="搜尋專案編號或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {filteredRows.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  <td>{r.billDormFee === '否' ? '否' : '是'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filteredRows.length === 0 && <tr><td colSpan={FIELDS.length + 2} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {BILLING_TYPES.map((type) => {
+              const tableFields = FIELDS.filter((f) => f.key !== 'billingType');
+              return (
+                <div key={type}>
+                  <h3 style={{ margin: '0 0 8px' }}>{type} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[type].length} 筆</span></h3>
+                  <div className="table-wrap"><table>
+                    <thead><tr>{tableFields.map((f) => <th key={f.key}>{f.label}</th>)}<th>是否請款住宿費</th>{canEditPage && <th></th>}</tr></thead>
+                    <tbody>
+                      {groups[type].map((r) => (
+                        <tr key={r.id}>
+                          {tableFields.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
+                          <td>{r.billDormFee === '否' ? '否' : '是'}</td>
+                          {canEditPage && (
+                            <td className="row-actions">
+                              <button onClick={() => setEditing(r)}>編輯</button>
+                              <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                      {groups[type].length === 0 && <tr><td colSpan={tableFields.length + 2} className="muted">沒有資料</td></tr>}
+                    </tbody>
+                  </table></div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
       {editing && <ClientFeeFormModal initial={editing} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}
@@ -139,7 +154,14 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave }) {
             {FIELDS.filter((f) => !['projectCode', 'client'].includes(f.key)).map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.options ? (
+                  <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             ))}
             <label>
