@@ -158,9 +158,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('bonus');
     }
+    // create 額外放行 applicationForms：國外補助申請核准時會自動在這裡帶入
+    // 一筆待付款紀錄，經辦人不一定有 bonus 權限。
     match /tsaipei_foreignPayments/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('bonus');
+      allow create: if tsCanEdit('bonus') || tsCanEdit('applicationForms');
+      allow update, delete: if tsCanEdit('bonus');
     }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------

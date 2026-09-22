@@ -28,9 +28,16 @@ export default function ForeignPaymentPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.company || ''} ${studentName(r.studentId)}`.toLowerCase().includes(searchQuery));
-  const groups = { 未付款: [], 已付款: [] };
-  filtered.forEach((r) => groups[r.paid === '是' ? '已付款' : '未付款'].push(r));
-  [groups.未付款, groups.已付款].forEach((list) => list.sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || '')));
+
+  // 依供應商（單位名稱）分類，同一供應商內未付款排前面，方便對帳。
+  const byCompany = {};
+  filtered.forEach((r) => { (byCompany[r.company || '未指定單位'] ||= []).push(r); });
+  const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
+  companies.forEach((c) => byCompany[c].sort((a, b) => {
+    const aPaid = a.paid === '是' ? 1 : 0;
+    const bPaid = b.paid === '是' ? 1 : 0;
+    return aPaid !== bPaid ? aPaid - bPaid : (b.paymentDate || '').localeCompare(a.paymentDate || '');
+  }));
 
   async function handleSave(data) {
     if (data.id) {
@@ -47,7 +54,7 @@ export default function ForeignPaymentPage() {
       <div className="page-header">
         <div>
           <h2>國外付款紀錄</h2>
-          <div className="page-desc">依已付款／未付款分類{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依供應商（單位名稱）分類；「國外補助申請」核准後會自動帶入一筆待付款紀錄{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
@@ -57,36 +64,36 @@ export default function ForeignPaymentPage() {
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外付款紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋單位名稱或學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {['未付款', '已付款'].map((label) => (
-            <div className="card" key={label}>
-              <h3 style={{ marginTop: 0 }}>{label}（{groups[label].length}）</h3>
-              <div className="table-wrap"><table>
-                <thead><tr><th>付款時間</th><th>單位名稱</th><th>學生</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
-                <tbody>
-                  {groups[label].map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.paymentDate || '—'}</td>
-                      <td>{r.company || '—'}</td>
-                      <td>{studentName(r.studentId) || '—'}</td>
-                      <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
-                      <td>{r.notes || '—'}</td>
-                      {canEditPage && (
-                        <td className="row-actions">
-                          {label === '未付款' && <button onClick={() => update(r.id, { paid: '是' })}>標記已付款</button>}
-                          {label === '已付款' && <button onClick={() => update(r.id, { paid: '否' })}>取消已付款</button>}
-                          <button onClick={() => setEditing(r)}>編輯</button>
-                          <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {groups[label].length === 0 && <tr><td colSpan={canEditPage ? 6 : 5} className="muted">沒有資料</td></tr>}
-                </tbody>
-              </table></div>
-            </div>
-          ))}
-        </div>
+        companies.length === 0 ? <p className="muted">{searchQuery ? '沒有符合搜尋條件的紀錄。' : '目前沒有國外付款紀錄。'}</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {companies.map((company) => (
+              <div className="card" key={company}>
+                <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆</span></h3>
+                <div className="table-wrap"><table>
+                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                  <tbody>
+                    {byCompany[company].map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.paymentDate || '—'}</td>
+                        <td>{studentName(r.studentId) || '—'}</td>
+                        <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                        <td>{r.paid === '是' ? '已付款' : '未付款'}</td>
+                        <td>{r.notes || '—'}</td>
+                        {canEditPage && (
+                          <td className="row-actions">
+                            <button onClick={() => update(r.id, { paid: r.paid === '是' ? '否' : '是' })}>{r.paid === '是' ? '取消已付款' : '標記已付款'}</button>
+                            <button onClick={() => setEditing(r)}>編輯</button>
+                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
       )}
       {editing && <ForeignPaymentFormModal initial={editing} students={students} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>

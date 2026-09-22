@@ -1,15 +1,37 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
+// 核准後自動在「國外付款紀錄」帶入一筆待付款紀錄，單位名稱直接用學生來源
+// (國外供應商)，方便該頁依供應商分類、對帳。用 sourceApplicationId 避免
+// 同一筆申請因為狀態來回切換（已核准→退回→已核准）而重複帶入。
+async function syncApprovedPayment(app) {
+  if (app.status !== '已核准') return;
+  const snap = await getDocs(query(collection(db, 'tsaipei_foreignPayments'), where('sourceApplicationId', '==', app.id)));
+  if (!snap.empty) return;
+  await addDoc(collection(db, 'tsaipei_foreignPayments'), {
+    sourceApplicationId: app.id,
+    company: app.sourceSupplier || '',
+    studentId: app.studentId || '',
+    amount: app.amount || '',
+    paymentDate: app.remittanceDate || '',
+    notes: app.purpose || '',
+    paid: '否',
+  });
+}
+
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
+const CURRENCIES = ['台幣', '美金'];
+
 const CSV_FIELDS = [
-  { key: 'id', label: 'ID' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
-  { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'amount', label: '金額' },
+  { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
+  { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' },
   { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' },
 ];
 
@@ -25,7 +47,7 @@ export default function ForeignSubsidyApplicationPage() {
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${studentName(r.studentId)} ${r.sourceSupplier || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
+  const filtered = rows.filter((r) => !searchQuery || `${r.applicant || ''} ${studentName(r.studentId)} ${r.sourceSupplier || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.remittanceDate || '').localeCompare(a.remittanceDate || '')));
@@ -34,8 +56,9 @@ export default function ForeignSubsidyApplicationPage() {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
+      await syncApprovedPayment({ ...rest, id });
     } else {
-      await add({ status: '待審核', ...data });
+      await add({ status: '待審核', currency: '台幣', ...data });
     }
     setEditing(null);
   }
@@ -53,27 +76,28 @@ export default function ForeignSubsidyApplicationPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外補助申請紀錄，請先下載備份再匯入。</p>}
-      <input placeholder="搜尋學生、學生來源或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <input placeholder="搜尋申請人、學生、學生來源或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {STATUSES.map((status) => (
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>學生來源</th><th>學生</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
+                      <td>{r.applicant || '—'}</td>
                       <td>{r.sourceSupplier || '—'}</td>
                       <td>{studentName(r.studentId) || '—'}</td>
                       <td>{r.remittanceDate || '—'}</td>
                       <td>{r.purpose || '—'}</td>
-                      <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                      <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
                           {STATUSES.filter((s) => s !== status).map((s) => (
-                            <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
+                            <button key={s} onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
@@ -81,7 +105,7 @@ export default function ForeignSubsidyApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -110,6 +134,10 @@ function ForeignSubsidyFormModal({ initial, students, onCancel, onSave }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
+              申請人
+              <input value={form.applicant || ''} onChange={(e) => setForm({ ...form, applicant: e.target.value })} />
+            </label>
+            <label>
               學生來源(國外供應商)
               <select value={form.sourceSupplier || ''} onChange={(e) => handleSourceChange(e.target.value)}>
                 <option value="">（不限）</option>
@@ -126,6 +154,12 @@ function ForeignSubsidyFormModal({ initial, students, onCancel, onSave }) {
             <label>
               匯款日期
               <input type="date" value={form.remittanceDate || ''} onChange={(e) => setForm({ ...form, remittanceDate: e.target.value })} />
+            </label>
+            <label>
+              幣別
+              <select value={form.currency || '台幣'} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </label>
             <label>
               金額
