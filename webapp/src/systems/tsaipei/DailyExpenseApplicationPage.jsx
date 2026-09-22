@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-const STATUSES = ['待審核', '已核准', '駁回'];
+const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
 const FIELDS = [
   { key: 'date', label: '日期', type: 'date' },
@@ -29,7 +29,7 @@ export default function DailyExpenseApplicationPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${studentName(r.studentId)} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
-  const groups = { 待審核: [], 已核准: [], 駁回: [] };
+  const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
 
@@ -48,7 +48,7 @@ export default function DailyExpenseApplicationPage() {
       <div className="page-header">
         <div>
           <h2>日常支出申請</h2>
-          <div className="page-desc">依待審核／已核准／駁回分類{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
