@@ -1,10 +1,22 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+
+// 新增職缺後自動在「客戶費用建檔」帶入一筆空白費率（只填專案編號＋客戶），
+// 使用者再補上金額即可，不用手動按「從實習單位複製帶入」。同一個專案編號
+// 已經有費率設定就不重複帶入。
+async function ensureClientFeeSetup(projectCode, client) {
+  if (!projectCode || !client) return;
+  const snap = await getDocs(query(collection(db, 'tsaipei_clientFeeSetup'), where('projectCode', '==', projectCode)));
+  if (!snap.empty) return;
+  await addDoc(collection(db, 'tsaipei_clientFeeSetup'), { projectCode, client });
+}
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -94,6 +106,7 @@ export default function PositionsPage() {
       await update(id, rest);
     } else {
       await add({ ...data, closed: '' });
+      await ensureClientFeeSetup(data.projectCode, data.company);
     }
     setEditing(null);
   }
