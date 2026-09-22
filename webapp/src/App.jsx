@@ -28,6 +28,7 @@ import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
 import ClientBillingPage from './systems/tsaipei/ClientBillingPage';
 import StudentSelfPayHousingPage from './systems/tsaipei/StudentSelfPayHousingPage';
 import StudentMasterSheetPage from './systems/tsaipei/StudentMasterSheetPage';
+import ForeignPaymentPage from './systems/tsaipei/ForeignPaymentPage';
 import UsersPage from './components/UsersPage';
 import DispatchDashboardPage from './systems/dispatch/DashboardPage';
 import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
@@ -86,6 +87,7 @@ const PAGES = {
     clientBilling: ClientBillingPage,
     studentSelfPayHousing: StudentSelfPayHousingPage,
     studentMasterSheet: StudentMasterSheetPage,
+    foreignPayment: ForeignPaymentPage,
   },
   dispatch: {
     dashboard: DispatchDashboardPage,
