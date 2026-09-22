@@ -21,6 +21,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   dispatch: ['dashboard', 'users'],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
+  yujian: ['dashboard', 'workers', 'employers', 'matching', 'users'],
 };
 
 // A permission module can cover several routes at once (matches the

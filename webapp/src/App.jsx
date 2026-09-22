@@ -37,6 +37,10 @@ import DispatchDashboardPage from './systems/dispatch/DashboardPage';
 import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
 import DormMgmtLeasesPage from './systems/dormMgmt/LeasesPage';
 import DormMgmtRemittancePage from './systems/dormMgmt/RemittancePage';
+import YujianDashboardPage from './systems/yujian/DashboardPage';
+import YujianWorkersPage from './systems/yujian/WorkersPage';
+import YujianEmployersPage from './systems/yujian/EmployersPage';
+import YujianMatchesPage from './systems/yujian/MatchesPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import StockPage from './systems/foodfactory/StockPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
@@ -103,6 +107,13 @@ const PAGES = {
     dashboard: DormMgmtDashboardPage,
     leases: DormMgmtLeasesPage,
     remittance: DormMgmtRemittancePage,
+    users: UsersPage,
+  },
+  yujian: {
+    dashboard: YujianDashboardPage,
+    workers: YujianWorkersPage,
+    employers: YujianEmployersPage,
+    matching: YujianMatchesPage,
     users: UsersPage,
   },
   foodfactory: {
