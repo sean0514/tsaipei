@@ -13,7 +13,7 @@ export const IMPLEMENTED_MODULES = {
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
     'dormManagement', 'meetings', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
-    'studentSelfPayHousing', 'studentMasterSheet',
+    'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment',
   ],
   foodfactory: [
     'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
@@ -51,6 +51,7 @@ const GROUP_ROUTES = {
           { route: 'clientBilling', label: '客戶請款計算' },
           { route: 'studentSelfPayHousing', label: '學生自付宿舍' },
           { route: 'studentMasterSheet', label: '學生資料總檔' },
+          { route: 'foreignPayment', label: '國外付款紀錄' },
         ] },
         { label: '資料建檔', items: [
           { route: 'clientFeeSetup', label: '客戶費用建檔' },

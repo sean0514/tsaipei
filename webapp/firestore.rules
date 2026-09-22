@@ -148,6 +148,10 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('bonus');
     }
+    match /tsaipei_foreignPayments/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
