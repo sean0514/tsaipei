@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
-const CASE_STATUS = ['進行中', '已完成', '取消'];
+export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
+export const CASE_STATUS = ['進行中', '已完成', '取消'];
 
 // 以「雇主需求案件」為單位（一案可能包含多位看護，用「需求量」記錄人數），
 // 對應實際申辦流程從選工到送工的每個關卡；日期欄位留空代表尚未完成，
-// 標籤上的「（N天）」是主管給的預期作業天數，僅供填寫時參考。
-const FIELDS = [
+// 標籤上的「（N天）」是主管給的預期作業天數，僅供填寫時參考。雇主姓名放
+// 第一欄並設定 sticky，橫向捲動很多日期欄位時仍固定在畫面左側不會被捲走。
+export const FIELDS = [
+  { key: 'employerName', label: '雇主姓名', required: true, sticky: true },
   { key: 'caseNo', label: '編號' },
-  { key: 'employerName', label: '雇主姓名', required: true },
   { key: 'demandCount', label: '需求量', type: 'number' },
   { key: 'selectionStatus', label: '選工狀態' },
   { key: 'foreignAgency', label: '國外仲介' },
@@ -36,7 +39,7 @@ const FIELDS = [
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
-function newNoteId() {
+export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -46,17 +49,39 @@ export default function ApplicationProgressPage() {
   const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [visibleKeys, setVisibleKeys] = useState(() => new Set(FIELDS.map((f) => f.key)));
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
+
+  function toggleColumn(key) {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  const columns = FIELDS.filter((f) => visibleKeys.has(f.key));
+
+  // 入境時間從空白變成有填值時，視為「已入台」，自動把這筆案件完整帶入已入台名單。
+  async function copyToArrivedListIfJustArrived(prevEntryDate, saved) {
+    if (!saved.entryDate || prevEntryDate) return;
+    const existing = await getDocs(query(collection(db, 'yujian_arrivedList'), where('sourceCaseId', '==', saved.id)));
+    if (!existing.empty) return;
+    const { id, ...rest } = saved;
+    await addDoc(collection(db, 'yujian_arrivedList'), { ...rest, sourceCaseId: id });
+  }
 
   async function handleSave(data) {
+    const prevEntryDate = editing?.entryDate || '';
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
+      await copyToArrivedListIfJustArrived(prevEntryDate, data);
     } else {
-      await add({ status: '進行中', ...data });
+      const ref = await add({ status: '進行中', ...data });
+      await copyToArrivedListIfJustArrived(prevEntryDate, { ...data, id: ref.id });
     }
     setEditing(null);
   }
@@ -73,19 +98,32 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「入境時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <details>
+            <summary style={{ cursor: 'pointer' }}>選擇顯示欄位</summary>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '8px 4px', maxWidth: 640 }}>
+              {FIELDS.map((f) => (
+                <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                  <input type="checkbox" checked={visibleKeys.has(f.key)} onChange={() => toggleColumn(f.key)} disabled={f.sticky} />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>備註</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr>{columns.map((f) => <th key={f.key} className={f.sticky ? 'sticky-col' : ''}>{f.label}</th>)}<th>備註</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filtered.map((r) => {
                 const notes = r.notes || [];
                 const lastNote = notes[notes.length - 1];
                 return (
                   <tr key={r.id}>
-                    {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
+                    {columns.map((f) => <td key={f.key} className={f.sticky ? 'sticky-col' : ''}>{r[f.key] || '—'}</td>)}
                     <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
                     {canEditPage && (
                       <td className="row-actions">
@@ -96,7 +134,7 @@ export default function ApplicationProgressPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + 1 + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={columns.length + 1 + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

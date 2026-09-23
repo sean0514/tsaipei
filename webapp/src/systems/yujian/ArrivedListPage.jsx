@@ -4,24 +4,10 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { FIELDS, newNoteId } from './ApplicationProgressPage';
 
-const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
-export const ARRIVED_STATUS = ['在職中', '離境', '轉換雇主', '其他'];
-
-const FIELDS = [
-  { key: 'caseNo', label: '案件編號' },
-  { key: 'workerName', label: '看護姓名', required: true },
-  { key: 'nationality', label: '國籍', options: NATIONALITIES },
-  { key: 'passportNumber', label: '護照號碼' },
-  { key: 'employerName', label: '雇主姓名', required: true },
-  { key: 'address', label: '雇主地址' },
-  { key: 'phone', label: '聯絡電話' },
-  { key: 'entryDate', label: '入境日期', type: 'date' },
-  { key: 'arcNumber', label: '居留證/工作證號碼' },
-  { key: 'status', label: '狀態', options: ARRIVED_STATUS },
-  { key: 'notes', label: '備註' },
-];
-
+// 格式與「申辦進度追蹤」相同（同一組欄位），差別只在於這裡是「入境時間」已經
+// 填寫的案件（申辦進度追蹤第一次填入入境時間時會自動帶入這裡）。
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function ArrivedListPage() {
@@ -30,17 +16,27 @@ export default function ArrivedListPage() {
   const { rows, loading, add, update, remove } = useCollection('yujian_arrivedList');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
-  const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['workerName', 'employerName'], canEdit: canEditPage });
+  const [visibleKeys, setVisibleKeys] = useState(() => new Set(FIELDS.map((f) => f.key)));
+  const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
+
+  function toggleColumn(key) {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.workerName || ''} ${r.employerName || ''} ${r.caseNo || ''}`.toLowerCase().includes(searchQuery));
+  const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  const columns = FIELDS.filter((f) => visibleKeys.has(f.key));
 
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '在職中', ...data });
+      await add({ status: '進行中', ...data });
     }
     setEditing(null);
   }
@@ -50,32 +46,50 @@ export default function ArrivedListPage() {
       <div className="page-header">
         <div>
           <h2>已入台名單</h2>
-          <div className="page-desc">已完成申辦流程並入境的看護人員名單{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">已完成申辦流程並入境的雇主需求案件{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「入境時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋看護姓名、雇主姓名或案件編號" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <details>
+            <summary style={{ cursor: 'pointer' }}>選擇顯示欄位</summary>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '8px 4px', maxWidth: 640 }}>
+              {FIELDS.map((f) => (
+                <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                  <input type="checkbox" checked={visibleKeys.has(f.key)} onChange={() => toggleColumn(f.key)} disabled={f.sticky} />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
+            <thead><tr>{columns.map((f) => <th key={f.key} className={f.sticky ? 'sticky-col' : ''}>{f.label}</th>)}<th>備註</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+              {filtered.map((r) => {
+                const notes = r.notes || [];
+                const lastNote = notes[notes.length - 1];
+                return (
+                  <tr key={r.id}>
+                    {columns.map((f) => <td key={f.key} className={f.sticky ? 'sticky-col' : ''}>{r[f.key] || '—'}</td>)}
+                    <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
+                    {canEditPage && (
+                      <td className="row-actions">
+                        <button onClick={() => setEditing(r)}>編輯</button>
+                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={columns.length + 1 + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -86,10 +100,38 @@ export default function ArrivedListPage() {
 }
 
 function ArrivedFormModal({ initial, onCancel, onSave }) {
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState({ ...initial, notes: initial.notes || [] });
+  const [newNoteText, setNewNoteText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
+
+  function addNote() {
+    const text = newNoteText.trim();
+    if (!text) return;
+    setForm({ ...form, notes: [...form.notes, { id: newNoteId(), text, createdAt: new Date().toISOString() }] });
+    setNewNoteText('');
+  }
+
+  function startEditNote(note) {
+    setEditingNoteId(note.id);
+    setEditingNoteText(note.text);
+  }
+
+  function saveEditNote() {
+    const text = editingNoteText.trim();
+    if (!text) return;
+    setForm({ ...form, notes: form.notes.map((n) => (n.id === editingNoteId ? { ...n, text } : n)) });
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  }
+
+  function deleteNote(id) {
+    setForm({ ...form, notes: form.notes.filter((n) => n.id !== id) });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯紀錄' : '新增紀錄'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
@@ -107,7 +149,32 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
               </label>
             ))}
           </div>
+          <h4 style={{ marginTop: 20 }}>備註</h4>
+          <ul className="note-list">
+            {form.notes.map((n) => (
+              <li key={n.id}>
+                {editingNoteId === n.id ? (
+                  <div className="row-actions">
+                    <input value={editingNoteText} onChange={(e) => setEditingNoteText(e.target.value)} style={{ flex: 1 }} />
+                    <button type="button" onClick={saveEditNote}>儲存</button>
+                    <button type="button" onClick={() => setEditingNoteId(null)}>取消</button>
+                  </div>
+                ) : (
+                  <div className="row-actions">
+                    <span style={{ flex: 1 }}>{n.text}</span>
+                    <button type="button" onClick={() => startEditNote(n)}>修改</button>
+                    <button type="button" className="danger" onClick={() => deleteNote(n.id)}>刪除</button>
+                  </div>
+                )}
+              </li>
+            ))}
+            {form.notes.length === 0 && <li className="muted">尚無備註</li>}
+          </ul>
           <div className="row-actions">
+            <input placeholder="新增備註內容" value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} style={{ flex: 1 }} />
+            <button type="button" onClick={addNote}>+ 新增備註</button>
+          </div>
+          <div className="row-actions" style={{ marginTop: 20 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
           </div>
