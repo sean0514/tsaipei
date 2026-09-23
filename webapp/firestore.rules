@@ -427,6 +427,10 @@ service cloud.firestore {
       allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
       allow update, delete: if yjCanEdit('applicationProgress');
     }
+    match /yujian_arrivedList/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('arrivedList');
+    }
     match /yujian_meetings/{docId} {
       allow read: if yjIsMember();
       allow write: if yjCanEdit('meetings');
