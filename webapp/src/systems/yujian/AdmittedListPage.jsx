@@ -9,7 +9,6 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
 import SegmentedControl from '../../components/SegmentedControl';
-import { STAGES } from './ApplicationProgressPage';
 
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
@@ -39,18 +38,26 @@ export default function AdmittedListPage() {
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
-  // 狀態變成「確認錄取」時自動建立申辦進度追蹤紀錄，比照境外實習生系統。
+  // 狀態變成「確認錄取」時自動建立申辦進度追蹤案件（以雇主為單位），比照境外實習生系統。
   async function handleSave(data) {
     const prevStatus = editing?.status;
     const { id, ...rest } = data;
     try {
       await update(id, rest);
       const match = matches.find((m) => m.id === rest.matchId);
-      const workerId = match?.workerId;
-      if (workerId && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
-        const existingProgress = await getDocs(query(collection(db, 'yujian_applicationProgress'), where('workerId', '==', workerId)));
+      if (match?.id && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
+        const existingProgress = await getDocs(query(collection(db, 'yujian_applicationProgress'), where('matchId', '==', match.id)));
         if (existingProgress.empty) {
-          await addDoc(collection(db, 'yujian_applicationProgress'), { workerId, currentStage: STAGES[0] });
+          const worker = workers.find((w) => w.id === match.workerId);
+          const employer = employers.find((e) => e.id === match.employerId);
+          await addDoc(collection(db, 'yujian_applicationProgress'), {
+            matchId: match.id,
+            employerName: employer?.employerName || '',
+            nationality: worker?.nationality || '',
+            demandCount: 1,
+            status: '進行中',
+            notes: [],
+          });
         }
       }
       setEditing(null);
