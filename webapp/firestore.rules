@@ -427,9 +427,12 @@ service cloud.firestore {
       allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
       allow update, delete: if yjCanEdit('applicationProgress');
     }
+    // 申辦進度追蹤案件的「入境時間」第一次填入日期時會自動帶入這裡，所以
+    // create 也放行 applicationProgress。
     match /yujian_arrivedList/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('arrivedList');
+      allow create: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
+      allow update, delete: if yjCanEdit('arrivedList');
     }
     match /yujian_meetings/{docId} {
       allow read: if yjIsMember();

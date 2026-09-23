@@ -164,6 +164,8 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
    bar-chart cards, modals never needed this and previously got squeezed
    by a blanket `.card { overflow-x: auto }` / `:has()` rule). */
 .table-wrap { overflow-x: auto; }
+.sticky-col { position: sticky; left: 0; background: var(--panel); z-index: 1; }
+th.sticky-col { z-index: 2; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .page-header h2 { font-family: var(--heading-font); margin: 0; font-size: 20px; }
 .page-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
