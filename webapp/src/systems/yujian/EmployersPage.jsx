@@ -10,6 +10,7 @@ const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
 
 const FIELDS = [
   { key: 'employerName', label: '雇主姓名', required: true },
+  { key: 'taiwanAgency', label: '台仲' },
   { key: 'phone', label: '聯絡電話' },
   { key: 'address', label: '地址' },
   { key: 'workType', label: '需求類型', options: WORK_TYPES },
