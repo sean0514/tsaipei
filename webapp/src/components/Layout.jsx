@@ -22,7 +22,7 @@ export const IMPLEMENTED_MODULES = {
   dispatch: ['dashboard', 'users'],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
   yujian: [
-    'dashboard', 'workers', 'employers', 'matches', 'placementList', 'secondInterview', 'admitted',
+    'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted', 'placementList',
     'applicationProgress', 'arrivedList', 'meetings', 'dailyExpenseApplication', 'users',
   ],
 };
@@ -94,9 +94,9 @@ const GROUP_ROUTES = {
   yujian: {
     matching: [
       { route: 'matches', label: '媒合紀錄' },
-      { route: 'placementList', label: '安置中名單' },
       { route: 'secondInterview', label: '二面進度' },
       { route: 'admitted', label: '錄取名單' },
+      { route: 'placementList', label: '安置中名單' },
     ],
     applicationForms: [
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
