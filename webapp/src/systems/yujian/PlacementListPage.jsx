@@ -38,6 +38,8 @@ export default function PlacementListPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${workerName(r.workerId)} ${r.placementLocation || ''}`.toLowerCase().includes(searchQuery));
+  const departed = filtered.filter((r) => r.status === '已就業' || r.status === '已離境');
+  const inPlacement = filtered.filter((r) => !departed.includes(r));
 
   async function handleSave(data) {
     if (data.id) {
@@ -62,41 +64,54 @@ export default function PlacementListPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」欄位）；上傳後會完全取代目前所有安置中名單資料，請先下載備份再匯入。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
-          <input placeholder="搜尋人員或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
-        </div>
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {filtered.map((r) => {
-                const w = workerById(r.workerId);
-                return (
-                  <tr key={r.id}>
-                    {columns.map((c) => {
-                      if (c.key === 'worker') return <td key={c.key}>{workerName(r.workerId)}</td>;
-                      if (c.key === 'nationality') return <td key={c.key}>{w?.nationality || '—'}</td>;
-                      if (c.key === 'entryDate') return <td key={c.key}>{w?.entryDate || '—'}</td>;
-                      return <td key={c.key}>{r[c.key] || '—'}</td>;
-                    })}
-                    {canEditPage && (
-                      <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>編輯</button>
-                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋人員或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>安置中 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{inPlacement.length} 人</span></h4>
+            <PlacementTable items={inPlacement} columns={columns} canEditPage={canEditPage} workerById={workerById} workerName={workerName} onEdit={setEditing} onRemove={remove} />
+          </div>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>已轉出或離境 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{departed.length} 人</span></h4>
+            <PlacementTable items={departed} columns={columns} canEditPage={canEditPage} workerById={workerById} workerName={workerName} onEdit={setEditing} onRemove={remove} />
+          </div>
+        </div>
+      )}
       {editing && <PlacementFormModal initial={editing} workers={workers} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
+  );
+}
+
+function PlacementTable({ items, columns, canEditPage, workerById, workerName, onEdit, onRemove }) {
+  return (
+    <div className="table-wrap"><table>
+      <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</tr></thead>
+      <tbody>
+        {items.map((r) => {
+          const w = workerById(r.workerId);
+          return (
+            <tr key={r.id}>
+              {columns.map((c) => {
+                if (c.key === 'worker') return <td key={c.key}>{workerName(r.workerId)}</td>;
+                if (c.key === 'nationality') return <td key={c.key}>{w?.nationality || '—'}</td>;
+                if (c.key === 'entryDate') return <td key={c.key}>{w?.entryDate || '—'}</td>;
+                return <td key={c.key}>{r[c.key] || '—'}</td>;
+              })}
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => onEdit(r)}>編輯</button>
+                  <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          );
+        })}
+        {items.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+      </tbody>
+    </table></div>
   );
 }
 
