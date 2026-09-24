@@ -483,9 +483,12 @@ service cloud.firestore {
       allow update: if yjCanEdit('matching');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
+    // 人員狀態變「轉出中」時會自動在這裡建立一筆安置紀錄，所以 create 也
+    // 放行 workers。
     match /yujian_placementList/{docId} {
       allow read: if yjIsMember();
-      allow create, update: if yjCanEdit('matching');
+      allow create: if yjCanEdit('matching') || yjCanEdit('workers');
+      allow update: if yjCanEdit('matching');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers');
     }
     // 媒合紀錄狀態變「已媒合」會自動建立二面進度，二面進度「通過」會自動建立

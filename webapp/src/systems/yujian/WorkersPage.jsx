@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -10,7 +10,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { deleteWorkerCascade } from '../../lib/yujianCascade';
 
-export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '已離境', '取消'];
+export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '轉出中', '已離境', '取消'];
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
 
@@ -56,18 +56,28 @@ export default function WorkersPage() {
   // 新增人員完成後自動在媒合紀錄建立一筆待指定雇主的紀錄，不用再手動去
   // 媒合紀錄那邊重新建一筆。入境日期第一次填入時，狀態如果還停留在媒合
   // 階段（待媒合/媒合中/已媒合），自動帶成「在職中」，兩者不用分開手動改。
+  // 狀態變成「轉出中」時自動在安置中名單建立一筆紀錄，不用再手動去那邊新增。
+  async function ensurePlacementRecord(workerId) {
+    const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
+    if (!existing.empty) return;
+    await addDoc(collection(db, 'yujian_placementList'), { workerId, status: '安置中' });
+  }
+
   async function handleSave(data) {
     const payload = { ...data };
     const prevEntryDate = editing?.entryDate || '';
+    const prevStatus = editing?.status || '';
     if (payload.entryDate && !prevEntryDate && ['待媒合', '媒合中', '已媒合'].includes(payload.status)) {
       payload.status = '在職中';
     }
     if (payload.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
+      if (payload.status === '轉出中' && prevStatus !== '轉出中') await ensurePlacementRecord(id);
     } else {
       const ref = await add({ status: '待媒合', ...payload });
       await addDoc(collection(db, 'yujian_matches'), { workerId: ref.id, employerId: '', status: '媒合中' });
+      if (payload.status === '轉出中') await ensurePlacementRecord(ref.id);
     }
     setEditing(null);
   }
