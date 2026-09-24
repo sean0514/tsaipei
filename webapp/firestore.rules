@@ -513,10 +513,12 @@ service cloud.firestore {
     }
     // 申辦進度追蹤案件的「入境時間」第一次填入日期時會自動帶入這裡，所以
     // create 也放行 applicationProgress。
+    // 申辦進度追蹤的案件送工後每次存檔都會同步更新這裡對應的紀錄，所以
+    // update 也放行 applicationProgress。
     match /yujian_arrivedList/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
-      allow update: if yjCanEdit('arrivedList');
+      allow update: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
       allow delete: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_meetings/{docId} {

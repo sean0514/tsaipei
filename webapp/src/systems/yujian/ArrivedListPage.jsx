@@ -54,7 +54,7 @@ export default function ArrivedListPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡，之後案件的欄位異動（含進度狀態）也會同步更新到這裡；也可以直接在這裡新增或編輯（這裡的編輯不會回寫到申辦進度追蹤）。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
