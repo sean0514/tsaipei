@@ -44,9 +44,9 @@ function basicDocsCount(p) {
 
 const CSV_FIELDS = [
   { key: 'studentName', label: '學生' }, { key: 'company', label: '客戶' },
-  { key: 'firstEntryDate', label: '入台日期' },
+  { key: 'firstEntryDate', label: '入台日期' }, { key: 'appointmentDate', label: '預約開戶日期' }, { key: 'bankBranch', label: '銀行+分行' },
   ...BASIC_DOC_ITEMS.map((d) => ({ key: d.key, label: d.label })),
-  { key: 'basicDocsReceived', label: '基資表(全部收齊)' }, { key: 'bankAccountReceived', label: '銀行帳戶' },
+  { key: 'basicDocsReceived', label: '基資表(全部收齊)' }, { key: 'bankAccountReceived', label: '銀行帳戶' }, { key: 'confirmedDone', label: '確認完成' },
 ];
 
 export default function BankAccountProgressPage() {
@@ -70,14 +70,13 @@ export default function BankAccountProgressPage() {
   progressRows.forEach((p) => { progressByStudent[p.studentId] = p; });
 
   const searchQuery = q.trim().toLowerCase();
-  const visible = arrived.filter((v) => !searchQuery || `${studentFullLabel(studentById(v.studentId))} ${studentCompanyLabel(v.studentId, ctx)}`.toLowerCase().includes(searchQuery));
+  // 已按「確認完成」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const visible = arrived
+    .filter((v) => !progressByStudent[v.studentId]?.confirmedDone)
+    .filter((v) => !searchQuery || `${studentFullLabel(studentById(v.studentId))} ${studentCompanyLabel(v.studentId, ctx)}`.toLowerCase().includes(searchQuery));
 
-  const byCompany = {};
-  visible.forEach((v) => {
-    const company = studentCompanyLabel(v.studentId, ctx);
-    (byCompany[company] ||= []).push(v);
-  });
-  const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
+  const notOpened = visible.filter((v) => !progressByStudent[v.studentId]?.bankAccountReceived);
+  const opened = visible.filter((v) => progressByStudent[v.studentId]?.bankAccountReceived);
 
   async function toggleDoc(studentId, field, checked) {
     const existing = progressByStudent[studentId];
@@ -91,6 +90,18 @@ export default function BankAccountProgressPage() {
     else await addProgress({ studentId, bankAccountReceived: checked });
   }
 
+  async function updateField(studentId, field, value) {
+    const existing = progressByStudent[studentId];
+    if (existing) await updateProgress(existing.id, { [field]: value });
+    else await addProgress({ studentId, bankAccountReceived: false, [field]: value });
+  }
+
+  async function confirmDone(studentId) {
+    const existing = progressByStudent[studentId];
+    if (existing) await updateProgress(existing.id, { confirmedDone: true });
+    else await addProgress({ studentId, bankAccountReceived: true, confirmedDone: true });
+  }
+
   function handleDownload() {
     const data = arrived.map((v) => {
       const p = progressByStudent[v.studentId] || {};
@@ -98,8 +109,11 @@ export default function BankAccountProgressPage() {
         studentName: studentFullLabel(studentById(v.studentId)),
         company: studentCompanyLabel(v.studentId, ctx),
         firstEntryDate: v.firstEntryDate,
+        appointmentDate: p.appointmentDate || '',
+        bankBranch: p.bankBranch || '',
         basicDocsReceived: isBasicDocsComplete(p) ? '是' : '否',
         bankAccountReceived: p.bankAccountReceived ? '是' : '否',
+        confirmedDone: p.confirmedDone ? '是' : '否',
       };
       BASIC_DOC_ITEMS.forEach((d) => { row[d.key] = p[d.key] ? '是' : '否'; });
       return row;
@@ -107,11 +121,16 @@ export default function BankAccountProgressPage() {
     exportEntityCSV(data, CSV_FIELDS, '開戶進度追蹤');
   }
 
-  function ProgressTable({ items }) {
+  function ProgressTable({ items, showConfirm }) {
     return (
       <div className="table-wrap">
         <table>
-          <thead><tr><th>學生</th><th>入台日期</th><th>基資表</th><th>銀行帳戶</th></tr></thead>
+          <thead>
+            <tr>
+              <th>學生</th><th>客戶</th><th>入台日期</th><th>預約開戶日期</th><th>銀行+分行</th><th>基資表</th><th>銀行帳戶</th>
+              {canEditPage && showConfirm && <th></th>}
+            </tr>
+          </thead>
           <tbody>
             {items.map((v) => {
               const p = progressByStudent[v.studentId] || {};
@@ -119,7 +138,18 @@ export default function BankAccountProgressPage() {
               return (
                 <tr key={v.id}>
                   <td>{studentFullLabel(studentById(v.studentId))}</td>
+                  <td>{studentCompanyLabel(v.studentId, ctx)}</td>
                   <td>{v.firstEntryDate}</td>
+                  <td>
+                    {canEditPage ? (
+                      <input type="date" value={p.appointmentDate || ''} onChange={(e) => updateField(v.studentId, 'appointmentDate', e.target.value)} />
+                    ) : (p.appointmentDate || '—')}
+                  </td>
+                  <td>
+                    {canEditPage ? (
+                      <input value={p.bankBranch || ''} onChange={(e) => updateField(v.studentId, 'bankBranch', e.target.value)} style={{ width: 140 }} />
+                    ) : (p.bankBranch || '—')}
+                  </td>
                   <td>
                     <span className={`tag ${complete ? 'tag-green' : 'tag-amber'}`} style={{ marginRight: 8 }}>
                       {complete ? '已收齊' : `${basicDocsCount(p)}/${BASIC_DOC_ITEMS.length}`}
@@ -131,10 +161,13 @@ export default function BankAccountProgressPage() {
                       <input type="checkbox" checked={!!p.bankAccountReceived} onChange={(e) => toggleBankAccount(v.studentId, e.target.checked)} />
                     ) : (p.bankAccountReceived ? '是' : '否')}
                   </td>
+                  {canEditPage && showConfirm && (
+                    <td><button onClick={() => confirmDone(v.studentId)}>確認完成</button></td>
+                  )}
                 </tr>
               );
             })}
-            {items.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
+            {items.length === 0 && <tr><td colSpan={canEditPage && showConfirm ? 8 : 7} className="muted">沒有資料</td></tr>}
           </tbody>
         </table>
       </div>
@@ -149,7 +182,7 @@ export default function BankAccountProgressPage() {
         <div>
           <h2>開戶進度追蹤</h2>
           <div className="page-desc">
-            在台簽證追蹤裡填了第一次入台時間的學生會自動列入此清單；基資表包含申請書、在職證明、護照正本、護照影本、簽證正本、簽證影本、核准函正本，全部收齊後自動標示為已收齊
+            在台簽證追蹤裡填了第一次入台時間的學生會自動列入此清單；基資表包含申請書、在職證明、護照正本、護照影本、簽證正本、簽證影本、核准函正本，全部收齊後自動標示為已收齊；已開戶的學生按「確認完成」後會從清單消失（下載完整資料仍會包含）
             {!canEditPage && '（唯讀）'}
           </div>
         </div>
@@ -157,14 +190,16 @@ export default function BankAccountProgressPage() {
       </div>
       <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        companies.length === 0 ? <p className="muted">目前沒有已入台的學生。</p> : (
+        visible.length === 0 ? <p className="muted">目前沒有需要追蹤的學生。</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {companies.map((company) => (
-              <div className="card" key={company}>
-                <h4 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 位學生</span></h4>
-                <ProgressTable items={byCompany[company]} />
-              </div>
-            ))}
+            <div className="card">
+              <h4 style={{ marginTop: 0 }}>未開戶 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{notOpened.length} 位學生</span></h4>
+              <ProgressTable items={notOpened} showConfirm={false} />
+            </div>
+            <div className="card">
+              <h4 style={{ marginTop: 0 }}>已開戶 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{opened.length} 位學生</span></h4>
+              <ProgressTable items={opened} showConfirm />
+            </div>
           </div>
         )
       )}
