@@ -91,6 +91,7 @@ export default function ApplicationProgressPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'applicationProgress', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
+  const { rows: matches } = useCollection('yujian_matches');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
@@ -124,11 +125,24 @@ export default function ApplicationProgressPage() {
     }
   }
 
+  // 進度狀態變成「轉出中」時，自動在安置中名單建立一筆紀錄（要案件有連結
+  // 到媒合紀錄才能找到對應人員，手動新增、沒有媒合來源的案件無法自動連動）。
+  async function ensurePlacementRecord(workerId) {
+    const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
+    if (!existing.empty) return;
+    await addDoc(collection(db, 'yujian_placementList'), { workerId, status: '安置中' });
+  }
+
   // 送工時間第一次填入時，進度狀態自動改成「已入台」，不用分開手動改兩個欄位。
   async function handleSave(data) {
     const prevDispatchDate = editing?.dispatchDate || '';
+    const prevStatus = editing?.status || '';
     const payload = { ...data };
     if (payload.dispatchDate && !prevDispatchDate) payload.status = '已入台';
+    if (payload.status === '轉出中' && prevStatus !== '轉出中' && payload.matchId) {
+      const match = matches.find((m) => m.id === payload.matchId);
+      if (match?.workerId) await ensurePlacementRecord(match.workerId);
+    }
     if (payload.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
