@@ -6,7 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
-import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
+import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
@@ -106,10 +106,25 @@ export default function ArrivedListPage() {
 }
 
 function ArrivedFormModal({ initial, onCancel, onSave }) {
-  const [form, setForm] = useState({ ...initial, notes: initial.notes || [] });
+  const [form, setForm] = useState({ ...initial, notes: initial.notes || [], transferSteps: initial.transferSteps || [] });
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+  const [newStepStatus, setNewStepStatus] = useState(TRANSFER_STEP_STATUS[0]);
+  const [newStepDate, setNewStepDate] = useState('');
+
+  function addTransferStep() {
+    setForm({ ...form, transferSteps: [...form.transferSteps, { id: newNoteId(), status: newStepStatus, date: newStepDate }] });
+    setNewStepDate('');
+  }
+
+  function updateTransferStep(id, patch) {
+    setForm({ ...form, transferSteps: form.transferSteps.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  }
+
+  function removeTransferStep(id) {
+    setForm({ ...form, transferSteps: form.transferSteps.filter((s) => s.id !== id) });
+  }
 
   function addNote() {
     const text = newNoteText.trim();
@@ -156,6 +171,29 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
                 <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
               </div>
             ))}
+          </div>
+
+          <h4 style={{ marginTop: 20 }}>轉出/離境紀錄</h4>
+          <ul className="note-list">
+            {form.transferSteps.map((s) => (
+              <li key={s.id}>
+                <div className="row-actions">
+                  <select value={s.status} onChange={(e) => updateTransferStep(s.id, { status: e.target.value })}>
+                    {TRANSFER_STEP_STATUS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <input type="date" value={s.date || ''} onChange={(e) => updateTransferStep(s.id, { date: e.target.value })} />
+                  <button type="button" className="danger" onClick={() => removeTransferStep(s.id)}>刪除</button>
+                </div>
+              </li>
+            ))}
+            {form.transferSteps.length === 0 && <li className="muted">尚無紀錄</li>}
+          </ul>
+          <div className="row-actions">
+            <select value={newStepStatus} onChange={(e) => setNewStepStatus(e.target.value)}>
+              {TRANSFER_STEP_STATUS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <input type="date" value={newStepDate} onChange={(e) => setNewStepDate(e.target.value)} />
+            <button type="button" onClick={addTransferStep}>+ 新增紀錄</button>
           </div>
 
           <h4 style={{ marginTop: 20 }}>進度圖示</h4>

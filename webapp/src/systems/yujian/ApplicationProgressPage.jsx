@@ -12,8 +12,12 @@ import ColumnPicker from '../../components/ColumnPicker';
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
   '辦理簽證', 'IN MECO', '尚未收到函文', '收到函文', '製作認證', '認證完畢',
-  '準備送認證', '寄達國外', '已入台', '轉出中', '已轉出', '已離台', '準備入境', '進行中', '已取消',
+  '準備送認證', '寄達國外', '已入台', '已接離', '轉出中', '已轉出', '已離台', '準備入境', '進行中', '已取消',
 ];
+
+// 轉出/離境流程的分段紀錄：申辦流程清單裡可以自由新增這幾個階段各自的
+// 日期，跟進度狀態共用同一組選項。
+export const TRANSFER_STEP_STATUS = ['已接離', '轉出中', '已轉出', '已離台'];
 
 // 「資料總檔」：案件基本資訊，雇主姓名放第一欄並 sticky，列表橫向捲動時
 // 仍固定在畫面左側。
@@ -125,8 +129,9 @@ export default function ApplicationProgressPage() {
     }
   }
 
-  // 進度狀態變成「轉出中」時，自動在安置中名單建立一筆紀錄（要案件有連結
-  // 到媒合紀錄才能找到對應人員，手動新增、沒有媒合來源的案件無法自動連動）。
+  // 進度狀態變成「已接離／轉出中／已轉出／已離台」其中一個時，自動在安置
+  // 中名單建立一筆紀錄（要案件有連結到媒合紀錄才能找到對應人員，手動新增、
+  // 沒有媒合來源的案件無法自動連動）。
   async function ensurePlacementRecord(workerId) {
     const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
     if (!existing.empty) return;
@@ -139,7 +144,7 @@ export default function ApplicationProgressPage() {
     const prevStatus = editing?.status || '';
     const payload = { ...data };
     if (payload.dispatchDate && !prevDispatchDate) payload.status = '已入台';
-    if (payload.status === '轉出中' && prevStatus !== '轉出中' && payload.matchId) {
+    if (TRANSFER_STEP_STATUS.includes(payload.status) && !TRANSFER_STEP_STATUS.includes(prevStatus) && payload.matchId) {
       const match = matches.find((m) => m.id === payload.matchId);
       if (match?.workerId) await ensurePlacementRecord(match.workerId);
     }
@@ -231,10 +236,25 @@ function ProgressTable({ items, columns, canEditPage, onEdit, onRemove }) {
 }
 
 function ProgressFormModal({ initial, onCancel, onSave }) {
-  const [form, setForm] = useState({ ...initial, notes: initial.notes || [] });
+  const [form, setForm] = useState({ ...initial, notes: initial.notes || [], transferSteps: initial.transferSteps || [] });
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+  const [newStepStatus, setNewStepStatus] = useState(TRANSFER_STEP_STATUS[0]);
+  const [newStepDate, setNewStepDate] = useState('');
+
+  function addTransferStep() {
+    setForm({ ...form, transferSteps: [...form.transferSteps, { id: newNoteId(), status: newStepStatus, date: newStepDate }] });
+    setNewStepDate('');
+  }
+
+  function updateTransferStep(id, patch) {
+    setForm({ ...form, transferSteps: form.transferSteps.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  }
+
+  function removeTransferStep(id) {
+    setForm({ ...form, transferSteps: form.transferSteps.filter((s) => s.id !== id) });
+  }
 
   function addNote() {
     const text = newNoteText.trim();
@@ -281,6 +301,29 @@ function ProgressFormModal({ initial, onCancel, onSave }) {
                 <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
               </div>
             ))}
+          </div>
+
+          <h4 style={{ marginTop: 20 }}>轉出/離境紀錄</h4>
+          <ul className="note-list">
+            {form.transferSteps.map((s) => (
+              <li key={s.id}>
+                <div className="row-actions">
+                  <select value={s.status} onChange={(e) => updateTransferStep(s.id, { status: e.target.value })}>
+                    {TRANSFER_STEP_STATUS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <input type="date" value={s.date || ''} onChange={(e) => updateTransferStep(s.id, { date: e.target.value })} />
+                  <button type="button" className="danger" onClick={() => removeTransferStep(s.id)}>刪除</button>
+                </div>
+              </li>
+            ))}
+            {form.transferSteps.length === 0 && <li className="muted">尚無紀錄</li>}
+          </ul>
+          <div className="row-actions">
+            <select value={newStepStatus} onChange={(e) => setNewStepStatus(e.target.value)}>
+              {TRANSFER_STEP_STATUS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <input type="date" value={newStepDate} onChange={(e) => setNewStepDate(e.target.value)} />
+            <button type="button" onClick={addTransferStep}>+ 新增紀錄</button>
           </div>
 
           <h4 style={{ marginTop: 20 }}>進度圖示</h4>
