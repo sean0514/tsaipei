@@ -9,12 +9,15 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
 import SegmentedControl from '../../components/SegmentedControl';
 import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'date', label: '面談日期' },
   { key: 'method', label: '面談方式' }, { key: 'status', label: '進度狀態' }, { key: 'notes', label: '備註' },
 ];
+const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'date', label: '面談日期' }, { key: 'method', label: '面談方式' }];
 
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -26,6 +29,8 @@ export default function SecondInterviewsPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_secondInterviews', CSV_FIELDS, { entityLabel: '二面進度', requiredKeys: ['matchId'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(COLUMNS);
+  const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   function matchLabel(matchId) {
     const m = matches.find((x) => x.id === matchId);
@@ -61,20 +66,24 @@ export default function SecondInterviewsPage() {
         <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「媒合紀錄ID」欄位）；上傳後會完全取代目前所有二面進度資料，請先下載備份再匯入。</p>}
-      <input placeholder="搜尋人員姓名或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋人員姓名或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <StatusSections
           statuses={STATUSES}
           tagMap={SECOND_INTERVIEW_TAG}
           rows={filteredRows}
           sortKey="date"
-          colSpan={canEditPage ? 4 : 3}
-          headerCells={<><th>媒合</th><th>面談日期</th><th>面談方式</th>{canEditPage && <th></th>}</>}
+          colSpan={columns.length + (canEditPage ? 1 : 0)}
+          headerCells={<>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</>}
           renderRow={(r) => (
             <tr key={r.id}>
-              <td>{matchLabel(r.matchId)}</td>
-              <td>{r.date || '—'}</td>
-              <td>{r.method || '—'}</td>
+              {columns.map((c) => {
+                if (c.key === 'match') return <td key={c.key}>{matchLabel(r.matchId)}</td>;
+                return <td key={c.key}>{r[c.key] || '—'}</td>;
+              })}
               {canEditPage && (
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>

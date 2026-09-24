@@ -41,6 +41,7 @@ import YujianDashboardPage from './systems/yujian/DashboardPage';
 import YujianWorkersPage from './systems/yujian/WorkersPage';
 import YujianEmployersPage from './systems/yujian/EmployersPage';
 import YujianMatchesPage from './systems/yujian/MatchesPage';
+import YujianPlacementListPage from './systems/yujian/PlacementListPage';
 import YujianSecondInterviewsPage from './systems/yujian/SecondInterviewsPage';
 import YujianAdmittedListPage from './systems/yujian/AdmittedListPage';
 import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressPage';
@@ -120,6 +121,7 @@ const PAGES = {
     workers: YujianWorkersPage,
     employers: YujianEmployersPage,
     matches: YujianMatchesPage,
+    placementList: YujianPlacementListPage,
     secondInterview: YujianSecondInterviewsPage,
     admitted: YujianAdmittedListPage,
     applicationProgress: YujianApplicationProgressPage,

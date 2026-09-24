@@ -6,6 +6,8 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
 
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
@@ -54,6 +56,18 @@ export const FIELDS = [
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
+// 列表頁用的欄位（案件基本識別＋進度概況），跟詳細視窗裡「資料總檔」用的
+// INFO_FIELDS 是分開的兩組。
+export const LIST_COLUMNS = [
+  { key: 'employerName', label: '雇主姓名', sticky: true },
+  { key: 'caseNo', label: '編號' },
+  { key: 'demandCount', label: '需求量' },
+  { key: 'nationality', label: '國籍' },
+  { key: 'status', label: '進度狀態' },
+  { key: 'progress', label: '進度' },
+  { key: 'notes', label: '備註' },
+];
+
 export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -80,9 +94,11 @@ export default function ApplicationProgressPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   // 入境時間從空白變成有填值時，視為「已入台」，自動把這筆案件完整帶入已入台名單。
   async function copyToArrivedListIfJustArrived(prevEntryDate, saved) {
@@ -120,12 +136,15 @@ export default function ApplicationProgressPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「入境時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th className="sticky-col">雇主姓名</th><th>編號</th><th>需求量</th><th>國籍</th><th>進度狀態</th><th>進度</th><th>備註</th>
+                {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -135,15 +154,18 @@ export default function ApplicationProgressPage() {
                 const lastNote = notes[notes.length - 1];
                 return (
                   <tr key={r.id}>
-                    <td className="sticky-col">{r.employerName || '—'}</td>
-                    <td>{r.caseNo || '—'}</td>
-                    <td>{r.demandCount || '—'}</td>
-                    <td>{r.nationality || '—'}</td>
-                    <td>
-                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
-                    </td>
-                    <td><ProgressPipeline p={r} /></td>
-                    <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
+                    {columns.map((c) => {
+                      if (c.key === 'status') {
+                        return (
+                          <td key={c.key}>
+                            <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                          </td>
+                        );
+                      }
+                      if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
+                      if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
+                      return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
+                    })}
                     {canEditPage && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>管理</button>

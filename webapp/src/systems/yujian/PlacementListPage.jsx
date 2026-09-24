@@ -1,0 +1,153 @@
+import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { useCollection } from '../../lib/useCollection';
+import { canEdit as computeCanEdit } from '../../lib/permissions';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
+
+// 還沒有正式雇主、先安排在其他地方（宿舍/訓練中心等）待命的看護/家事人員名單。
+const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '其他'];
+
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'placementLocation', label: '安置地點' },
+  { key: 'placementStartDate', label: '安置開始日期' }, { key: 'contactPerson', label: '聯絡人' }, { key: 'contactPhone', label: '聯絡電話' },
+  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+];
+
+const COLUMNS = [
+  { key: 'worker', label: '人員' }, { key: 'nationality', label: '國籍' }, { key: 'entryDate', label: '入境日期' },
+  { key: 'placementLocation', label: '安置地點' }, { key: 'placementStartDate', label: '安置開始日期' },
+  { key: 'contactPerson', label: '聯絡人' }, { key: 'contactPhone', label: '聯絡電話' }, { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+];
+
+export default function PlacementListPage() {
+  const { system, role, overrides } = useOutletContext();
+  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const { rows, loading, add, update, remove } = useCollection('yujian_placementList');
+  const { rows: workers } = useCollection('yujian_workers');
+  const [editing, setEditing] = useState(null);
+  const [q, setQ] = useState('');
+  const { handleExport, handleImport } = useCsvOverwrite('yujian_placementList', CSV_FIELDS, { entityLabel: '安置中名單', requiredKeys: ['workerId'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(COLUMNS);
+  const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
+
+  const workerById = (id) => workers.find((w) => w.id === id);
+  const workerName = (id) => { const w = workerById(id); return w?.chineseName || w?.originalName || '(未設定)'; };
+
+  const searchQuery = q.trim().toLowerCase();
+  const filtered = rows.filter((r) => !searchQuery || `${workerName(r.workerId)} ${r.placementLocation || ''}`.toLowerCase().includes(searchQuery));
+
+  async function handleSave(data) {
+    if (data.id) {
+      const { id, ...rest } = data;
+      await update(id, rest);
+    } else {
+      await add({ status: '安置中', ...data });
+    }
+    setEditing(null);
+  }
+
+  return (
+    <div className="content">
+      <div className="page-header">
+        <div>
+          <h2>安置中名單</h2>
+          <div className="page-desc">還沒有正式雇主、先安排在其他地方待命的人員{!canEditPage && '（唯讀）'}</div>
+        </div>
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增安置紀錄</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
+      </div>
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」欄位）；上傳後會完全取代目前所有安置中名單資料，請先下載備份再匯入。</p>}
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋人員或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+        </div>
+        {loading ? <p className="muted">載入中…</p> : (
+          <div className="table-wrap"><table>
+            <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {filtered.map((r) => {
+                const w = workerById(r.workerId);
+                return (
+                  <tr key={r.id}>
+                    {columns.map((c) => {
+                      if (c.key === 'worker') return <td key={c.key}>{workerName(r.workerId)}</td>;
+                      if (c.key === 'nationality') return <td key={c.key}>{w?.nationality || '—'}</td>;
+                      if (c.key === 'entryDate') return <td key={c.key}>{w?.entryDate || '—'}</td>;
+                      return <td key={c.key}>{r[c.key] || '—'}</td>;
+                    })}
+                    {canEditPage && (
+                      <td className="row-actions">
+                        <button onClick={() => setEditing(r)}>編輯</button>
+                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
+        )}
+      </div>
+      {editing && <PlacementFormModal initial={editing} workers={workers} onCancel={() => setEditing(null)} onSave={handleSave} />}
+    </div>
+  );
+}
+
+function PlacementFormModal({ initial, workers, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{initial.id ? '編輯安置紀錄' : '新增安置紀錄'}</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            <label>
+              人員
+              <select required value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
+                <option value="" disabled>請選擇</option>
+                {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
+              </select>
+            </label>
+            <label>
+              安置地點
+              <input value={form.placementLocation || ''} onChange={(e) => setForm({ ...form, placementLocation: e.target.value })} />
+            </label>
+            <label>
+              安置開始日期
+              <input type="date" value={form.placementStartDate || ''} onChange={(e) => setForm({ ...form, placementStartDate: e.target.value })} />
+            </label>
+            <label>
+              聯絡人
+              <input value={form.contactPerson || ''} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} />
+            </label>
+            <label>
+              聯絡電話
+              <input value={form.contactPhone || ''} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
+            </label>
+            <label>
+              狀態
+              <select value={form.status || '安置中'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                {PLACEMENT_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label style={{ gridColumn: 'span 2' }}>
+              備註
+              <input value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

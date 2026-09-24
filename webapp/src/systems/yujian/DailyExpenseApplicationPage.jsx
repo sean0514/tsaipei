@@ -5,6 +5,8 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { exportEntityCSV } from '../../lib/csv';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -31,6 +33,8 @@ export default function DailyExpenseApplicationPage() {
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
   const { handleExport, handleImport } = useCsvOverwrite('yujian_dailyExpenseApplications', CSV_FIELDS, { entityLabel: '日常支出申請', requiredKeys: ['purpose'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(FIELDS);
+  const columns = FIELDS.filter((f) => visibleKeys.has(f.key));
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
@@ -68,23 +72,24 @@ export default function DailyExpenseApplicationPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有日常支出申請紀錄，請先下載備份再匯入。「下載此月份資料」依「日期」篩選。</p>}
-      <input placeholder="搜尋申請人、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋申請人、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={FIELDS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {STATUSES.map((status) => (
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr>{columns.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
-                      <td>{r.applicant || '—'}</td>
-                      <td>{r.item || '—'}</td>
-                      <td>{r.date || '—'}</td>
-                      <td>{r.purpose || '—'}</td>
-                      <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
-                      <td>{r.notes || '—'}</td>
+                      {columns.map((f) => {
+                        if (f.key === 'amount') return <td key={f.key}>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>;
+                        return <td key={f.key}>{r[f.key] || '—'}</td>;
+                      })}
                       {canEditPage && (
                         <td className="row-actions">
                           {STATUSES.filter((s) => s !== status).map((s) => (
@@ -96,7 +101,7 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>

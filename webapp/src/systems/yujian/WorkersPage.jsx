@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
 
 export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '已離境', '取消'];
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
@@ -33,16 +37,30 @@ export default function WorkersPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_workers', CSV_FIELDS, { entityLabel: '看護/家事人員資料', requiredKeys: ['chineseName'], canEdit: canEditPage });
+  // 國外仲介當成分類的群組標題，不用再重複顯示同一欄。
+  const rowFields = FIELDS.filter((f) => f.key !== 'foreignAgency');
+  const { visibleKeys, toggleColumn } = useColumnVisibility(rowFields);
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.chineseName || ''} ${r.originalName || ''} ${r.nationality || ''}`.toLowerCase().includes(searchQuery));
+  const columns = rowFields.filter((f) => visibleKeys.has(f.key));
 
+  const groups = {};
+  filtered.forEach((r) => {
+    const agency = r.foreignAgency || '未指定國外仲介';
+    (groups[agency] ||= []).push(r);
+  });
+  const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  // 新增人員完成後自動在媒合紀錄建立一筆待指定雇主的紀錄，不用再手動去
+  // 媒合紀錄那邊重新建一筆。
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '待媒合', ...data });
+      const ref = await add({ status: '待媒合', ...data });
+      await addDoc(collection(db, 'yujian_matches'), { workerId: ref.id, employerId: '', status: '媒合中' });
     }
     setEditing(null);
   }
@@ -60,28 +78,37 @@ export default function WorkersPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有人員資料，請先下載備份再匯入。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋姓名或國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={FIELDS.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋姓名或國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={rowFields} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        agencyNames.length === 0 ? <p className="muted">沒有資料</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {agencyNames.map((agency) => (
+              <div className="card" key={agency} style={{ overflowX: 'auto' }}>
+                <h4 style={{ marginTop: 0 }}>{agency} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[agency].length} 位人員</span></h4>
+                <div className="table-wrap"><table>
+                  <thead><tr>{columns.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
+                  <tbody>
+                    {groups[agency].map((r) => (
+                      <tr key={r.id}>
+                        {columns.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
+                        {canEditPage && (
+                          <td className="row-actions">
+                            <button onClick={() => setEditing(r)}>編輯</button>
+                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
       {editing && <WorkerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );

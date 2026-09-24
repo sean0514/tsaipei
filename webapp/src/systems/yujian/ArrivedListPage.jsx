@@ -4,7 +4,9 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
-import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
+import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「入境時間」已經填寫的案件（申辦進度追蹤第一次填入入境時間時會自動
@@ -18,9 +20,11 @@ export default function ArrivedListPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   async function handleSave(data) {
     if (data.id) {
@@ -46,12 +50,15 @@ export default function ArrivedListPage() {
       </div>
       {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「入境時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th className="sticky-col">雇主姓名</th><th>編號</th><th>需求量</th><th>國籍</th><th>進度狀態</th><th>進度</th><th>備註</th>
+                {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -61,15 +68,18 @@ export default function ArrivedListPage() {
                 const lastNote = notes[notes.length - 1];
                 return (
                   <tr key={r.id}>
-                    <td className="sticky-col">{r.employerName || '—'}</td>
-                    <td>{r.caseNo || '—'}</td>
-                    <td>{r.demandCount || '—'}</td>
-                    <td>{r.nationality || '—'}</td>
-                    <td>
-                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
-                    </td>
-                    <td><ProgressPipeline p={r} /></td>
-                    <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
+                    {columns.map((c) => {
+                      if (c.key === 'status') {
+                        return (
+                          <td key={c.key}>
+                            <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                          </td>
+                        );
+                      }
+                      if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
+                      if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
+                      return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
+                    })}
                     {canEditPage && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>管理</button>
