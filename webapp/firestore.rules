@@ -30,11 +30,33 @@ service cloud.firestore {
     function tsIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid));
     }
+    // 沒有人在「使用人員」頁面動過某個模組/角色的權限時，tsaipei_rolePermissions
+    // 底下就不會有對應的 override 文件——這時要照 src/lib/permissions.js
+    // SYSTEMS.tsaipei.defaultPermissions 的預設值判斷，不能直接當作沒有權限，
+    // 否則前端（用預設值判斷）顯示看得到「編輯」，但這裡的規則卻擋掉寫入。
+    function tsDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'view','翻譯人員':'view','國外供應':'view','行政人員':'view','會計人員':'view','宿管人員':'view'},
+        'students': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'edit','翻譯人員':'view','國外供應':'view','行政人員':'edit','會計人員':'view','宿管人員':'view'},
+        'matching': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'applicationProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
+        'inTaiwanTracking': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'internshipDocs': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
+        'housing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'dormManagement': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
+        'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'view','會計人員':'view','宿管人員':'view'},
+        'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
+        'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'users': {'系統管理員':'edit','主管':'view','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
+        'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
+      }[module][role];
+    }
     function tsCanEdit(module) {
       return tsIsMember() && (
         tsRole() == '系統管理員' ||
-        (exists(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())) &&
-         get(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())).data.level == 'edit')
+        (exists(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole()))
+          ? get(/databases/$(database)/documents/tsaipei_rolePermissions/$(module + '__' + tsRole())).data.level == 'edit'
+          : tsDefaultLevel(module, tsRole()) == 'edit')
       );
     }
 
@@ -181,11 +203,27 @@ service cloud.firestore {
     function ffIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid));
     }
+    function ffDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'view'},
+        'inventory': {'系統管理員':'view','廠長主管':'view','倉管人員':'edit','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'view'},
+        'production': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'edit','品管人員':'view','業務出貨人員':'view','會計人員':'view'},
+        'shipping': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'edit','會計人員':'view'},
+        'billing': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'edit','會計人員':'edit'},
+        'qc': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'edit','業務出貨人員':'view','會計人員':'view'},
+        'cost': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'edit'},
+        'pettyCash': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'edit'},
+        'incomeStatement': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'edit'},
+        'history': {'系統管理員':'view','廠長主管':'view','倉管人員':'view','產線人員':'view','品管人員':'view','業務出貨人員':'view','會計人員':'view'},
+        'users': {'系統管理員':'view','廠長主管':'none','倉管人員':'none','產線人員':'none','品管人員':'none','業務出貨人員':'none','會計人員':'none'},
+      }[module][role];
+    }
     function ffCanEdit(module) {
       return ffIsMember() && (
         ffRole() == '系統管理員' ||
-        (exists(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())) &&
-         get(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())).data.level == 'edit')
+        (exists(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole()))
+          ? get(/databases/$(database)/documents/foodfactory_rolePermissions/$(module + '__' + ffRole())).data.level == 'edit'
+          : ffDefaultLevel(module, ffRole()) == 'edit')
       );
     }
 
@@ -328,11 +366,18 @@ service cloud.firestore {
     function dpIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/dispatch_users/$(request.auth.uid));
     }
+    function dpDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view','會計人員':'view'},
+        'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none','會計人員':'none'},
+      }[module][role];
+    }
     function dpCanEdit(module) {
       return dpIsMember() && (
         dpRole() == '系統管理員' ||
-        (exists(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole())) &&
-         get(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole())).data.level == 'edit')
+        (exists(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole()))
+          ? get(/databases/$(database)/documents/dispatch_rolePermissions/$(module + '__' + dpRole())).data.level == 'edit'
+          : dpDefaultLevel(module, dpRole()) == 'edit')
       );
     }
 
@@ -352,11 +397,20 @@ service cloud.firestore {
     function dmIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/dormMgmt_users/$(request.auth.uid));
     }
+    function dmDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'edit','行政人員':'view','會計人員':'view'},
+        'leases': {'系統管理員':'edit','主管':'edit','行政人員':'edit','會計人員':'view'},
+        'remittance': {'系統管理員':'edit','主管':'edit','行政人員':'view','會計人員':'edit'},
+        'users': {'系統管理員':'edit','主管':'view','行政人員':'none','會計人員':'none'},
+      }[module][role];
+    }
     function dmCanEdit(module) {
       return dmIsMember() && (
         dmRole() == '系統管理員' ||
-        (exists(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole())) &&
-         get(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole())).data.level == 'edit')
+        (exists(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole()))
+          ? get(/databases/$(database)/documents/dormMgmt_rolePermissions/$(module + '__' + dmRole())).data.level == 'edit'
+          : dmDefaultLevel(module, dmRole()) == 'edit')
       );
     }
 
@@ -380,11 +434,25 @@ service cloud.firestore {
     function yjIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/yujian_users/$(request.auth.uid));
     }
+    function yjDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
+        'workers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'matching': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'applicationProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
+        'arrivedList': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
+        'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
+      }[module][role];
+    }
     function yjCanEdit(module) {
       return yjIsMember() && (
         yjRole() == '系統管理員' ||
-        (exists(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole())) &&
-         get(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole())).data.level == 'edit')
+        (exists(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole()))
+          ? get(/databases/$(database)/documents/yujian_rolePermissions/$(module + '__' + yjRole())).data.level == 'edit'
+          : yjDefaultLevel(module, yjRole()) == 'edit')
       );
     }
 
