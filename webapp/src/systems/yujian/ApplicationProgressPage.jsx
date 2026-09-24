@@ -8,7 +8,10 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
-export const CASE_STATUS = ['進行中', '已完成', '取消'];
+export const CASE_STATUS = [
+  '辦理簽證', 'IN MECO', '尚未收到函文', '收到函文', '製作認證', '認證完畢',
+  '準備送認證', '寄達國外', '已入台', '準備入境', '進行中', '已取消',
+];
 
 // 「資料總檔」：案件基本資訊，雇主姓名放第一欄並 sticky，列表橫向捲動時
 // 仍固定在畫面左側。
@@ -39,7 +42,15 @@ export const MILESTONES = [
   { key: 'dispatchDate', label: '送工' },
 ];
 
-export const FIELDS = [...INFO_FIELDS, { key: 'status', label: '進度狀態', options: CASE_STATUS }, ...MILESTONES];
+export function milestoneNoteKey(key) {
+  return `${key}Note`;
+}
+
+export const FIELDS = [
+  ...INFO_FIELDS,
+  { key: 'status', label: '進度狀態', options: CASE_STATUS },
+  ...MILESTONES.flatMap((m) => [m, { key: milestoneNoteKey(m.key), label: `${m.label}備註` }]),
+];
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
@@ -129,7 +140,7 @@ export default function ApplicationProgressPage() {
                     <td>{r.demandCount || '—'}</td>
                     <td>{r.nationality || '—'}</td>
                     <td>
-                      <span className={`tag ${r.status === '已完成' ? 'tag-green' : r.status === '取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
                     </td>
                     <td><ProgressPipeline p={r} /></td>
                     <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
@@ -195,10 +206,13 @@ function ProgressFormModal({ initial, onCancel, onSave }) {
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
             {MILESTONES.map((m) => (
-              <label key={m.key}>
-                {m.label}
-                <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
-              </label>
+              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label>
+                  {m.label}
+                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
+                </label>
+                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+              </div>
             ))}
           </div>
 
