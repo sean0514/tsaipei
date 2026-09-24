@@ -8,6 +8,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import { deleteWorkerCascade } from '../../lib/yujianCascade';
 
 export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '已離境', '取消'];
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
@@ -33,7 +34,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 export default function WorkersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'workers', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_workers');
+  const { rows, loading, add, update } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_workers', CSV_FIELDS, { entityLabel: '看護/家事人員資料', requiredKeys: ['chineseName'], canEdit: canEditPage });
@@ -53,16 +54,33 @@ export default function WorkersPage() {
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   // 新增人員完成後自動在媒合紀錄建立一筆待指定雇主的紀錄，不用再手動去
-  // 媒合紀錄那邊重新建一筆。
+  // 媒合紀錄那邊重新建一筆。入境日期第一次填入時，狀態如果還停留在媒合
+  // 階段（待媒合/媒合中/已媒合），自動帶成「在職中」，兩者不用分開手動改。
   async function handleSave(data) {
-    if (data.id) {
-      const { id, ...rest } = data;
+    const payload = { ...data };
+    const prevEntryDate = editing?.entryDate || '';
+    if (payload.entryDate && !prevEntryDate && ['待媒合', '媒合中', '已媒合'].includes(payload.status)) {
+      payload.status = '在職中';
+    }
+    if (payload.id) {
+      const { id, ...rest } = payload;
       await update(id, rest);
     } else {
-      const ref = await add({ status: '待媒合', ...data });
+      const ref = await add({ status: '待媒合', ...payload });
       await addDoc(collection(db, 'yujian_matches'), { workerId: ref.id, employerId: '', status: '媒合中' });
     }
     setEditing(null);
+  }
+
+  // 刪除人員時一併清掉相關聯的媒合紀錄（及再往下連動出去的二面進度/錄取
+  // 名單/申辦進度追蹤/已入台名單/安置中名單），避免留下孤兒紀錄。
+  async function handleRemove(id) {
+    if (!confirm('刪除這位人員會一併清除相關的媒合紀錄、二面進度、錄取名單、申辦進度追蹤、已入台名單與安置中名單，確定要刪除嗎？')) return;
+    try {
+      await deleteWorkerCascade(id);
+    } catch (err) {
+      alert(`刪除失敗：${err.message || err}`);
+    }
   }
 
   return (
@@ -97,7 +115,7 @@ export default function WorkersPage() {
                         {canEditPage && (
                           <td className="row-actions">
                             <button onClick={() => setEditing(r)}>編輯</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                            <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                           </td>
                         )}
                       </tr>
