@@ -66,7 +66,7 @@ export default function ArrivedListPage() {
                     <td>{r.demandCount || '—'}</td>
                     <td>{r.nationality || '—'}</td>
                     <td>
-                      <span className={`tag ${r.status === '已完成' ? 'tag-green' : r.status === '取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
                     </td>
                     <td><ProgressPipeline p={r} /></td>
                     <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
