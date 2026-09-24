@@ -42,7 +42,7 @@ const CURRENCIES = ['台幣', '美金'];
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
-  { key: 'school', label: '就讀學校' },
+  { key: 'school', label: '就讀學校' }, { key: 'internshipCompany', label: '實習單位' },
   { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' }, { key: 'twdAmount', label: '台幣金額' },
   { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' },
 ];
@@ -53,6 +53,8 @@ export default function ForeignSubsidyApplicationPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_foreignSubsidyApplications');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: users } = useCollection('tsaipei_users');
+  const { rows: matches } = useCollection('tsaipei_matches');
+  const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
@@ -60,6 +62,11 @@ export default function ForeignSubsidyApplicationPage() {
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
   const schoolName = (r) => r.school || students.find((x) => x.id === r.studentId)?.school || '';
+  const companyForStudent = (id) => {
+    const m = matches.find((mm) => mm.studentId === id);
+    return m ? positions.find((p) => p.id === m.positionId)?.company || '' : '';
+  };
+  const companyName = (r) => r.internshipCompany || companyForStudent(r.studentId);
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.remittanceDate || '').slice(0, 7) === month);
@@ -105,7 +112,7 @@ export default function ForeignSubsidyApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>就讀學校</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>就讀學校</th><th>實習單位</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
@@ -113,6 +120,7 @@ export default function ForeignSubsidyApplicationPage() {
                       <td>{r.sourceSupplier || '—'}</td>
                       <td>{studentName(r.studentId) || '—'}</td>
                       <td>{schoolName(r) || '—'}</td>
+                      <td>{companyName(r) || '—'}</td>
                       <td>{r.remittanceDate || '—'}</td>
                       <td>{r.purpose || '—'}</td>
                       <td>
@@ -131,25 +139,34 @@ export default function ForeignSubsidyApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
           ))}
         </div>
       )}
-      {editing && <ForeignSubsidyFormModal initial={editing} students={students} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <ForeignSubsidyFormModal initial={editing} students={students} users={users} positions={positions} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave }) {
+function ForeignSubsidyFormModal({ initial, students, users, positions, matches, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const sources = [...new Set(students.map((s) => s.sourceSupplier).filter(Boolean))].sort();
   const schools = [...new Set(students.map((s) => s.school).filter(Boolean))].sort();
+  const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
+
+  function companyForStudent(studentId) {
+    const m = matches.find((mm) => mm.studentId === studentId);
+    return m ? positions.find((p) => p.id === m.positionId)?.company || '' : '';
+  }
+
   const matchingStudents = students.filter((s) =>
-    (!form.sourceSupplier || s.sourceSupplier === form.sourceSupplier) && (!form.school || s.school === form.school)
+    (!form.sourceSupplier || s.sourceSupplier === form.sourceSupplier) &&
+    (!form.school || s.school === form.school) &&
+    (!form.internshipCompany || companyForStudent(s.id) === form.internshipCompany)
   );
 
   function handleSourceChange(source) {
@@ -162,9 +179,14 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
     setForm({ ...form, school, studentId: stillMatches ? form.studentId : '' });
   }
 
+  function handleCompanyChange(company) {
+    const stillMatches = companyForStudent(form.studentId) === company;
+    setForm({ ...form, internshipCompany: company, studentId: stillMatches ? form.studentId : '' });
+  }
+
   function handleStudentChange(studentId) {
     const s = students.find((x) => x.id === studentId);
-    setForm({ ...form, studentId, school: s?.school || form.school });
+    setForm({ ...form, studentId, school: s?.school || form.school, internshipCompany: companyForStudent(studentId) || form.internshipCompany });
   }
 
   return (
@@ -199,6 +221,13 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
               <select value={form.school || ''} onChange={(e) => handleSchoolChange(e.target.value)}>
                 <option value="">（不限）</option>
                 {schools.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label>
+              實習單位
+              <select value={form.internshipCompany || ''} onChange={(e) => handleCompanyChange(e.target.value)}>
+                <option value="">（不限）</option>
+                {companies.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
             <label>
