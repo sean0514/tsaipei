@@ -9,8 +9,14 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
-// 是「送工」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動帶入
-// 這裡）。
+// 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
+// 帶入這裡）。列表多顯示入境時間/送工時間這兩個日期欄位，方便直接看到到職時程。
+const ARRIVED_LIST_COLUMNS = (() => {
+  const idx = LIST_COLUMNS.findIndex((c) => c.key === 'status');
+  const extra = [{ key: 'entryDate', label: '入境時間' }, { key: 'dispatchDate', label: '送工時間' }];
+  return [...LIST_COLUMNS.slice(0, idx + 1), ...extra, ...LIST_COLUMNS.slice(idx + 1)];
+})();
+
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function ArrivedListPage() {
@@ -20,11 +26,11 @@ export default function ArrivedListPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
-  const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
+  const { visibleKeys, toggleColumn } = useColumnVisibility(ARRIVED_LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
-  const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
+  const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   async function handleSave(data) {
     if (data.id) {
@@ -48,11 +54,11 @@ export default function ArrivedListPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+          <ColumnPicker columns={ARRIVED_LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
         </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
@@ -89,7 +95,7 @@ export default function ArrivedListPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

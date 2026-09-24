@@ -41,7 +41,7 @@ export const MILESTONES = [
   { key: 'oecDate', label: '海外工作證OEC' },
   { key: 'preDepartureDate', label: '出國前講習' },
   { key: 'entryDate', label: '入境時間' },
-  { key: 'dispatchDate', label: '送工' },
+  { key: 'dispatchDate', label: '送工時間' },
 ];
 
 export function milestoneNoteKey(key) {
@@ -72,7 +72,7 @@ export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// 進度圖示：只保留「最近完成的一步」到「送工」之間的步驟，已經完成很久的
+// 進度圖示：只保留「最近完成的一步」到「送工時間」之間的步驟，已經完成很久的
 // 步驟不用一直佔畫面；都還沒開始的話就整條鏈完整顯示，讓人知道下一步是什麼。
 export function ProgressPipeline({ p }) {
   let lastDoneIdx = -1;
@@ -142,7 +142,7 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
