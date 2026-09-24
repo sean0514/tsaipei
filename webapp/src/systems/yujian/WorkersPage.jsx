@@ -18,6 +18,7 @@ const FIELDS = [
   { key: 'passportNumber', label: '護照號碼' },
   { key: 'phone', label: '聯絡電話' },
   { key: 'workType', label: '工作類型', options: WORK_TYPES },
+  { key: 'foreignAgency', label: '國外仲介' },
   { key: 'entryDate', label: '入境日期', type: 'date' },
   { key: 'status', label: '狀態', options: WORKER_STATUS },
   { key: 'notes', label: '備註' },
