@@ -485,9 +485,12 @@ service cloud.firestore {
     }
     // 人員狀態變「轉出中」時會自動在這裡建立一筆安置紀錄，所以 create 也
     // 放行 workers。
+    // 人員狀態變「轉出中」、或申辦進度追蹤案件的進度狀態變「轉出中」時都會
+    // 自動在這裡建立一筆安置紀錄，所以 create 也放行 workers、
+    // applicationProgress。
     match /yujian_placementList/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('matching') || yjCanEdit('workers');
+      allow create: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('applicationProgress');
       allow update: if yjCanEdit('matching');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers');
     }
