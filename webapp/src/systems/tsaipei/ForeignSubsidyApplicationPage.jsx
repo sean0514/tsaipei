@@ -42,7 +42,7 @@ const CURRENCIES = ['台幣', '美金'];
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
-  { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' },
+  { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' }, { key: 'twdAmount', label: '台幣金額' },
   { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' },
 ];
 
@@ -112,7 +112,10 @@ export default function ForeignSubsidyApplicationPage() {
                       <td>{studentName(r.studentId) || '—'}</td>
                       <td>{r.remittanceDate || '—'}</td>
                       <td>{r.purpose || '—'}</td>
-                      <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
+                      <td>
+                        {r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}
+                        {r.currency === '美金' && r.twdAmount ? `（台幣 ${Number(r.twdAmount).toLocaleString()}）` : ''}
+                      </td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
@@ -189,6 +192,12 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
               金額
               <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </label>
+            {form.currency === '美金' && (
+              <label>
+                台幣金額
+                <input type="number" value={form.twdAmount || ''} onChange={(e) => setForm({ ...form, twdAmount: e.target.value })} />
+              </label>
+            )}
             <label style={{ gridColumn: 'span 2' }}>
               用途說明
               <input required value={form.purpose || ''} onChange={(e) => setForm({ ...form, purpose: e.target.value })} />
