@@ -42,6 +42,7 @@ const CURRENCIES = ['台幣', '美金'];
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
+  { key: 'school', label: '就讀學校' },
   { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' }, { key: 'twdAmount', label: '台幣金額' },
   { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' },
 ];
@@ -58,7 +59,7 @@ export default function ForeignSubsidyApplicationPage() {
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_foreignSubsidyApplications', CSV_FIELDS, { entityLabel: '國外補助申請', requiredKeys: ['purpose'], canEdit: canEditPage });
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
-  const schoolName = (id) => students.find((x) => x.id === id)?.school || '';
+  const schoolName = (r) => r.school || students.find((x) => x.id === r.studentId)?.school || '';
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.remittanceDate || '').slice(0, 7) === month);
@@ -104,14 +105,14 @@ export default function ForeignSubsidyApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>學校名稱</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>就讀學校</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
                       <td>{r.applicant || '—'}</td>
                       <td>{r.sourceSupplier || '—'}</td>
                       <td>{studentName(r.studentId) || '—'}</td>
-                      <td>{schoolName(r.studentId) || '—'}</td>
+                      <td>{schoolName(r) || '—'}</td>
                       <td>{r.remittanceDate || '—'}</td>
                       <td>{r.purpose || '—'}</td>
                       <td>
@@ -145,13 +146,25 @@ export default function ForeignSubsidyApplicationPage() {
 function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const sources = [...new Set(students.map((s) => s.sourceSupplier).filter(Boolean))].sort();
+  const schools = [...new Set(students.map((s) => s.school).filter(Boolean))].sort();
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
-  const matchingStudents = form.sourceSupplier ? students.filter((s) => s.sourceSupplier === form.sourceSupplier) : students;
-  const selectedSchool = students.find((s) => s.id === form.studentId)?.school || '';
+  const matchingStudents = students.filter((s) =>
+    (!form.sourceSupplier || s.sourceSupplier === form.sourceSupplier) && (!form.school || s.school === form.school)
+  );
 
   function handleSourceChange(source) {
     const stillMatches = students.find((s) => s.id === form.studentId)?.sourceSupplier === source;
     setForm({ ...form, sourceSupplier: source, studentId: stillMatches ? form.studentId : '' });
+  }
+
+  function handleSchoolChange(school) {
+    const stillMatches = students.find((s) => s.id === form.studentId)?.school === school;
+    setForm({ ...form, school, studentId: stillMatches ? form.studentId : '' });
+  }
+
+  function handleStudentChange(studentId) {
+    const s = students.find((x) => x.id === studentId);
+    setForm({ ...form, studentId, school: s?.school || form.school });
   }
 
   return (
@@ -176,14 +189,17 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
             </label>
             <label>
               學生名字
-              <select required value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
+              <select required value={form.studentId || ''} onChange={(e) => handleStudentChange(e.target.value)}>
                 <option value="" disabled>請選擇</option>
                 {matchingStudents.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
               </select>
             </label>
             <label>
-              學校名稱
-              <input value={selectedSchool || '（未設定）'} disabled />
+              就讀學校
+              <select value={form.school || ''} onChange={(e) => handleSchoolChange(e.target.value)}>
+                <option value="">（不限）</option>
+                {schools.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </label>
             <label>
               匯款日期
