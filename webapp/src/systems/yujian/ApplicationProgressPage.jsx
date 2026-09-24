@@ -42,7 +42,15 @@ export const MILESTONES = [
   { key: 'dispatchDate', label: '送工' },
 ];
 
-export const FIELDS = [...INFO_FIELDS, { key: 'status', label: '進度狀態', options: CASE_STATUS }, ...MILESTONES];
+export function milestoneNoteKey(key) {
+  return `${key}Note`;
+}
+
+export const FIELDS = [
+  ...INFO_FIELDS,
+  { key: 'status', label: '進度狀態', options: CASE_STATUS },
+  ...MILESTONES.flatMap((m) => [m, { key: milestoneNoteKey(m.key), label: `${m.label}備註` }]),
+];
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
@@ -198,10 +206,13 @@ function ProgressFormModal({ initial, onCancel, onSave }) {
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
             {MILESTONES.map((m) => (
-              <label key={m.key}>
-                {m.label}
-                <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
-              </label>
+              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label>
+                  {m.label}
+                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
+                </label>
+                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+              </div>
             ))}
           </div>
 

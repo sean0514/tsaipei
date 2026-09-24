@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
-import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, ProgressPipeline, newNoteId } from './ApplicationProgressPage';
+import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「入境時間」已經填寫的案件（申辦進度追蹤第一次填入入境時間時會自動
@@ -132,10 +132,13 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
             {MILESTONES.map((m) => (
-              <label key={m.key}>
-                {m.label}
-                <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
-              </label>
+              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label>
+                  {m.label}
+                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
+                </label>
+                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+              </div>
             ))}
           </div>
 
