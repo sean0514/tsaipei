@@ -51,6 +51,7 @@ export default function ForeignSubsidyApplicationPage() {
   const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_foreignSubsidyApplications');
   const { rows: students } = useCollection('tsaipei_students');
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
@@ -131,14 +132,15 @@ export default function ForeignSubsidyApplicationPage() {
           ))}
         </div>
       )}
-      {editing && <ForeignSubsidyFormModal initial={editing} students={students} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <ForeignSubsidyFormModal initial={editing} students={students} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function ForeignSubsidyFormModal({ initial, students, onCancel, onSave }) {
+function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const sources = [...new Set(students.map((s) => s.sourceSupplier).filter(Boolean))].sort();
+  const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const matchingStudents = form.sourceSupplier ? students.filter((s) => s.sourceSupplier === form.sourceSupplier) : students;
 
   function handleSourceChange(source) {
@@ -154,7 +156,10 @@ function ForeignSubsidyFormModal({ initial, students, onCancel, onSave }) {
           <div className="form-grid">
             <label>
               申請人
-              <input value={form.applicant || ''} onChange={(e) => setForm({ ...form, applicant: e.target.value })} />
+              <select value={form.applicant || ''} onChange={(e) => setForm({ ...form, applicant: e.target.value })}>
+                <option value="">請選擇</option>
+                {applicantOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             </label>
             <label>
               學生來源(國外供應商)

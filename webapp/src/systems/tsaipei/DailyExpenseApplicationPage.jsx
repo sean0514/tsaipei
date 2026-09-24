@@ -27,6 +27,7 @@ export default function DailyExpenseApplicationPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dailyExpenseApplications');
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
@@ -103,13 +104,14 @@ export default function DailyExpenseApplicationPage() {
           ))}
         </div>
       )}
-      {editing && <DailyExpenseFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DailyExpenseFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function DailyExpenseFormModal({ initial, onCancel, onSave }) {
+function DailyExpenseFormModal({ initial, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -119,7 +121,14 @@ function DailyExpenseFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.key === 'applicant' ? (
+                  <select value={form.applicant || ''} onChange={(e) => setForm({ ...form, applicant: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {applicantOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             ))}
             {initial.id && (
