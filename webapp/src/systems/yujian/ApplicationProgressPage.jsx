@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -12,7 +12,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
   '辦理簽證', 'IN MECO', '尚未收到函文', '收到函文', '製作認證', '認證完畢',
-  '準備送認證', '寄達國外', '已入台', '準備入境', '進行中', '已取消',
+  '準備送認證', '寄達國外', '已入台', '轉出中', '已轉出', '已離台', '準備入境', '進行中', '已取消',
 ];
 
 // 「資料總檔」：案件基本資訊，雇主姓名放第一欄並 sticky，列表橫向捲動時
@@ -110,24 +110,32 @@ export default function ApplicationProgressPage() {
   const notArrived = filtered.filter((r) => !r.entryDate);
   const arrived = filtered.filter((r) => r.entryDate);
 
-  // 送工時間從空白變成有填值時，視為已完成安置，自動把這筆案件完整帶入已入台名單。
-  async function copyToArrivedListIfJustDispatched(prevDispatchDate, saved) {
-    if (!saved.dispatchDate || prevDispatchDate) return;
+  // 送工時間第一次填入時，自動把這筆案件帶入已入台名單；一旦已經帶入過，
+  // 之後案件本身任何欄位（包含進度狀態）再變更，都同步更新已入台名單那筆
+  // 對應紀錄，兩邊不會分家。
+  async function syncArrivedList(saved) {
+    if (!saved.dispatchDate) return;
     const existing = await getDocs(query(collection(db, 'yujian_arrivedList'), where('sourceCaseId', '==', saved.id)));
-    if (!existing.empty) return;
     const { id, ...rest } = saved;
-    await addDoc(collection(db, 'yujian_arrivedList'), { ...rest, sourceCaseId: id });
+    if (existing.empty) {
+      await addDoc(collection(db, 'yujian_arrivedList'), { ...rest, sourceCaseId: id });
+    } else {
+      await updateDoc(existing.docs[0].ref, rest);
+    }
   }
 
+  // 送工時間第一次填入時，進度狀態自動改成「已入台」，不用分開手動改兩個欄位。
   async function handleSave(data) {
     const prevDispatchDate = editing?.dispatchDate || '';
-    if (data.id) {
-      const { id, ...rest } = data;
+    const payload = { ...data };
+    if (payload.dispatchDate && !prevDispatchDate) payload.status = '已入台';
+    if (payload.id) {
+      const { id, ...rest } = payload;
       await update(id, rest);
-      await copyToArrivedListIfJustDispatched(prevDispatchDate, data);
+      await syncArrivedList(payload);
     } else {
-      const ref = await add({ status: '進行中', ...data });
-      await copyToArrivedListIfJustDispatched(prevDispatchDate, { ...data, id: ref.id });
+      const ref = await add({ status: '進行中', ...payload });
+      await syncArrivedList({ ...payload, id: ref.id });
     }
     setEditing(null);
   }
@@ -144,7 +152,7 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工時間」第一次填入日期時，進度狀態會自動改成「已入台」，並把該筆案件帶入「已入台名單」；之後這筆案件的任何欄位異動也會同步更新到已入台名單那筆紀錄。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
         <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
