@@ -41,7 +41,7 @@ export const MILESTONES = [
   { key: 'oecDate', label: '海外工作證OEC' },
   { key: 'preDepartureDate', label: '出國前講習' },
   { key: 'entryDate', label: '入境時間' },
-  { key: 'dispatchDate', label: '送工' },
+  { key: 'dispatchDate', label: '送工時間' },
 ];
 
 export function milestoneNoteKey(key) {
@@ -72,7 +72,7 @@ export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// 進度圖示：只保留「最近完成的一步」到「送工」之間的步驟，已經完成很久的
+// 進度圖示：只保留「最近完成的一步」到「送工時間」之間的步驟，已經完成很久的
 // 步驟不用一直佔畫面；都還沒開始的話就整條鏈完整顯示，讓人知道下一步是什麼。
 export function ProgressPipeline({ p }) {
   let lastDoneIdx = -1;
@@ -107,6 +107,8 @@ export default function ApplicationProgressPage() {
       return (a.caseNo || '').localeCompare(b.caseNo || '');
     });
   const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
+  const notArrived = filtered.filter((r) => !r.entryDate);
+  const arrived = filtered.filter((r) => r.entryDate);
 
   // 送工時間從空白變成有填值時，視為已完成安置，自動把這筆案件完整帶入已入台名單。
   async function copyToArrivedListIfJustDispatched(prevDispatchDate, saved) {
@@ -142,54 +144,67 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
-          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
-        </div>
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
-                {canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const notes = r.notes || [];
-                const lastNote = notes[notes.length - 1];
-                return (
-                  <tr key={r.id}>
-                    {columns.map((c) => {
-                      if (c.key === 'status') {
-                        return (
-                          <td key={c.key}>
-                            <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
-                          </td>
-                        );
-                      }
-                      if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
-                      if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
-                      return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
-                    })}
-                    {canEditPage && (
-                      <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>管理</button>
-                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>未入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{notArrived.length} 個案件</span></h4>
+            <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} />
+          </div>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>已入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{arrived.length} 個案件</span></h4>
+            <ProgressTable items={arrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} />
+          </div>
+        </div>
+      )}
       {editing && <ProgressFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
+  );
+}
+
+function ProgressTable({ items, columns, canEditPage, onEdit, onRemove }) {
+  return (
+    <div className="table-wrap"><table>
+      <thead>
+        <tr>
+          {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
+          {canEditPage && <th></th>}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((r) => {
+          const notes = r.notes || [];
+          const lastNote = notes[notes.length - 1];
+          return (
+            <tr key={r.id}>
+              {columns.map((c) => {
+                if (c.key === 'status') {
+                  return (
+                    <td key={c.key}>
+                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                    </td>
+                  );
+                }
+                if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
+                if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
+                return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
+              })}
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => onEdit(r)}>管理</button>
+                  <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          );
+        })}
+        {items.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+      </tbody>
+    </table></div>
   );
 }
 
