@@ -58,6 +58,7 @@ export default function ForeignSubsidyApplicationPage() {
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_foreignSubsidyApplications', CSV_FIELDS, { entityLabel: '國外補助申請', requiredKeys: ['purpose'], canEdit: canEditPage });
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
+  const schoolName = (id) => students.find((x) => x.id === id)?.school || '';
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.remittanceDate || '').slice(0, 7) === month);
@@ -103,13 +104,14 @@ export default function ForeignSubsidyApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>學校名稱</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
                       <td>{r.applicant || '—'}</td>
                       <td>{r.sourceSupplier || '—'}</td>
                       <td>{studentName(r.studentId) || '—'}</td>
+                      <td>{schoolName(r.studentId) || '—'}</td>
                       <td>{r.remittanceDate || '—'}</td>
                       <td>{r.purpose || '—'}</td>
                       <td>
@@ -128,7 +130,7 @@ export default function ForeignSubsidyApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -145,6 +147,7 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
   const sources = [...new Set(students.map((s) => s.sourceSupplier).filter(Boolean))].sort();
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const matchingStudents = form.sourceSupplier ? students.filter((s) => s.sourceSupplier === form.sourceSupplier) : students;
+  const selectedSchool = students.find((s) => s.id === form.studentId)?.school || '';
 
   function handleSourceChange(source) {
     const stillMatches = students.find((s) => s.id === form.studentId)?.sourceSupplier === source;
@@ -177,6 +180,10 @@ function ForeignSubsidyFormModal({ initial, students, users, onCancel, onSave })
                 <option value="" disabled>請選擇</option>
                 {matchingStudents.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
               </select>
+            </label>
+            <label>
+              學校名稱
+              <input value={selectedSchool || '（未設定）'} disabled />
             </label>
             <label>
               匯款日期
