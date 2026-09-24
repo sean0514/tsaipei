@@ -97,7 +97,15 @@ export default function ApplicationProgressPage() {
   const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  const filtered = rows
+    .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
+    .slice()
+    .sort((a, b) => {
+      const numA = Number(a.caseNo);
+      const numB = Number(b.caseNo);
+      if (a.caseNo && b.caseNo && !Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+      return (a.caseNo || '').localeCompare(b.caseNo || '');
+    });
   const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   // 送工時間從空白變成有填值時，視為已完成安置，自動把這筆案件完整帶入已入台名單。
