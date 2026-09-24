@@ -8,12 +8,12 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 
 // 還沒有正式雇主、先安排在其他地方（宿舍/訓練中心等）待命的看護/家事人員名單。
-const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '其他'];
+const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '已離台', '其他'];
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'placementLocation', label: '安置地點' },
   { key: 'placementStartDate', label: '安置開始日期' }, { key: 'contactPerson', label: '聯絡人' }, { key: 'contactPhone', label: '聯絡電話' },
-  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' }, { key: 'confirmedDeparted', label: '確認離台' },
 ];
 
 const COLUMNS = [
@@ -37,8 +37,11 @@ export default function PlacementListPage() {
   const workerName = (id) => { const w = workerById(id); return w?.chineseName || w?.originalName || '(未設定)'; };
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${workerName(r.workerId)} ${r.placementLocation || ''}`.toLowerCase().includes(searchQuery));
-  const departed = filtered.filter((r) => r.status === '已就業' || r.status === '已離境');
+  // 按過「確認離台」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filtered = rows
+    .filter((r) => !r.confirmedDeparted)
+    .filter((r) => !searchQuery || `${workerName(r.workerId)} ${r.placementLocation || ''}`.toLowerCase().includes(searchQuery));
+  const departed = filtered.filter((r) => r.status === '已就業' || r.status === '已離境' || r.status === '已離台');
   const inPlacement = filtered.filter((r) => !departed.includes(r));
 
   async function handleSave(data) {
@@ -49,6 +52,10 @@ export default function PlacementListPage() {
       await add({ status: '安置中', ...data });
     }
     setEditing(null);
+  }
+
+  async function confirmDeparted(id) {
+    await update(id, { confirmedDeparted: true });
   }
 
   return (
@@ -63,7 +70,7 @@ export default function PlacementListPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」欄位）；上傳後會完全取代目前所有安置中名單資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">狀態為「已離台」的紀錄，按「確認離台」後會從清單消失（資料仍保留，下載完整資料時仍會包含）。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」欄位）；上傳後會完全取代目前所有安置中名單資料，請先下載備份再匯入。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
         <input placeholder="搜尋人員或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
@@ -76,7 +83,7 @@ export default function PlacementListPage() {
           </div>
           <div className="card" style={{ overflowX: 'auto' }}>
             <h4 style={{ marginTop: 0 }}>已轉出或離境 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{departed.length} 人</span></h4>
-            <PlacementTable items={departed} columns={columns} canEditPage={canEditPage} workerById={workerById} workerName={workerName} onEdit={setEditing} onRemove={remove} />
+            <PlacementTable items={departed} columns={columns} canEditPage={canEditPage} workerById={workerById} workerName={workerName} onEdit={setEditing} onRemove={remove} onConfirmDeparted={confirmDeparted} />
           </div>
         </div>
       )}
@@ -85,7 +92,7 @@ export default function PlacementListPage() {
   );
 }
 
-function PlacementTable({ items, columns, canEditPage, workerById, workerName, onEdit, onRemove }) {
+function PlacementTable({ items, columns, canEditPage, workerById, workerName, onEdit, onRemove, onConfirmDeparted }) {
   return (
     <div className="table-wrap"><table>
       <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</tr></thead>
@@ -104,6 +111,7 @@ function PlacementTable({ items, columns, canEditPage, workerById, workerName, o
                 <td className="row-actions">
                   <button onClick={() => onEdit(r)}>編輯</button>
                   <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                  {r.status === '已離台' && <button onClick={() => onConfirmDeparted(r.id)}>確認離台</button>}
                 </td>
               )}
             </tr>

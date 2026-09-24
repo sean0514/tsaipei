@@ -12,7 +12,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
   '辦理簽證', 'IN MECO', '尚未收到函文', '收到函文', '製作認證', '認證完畢',
-  '準備送認證', '寄達國外', '已入台', '準備入境', '進行中', '已取消',
+  '準備送認證', '寄達國外', '已入台', '轉出中', '已轉出', '已離台', '準備入境', '進行中', '已取消',
 ];
 
 // 「資料總檔」：案件基本資訊，雇主姓名放第一欄並 sticky，列表橫向捲動時
