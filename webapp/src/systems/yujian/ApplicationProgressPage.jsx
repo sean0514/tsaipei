@@ -100,9 +100,9 @@ export default function ApplicationProgressPage() {
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
-  // 入境時間從空白變成有填值時，視為「已入台」，自動把這筆案件完整帶入已入台名單。
-  async function copyToArrivedListIfJustArrived(prevEntryDate, saved) {
-    if (!saved.entryDate || prevEntryDate) return;
+  // 送工時間從空白變成有填值時，視為已完成安置，自動把這筆案件完整帶入已入台名單。
+  async function copyToArrivedListIfJustDispatched(prevDispatchDate, saved) {
+    if (!saved.dispatchDate || prevDispatchDate) return;
     const existing = await getDocs(query(collection(db, 'yujian_arrivedList'), where('sourceCaseId', '==', saved.id)));
     if (!existing.empty) return;
     const { id, ...rest } = saved;
@@ -110,14 +110,14 @@ export default function ApplicationProgressPage() {
   }
 
   async function handleSave(data) {
-    const prevEntryDate = editing?.entryDate || '';
+    const prevDispatchDate = editing?.dispatchDate || '';
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
-      await copyToArrivedListIfJustArrived(prevEntryDate, data);
+      await copyToArrivedListIfJustDispatched(prevDispatchDate, data);
     } else {
       const ref = await add({ status: '進行中', ...data });
-      await copyToArrivedListIfJustArrived(prevEntryDate, { ...data, id: ref.id });
+      await copyToArrivedListIfJustDispatched(prevDispatchDate, { ...data, id: ref.id });
     }
     setEditing(null);
   }
@@ -134,7 +134,7 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「入境時間」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工」第一次填入日期時，會自動把該筆案件帶入「已入台名單」。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
