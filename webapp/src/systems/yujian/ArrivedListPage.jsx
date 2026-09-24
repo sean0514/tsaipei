@@ -4,10 +4,11 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
-import { FIELDS, newNoteId } from './ApplicationProgressPage';
+import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, ProgressPipeline, newNoteId } from './ApplicationProgressPage';
 
-// 格式與「申辦進度追蹤」相同（同一組欄位），差別只在於這裡是「入境時間」已經
-// 填寫的案件（申辦進度追蹤第一次填入入境時間時會自動帶入這裡）。
+// 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
+// 是「入境時間」已經填寫的案件（申辦進度追蹤第一次填入入境時間時會自動
+// 帶入這裡）。
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function ArrivedListPage() {
@@ -16,20 +17,10 @@ export default function ArrivedListPage() {
   const { rows, loading, add, update, remove } = useCollection('yujian_arrivedList');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
-  const [visibleKeys, setVisibleKeys] = useState(() => new Set(FIELDS.map((f) => f.key)));
   const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
-
-  function toggleColumn(key) {
-    setVisibleKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
-  const columns = FIELDS.filter((f) => visibleKeys.has(f.key));
 
   async function handleSave(data) {
     if (data.id) {
@@ -55,41 +46,40 @@ export default function ArrivedListPage() {
       </div>
       {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「入境時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
-          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          <details>
-            <summary style={{ cursor: 'pointer' }}>選擇顯示欄位</summary>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '8px 4px', maxWidth: 640 }}>
-              {FIELDS.map((f) => (
-                <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                  <input type="checkbox" checked={visibleKeys.has(f.key)} onChange={() => toggleColumn(f.key)} disabled={f.sticky} />
-                  {f.label}
-                </label>
-              ))}
-            </div>
-          </details>
-        </div>
+        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr>{columns.map((f) => <th key={f.key} className={f.sticky ? 'sticky-col' : ''}>{f.label}</th>)}<th>備註</th>{canEditPage && <th></th>}</tr></thead>
+            <thead>
+              <tr>
+                <th className="sticky-col">雇主姓名</th><th>編號</th><th>需求量</th><th>國籍</th><th>進度狀態</th><th>進度</th><th>備註</th>
+                {canEditPage && <th></th>}
+              </tr>
+            </thead>
             <tbody>
               {filtered.map((r) => {
                 const notes = r.notes || [];
                 const lastNote = notes[notes.length - 1];
                 return (
                   <tr key={r.id}>
-                    {columns.map((f) => <td key={f.key} className={f.sticky ? 'sticky-col' : ''}>{r[f.key] || '—'}</td>)}
+                    <td className="sticky-col">{r.employerName || '—'}</td>
+                    <td>{r.caseNo || '—'}</td>
+                    <td>{r.demandCount || '—'}</td>
+                    <td>{r.nationality || '—'}</td>
+                    <td>
+                      <span className={`tag ${r.status === '已完成' ? 'tag-green' : r.status === '取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                    </td>
+                    <td><ProgressPipeline p={r} /></td>
                     <td>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>
                     {canEditPage && (
                       <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>編輯</button>
+                        <button onClick={() => setEditing(r)}>管理</button>
                         <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                       </td>
                     )}
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={columns.length + 1 + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -132,10 +122,29 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? '編輯紀錄' : '新增紀錄'}</h3>
+        <h3>{initial.id ? `編輯紀錄${initial.employerName ? ` · ${initial.employerName}` : ''}` : '新增紀錄'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <h4 style={{ marginTop: 0 }}>進度狀態</h4>
+          <select value={form.status || '進行中'} onChange={(e) => setForm({ ...form, status: e.target.value })} style={{ marginBottom: 8 }}>
+            {CASE_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
-            {FIELDS.map((f) => (
+            {MILESTONES.map((m) => (
+              <label key={m.key}>
+                {m.label}
+                <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
+              </label>
+            ))}
+          </div>
+
+          <h4 style={{ marginTop: 20 }}>進度圖示</h4>
+          <ProgressPipeline p={form} />
+
+          <h4 style={{ marginTop: 20 }}>資料總檔</h4>
+          <div className="form-grid">
+            {INFO_FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
                 {f.options ? (
@@ -149,6 +158,7 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
               </label>
             ))}
           </div>
+
           <h4 style={{ marginTop: 20 }}>備註</h4>
           <ul className="note-list">
             {form.notes.map((n) => (
@@ -174,6 +184,7 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
             <input placeholder="新增備註內容" value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} style={{ flex: 1 }} />
             <button type="button" onClick={addNote}>+ 新增備註</button>
           </div>
+
           <div className="row-actions" style={{ marginTop: 20 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
