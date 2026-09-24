@@ -4,6 +4,12 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
+
+const LIST_COLUMNS = [
+  { key: 'date', label: '日期' }, { key: 'title', label: '主題' }, { key: 'host', label: '主持人' }, { key: 'attendees', label: '出席人員' },
+];
 
 const FIELDS = [
   { key: 'date', label: '會議日期', type: 'date', required: true },
@@ -25,9 +31,11 @@ export default function MeetingsPage() {
   const [selectedId, setSelectedId] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_meetings', CSV_FIELDS, { entityLabel: '會議記錄', requiredKeys: ['date', 'title'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => !searchQuery || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(searchQuery));
+  const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
   const selected = rows.find((r) => r.id === selectedId) || null;
 
   async function handleSave(data) {
@@ -54,10 +62,13 @@ export default function MeetingsPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有會議記錄，請先下載備份再匯入。</p>}
       <div className="card">
-        <input placeholder="搜尋主題/主持人/出席人員" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
+          <input placeholder="搜尋主題/主持人/出席人員" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>日期</th><th>主題</th><th>主持人</th><th>出席人員</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr
@@ -65,10 +76,7 @@ export default function MeetingsPage() {
                   onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}
                   style={{ cursor: 'pointer', background: r.id === selectedId ? 'var(--row-selected-bg, #eef4ff)' : undefined }}
                 >
-                  <td>{r.date}</td>
-                  <td>{r.title}</td>
-                  <td>{r.host || '—'}</td>
-                  <td>{r.attendees || '—'}</td>
+                  {columns.map((c) => <td key={c.key}>{r[c.key] || '—'}</td>)}
                   {canEditPage && (
                     <td className="row-actions" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => setEditing(r)}>編輯</button>
@@ -77,7 +85,7 @@ export default function MeetingsPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

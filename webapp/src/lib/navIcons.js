@@ -48,6 +48,7 @@ export const NAV_ICONS = {
     workers: '◇',
     employers: '⌂',
     matches: '⇄',
+    placementList: '⏳',
     secondInterview: '◐',
     admitted: '✓',
     applicationProgress: '▶',

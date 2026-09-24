@@ -6,11 +6,19 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { useColumnVisibility } from '../../lib/useColumnVisibility';
+import ColumnPicker from '../../components/ColumnPicker';
+import StatusSections from '../../components/StatusSections';
+import { MATCH_TAG } from '../../lib/tags';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'employerId', label: '雇主ID' },
   { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
+];
+// 狀態已經是分類的區塊標題，欄位裡不用再重複顯示。
+const COLUMNS = [
+  { key: 'worker', label: '人員' }, { key: 'employer', label: '雇主' }, { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
 ];
 
 export default function MatchesPage() {
@@ -22,6 +30,8 @@ export default function MatchesPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['workerId', 'employerId'], canEdit: canEditPage });
+  const { visibleKeys, toggleColumn } = useColumnVisibility(COLUMNS);
+  const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   const workerName = (id) => { const w = workers.find((x) => x.id === id); return w?.chineseName || w?.originalName || '(未設定)'; };
   const employerName = (id) => employers.find((x) => x.id === id)?.employerName || '(未設定)';
@@ -60,32 +70,34 @@ export default function MatchesPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」「雇主ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋人員或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead><tr><th>人員</th><th>雇主</th><th>狀態</th><th>媒合日期</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  <td>{workerName(r.workerId)}</td>
-                  <td>{employerName(r.employerId)}</td>
-                  <td>{r.status || '—'}</td>
-                  <td>{r.matchDate || '—'}</td>
-                  <td>{r.notes || '—'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={canEditPage ? 6 : 5} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋人員或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <StatusSections
+          statuses={STATUSES}
+          tagMap={MATCH_TAG}
+          rows={filtered}
+          colSpan={columns.length + (canEditPage ? 1 : 0)}
+          headerCells={<>{columns.map((c) => <th key={c.key}>{c.label}</th>)}{canEditPage && <th></th>}</>}
+          renderRow={(r) => (
+            <tr key={r.id}>
+              {columns.map((c) => {
+                if (c.key === 'worker') return <td key={c.key}>{workerName(r.workerId)}</td>;
+                if (c.key === 'employer') return <td key={c.key}>{employerName(r.employerId)}</td>;
+                return <td key={c.key}>{r[c.key] || '—'}</td>;
+              })}
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => setEditing(r)}>編輯</button>
+                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          )}
+        />
+      )}
       {editing && <MatchFormModal initial={editing} workers={workers} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );

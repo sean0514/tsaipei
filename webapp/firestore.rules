@@ -472,7 +472,14 @@ service cloud.firestore {
       allow read: if yjIsMember();
       allow write: if yjCanEdit('employers');
     }
+    // 新增看護/家事人員資料時會自動在這裡建立一筆媒合紀錄（雇主待指定），
+    // 所以 create 也放行 workers。
     match /yujian_matches/{docId} {
+      allow read: if yjIsMember();
+      allow create: if yjCanEdit('matching') || yjCanEdit('workers');
+      allow update, delete: if yjCanEdit('matching');
+    }
+    match /yujian_placementList/{docId} {
       allow read: if yjIsMember();
       allow write: if yjCanEdit('matching');
     }
