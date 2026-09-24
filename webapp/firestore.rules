@@ -474,40 +474,47 @@ service cloud.firestore {
     }
     // 新增看護/家事人員資料時會自動在這裡建立一筆媒合紀錄（雇主待指定），
     // 所以 create 也放行 workers。
+    // 刪除看護/家事人員資料或雇主家庭/需求單時，會連動刪掉相關的媒合紀錄
+    // （及媒合紀錄再往下連動的二面進度/錄取名單/申辦進度追蹤/已入台名單），
+    // 所以 delete 也放行 workers、employers。
     match /yujian_matches/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('matching') || yjCanEdit('workers');
-      allow update, delete: if yjCanEdit('matching');
+      allow update: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_placementList/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('matching');
+      allow create, update: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching') || yjCanEdit('workers');
     }
     // 媒合紀錄狀態變「已媒合」會自動建立二面進度，二面進度「通過」會自動建立
     // 錄取名單，所以 create 都放行 matching。
     match /yujian_secondInterviews/{docId} {
       allow read: if yjIsMember();
       allow create, update: if yjCanEdit('matching');
-      allow delete: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_admittedList/{docId} {
       allow read: if yjIsMember();
       allow create, update: if yjCanEdit('matching');
-      allow delete: if yjCanEdit('matching');
+      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 錄取名單狀態變「確認錄取」會自動建立申辦進度追蹤紀錄，所以 create 也
     // 放行 matching。
     match /yujian_applicationProgress/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
-      allow update, delete: if yjCanEdit('applicationProgress');
+      allow update: if yjCanEdit('applicationProgress');
+      allow delete: if yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 申辦進度追蹤案件的「入境時間」第一次填入日期時會自動帶入這裡，所以
     // create 也放行 applicationProgress。
     match /yujian_arrivedList/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
-      allow update, delete: if yjCanEdit('arrivedList');
+      allow update: if yjCanEdit('arrivedList');
+      allow delete: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_meetings/{docId} {
       allow read: if yjIsMember();

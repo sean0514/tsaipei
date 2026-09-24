@@ -6,6 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import { deleteEmployerCascade } from '../../lib/yujianCascade';
 import { WORK_TYPES } from './WorkersPage';
 
 const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
@@ -26,7 +27,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 export default function EmployersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'employers', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_employers');
+  const { rows, loading, add, update } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_employers', CSV_FIELDS, { entityLabel: '雇主家庭/需求單', requiredKeys: ['employerName'], canEdit: canEditPage });
@@ -53,6 +54,17 @@ export default function EmployersPage() {
       await add({ status: '待媒合', ...data });
     }
     setEditing(null);
+  }
+
+  // 刪除雇主時一併清掉相關聯的媒合紀錄（及再往下連動出去的二面進度/錄取
+  // 名單/申辦進度追蹤/已入台名單），避免留下孤兒紀錄。
+  async function handleRemove(id) {
+    if (!confirm('刪除這個雇主會一併清除相關的媒合紀錄、二面進度、錄取名單、申辦進度追蹤與已入台名單，確定要刪除嗎？')) return;
+    try {
+      await deleteEmployerCascade(id);
+    } catch (err) {
+      alert(`刪除失敗：${err.message || err}`);
+    }
   }
 
   return (
@@ -87,7 +99,7 @@ export default function EmployersPage() {
                         {canEditPage && (
                           <td className="row-actions">
                             <button onClick={() => setEditing(r)}>編輯</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                            <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                           </td>
                         )}
                       </tr>

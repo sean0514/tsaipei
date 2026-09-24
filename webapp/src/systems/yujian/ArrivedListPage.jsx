@@ -9,8 +9,8 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
-// 是「入境時間」已經填寫的案件（申辦進度追蹤第一次填入入境時間時會自動
-// 帶入這裡）。
+// 是「送工」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動帶入
+// 這裡）。
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function ArrivedListPage() {
@@ -48,7 +48,7 @@ export default function ArrivedListPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「入境時間」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工」第一次填入日期時會自動帶入這裡；也可以直接在這裡新增或編輯。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
