@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { collection, doc, writeBatch } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { EMPLOYMENT_STATUS_TAG } from '../../lib/tags';
@@ -44,6 +46,43 @@ export default function EmploymentStatusPage() {
     setEditing(null);
   }
 
+  // 「同步求職者資訊」：求職者資訊的狀態為在職/離職時，理論上手動存檔會
+  // 自動同步過來（見 JobSeekersPage.jsx），但用 CSV 批次匯入求職者資料時
+  // 不會觸發那個邏輯——這裡把目前所有「在職」「離職」的求職者，依求職者ID
+  // 一次性 upsert 到這個集合，補齊/更新漏掉的紀錄。
+  function employmentPayloadFor(jobSeeker) {
+    return {
+      jobSeekerId: jobSeeker.id, client: jobSeeker.client || '', position: jobSeeker.branch || '',
+      startDate: jobSeeker.startDate || '',
+      endDate: jobSeeker.status === '離職' ? (jobSeeker.lastWorkDate || jobSeeker.insuranceEndDate || '') : '',
+      status: jobSeeker.status,
+    };
+  }
+  const employedJobSeekers = jobSeekers.filter((s) => s.status === '在職' || s.status === '離職');
+  const byJobSeekerId = {};
+  rows.forEach((r) => { if (r.jobSeekerId && !byJobSeekerId[r.jobSeekerId]) byJobSeekerId[r.jobSeekerId] = r; });
+  const outOfSync = employedJobSeekers.filter((s) => {
+    const existing = byJobSeekerId[s.id];
+    const payload = employmentPayloadFor(s);
+    if (!existing) return true;
+    return Object.keys(payload).some((k) => (existing[k] || '') !== (payload[k] || ''));
+  });
+
+  async function handleSyncFromJobSeekers() {
+    if (outOfSync.length === 0) return;
+    if (!window.confirm(`將依「求職者資訊」目前的在職/離職狀態，新增或更新 ${outOfSync.length} 筆紀錄，確定要繼續嗎？`)) return;
+    for (let i = 0; i < outOfSync.length; i += 450) {
+      const batch = writeBatch(db);
+      outOfSync.slice(i, i + 450).forEach((s) => {
+        const payload = employmentPayloadFor(s);
+        const existing = byJobSeekerId[s.id];
+        batch.set(existing ? doc(db, 'dispatch_employmentStatus', existing.id) : doc(collection(db, 'dispatch_employmentStatus')), payload, { merge: true });
+      });
+      await batch.commit();
+    }
+    alert(`已同步 ${outOfSync.length} 筆資料。`);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -53,10 +92,13 @@ export default function EmploymentStatusPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
+          {canEditPage && outOfSync.length > 0 && (
+            <button onClick={handleSyncFromJobSeekers}>同步求職者資訊（{outOfSync.length}）</button>
+          )}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「求職者ID」欄位）；上傳後會完全取代目前所有在職/離職紀錄，請先下載備份再匯入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「求職者ID」欄位）；上傳後會完全取代目前所有在職/離職紀錄，請先下載備份再匯入。「求職者資訊」的狀態改為在職/離職時會自動同步過來；若是用 CSV 批次匯入求職者資料，請按「同步求職者資訊」一次補齊。</p>}
       <input placeholder="搜尋姓名或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
