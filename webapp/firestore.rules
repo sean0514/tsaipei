@@ -410,11 +410,12 @@ service cloud.firestore {
       allow delete: if dpCanEdit('interviews') || dpCanEdit('jobSeekers');
     }
     // 在職/離職概況：面試進度變成「報到」時自動建立在職紀錄，所以 create 也
-    // 開放給能編輯 interviews 的角色；刪除求職者會連動刪除在職紀錄。
+    // 開放給能編輯 interviews 的角色；刪除求職者會連動刪除在職紀錄；薪資異動
+    // 核准後會把新薪資寫回底薪欄位，所以 update 也開放給 applicationForms。
     match /dispatch_employmentStatus/{docId} {
       allow read: if dpIsMember();
       allow create: if dpCanEdit('employmentStatus') || dpCanEdit('interviews') || dpCanEdit('jobSeekers');
-      allow update: if dpCanEdit('employmentStatus');
+      allow update: if dpCanEdit('employmentStatus') || dpCanEdit('applicationForms');
       allow delete: if dpCanEdit('employmentStatus') || dpCanEdit('jobSeekers');
     }
     match /dispatch_meetings/{docId} {
@@ -426,6 +427,10 @@ service cloud.firestore {
       allow write: if dpCanEdit('applicationForms');
     }
     match /dispatch_cashPaymentList/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('applicationForms');
+    }
+    match /dispatch_salaryChanges/{docId} {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('applicationForms');
     }
