@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-// 比照使用者提供的「招募人員資訊」Excel 欄位結構。
+// 比照使用者提供的「招募人員資訊」Excel 完整欄位結構與順序（45 欄）。
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
 const FIELDS = [
@@ -17,15 +17,45 @@ const FIELDS = [
   { key: 'recruitDept', label: '招募部門' },
   { key: 'interviewDept', label: '面試部門' },
   { key: 'onsiteDept', label: '駐廠部門' },
+  { key: 'recruitTime', label: '招募時間' },
   { key: 'client', label: '廠商名稱' },
   { key: 'branch', label: '分店名稱' },
+  { key: 'interviewSession', label: '面試場次' },
   { key: 'chineseName', label: '姓名', required: true },
+  { key: 'gender', label: '性別', options: ['', '男', '女'] },
+  { key: 'age', label: '年齡', type: 'number' },
+  { key: 'mobile', label: '手機' },
+  { key: 'phone', label: '電話' },
+  { key: 'birthDate', label: '生日', type: 'date' },
   { key: 'idNumber', label: '身份證字號' },
+  { key: 'acceptableArea', label: '可接受地區' },
+  { key: 'employeeId', label: '員工編號' },
+  { key: 'employeeDept', label: '員工部門' },
+  { key: 'licensePlate', label: '車牌' },
+  { key: 'education', label: '學歷' },
+  { key: 'emergencyContact', label: '緊急聯絡人' },
+  { key: 'emergencyContactPhone', label: '緊急聯絡人電話' },
+  { key: 'address', label: '地址' },
+  { key: 'shift', label: '班別' },
+  { key: 'attendance', label: '出席' },
+  { key: 'secondInterview', label: '複試' },
+  { key: 'admitted', label: '錄取' },
+  { key: 'reported', label: '報到' },
   { key: 'startDate', label: '報到日期', type: 'date' },
   { key: 'insuranceEndDate', label: '退保日期', type: 'date' },
   { key: 'lastWorkDate', label: '最後工作日', type: 'date' },
-  { key: 'status', label: '狀態' },
+  { key: 'blacklist', label: '黑名單' },
   { key: 'notes', label: '備註' },
+  { key: 'transferFee', label: '轉帳手續費' },
+  { key: 'bankCode', label: '銀行別代碼' },
+  { key: 'bankName', label: '銀行別名稱' },
+  { key: 'bankBranchCode', label: '銀行分行代碼' },
+  { key: 'bankBranchName', label: '銀行分行名稱' },
+  { key: 'bankAccountName', label: '銀行戶名' },
+  { key: 'bankAccount', label: '銀行帳號' },
+  { key: 'score', label: '績分', type: 'number' },
+  { key: 'status', label: '狀態' },
+  { key: 'affiliatedCompany', label: '隸屬公司' },
 ];
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
@@ -167,6 +197,10 @@ function JobSeekerFormModal({ initial, onCancel, onSave }) {
                 {f.key === 'status' ? (
                   <select value={form.status || JOB_SEEKER_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                     {JOB_SEEKER_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
                   </select>
                 ) : (
                   <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
