@@ -425,6 +425,10 @@ service cloud.firestore {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('applicationForms');
     }
+    match /dispatch_cashPaymentList/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('applicationForms');
+    }
     match /dispatch_clientFeeSetup/{docId} {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('bonus');

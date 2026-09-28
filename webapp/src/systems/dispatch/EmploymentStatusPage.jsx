@@ -146,6 +146,13 @@ function EmploymentTable({ items, canEditPage, jobSeekerName, onEdit, onRemove }
 
 function EmploymentFormModal({ initial, jobSeekers, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+
+  // 選擇求職者時，客戶/派駐單位、到職日同步帶入求職者資訊（仍可手動修改）。
+  function handleJobSeekerChange(id) {
+    const s = jobSeekers.find((x) => x.id === id);
+    setForm({ ...form, jobSeekerId: id, client: s?.client || form.client, startDate: s?.startDate || form.startDate });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -154,7 +161,7 @@ function EmploymentFormModal({ initial, jobSeekers, onCancel, onSave }) {
           <div className="form-grid">
             <label>
               求職者
-              <select required value={form.jobSeekerId || ''} onChange={(e) => setForm({ ...form, jobSeekerId: e.target.value })}>
+              <select required value={form.jobSeekerId || ''} onChange={(e) => handleJobSeekerChange(e.target.value)}>
                 <option value="" disabled>請選擇</option>
                 {jobSeekers.map((s) => <option key={s.id} value={s.id}>{s.chineseName}</option>)}
               </select>

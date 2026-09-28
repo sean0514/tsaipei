@@ -40,6 +40,7 @@ import DispatchEmploymentStatusPage from './systems/dispatch/EmploymentStatusPag
 import DispatchManagerReportPage from './systems/dispatch/ManagerReportPage';
 import DispatchMeetingsPage from './systems/dispatch/MeetingsPage';
 import DispatchDailyExpenseApplicationPage from './systems/dispatch/DailyExpenseApplicationPage';
+import DispatchCashPaymentListPage from './systems/dispatch/CashPaymentListPage';
 import DispatchClientBillingPage from './systems/dispatch/ClientBillingPage';
 import DispatchEmployeeMasterSheetPage from './systems/dispatch/EmployeeMasterSheetPage';
 import DispatchClientFeeSetupPage from './systems/dispatch/ClientFeeSetupPage';
@@ -125,6 +126,7 @@ const PAGES = {
     managerReport: DispatchManagerReportPage,
     meetings: DispatchMeetingsPage,
     dailyExpenseApplication: DispatchDailyExpenseApplicationPage,
+    cashPaymentList: DispatchCashPaymentListPage,
     clientBilling: DispatchClientBillingPage,
     employeeMasterSheet: DispatchEmployeeMasterSheetPage,
     clientFeeSetup: DispatchClientFeeSetupPage,
