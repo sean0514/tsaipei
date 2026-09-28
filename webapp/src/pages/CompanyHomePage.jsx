@@ -64,7 +64,7 @@ export default function CompanyHomePage() {
             <div key={key} className="picker-card">
               <Link to={`/${key}`} className="picker-card-link">
                 <div className="picker-card-icon">{SYSTEM_META[key]?.icon}</div>
-                <h2>{sys.label}</h2>
+                <h2>{sys.label.split('\n').map((line, i) => <span key={i}>{i > 0 && <br />}{line}</span>)}</h2>
                 <p className="muted">{SYSTEM_META[key]?.desc}</p>
                 <span className="picker-card-enter">
                   進入系統

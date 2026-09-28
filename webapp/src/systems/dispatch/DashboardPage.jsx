@@ -44,19 +44,22 @@ export default function DashboardPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
             {[
-              ['求職者總數', total], ['面試中', inInterview], ['已錄取/已訓練', admitted],
-              ['在職人數', activeCount], ['近一個月離職', recentDeparted],
-            ].map(([label, num]) => (
-              <div className="card" key={label}>
-                <div style={{ fontFamily: 'var(--heading-font)', fontSize: 28, fontWeight: 700 }}>{num}</div>
-                <div className="muted">{label}</div>
+              ['👤', '求職者總數', total], ['🗓', '面試中', inInterview], ['✅', '已錄取/已訓練', admitted],
+              ['💼', '在職人數', activeCount], ['👋', '近一個月離職', recentDeparted],
+            ].map(([icon, label, num]) => (
+              <div className="card" key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 24 }}>{icon}</span>
+                <div>
+                  <div style={{ fontFamily: 'var(--heading-font)', fontSize: 28, fontWeight: 700 }}>{num}</div>
+                  <div className="muted">{label}</div>
+                </div>
               </div>
             ))}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
             <div className="card">
-              <h3 style={{ marginTop: 0 }}>近期新增求職者</h3>
+              <h3 style={{ marginTop: 0 }}>🧑‍💼 近期新增求職者</h3>
               {recentJobSeekers.length ? recentJobSeekers.map((s) => (
                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
                   <div>
@@ -67,7 +70,7 @@ export default function DashboardPage() {
               )) : <p className="muted">目前沒有求職者資料。</p>}
             </div>
             <div className="card">
-              <h3 style={{ marginTop: 0 }}>近期面試安排</h3>
+              <h3 style={{ marginTop: 0 }}>🗓 近期面試安排</h3>
               {upcomingInterviews.length ? upcomingInterviews.map((i) => (
                 <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
                   <div>
