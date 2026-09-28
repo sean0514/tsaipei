@@ -369,6 +369,13 @@ service cloud.firestore {
     function dpDefaultLevel(module, role) {
       return {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view','會計人員':'view'},
+        'jobSeekers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit','會計人員':'view'},
+        'interviews': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view','會計人員':'none'},
+        'employmentStatus': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit','會計人員':'view'},
+        'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'none','會計人員':'none'},
+        'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view','會計人員':'view'},
+        'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit','會計人員':'edit'},
+        'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'none','會計人員':'edit'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none','會計人員':'none'},
       }[module][role];
     }
@@ -388,6 +395,43 @@ service cloud.firestore {
     match /dispatch_rolePermissions/{docId} {
       allow read: if dpIsMember();
       allow write: if dpIsMember() && dpRole() == '系統管理員';
+    }
+    match /dispatch_jobSeekers/{docId} {
+      allow read: if dpIsMember();
+      allow create, delete: if dpCanEdit('jobSeekers');
+      allow update: if dpCanEdit('jobSeekers');
+    }
+    // 面試概況：新增求職者自動建立一筆待安排的面試紀錄，所以 create 也開放
+    // 給能編輯 jobSeekers 的角色；刪除求職者會連動刪除面試紀錄。
+    match /dispatch_interviews/{docId} {
+      allow read: if dpIsMember();
+      allow create: if dpCanEdit('interviews') || dpCanEdit('jobSeekers');
+      allow update: if dpCanEdit('interviews');
+      allow delete: if dpCanEdit('interviews') || dpCanEdit('jobSeekers');
+    }
+    // 在職/離職概況：面試進度變成「報到」時自動建立在職紀錄，所以 create 也
+    // 開放給能編輯 interviews 的角色；刪除求職者會連動刪除在職紀錄。
+    match /dispatch_employmentStatus/{docId} {
+      allow read: if dpIsMember();
+      allow create: if dpCanEdit('employmentStatus') || dpCanEdit('interviews') || dpCanEdit('jobSeekers');
+      allow update: if dpCanEdit('employmentStatus');
+      allow delete: if dpCanEdit('employmentStatus') || dpCanEdit('jobSeekers');
+    }
+    match /dispatch_meetings/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('meetings');
+    }
+    match /dispatch_dailyExpenseApplications/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('applicationForms');
+    }
+    match /dispatch_clientFeeSetup/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('bonus');
+    }
+    match /dispatch_internalFeeSetup/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('bonus');
     }
 
     // ---------------- 宿舍管理系統 (dormMgmt) ----------------

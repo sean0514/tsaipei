@@ -34,6 +34,17 @@ import ForeignSubsidyApplicationPage from './systems/tsaipei/ForeignSubsidyAppli
 import DailyExpenseApplicationPage from './systems/tsaipei/DailyExpenseApplicationPage';
 import UsersPage from './components/UsersPage';
 import DispatchDashboardPage from './systems/dispatch/DashboardPage';
+import DispatchJobSeekersPage from './systems/dispatch/JobSeekersPage';
+import DispatchInterviewsPage from './systems/dispatch/InterviewsPage';
+import DispatchEmploymentStatusPage from './systems/dispatch/EmploymentStatusPage';
+import DispatchManagerReportPage from './systems/dispatch/ManagerReportPage';
+import DispatchMeetingsPage from './systems/dispatch/MeetingsPage';
+import DispatchDailyExpenseApplicationPage from './systems/dispatch/DailyExpenseApplicationPage';
+import DispatchClientBillingPage from './systems/dispatch/ClientBillingPage';
+import DispatchEmployeeMasterSheetPage from './systems/dispatch/EmployeeMasterSheetPage';
+import DispatchClientFeeSetupPage from './systems/dispatch/ClientFeeSetupPage';
+import DispatchInternalFeeSetupPage from './systems/dispatch/InternalFeeSetupPage';
+import DispatchBonusPage from './systems/dispatch/BonusPage';
 import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
 import DormMgmtLeasesPage from './systems/dormMgmt/LeasesPage';
 import DormMgmtRemittancePage from './systems/dormMgmt/RemittancePage';
@@ -108,6 +119,17 @@ const PAGES = {
   },
   dispatch: {
     dashboard: DispatchDashboardPage,
+    jobSeekers: DispatchJobSeekersPage,
+    interviews: DispatchInterviewsPage,
+    employmentStatus: DispatchEmploymentStatusPage,
+    managerReport: DispatchManagerReportPage,
+    meetings: DispatchMeetingsPage,
+    dailyExpenseApplication: DispatchDailyExpenseApplicationPage,
+    clientBilling: DispatchClientBillingPage,
+    employeeMasterSheet: DispatchEmployeeMasterSheetPage,
+    clientFeeSetup: DispatchClientFeeSetupPage,
+    internalFeeSetup: DispatchInternalFeeSetupPage,
+    bonus: DispatchBonusPage,
     users: UsersPage,
   },
   dormMgmt: {

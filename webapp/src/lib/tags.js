@@ -22,3 +22,9 @@ export const INTERNSHIP_DOC_TAG = {
 };
 
 export const PERMISSION_LEVEL_TAG = { edit: 'tag-green', view: 'tag-blue', none: 'tag-grey' };
+
+export const INTERVIEW_TAG = {
+  待安排: 'tag-grey', 已面試: 'tag-blue', 已錄取: 'tag-jade', 已訓練: 'tag-amber', 報到: 'tag-green', 取消: 'tag-red',
+};
+
+export const EMPLOYMENT_STATUS_TAG = { 在職: 'tag-green', 離職: 'tag-grey' };
