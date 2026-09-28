@@ -95,7 +95,11 @@ export default function JobSeekersPage() {
     }
   }
 
-  async function handleSave(data) {
+  // 已有報到日期時，代表招募流程的出席/複試/錄取/報到都已經完成，自動帶入「是」。
+  async function handleSave(rawData) {
+    const data = rawData.startDate
+      ? { ...rawData, attendance: '是', secondInterview: '是', admitted: '是', reported: '是' }
+      : rawData;
     try {
       let id = data.id;
       if (id) {
