@@ -47,12 +47,29 @@ export const SYSTEMS = {
   dispatch: {
     label: '派遣公司專用系統',
     roles: ['系統管理員', '主管', '業務人員', '行政人員', '會計人員'],
+    // 比照鈞羽 tsaipei 系統的模式建置：儀表板、求職者資訊、面試概況、
+    // 在職/離職概況、主管報表、會議記錄、申請表格（日常支出申請）、
+    // 會計專用/資料建檔（都掛在 'bonus' 權限下，跟 tsaipei 一樣）、使用人員。
     modules: {
       dashboard: '儀表板',
+      jobSeekers: '求職者資訊',
+      interviews: '面試概況',
+      employmentStatus: '在職/離職概況',
+      managerReport: '主管報表',
+      meetings: '會議記錄',
+      applicationForms: '申請表格',
+      bonus: '會計專用 / 資料建檔',
       users: '使用人員',
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view', 會計人員: 'view' },
+      jobSeekers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit', 會計人員: 'view' },
+      interviews: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view', 會計人員: 'none' },
+      employmentStatus: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit', 會計人員: 'view' },
+      managerReport: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'none', 會計人員: 'none' },
+      meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view', 會計人員: 'view' },
+      applicationForms: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit', 會計人員: 'edit' },
+      bonus: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'none', 會計人員: 'edit' },
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none', 會計人員: 'none' },
     },
   },

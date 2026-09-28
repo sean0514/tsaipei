@@ -19,7 +19,10 @@ export const IMPLEMENTED_MODULES = {
     'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
     'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'history', 'users',
   ],
-  dispatch: ['dashboard', 'users'],
+  dispatch: [
+    'dashboard', 'jobSeekers', 'interviews', 'employmentStatus', 'managerReport', 'meetings',
+    'dailyExpenseApplication', 'clientBilling', 'employeeMasterSheet', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'users',
+  ],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
   yujian: [
     'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted', 'placementList',
@@ -101,6 +104,24 @@ const GROUP_ROUTES = {
     applicationForms: [
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
     ],
+  },
+  dispatch: {
+    applicationForms: [
+      { route: 'dailyExpenseApplication', label: '日常支出申請' },
+    ],
+    bonus: {
+      subgroups: [
+        { label: '會計專用', items: [
+          { route: 'clientBilling', label: '客戶請款計算' },
+          { route: 'employeeMasterSheet', label: '員工資料總檔' },
+        ] },
+        { label: '資料建檔', items: [
+          { route: 'clientFeeSetup', label: '客戶費用建檔' },
+          { route: 'internalFeeSetup', label: '內部費用建檔' },
+          { route: 'bonus', label: '內部獎金計算' },
+        ] },
+      ],
+    },
   },
 };
 

@@ -35,6 +35,17 @@ export const NAV_ICONS = {
   },
   dispatch: {
     dashboard: '◆',
+    jobSeekers: '◇',
+    interviews: '◐',
+    employmentStatus: '⇄',
+    managerReport: '▲',
+    meetings: '✎',
+    dailyExpenseApplication: '🧾',
+    clientBilling: '⌗',
+    employeeMasterSheet: '▥',
+    clientFeeSetup: '▦',
+    internalFeeSetup: '▧',
+    bonus: '◈',
     users: '▣',
   },
   dormMgmt: {
