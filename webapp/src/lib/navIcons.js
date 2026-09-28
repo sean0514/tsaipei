@@ -41,6 +41,7 @@ export const NAV_ICONS = {
     managerReport: '▲',
     meetings: '✎',
     dailyExpenseApplication: '🧾',
+    cashPaymentList: '💵',
     clientBilling: '⌗',
     employeeMasterSheet: '▥',
     clientFeeSetup: '▦',
