@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -116,6 +116,22 @@ export default function JobSeekersPage() {
     }
   }
 
+  // 「連動表格內資料」：把已經存在資料庫、但還沒同步過的舊資料（例如比這個
+  // 規則早匯入的資料）一次性補上——只要有報到日期，就把出席/複試/錄取/報到
+  // 都設成「是」，不動其他欄位。
+  const outOfSync = rows.filter((r) => r.startDate && (r.attendance !== '是' || r.secondInterview !== '是' || r.admitted !== '是' || r.reported !== '是'));
+
+  async function handleSyncPipelineFlags() {
+    if (outOfSync.length === 0) return;
+    if (!window.confirm(`將把 ${outOfSync.length} 筆已有報到日期的紀錄，出席/複試/錄取/報到都補上「是」，確定要繼續嗎？`)) return;
+    const batch = writeBatch(db);
+    outOfSync.forEach((r) => {
+      batch.update(doc(db, 'dispatch_jobSeekers', r.id), { attendance: '是', secondInterview: '是', admitted: '是', reported: '是' });
+    });
+    await batch.commit();
+    alert(`已同步 ${outOfSync.length} 筆資料。`);
+  }
+
   async function handleDelete(jobSeekerId) {
     if (!window.confirm('確定要刪除這位求職者嗎？相關的面試概況與在職/離職紀錄也會一併刪除。')) return;
     try {
@@ -144,16 +160,23 @@ export default function JobSeekersPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ status: JOB_SEEKER_STATUS[0] })}>+ 新增求職者</button>}
+          {canEditPage && outOfSync.length > 0 && (
+            <button onClick={handleSyncPipelineFlags}>連動出席/複試/錄取/報到（{outOfSync.length}）</button>
+          )}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有求職者資料，請先下載備份再匯入。狀態為「在職」或「離職」時會自動同步到「在職/離職概況」。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有求職者資料，請先下載備份再匯入。狀態為「在職」或「離職」時會自動同步到「在職/離職概況」。已有報到日期但出席/複試/錄取/報到還沒補上「是」的舊資料，可按「連動出席/複試/錄取/報到」一次補齊。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋姓名/身分證號/廠商/分店" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead>
-              <tr><th>姓名 / 身份證字號</th><th>廠商 / 分店</th><th>招募 / 面試 / 駐廠專員</th><th>報到日期</th><th>狀態</th>{canEditPage && <th></th>}</tr>
+              <tr>
+                <th>姓名 / 身份證字號</th><th>廠商 / 分店</th><th>招募 / 面試 / 駐廠專員</th>
+                <th>出席</th><th>複試</th><th>錄取</th><th>報到</th>
+                <th>報到日期</th><th>狀態</th>{canEditPage && <th></th>}
+              </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
@@ -167,6 +190,10 @@ export default function JobSeekersPage() {
                     <div className="muted" style={{ fontSize: 12 }}>{r.branch || ''}</div>
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>{[r.recruiter, r.interviewer, r.onsiteSpecialist].filter(Boolean).join(' / ') || '—'}</td>
+                  <td>{r.attendance || '—'}</td>
+                  <td>{r.secondInterview || '—'}</td>
+                  <td>{r.admitted || '—'}</td>
+                  <td>{r.reported || '—'}</td>
                   <td>{r.startDate || '—'}</td>
                   <td><span className="tag tag-blue">{r.status || '—'}</span></td>
                   {canEditPage && (
@@ -177,7 +204,7 @@ export default function JobSeekersPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
