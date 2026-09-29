@@ -26,7 +26,7 @@ export const IMPLEMENTED_MODULES = {
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
   yujian: [
     'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted', 'placementList',
-    'applicationProgress', 'arrivedList', 'arrivedSummary', 'closedCases', 'meetings', 'dailyExpenseApplication', 'users',
+    'applicationProgress', 'arrivedList', 'arrivedSummary', 'closedCases', 'meetings', 'dailyExpenseApplication', 'postageFee', 'users',
   ],
 };
 
@@ -103,6 +103,7 @@ const GROUP_ROUTES = {
     ],
     applicationForms: [
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
+      { route: 'postageFee', label: '郵資費用紀錄' },
     ],
   },
   dispatch: {

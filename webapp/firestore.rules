@@ -593,6 +593,10 @@ service cloud.firestore {
       allow read: if yjIsMember();
       allow write: if yjCanEdit('applicationForms');
     }
+    match /yujian_postageFeeRecords/{docId} {
+      allow read: if yjIsMember();
+      allow write: if yjCanEdit('applicationForms');
+    }
 
     match /{document=**} {
       allow read, write: if false;

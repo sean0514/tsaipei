@@ -63,6 +63,7 @@ import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
 import YujianMeetingsPage from './systems/yujian/MeetingsPage';
 import YujianDailyExpenseApplicationPage from './systems/yujian/DailyExpenseApplicationPage';
+import YujianPostageFeeRecordPage from './systems/yujian/PostageFeeRecordPage';
 import InventoryPage from './systems/foodfactory/InventoryPage';
 import StockPage from './systems/foodfactory/StockPage';
 import SuppliersPage from './systems/foodfactory/SuppliersPage';
@@ -158,6 +159,7 @@ const PAGES = {
     closedCases: YujianClosedCasesPage,
     meetings: YujianMeetingsPage,
     dailyExpenseApplication: YujianDailyExpenseApplicationPage,
+    postageFee: YujianPostageFeeRecordPage,
     users: UsersPage,
   },
   foodfactory: {
