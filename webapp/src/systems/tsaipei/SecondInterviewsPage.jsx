@@ -37,7 +37,10 @@ export default function SecondInterviewsPage() {
   }
 
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filteredRows = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 二面進度狀態變成「通過」時自動建立錄取名單（通過二面），跟原本
   // syncAdmittedFromSecondInterview 一樣先檢查該媒合是否已有錄取名單紀錄，
@@ -88,6 +91,7 @@ export default function SecondInterviewsPage() {
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                  <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                 </td>
               )}
             </tr>

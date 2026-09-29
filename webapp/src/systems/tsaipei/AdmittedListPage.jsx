@@ -38,7 +38,10 @@ export default function AdmittedListPage() {
   }
 
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filteredRows = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 狀態變成「確認錄取」時自動建立實習文件追蹤整組清單、申辦進度追蹤紀錄；
   // 從「確認錄取」改回「通過二面」時自動刪除該學生的實習文件追蹤整組紀錄
@@ -101,6 +104,7 @@ export default function AdmittedListPage() {
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                  <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                 </td>
               )}
             </tr>

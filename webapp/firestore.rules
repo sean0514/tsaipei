@@ -75,8 +75,9 @@ service cloud.firestore {
       // InternshipDocsPage syncs doc-status fields back onto the student
       // record, and InTaiwanVisaPage syncs entry/exit dates back the same
       // way the original apps-script backend's syncStudentDocField_/
-      // syncStudentDatesFromVisa_ did.
-      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanTracking');
+      // syncStudentDatesFromVisa_ did. closedCases 也放行：「已結案名單」的
+      // 復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanTracking') || tsCanEdit('closedCases');
     }
     // 職缺媒合 group — all four collections share the single 'matching'
     // permission module, same as the original app's DEFAULT_PERMISSIONS.
@@ -90,7 +91,7 @@ service cloud.firestore {
       // save auto-creates a blank match record (see StudentsPage.jsx), and
       // some roles (服務人員/行政人員) can edit students without editing matching.
       allow create: if tsCanEdit('matching') || tsCanEdit('students');
-      allow update: if tsCanEdit('matching');
+      allow update: if tsCanEdit('matching') || tsCanEdit('closedCases');
       // delete also allowed to 'students' editors: deleting a student
       // cascade-deletes their match records (see StudentsPage.jsx handleDelete,
       // mirroring deleteStudent() in apps-script/Code.gs).
@@ -98,15 +99,17 @@ service cloud.firestore {
     }
     match /tsaipei_secondInterviews/{docId} {
       allow read: if tsIsMember();
-      allow create, update: if tsCanEdit('matching');
+      allow create: if tsCanEdit('matching');
+      allow update: if tsCanEdit('matching') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('matching') || tsCanEdit('students');
     }
     match /tsaipei_admittedList/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('matching');
       // 申辦進度追蹤「學生錄取」日期異動會回寫這裡的錄取日期，所以 update
-      // 也放行 applicationProgress（見 ApplicationProgressPage.jsx 的 syncAdmittedDate）。
-      allow update: if tsCanEdit('matching') || tsCanEdit('applicationProgress');
+      // 也放行 applicationProgress（見 ApplicationProgressPage.jsx 的 syncAdmittedDate）；
+      // closedCases 放行是為了「已結案名單」的復原按鈕。
+      allow update: if tsCanEdit('matching') || tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('matching') || tsCanEdit('students');
     }
     // 確認錄取 cascades into these two, written by whoever can edit 'matching'
@@ -121,7 +124,7 @@ service cloud.firestore {
     match /tsaipei_applicationProgress/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('applicationProgress') || tsCanEdit('matching');
-      allow update: if tsCanEdit('applicationProgress');
+      allow update: if tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students');
     }
     // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者；
@@ -153,7 +156,9 @@ service cloud.firestore {
     }
     match /tsaipei_dormitories/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('dormManagement');
+      allow create, delete: if tsCanEdit('dormManagement');
+      // closedCases 也放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if tsCanEdit('dormManagement') || tsCanEdit('closedCases');
     }
     match /tsaipei_dormitoryUtilities/{docId} {
       allow read: if tsIsMember();

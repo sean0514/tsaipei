@@ -34,7 +34,10 @@ export default function DormManagementPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dormitories', CSV_FIELDS, { entityLabel: '宿舍管理', requiredKeys: ['name'], canEdit: canEditPage });
 
-  const filtered = rows.filter((r) => !q || [r.name, r.location].some((v) => v?.includes(q)));
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !q || [r.name, r.location].some((v) => v?.includes(q)));
 
   function utilityFor(dormId) {
     return utilities.find((u) => u.dormitoryId === dormId && u.month === month);
@@ -105,6 +108,7 @@ export default function DormManagementPage() {
                         <button onClick={() => setEditing(r)}>編輯</button>
                         <button onClick={() => setUtilEditing({ dormId: r.id, waterFee: u?.waterFee || '', electricityFee: u?.electricityFee || '' })}>填寫水電費</button>
                         <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                        <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                       </td>
                     )}
                   </tr>

@@ -21,6 +21,7 @@ import BankAccountProgressPage from './systems/tsaipei/BankAccountProgressPage';
 import HousingPage from './systems/tsaipei/HousingPage';
 import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
+import ClosedCasesPage from './systems/tsaipei/ClosedCasesPage';
 import DashboardPage from './systems/tsaipei/DashboardPage';
 import BonusPage from './systems/tsaipei/BonusPage';
 import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
@@ -110,6 +111,7 @@ const PAGES = {
     housing: HousingPage,
     dormManagement: DormManagementPage,
     meetings: MeetingsPage,
+    closedCases: ClosedCasesPage,
     foreignSubsidyApplication: ForeignSubsidyApplicationPage,
     dailyExpenseApplication: DailyExpenseApplicationPage,
     users: UsersPage,

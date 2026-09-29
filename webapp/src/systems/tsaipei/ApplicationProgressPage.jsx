@@ -108,7 +108,10 @@ export default function ApplicationProgressPage() {
   const studentById = (id) => students.find((s) => s.id === id);
   const searchQuery = q.trim().toLowerCase();
 
-  const filteredRows = rows.filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filteredRows = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
   // 先分成已入台／未入台兩大類，再各自依客戶/專案分組（跟原本一致）；入台
   // 日期如果先填成未來的日期，時間還沒到之前仍算「未入台」。
   const today = new Date().toISOString().slice(0, 10);
@@ -273,6 +276,7 @@ export default function ApplicationProgressPage() {
               studentById={studentById}
               onEdit={setEditing}
               onRemove={remove}
+              onClose={(id) => update(id, { confirmedClosed: true })}
             />
             <ArrivalSection
               title="已入台"
@@ -282,6 +286,7 @@ export default function ApplicationProgressPage() {
               studentById={studentById}
               onEdit={setEditing}
               onRemove={remove}
+              onClose={(id) => update(id, { confirmedClosed: true })}
             />
           </div>
         )
@@ -298,7 +303,7 @@ export default function ApplicationProgressPage() {
   );
 }
 
-function ArrivalSection({ title, groups, canEditPage, ctx, studentById, onEdit, onRemove }) {
+function ArrivalSection({ title, groups, canEditPage, ctx, studentById, onEdit, onRemove, onClose }) {
   const total = groups.reduce((sum, g) => sum + g.items.length, 0);
   return (
     <div>
@@ -321,6 +326,7 @@ function ArrivalSection({ title, groups, canEditPage, ctx, studentById, onEdit, 
                       <div className="row-actions">
                         <button onClick={() => onEdit(r)}>編輯</button>
                         <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                        <button onClick={() => onClose(r.id)}>結案</button>
                       </div>
                     )}
                   </div>
