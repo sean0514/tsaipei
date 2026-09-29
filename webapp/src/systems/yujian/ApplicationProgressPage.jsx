@@ -101,9 +101,12 @@ export function isMilestoneOverdue(m, p) {
 // 進度圖示：只保留「最近完成的一步」到「送工時間」之間的步驟，已經完成很久的
 // 步驟不用一直佔畫面；都還沒開始的話就整條鏈完整顯示，讓人知道下一步是什麼。
 // 逾期的步驟（目前只有認證領件日期）不管在不在這個範圍內都會顯示紅色提醒。
+// 如果先把日期填成未來的時間（預約/預計日期），時間還沒到之前不算「已完成」，
+// 不會影響進度顯示（不會被當成已完成而跳過前面步驟）。
 export function ProgressPipeline({ p }) {
+  const today = new Date().toISOString().slice(0, 10);
   let lastDoneIdx = -1;
-  MILESTONES.forEach((m, i) => { if (p?.[m.key]) lastDoneIdx = i; });
+  MILESTONES.forEach((m, i) => { if (p?.[m.key] && p[m.key] <= today) lastDoneIdx = i; });
   const visible = lastDoneIdx === -1 ? MILESTONES : MILESTONES.slice(lastDoneIdx);
   return (
     <div className="pipeline">
@@ -152,8 +155,11 @@ export default function ApplicationProgressPage() {
       return (a.caseNo || '').localeCompare(b.caseNo || '');
     });
   const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
-  const notArrived = filtered.filter((r) => !r.entryDate);
-  const arrived = filtered.filter((r) => r.entryDate);
+  // 入境時間如果先填成未來的日期，時間還沒到之前仍算「未入台」，不受預先
+  // 輸入的日期影響分類。
+  const today = new Date().toISOString().slice(0, 10);
+  const notArrived = filtered.filter((r) => !r.entryDate || r.entryDate > today);
+  const arrived = filtered.filter((r) => r.entryDate && r.entryDate <= today);
 
   // 送工時間第一次填入時，自動把這筆案件帶入已入台名單；一旦已經帶入過，
   // 之後案件本身任何欄位（包含進度狀態）再變更，都同步更新已入台名單那筆
