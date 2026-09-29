@@ -70,6 +70,7 @@ export const NAV_ICONS = {
     closedCases: '📁',
     meetings: '✎',
     dailyExpenseApplication: '🧾',
+    postageFee: '✉',
     users: '▣',
   },
 };

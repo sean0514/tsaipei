@@ -57,7 +57,7 @@ export default function DashboardPage() {
   // 改用申辦進度追蹤的實際進度（跟在台簽證追蹤/預計入台離台同一套判斷），
   // 不用學生資料的「狀態」欄位——那個欄位全系統沒有任何地方會自動更新，
   // 純手動維護，容易忘記改而跟實際進度脫節。
-  const active = applicationProgress.filter((r) => r.currentStage === '入台').length;
+  const active = applicationProgress.filter((r) => r.arrivalDate && r.arrivalDate <= today).length;
   // 媒合中／已媒合都直接依媒合紀錄本身的狀態計算，跟媒合紀錄頁面看到的
   // 狀態一致。
   const matching = matches.filter((m) => m.status === '媒合中').length;
