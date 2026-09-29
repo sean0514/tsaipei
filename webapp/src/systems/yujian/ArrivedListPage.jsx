@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -49,14 +49,31 @@ export default function ArrivedListPage() {
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
+  // 依狀態分兩類：進度狀態或轉出/離境紀錄清單裡任一筆是「已接離／轉出中／
+  // 已轉出／已離台」的歸到後者，其餘（含剛入台但還沒開始轉出流程的）算已入台。
+  const transferring = filtered.filter((r) => hasTransferStatus(r, TRANSFER_STEP_STATUS));
+  const arrivedOnly = filtered.filter((r) => !hasTransferStatus(r, TRANSFER_STEP_STATUS));
+
+  // 只要案件顯示在「已接離/轉出中/已轉出/已離台」清單中，就必須同步出現在
+  // 安置中名單（不只在這裡手動編輯時觸發，資料一載入、或從申辦進度追蹤同步
+  // 過來的紀錄本來就帶有轉出狀態時也要補建立，ensurePlacementRecord 本身會
+  // 先查詢是否已存在，重複呼叫不會建立重複紀錄）。
+  useEffect(() => {
+    if (loading) return;
+    transferring.forEach((r) => {
+      const workerId = resolveWorkerId(r);
+      if (workerId) ensurePlacementRecord(workerId);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, rows, matches]);
 
   // 這裡的編輯不會回寫到申辦進度追蹤，但轉出/離境的連動要跟申辦進度追蹤一致：
   // 進度狀態或轉出/離境紀錄清單裡任一筆變成「已接離／轉出中／已轉出／已離台」
   // 時，自動在安置中名單建立一筆紀錄。
   async function handleSave(data) {
-    if (hasTransferStatus(data, TRANSFER_STEP_STATUS) && !hasTransferStatus(editing, TRANSFER_STEP_STATUS) && data.matchId) {
-      const match = matches.find((m) => m.id === data.matchId);
-      if (match?.workerId) await ensurePlacementRecord(match.workerId);
+    if (hasTransferStatus(data, TRANSFER_STEP_STATUS) && !hasTransferStatus(editing, TRANSFER_STEP_STATUS)) {
+      const workerId = data.workerId || matches.find((m) => m.id === data.matchId)?.workerId;
+      if (workerId) await ensurePlacementRecord(workerId);
     }
     if (data.id) {
       const { id, ...rest } = data;
@@ -79,55 +96,68 @@ export default function ArrivedListPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡，之後案件的欄位異動（含進度狀態）也會同步更新到這裡；也可以直接在這裡新增或編輯（這裡的編輯不會回寫到申辦進度追蹤）。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
-          <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          <ColumnPicker columns={ARRIVED_LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
-        </div>
-        {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
-                {canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const notes = r.notes || [];
-                const lastNote = notes[notes.length - 1];
-                return (
-                  <tr key={r.id}>
-                    {columns.map((c) => {
-                      if (c.key === 'status') {
-                        return (
-                          <td key={c.key}>
-                            <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
-                          </td>
-                        );
-                      }
-                      if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
-                      if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
-                      return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
-                    })}
-                    {canEditPage && (
-                      <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>管理</button>
-                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                        <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
-        )}
+      {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡，之後案件的欄位異動（含進度狀態）也會同步更新到這裡；也可以直接在這裡新增或編輯（這裡的編輯不會回寫到申辦進度追蹤）。進度狀態或轉出/離境紀錄變成「已接離／轉出中／已轉出／已離台」的案件會歸類到下方清單，並自動同步顯示到「安置中名單」。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <ColumnPicker columns={ARRIVED_LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
+      {loading ? <p className="muted">載入中…</p> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>已入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{arrivedOnly.length} 個案件</span></h4>
+            <ArrivedTable items={arrivedOnly} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
+          </div>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <h4 style={{ marginTop: 0 }}>已接離/轉出中/已轉出/已離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{transferring.length} 個案件</span></h4>
+            <ArrivedTable items={transferring} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
+          </div>
+        </div>
+      )}
       {editing && <ArrivedFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
+  );
+}
+
+function ArrivedTable({ items, columns, canEditPage, onEdit, onRemove, onClose }) {
+  return (
+    <div className="table-wrap"><table>
+      <thead>
+        <tr>
+          {columns.map((c) => <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>{c.label}</th>)}
+          {canEditPage && <th></th>}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((r) => {
+          const notes = r.notes || [];
+          const lastNote = notes[notes.length - 1];
+          return (
+            <tr key={r.id}>
+              {columns.map((c) => {
+                if (c.key === 'status') {
+                  return (
+                    <td key={c.key}>
+                      <span className={`tag ${r.status === '已入台' ? 'tag-green' : r.status === '已取消' ? 'tag-grey' : 'tag-amber'}`}>{r.status || '進行中'}</span>
+                    </td>
+                  );
+                }
+                if (c.key === 'progress') return <td key={c.key}><ProgressPipeline p={r} /></td>;
+                if (c.key === 'notes') return <td key={c.key}>{lastNote ? `${lastNote.text}${notes.length > 1 ? `（共 ${notes.length} 則）` : ''}` : '—'}</td>;
+                return <td key={c.key} className={c.sticky ? 'sticky-col' : ''}>{r[c.key] || '—'}</td>;
+              })}
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => onEdit(r)}>管理</button>
+                  <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                  <button onClick={() => onClose(r.id)}>已結案</button>
+                </td>
+              )}
+            </tr>
+          );
+        })}
+        {items.length === 0 && <tr><td colSpan={columns.length + (canEditPage ? 1 : 0)} className="muted">沒有資料</td></tr>}
+      </tbody>
+    </table></div>
   );
 }
 
