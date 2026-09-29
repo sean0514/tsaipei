@@ -59,6 +59,16 @@ export default function HousingPage() {
     groups[c].push(r);
   });
 
+  // 「未安排」再依分店（實習場域）分類，方便各分店各自安排住宿。
+  function groupByVenue(list) {
+    const map = {};
+    list.forEach((r) => {
+      const venue = studentVenueLabel(r.studentId, ctx) || '未設定分店';
+      (map[venue] = map[venue] || []).push(r);
+    });
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
@@ -67,6 +77,34 @@ export default function HousingPage() {
       await add(data);
     }
     setEditing(null);
+  }
+
+  function renderTable(list, label) {
+    return (
+      <div className="table-wrap"><table>
+        <thead><tr><th>學生</th><th>分店</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <tbody>
+          {list.map((r) => (
+            <tr key={r.id}>
+              <td>{studentName(r.studentId)}</td>
+              <td>{studentVenueLabel(r.studentId, ctx)}</td>
+              <td>{r.type || '—'}</td>
+              <td>{r.payer || '—'}</td>
+              <td>{r.checkIn || '—'}</td>
+              <td>{r.checkOut || '—'}</td>
+              {canEditPage && (
+                <td className="row-actions">
+                  <button onClick={() => setEditing(r)}>編輯</button>
+                  {label === '已離宿' && <button onClick={() => update(r.id, { completed: true })}>已完成</button>}
+                  <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                </td>
+              )}
+            </tr>
+          ))}
+          {list.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+        </tbody>
+      </table></div>
+    );
   }
 
   return (
@@ -86,29 +124,14 @@ export default function HousingPage() {
       {Object.entries(groups).map(([label, list]) => (
         <div className="card" key={label} style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>{label}（{list.length}）</h3>
-          <div className="table-wrap"><table>
-            <thead><tr><th>學生</th><th>分店</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
-            <tbody>
-              {list.map((r) => (
-                <tr key={r.id}>
-                  <td>{studentName(r.studentId)}</td>
-                  <td>{studentVenueLabel(r.studentId, ctx)}</td>
-                  <td>{r.type || '—'}</td>
-                  <td>{r.payer || '—'}</td>
-                  <td>{r.checkIn || '—'}</td>
-                  <td>{r.checkOut || '—'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>編輯</button>
-                      {label === '已離宿' && <button onClick={() => update(r.id, { completed: true })}>已完成</button>}
-                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {list.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
-            </tbody>
-          </table></div>
+          {label === '未安排' && list.length > 0 ? (
+            groupByVenue(list).map(([venue, items]) => (
+              <div key={venue} style={{ marginBottom: 14 }}>
+                <h4 style={{ marginTop: 0, marginBottom: 6 }}>{venue} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{items.length} 人</span></h4>
+                {renderTable(items, label)}
+              </div>
+            ))
+          ) : renderTable(list, label)}
         </div>
       ))}
       {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} onCancel={() => setEditing(null)} onSave={handleSave} />}
