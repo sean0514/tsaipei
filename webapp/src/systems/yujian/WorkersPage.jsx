@@ -46,6 +46,11 @@ function downloadResume(dataUrl, filename) {
 }
 
 export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '轉出中', '已轉出', '已離境', '取消'];
+
+// 其他分頁顯示/選擇人員時一律改用工人編號（沒有編號的舊資料才退回姓名）。
+export function workerLabel(w) {
+  return w?.workerNo || w?.chineseName || w?.originalName || '(未設定)';
+}
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
 

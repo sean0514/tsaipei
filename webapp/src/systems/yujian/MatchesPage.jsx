@@ -10,6 +10,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import StatusSections from '../../components/StatusSections';
 import { MATCH_TAG } from '../../lib/tags';
+import { workerLabel } from './WorkersPage';
 
 const STATUSES = ['媒合中', '已媒合', '取消'];
 const CSV_FIELDS = [
@@ -20,7 +21,7 @@ const CSV_FIELDS = [
 ];
 // 狀態已經是分類的區塊標題，欄位裡不用再重複顯示。
 const COLUMNS = [
-  { key: 'worker', label: '工人姓名' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
+  { key: 'worker', label: '工人編號' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
   { key: 'matchDate', label: '媒合日期' }, { key: 'admittedDate', label: '錄取時間' }, { key: 'notes', label: '備註' },
 ];
 
@@ -36,7 +37,7 @@ export default function MatchesPage() {
   const { visibleKeys, toggleColumn } = useColumnVisibility(COLUMNS);
   const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
 
-  const workerName = (id) => { const w = workers.find((x) => x.id === id); return w?.chineseName || w?.originalName || '(未設定)'; };
+  const workerName = (id) => workerLabel(workers.find((x) => x.id === id));
   const workerStatus = (id) => workers.find((x) => x.id === id)?.status || '—';
   const employerName = (id) => employers.find((x) => x.id === id)?.employerName || '(未設定)';
 
@@ -78,7 +79,7 @@ export default function MatchesPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」「雇主ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
-        <input placeholder="搜尋工人姓名或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <input placeholder="搜尋工人編號或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
       {loading ? <p className="muted">載入中…</p> : (
@@ -128,10 +129,10 @@ function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
-              工人姓名
+              工人編號
               <select required value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
                 <option value="" disabled>請選擇</option>
-                {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
+                {workers.map((w) => <option key={w.id} value={w.id}>{workerLabel(w)}</option>)}
               </select>
             </label>
             <label>

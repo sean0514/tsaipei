@@ -9,6 +9,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import { workerLabel } from './WorkersPage';
 
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
@@ -25,7 +26,7 @@ export const TRANSFER_STEP_STATUS = ['已接離', '轉出中', '已轉出', '已
 export const INFO_FIELDS = [
   { key: 'employerName', label: '雇主姓名', required: true, sticky: true },
   { key: 'caseNo', label: '編號' },
-  { key: 'workerId', label: '工人姓名' },
+  { key: 'workerId', label: '工人編號' },
   { key: 'selectionStatus', label: '選工狀態' },
   { key: 'foreignAgency', label: '國外仲介' },
   { key: 'taiwanAgency', label: '國內仲介' },
@@ -80,7 +81,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClos
 export const LIST_COLUMNS = [
   { key: 'employerName', label: '雇主姓名', sticky: true },
   { key: 'caseNo', label: '編號' },
-  { key: 'workerName', label: '工人姓名' },
+  { key: 'workerName', label: '工人編號' },
   { key: 'nationality', label: '國籍' },
   { key: 'workerStatus', label: '工人狀態' },
   { key: 'status', label: '進度狀態' },
@@ -137,8 +138,7 @@ export default function ApplicationProgressPage() {
     return workers.find((x) => x.id === resolveWorkerId(r))?.status || '—';
   }
   function workerNameFor(r) {
-    const w = workers.find((x) => x.id === resolveWorkerId(r));
-    return w?.chineseName || w?.originalName || '—';
+    return workerLabel(workers.find((x) => x.id === resolveWorkerId(r)));
   }
 
   const searchQuery = q.trim().toLowerCase();
@@ -408,7 +408,7 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
                 {f.key === 'workerId' ? (
                   <select value={form.workerId || ''} onChange={(e) => handleWorkerChange(e.target.value)}>
                     <option value="">請選擇</option>
-                    {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
+                    {workers.map((w) => <option key={w.id} value={w.id}>{workerLabel(w)}</option>)}
                   </select>
                 ) : f.options ? (
                   <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
