@@ -6,7 +6,6 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
-import { exportEntityCSV } from '../../lib/csv';
 import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
@@ -24,30 +23,26 @@ export default function ArrivedListPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivedList', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_arrivedList');
+  const { rows: matches } = useCollection('yujian_matches');
+  const { rows: workers } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
   const { visibleKeys, toggleColumn } = useColumnVisibility(ARRIVED_LIST_COLUMNS);
-  const [rangeStart, setRangeStart] = useState('');
-  const [rangeEnd, setRangeEnd] = useState('');
+
+  function workerStatusForMatch(matchId) {
+    const m = matches.find((x) => x.id === matchId);
+    if (!m) return '—';
+    return workers.find((x) => x.id === m.workerId)?.status || '—';
+  }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
+    .map((r) => ({ ...r, workerStatus: workerStatusForMatch(r.matchId) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
-
-  // 依入境時間篩選區間，下載總表；沒有輸入起訖日期的一端就不限制那一邊。
-  function handleDownloadRange() {
-    const rangeRows = rows.filter((r) => {
-      if (!r.entryDate) return false;
-      if (rangeStart && r.entryDate < rangeStart) return false;
-      if (rangeEnd && r.entryDate > rangeEnd) return false;
-      return true;
-    });
-    exportEntityCSV(rangeRows, CSV_FIELDS, `已入台名單_總表_${rangeStart || '起'}~${rangeEnd || '訖'}`);
-  }
 
   async function handleSave(data) {
     if (data.id) {
@@ -72,13 +67,6 @@ export default function ArrivedListPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「申辦進度追蹤」的案件在「送工時間」第一次填入日期時會自動帶入這裡，之後案件的欄位異動（含進度狀態）也會同步更新到這裡；也可以直接在這裡新增或編輯（這裡的編輯不會回寫到申辦進度追蹤）。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有已入台名單資料，請先下載備份再匯入。</p>}
-      <div className="row-actions" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-        <span className="muted" style={{ fontSize: 13 }}>依入境時間區間下載總表：</span>
-        <input type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
-        <span className="muted">～</span>
-        <input type="date" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
-        <button onClick={handleDownloadRange}>下載總表</button>
-      </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 12, flexWrap: 'wrap' }}>
           <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />

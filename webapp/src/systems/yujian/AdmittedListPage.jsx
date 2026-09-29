@@ -17,7 +17,7 @@ const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'admitDate', label: '確認日期' },
   { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' }, { key: 'confirmedClosed', label: '已結案' },
 ];
-const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'admitDate', label: '確認日期' }];
+const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'admitDate', label: '確認日期' }];
 
 export default function AdmittedListPage() {
   const { system, role, overrides } = useOutletContext();
@@ -38,6 +38,12 @@ export default function AdmittedListPage() {
     const w = workers.find((x) => x.id === m.workerId);
     const e = employers.find((x) => x.id === m.employerId);
     return `${w?.chineseName || w?.originalName || '?'} · ${e?.employerName || '?'}`;
+  }
+
+  function workerStatusForMatch(matchId) {
+    const m = matches.find((x) => x.id === matchId);
+    if (!m) return '—';
+    return workers.find((x) => x.id === m.workerId)?.status || '—';
   }
 
   const searchQuery = q.trim().toLowerCase();
@@ -99,6 +105,7 @@ export default function AdmittedListPage() {
             <tr key={r.id}>
               {columns.map((c) => {
                 if (c.key === 'match') return <td key={c.key}>{matchLabel(r.matchId)}</td>;
+                if (c.key === 'workerStatus') return <td key={c.key}>{workerStatusForMatch(r.matchId)}</td>;
                 return <td key={c.key}>{r[c.key] || '—'}</td>;
               })}
               {canEditPage && (

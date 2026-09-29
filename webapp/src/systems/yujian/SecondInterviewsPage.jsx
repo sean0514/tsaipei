@@ -18,7 +18,7 @@ const CSV_FIELDS = [
   { key: 'method', label: '面談方式' }, { key: 'status', label: '進度狀態' }, { key: 'notes', label: '備註' },
   { key: 'confirmedClosed', label: '已結案' },
 ];
-const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'date', label: '面談日期' }, { key: 'method', label: '面談方式' }];
+const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'date', label: '面談日期' }, { key: 'method', label: '面談方式' }];
 
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
@@ -39,6 +39,12 @@ export default function SecondInterviewsPage() {
     const w = workers.find((x) => x.id === m.workerId);
     const e = employers.find((x) => x.id === m.employerId);
     return `${w?.chineseName || w?.originalName || '?'} · ${e?.employerName || '?'}`;
+  }
+
+  function workerStatusForMatch(matchId) {
+    const m = matches.find((x) => x.id === matchId);
+    if (!m) return '—';
+    return workers.find((x) => x.id === m.workerId)?.status || '—';
   }
 
   const searchQuery = q.trim().toLowerCase();
@@ -86,6 +92,7 @@ export default function SecondInterviewsPage() {
             <tr key={r.id}>
               {columns.map((c) => {
                 if (c.key === 'match') return <td key={c.key}>{matchLabel(r.matchId)}</td>;
+                if (c.key === 'workerStatus') return <td key={c.key}>{workerStatusForMatch(r.matchId)}</td>;
                 return <td key={c.key}>{r[c.key] || '—'}</td>;
               })}
               {canEditPage && (

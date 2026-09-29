@@ -67,6 +67,7 @@ export const LIST_COLUMNS = [
   { key: 'caseNo', label: '編號' },
   { key: 'demandCount', label: '需求量' },
   { key: 'nationality', label: '國籍' },
+  { key: 'workerStatus', label: '工人狀態' },
   { key: 'status', label: '進度狀態' },
   { key: 'progress', label: '進度' },
   { key: 'notes', label: '備註' },
@@ -96,14 +97,22 @@ export default function ApplicationProgressPage() {
   const canEditPage = computeCanEdit(system, 'applicationProgress', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
   const { rows: matches } = useCollection('yujian_matches');
+  const { rows: workers } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
   const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
+  function workerStatusForMatch(matchId) {
+    const m = matches.find((x) => x.id === matchId);
+    if (!m) return '—';
+    return workers.find((x) => x.id === m.workerId)?.status || '—';
+  }
+
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
+    .map((r) => ({ ...r, workerStatus: workerStatusForMatch(r.matchId) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
     .slice()
