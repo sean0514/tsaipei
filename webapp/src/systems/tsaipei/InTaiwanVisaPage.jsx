@@ -73,9 +73,11 @@ function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove, onToggleD
                 ) : (r.confirmedDeparture ? '是' : '否')}
               </td>
               {canEditPage && (
-                <td className="row-actions">
-                  <button onClick={() => onEdit(r)}>編輯</button>
-                  <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                <td>
+                  <div className="row-actions">
+                    <button onClick={() => onEdit(r)}>編輯</button>
+                    <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                  </div>
                 </td>
               )}
             </tr>

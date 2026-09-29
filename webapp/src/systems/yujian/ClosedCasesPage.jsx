@@ -81,7 +81,11 @@ export default function ClosedCasesPage() {
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   async function handleRestore(item) {
-    await updateDoc(doc(db, item.collectionName, item.id), { confirmedClosed: false });
+    try {
+      await updateDoc(doc(db, item.collectionName, item.id), { confirmedClosed: false });
+    } catch (err) {
+      alert(`復原失敗：${err.message || err}`);
+    }
   }
 
   return (

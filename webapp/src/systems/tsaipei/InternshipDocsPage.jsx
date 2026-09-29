@@ -168,9 +168,11 @@ export default function InternshipDocsPage() {
         {showCompletionDate && <td>{completionDate(docs)}</td>}
         <td>{showCompletionDate ? <span className="tag tag-green">已完成</span> : overallStatusTag(docs)}</td>
         {canEditPage && (
-          <td className="row-actions">
-            <button onClick={() => setManaging(sid)}>管理</button>
-            <button className="danger" onClick={() => Promise.all(docs.map((d) => remove(d.id)))}>刪除</button>
+          <td>
+            <div className="row-actions">
+              <button onClick={() => setManaging(sid)}>管理</button>
+              <button className="danger" onClick={() => Promise.all(docs.map((d) => remove(d.id)))}>刪除</button>
+            </div>
           </td>
         )}
       </tr>

@@ -174,10 +174,12 @@ export default function StudentsPage() {
                     <td><span className={`tag ${doc.complete ? 'tag-green' : 'tag-amber'}`}>{doc.done}/{doc.total}</span></td>
                     <td><Tag value={r.status} map={STUDENT_TAG} /></td>
                     {canEditPage && (
-                      <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>編輯</button>
-                        <button className="danger" onClick={() => handleDelete(r.id)}>刪除</button>
-                        <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                      <td>
+                        <div className="row-actions">
+                          <button onClick={() => setEditing(r)}>編輯</button>
+                          <button className="danger" onClick={() => handleDelete(r.id)}>刪除</button>
+                          <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                        </div>
                       </td>
                     )}
                   </tr>
