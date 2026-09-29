@@ -20,6 +20,7 @@ async function ensureClientFeeSetup(projectCode, client) {
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
+  { key: 'letterNo', label: '函文編號' },
   { key: 'company', label: '公司名稱', required: true },
   { key: 'industry', label: '產業別' },
   { key: 'title', label: '職務名稱' },
