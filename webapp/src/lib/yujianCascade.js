@@ -1,5 +1,19 @@
-import { collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+
+// 案件（申辦進度追蹤／已入台名單）的進度狀態，或轉出/離境紀錄清單裡任一筆
+// 的狀態，只要出現「已接離/轉出中/已轉出/已離台」其中之一，就要連動安置中
+// 名單——兩個分頁共用同一套判斷與建立邏輯，才不會其中一邊漏掉。
+export function hasTransferStatus(data, transferStepStatuses) {
+  if (transferStepStatuses.includes(data?.status)) return true;
+  return (data?.transferSteps || []).some((s) => transferStepStatuses.includes(s.status));
+}
+
+export async function ensurePlacementRecord(workerId) {
+  const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
+  if (!existing.empty) return;
+  await addDoc(collection(db, 'yujian_placementList'), { workerId, status: '安置中' });
+}
 
 // 刪除看護/家事人員資料或雇主家庭/需求單時，把相關聯的媒合紀錄（以及媒合
 // 紀錄再往下自動連動出去的二面進度/錄取名單/申辦進度追蹤/已入台名單）一併

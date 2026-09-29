@@ -7,6 +7,7 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
+import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
@@ -49,7 +50,14 @@ export default function ArrivedListPage() {
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
+  // 這裡的編輯不會回寫到申辦進度追蹤，但轉出/離境的連動要跟申辦進度追蹤一致：
+  // 進度狀態或轉出/離境紀錄清單裡任一筆變成「已接離／轉出中／已轉出／已離台」
+  // 時，自動在安置中名單建立一筆紀錄。
   async function handleSave(data) {
+    if (hasTransferStatus(data, TRANSFER_STEP_STATUS) && !hasTransferStatus(editing, TRANSFER_STEP_STATUS) && data.matchId) {
+      const match = matches.find((m) => m.id === data.matchId);
+      if (match?.workerId) await ensurePlacementRecord(match.workerId);
+    }
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
