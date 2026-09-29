@@ -29,7 +29,7 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 export default function WorkersPage() {
   const { system, role, overrides } = useOutletContext();
@@ -43,7 +43,10 @@ export default function WorkersPage() {
   const { visibleKeys, toggleColumn } = useColumnVisibility(rowFields);
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.chineseName || ''} ${r.originalName || ''} ${r.nationality || ''}`.toLowerCase().includes(searchQuery));
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || `${r.chineseName || ''} ${r.originalName || ''} ${r.nationality || ''}`.toLowerCase().includes(searchQuery));
   const columns = rowFields.filter((f) => visibleKeys.has(f.key));
 
   const groups = {};
@@ -126,6 +129,7 @@ export default function WorkersPage() {
                           <td className="row-actions">
                             <button onClick={() => setEditing(r)}>編輯</button>
                             <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
+                            <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
                           </td>
                         )}
                       </tr>

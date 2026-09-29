@@ -58,7 +58,7 @@ export const FIELDS = [
   ...MILESTONES.flatMap((m) => [m, { key: milestoneNoteKey(m.key), label: `${m.label}備註` }]),
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 // 列表頁用的欄位（案件基本識別＋進度概況），跟詳細視窗裡「資料總檔」用的
 // INFO_FIELDS 是分開的兩組。
@@ -102,7 +102,9 @@ export default function ApplicationProgressPage() {
   const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
   const searchQuery = q.trim().toLowerCase();
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
+    .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
     .slice()
     .sort((a, b) => {
@@ -180,11 +182,11 @@ export default function ApplicationProgressPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div className="card" style={{ overflowX: 'auto' }}>
             <h4 style={{ marginTop: 0 }}>未入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{notArrived.length} 個案件</span></h4>
-            <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} />
+            <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
           </div>
           <div className="card" style={{ overflowX: 'auto' }}>
             <h4 style={{ marginTop: 0 }}>已入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{arrived.length} 個案件</span></h4>
-            <ProgressTable items={arrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} />
+            <ProgressTable items={arrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
           </div>
         </div>
       )}
@@ -193,7 +195,7 @@ export default function ApplicationProgressPage() {
   );
 }
 
-function ProgressTable({ items, columns, canEditPage, onEdit, onRemove }) {
+function ProgressTable({ items, columns, canEditPage, onEdit, onRemove, onClose }) {
   return (
     <div className="table-wrap"><table>
       <thead>
@@ -224,6 +226,7 @@ function ProgressTable({ items, columns, canEditPage, onEdit, onRemove }) {
                 <td className="row-actions">
                   <button onClick={() => onEdit(r)}>管理</button>
                   <button className="danger" onClick={() => onRemove(r.id)}>刪除</button>
+                  <button onClick={() => onClose(r.id)}>已結案</button>
                 </td>
               )}
             </tr>

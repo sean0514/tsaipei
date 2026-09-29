@@ -15,7 +15,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'admitDate', label: '確認日期' },
-  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' }, { key: 'confirmedClosed', label: '已結案' },
 ];
 const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'admitDate', label: '確認日期' }];
 
@@ -41,7 +41,10 @@ export default function AdmittedListPage() {
   }
 
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filteredRows = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 狀態變成「確認錄取」時自動建立申辦進度追蹤案件（以雇主為單位），比照境外實習生系統。
   async function handleSave(data) {
@@ -102,6 +105,7 @@ export default function AdmittedListPage() {
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                  <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
                 </td>
               )}
             </tr>
