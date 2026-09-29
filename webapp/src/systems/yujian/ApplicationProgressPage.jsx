@@ -59,7 +59,7 @@ export const MILESTONES = [
   { key: 'tecoVisaInDate', label: '中華商會TECO VISA IN' },
   { key: 'visaOutDate', label: 'VISA OUT' },
   { key: 'oecDate', label: '海外工作證OEC' },
-  { key: 'preDepartureDate', label: '出國前講習' },
+  { key: 'preDepartureDate', label: 'PDOS海外就業講習' },
   { key: 'entryDate', label: '入境時間' },
   { key: 'dispatchDate', label: '送工時間' },
 ];
@@ -223,7 +223,7 @@ export default function ApplicationProgressPage() {
             <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
               流程：確認錄取 → 認證送件／領件（14天）→ 寄出國外 → 體檢 IN/OUT → 訓練 IN/OUT →
               福利部OWWA（2天）→ 台灣勞動部函 → 海外勞工署POEA IN/OUT（3-4天）→ 中華商會TECO VISA IN → VISA OUT →
-              海外工作證OEC → 出國前講習 → 入境時間 → 送工時間（自動改為已入台）。
+              海外工作證OEC → PDOS海外就業講習 → 入境時間 → 送工時間（自動改為已入台）。
             </p>
             <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
           </div>

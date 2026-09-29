@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -51,8 +51,9 @@ export default function MatchesPage() {
   // 狀態變成「已媒合」時自動建立一筆二面進度（待安排），比照境外實習生系統
   // 媒合紀錄→二面進度的自動連動。
   async function handleSave(data) {
-    const wasMatched = editing?.status === '已媒合';
-    const wasAdmitted = editing?.status === '已錄取';
+    const prevStatus = editing?.status;
+    const wasMatched = prevStatus === '已媒合';
+    const wasAdmitted = prevStatus === '已錄取';
     let matchId = data.id;
     let savedMatch;
     if (matchId) {
@@ -63,6 +64,11 @@ export default function MatchesPage() {
       const ref = await add({ status: '媒合中', ...data });
       matchId = ref.id;
       savedMatch = { id: matchId, ...data };
+    }
+    // 媒合紀錄狀態變動時，同步更新工人本身的狀態欄位，讓各分頁顯示的「工人
+    // 狀態」跟著即時反映（媒合中/已媒合/已錄取/取消都直接對應同名的工人狀態）。
+    if (data.status && data.status !== prevStatus && data.workerId) {
+      await updateDoc(doc(db, 'yujian_workers', data.workerId), { status: data.status });
     }
     if (data.status === '已媒合' && !wasMatched) {
       await addDoc(collection(db, 'yujian_secondInterviews'), { matchId, status: '待安排' });
