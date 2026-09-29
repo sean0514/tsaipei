@@ -19,7 +19,7 @@ const CSV_FIELDS = [
 ];
 // 狀態已經是分類的區塊標題，欄位裡不用再重複顯示。
 const COLUMNS = [
-  { key: 'worker', label: '工人姓名' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
+  { key: 'worker', label: '工人姓名' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
   { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
 ];
 
@@ -36,6 +36,7 @@ export default function MatchesPage() {
   const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   const workerName = (id) => { const w = workers.find((x) => x.id === id); return w?.chineseName || w?.originalName || '(未設定)'; };
+  const workerStatus = (id) => workers.find((x) => x.id === id)?.status || '—';
   const employerName = (id) => employers.find((x) => x.id === id)?.employerName || '(未設定)';
 
   const searchQuery = q.trim().toLowerCase();
@@ -90,6 +91,7 @@ export default function MatchesPage() {
             <tr key={r.id}>
               {columns.map((c) => {
                 if (c.key === 'worker') return <td key={c.key}>{workerName(r.workerId)}</td>;
+                if (c.key === 'workerStatus') return <td key={c.key}>{workerStatus(r.workerId)}</td>;
                 if (c.key === 'employer') return <td key={c.key}>{employerName(r.employerId)}</td>;
                 return <td key={c.key}>{r[c.key] || '—'}</td>;
               })}
