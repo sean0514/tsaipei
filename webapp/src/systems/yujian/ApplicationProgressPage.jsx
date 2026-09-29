@@ -12,9 +12,9 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
 import { fileToDataUrl, viewFile, downloadFile } from '../../lib/fileAttachment';
 
-// 附件大小上限；同一筆案件可能同時有好幾個關卡的附件，抓小一點避免超過
-// Firestore 單一文件 1MB 的限制。
-export const MAX_MILESTONE_ATTACHMENT_SIZE = 400 * 1024;
+// 附件大小上限；同一筆案件可能同時有好幾個關卡的附件，這裡抓 800KB，若同一筆
+// 記錄裡有兩個以上附件接近上限，仍有可能超過 Firestore 單一文件 1MB 的限制。
+export const MAX_MILESTONE_ATTACHMENT_SIZE = 800 * 1024;
 export function attachmentDataKey(key) { return `${key}AttachmentData`; }
 export function attachmentNameKey(key) { return `${key}AttachmentName`; }
 export function attachmentsKey(key) { return `${key}Attachments`; }
@@ -125,7 +125,7 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
     e.target.value = '';
     if (!file) return;
     if (file.size > MAX_MILESTONE_ATTACHMENT_SIZE) {
-      alert('檔案太大（上限約 400KB），請精簡後再上傳。');
+      alert('檔案太大（上限約 800KB），請精簡後再上傳。');
       return;
     }
     const dataUrl = await fileToDataUrl(file);
@@ -141,7 +141,7 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
     e.target.value = '';
     if (files.length === 0) return;
     if (files.some((f) => f.size > MAX_MILESTONE_ATTACHMENT_SIZE)) {
-      alert('檔案太大（上限約 400KB），請精簡後再上傳。');
+      alert('檔案太大（上限約 800KB），請精簡後再上傳。');
       return;
     }
     const items = await Promise.all(files.map(async (f) => ({ id: newNoteId(), name: f.name, dataUrl: await fileToDataUrl(f) })));
@@ -177,7 +177,7 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
                 </div>
               ) : (
                 <label style={{ fontSize: 12 }}>
-                  上傳檔案（上限約 400KB）
+                  上傳檔案（上限約 800KB）
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleSingleUpload(m.key, e)} />
                 </label>
               )
@@ -193,7 +193,7 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
                   </div>
                 ))}
                 <label style={{ fontSize: 12 }}>
-                  上傳檔案（可多選，每個上限約 400KB）
+                  上傳檔案（可多選，每個上限約 800KB）
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => handleMultiUpload(m.key, e)} />
                 </label>
               </div>
