@@ -10,6 +10,26 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { deleteWorkerCascade } from '../../lib/yujianCascade';
 
+// 履歷表存成 data URL（含 MIME type）直接存在人員文件裡，跟客戶請款範本上傳
+// 同一套做法；上限抓 700KB 避免超過 Firestore 單一文件 1MB 的限制。
+const MAX_RESUME_SIZE = 700 * 1024;
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename || '履歷表';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '轉出中', '已轉出', '已離境', '取消'];
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
@@ -132,6 +152,8 @@ export default function WorkersPage() {
                             <button onClick={() => setEditing(r)}>編輯</button>
                             <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                             <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
+                            {r.resumeData && <button onClick={() => window.open(r.resumeData, '_blank')}>顯示履歷表</button>}
+                            {r.resumeData && <button onClick={() => downloadDataUrl(r.resumeData, r.resumeName)}>下載履歷表</button>}
                           </td>
                         )}
                       </tr>
@@ -150,6 +172,23 @@ export default function WorkersPage() {
 
 function WorkerFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+
+  async function handleResumeUpload(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_RESUME_SIZE) {
+      alert('履歷表檔案太大（上限約 700KB），請精簡後再上傳。');
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    setForm({ ...form, resumeData: dataUrl, resumeName: file.name });
+  }
+
+  function handleRemoveResume() {
+    setForm({ ...form, resumeData: '', resumeName: '' });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -170,6 +209,20 @@ function WorkerFormModal({ initial, onCancel, onSave }) {
               </label>
             ))}
           </div>
+          <h4>履歷表</h4>
+          {form.resumeName ? (
+            <div className="row-actions" style={{ marginBottom: 16 }}>
+              <span>{form.resumeName}</span>
+              <button type="button" onClick={() => window.open(form.resumeData, '_blank')}>顯示</button>
+              <button type="button" onClick={() => downloadDataUrl(form.resumeData, form.resumeName)}>下載</button>
+              <button type="button" className="danger" onClick={handleRemoveResume}>移除</button>
+            </div>
+          ) : (
+            <label style={{ display: 'block', marginBottom: 16 }}>
+              上傳履歷表（圖片或 PDF，上限約 700KB）
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleResumeUpload} />
+            </label>
+          )}
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
