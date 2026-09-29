@@ -22,6 +22,7 @@ export default function InterviewsPage() {
   const canEditPage = computeCanEdit(system, 'interviews', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('dispatch_interviews');
   const { rows: jobSeekers } = useCollection('dispatch_jobSeekers');
+  const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_interviews', CSV_FIELDS, { entityLabel: '面試概況', requiredKeys: ['jobSeekerId'], canEdit: canEditPage });
@@ -94,12 +95,12 @@ export default function InterviewsPage() {
           )}
         />
       )}
-      {editing && <InterviewFormModal initial={editing} jobSeekers={jobSeekers} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <InterviewFormModal initial={editing} jobSeekers={jobSeekers} clientFeeSetupRows={clientFeeSetupRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function InterviewFormModal({ initial, jobSeekers, onCancel, onSave }) {
+function InterviewFormModal({ initial, jobSeekers, clientFeeSetupRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
   // 選擇求職者時，客戶公司同步帶入求職者資訊的廠商名稱（仍可手動改成不同客戶）。
@@ -107,6 +108,11 @@ function InterviewFormModal({ initial, jobSeekers, onCancel, onSave }) {
     const s = jobSeekers.find((x) => x.id === id);
     setForm({ ...form, jobSeekerId: id, company: s?.client || form.company });
   }
+
+  // 客戶公司改下拉選單，選項從「客戶費用建檔」的客戶名稱抓取；目前表單裡
+  // 填的值就算不在清單裡也要保留（例如求職者帶入的舊客戶名稱）。
+  const clientOptions = [...new Set(clientFeeSetupRows.map((r) => r.client).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (form.company && !clientOptions.includes(form.company)) clientOptions.push(form.company);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -123,7 +129,10 @@ function InterviewFormModal({ initial, jobSeekers, onCancel, onSave }) {
             </label>
             <label>
               客戶公司
-              <input value={form.company || ''} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+              <select value={form.company || ''} onChange={(e) => setForm({ ...form, company: e.target.value })}>
+                <option value="">請選擇</option>
+                {clientOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             </label>
             <label>
               應徵職務
