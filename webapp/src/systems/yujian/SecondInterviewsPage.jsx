@@ -53,14 +53,19 @@ export default function SecondInterviewsPage() {
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
-  // 狀態變成「通過」時自動建立錄取名單（通過二面），比照境外實習生系統。
+  // 狀態變成「通過」時自動建立錄取名單（通過二面），比照境外實習生系統；
+  // 確認日期直接帶入媒合紀錄的錄取時間（如果有填），下游申辦進度追蹤的
+  // 確認錄取日也會跟著一起連動。
   async function handleSave(data) {
     const { id, ...rest } = data;
     await update(id, rest);
     if (data.status === '通過') {
       const existing = await getDocs(query(collection(db, 'yujian_admittedList'), where('matchId', '==', data.matchId)));
       if (existing.empty) {
-        await addDoc(collection(db, 'yujian_admittedList'), { matchId: data.matchId, status: '通過二面', notes: '（系統依二面進度通過自動建立）' });
+        const match = matches.find((m) => m.id === data.matchId);
+        await addDoc(collection(db, 'yujian_admittedList'), {
+          matchId: data.matchId, status: '通過二面', admitDate: match?.admittedDate || '', notes: '（系統依二面進度通過自動建立）',
+        });
       }
     }
     setEditing(null);
