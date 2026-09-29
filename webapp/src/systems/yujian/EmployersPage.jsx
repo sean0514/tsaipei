@@ -13,7 +13,7 @@ const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
 
 const FIELDS = [
   { key: 'employerName', label: '雇主姓名', required: true },
-  { key: 'taiwanAgency', label: '台仲' },
+  { key: 'taiwanAgency', label: '國內仲介' },
   { key: 'phone', label: '聯絡電話' },
   { key: 'address', label: '地址' },
   { key: 'workType', label: '需求類型', options: WORK_TYPES },
@@ -31,7 +31,7 @@ export default function EmployersPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_employers', CSV_FIELDS, { entityLabel: '雇主家庭/需求單', requiredKeys: ['employerName'], canEdit: canEditPage });
-  // 台仲當成分類的群組標題，不用再重複顯示同一欄。
+  // 國內仲介當成分類的群組標題，不用再重複顯示同一欄。
   const rowFields = FIELDS.filter((f) => f.key !== 'taiwanAgency');
   const { visibleKeys, toggleColumn } = useColumnVisibility(rowFields);
 
@@ -41,7 +41,7 @@ export default function EmployersPage() {
 
   const groups = {};
   filtered.forEach((r) => {
-    const agency = r.taiwanAgency || '未指定台仲';
+    const agency = r.taiwanAgency || '未指定國內仲介';
     (groups[agency] ||= []).push(r);
   });
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
