@@ -60,7 +60,7 @@ export default function UsersPage() {
                   <td>{r.displayName || '—'}</td>
                   <td>
                     {canEditPage ? (
-                      <input value={r.department || ''} onChange={(e) => update(r.id, { department: e.target.value })} style={{ width: 120 }} />
+                      <DepartmentInput value={r.department || ''} onSave={(v) => update(r.id, { department: v })} />
                     ) : (r.department || '—')}
                   </td>
                   <td>
@@ -111,6 +111,21 @@ export default function UsersPage() {
 
       {editing && <UserFormModal roles={sys.roles} onCancel={() => setEditing(null)} onSave={createUser} />}
     </div>
+  );
+}
+
+// 輸入用本地 state，失焦時才寫回 Firestore——直接把 value 綁 realtime 監聽
+// 回來的資料、onChange 就寫入，每打一個字都要等 Firestore 來回一趟才會顯示
+// 下一個字，打字會像完全打不進去一樣，這裡改成本地先暫存，打完離開欄位再存檔。
+function DepartmentInput({ value, onSave }) {
+  const [text, setText] = useState(value);
+  return (
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => { if (text !== value) onSave(text); }}
+      style={{ width: 120 }}
+    />
   );
 }
 
