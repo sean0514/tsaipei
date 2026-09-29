@@ -112,10 +112,12 @@ export default function MatchesPage() {
                         <td>{r.matchDate || '—'}</td>
                         <td>{r.program || '—'}</td>
                         {canEditPage && (
-                          <td className="row-actions">
-                            <button onClick={() => setEditing(r)}>編輯</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                            <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                          <td>
+                            <div className="row-actions">
+                              <button onClick={() => setEditing(r)}>編輯</button>
+                              <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                              <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                            </div>
                           </td>
                         )}
                       </tr>

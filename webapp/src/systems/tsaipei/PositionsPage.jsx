@@ -137,13 +137,15 @@ export default function PositionsPage() {
           </td>
           <td>{info.matchCount} / {info.totalHeadcount || '—'}</td>
           {canEditPage && (
-            <td className="row-actions">
-              <button onClick={() => setEditing(r)}>編輯</button>
-              <button onClick={() => copyAsNew(r)}>複製</button>
-              {r.closed === '是'
-                ? <button onClick={() => update(r.id, { closed: '' })}>取消已結案</button>
-                : <button onClick={() => update(r.id, { closed: '是' })}>已結案</button>}
-              <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+            <td>
+              <div className="row-actions">
+                <button onClick={() => setEditing(r)}>編輯</button>
+                <button onClick={() => copyAsNew(r)}>複製</button>
+                {r.closed === '是'
+                  ? <button onClick={() => update(r.id, { closed: '' })}>取消已結案</button>
+                  : <button onClick={() => update(r.id, { closed: '是' })}>已結案</button>}
+                <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+              </div>
             </td>
           )}
         </tr>

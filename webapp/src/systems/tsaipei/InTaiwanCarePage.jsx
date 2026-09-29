@@ -95,9 +95,11 @@ export default function InTaiwanCarePage() {
                             ) : (r.confirmedDeparture ? '是' : '否')}
                           </td>
                           {canEditPage && (
-                            <td className="row-actions">
-                              <button onClick={() => setEditing(r)}>編輯</button>
-                              <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                            <td>
+                              <div className="row-actions">
+                                <button onClick={() => setEditing(r)}>編輯</button>
+                                <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                              </div>
                             </td>
                           )}
                         </tr>
