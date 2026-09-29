@@ -6,7 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const FIELDS = [
-  { key: 'client', label: '客戶名稱', required: true },
+  { key: 'client', label: '廠商名稱', required: true },
   { key: 'branch', label: '分店名稱' },
   { key: 'onsiteStaff', label: '駐廠人員' },
 ];
@@ -50,10 +50,10 @@ export default function ClientsPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有客戶資訊，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋客戶名稱/分店名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <input placeholder="搜尋廠商名稱/分店名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>客戶名稱</th><th>分店名稱</th><th>駐廠人員</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>廠商名稱</th><th>分店名稱</th><th>駐廠人員</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>

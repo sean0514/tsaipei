@@ -36,14 +36,11 @@ const PERSONAL_FIELDS = [
 ];
 
 // dynamicOptions: 'client' 的欄位在表單裡是下拉選單，選項從客戶費用建檔抓客戶名稱；
-// 'staffName'/'staffDept' 則是從「使用人員」的姓名/部門取不重複清單。
+// 'staffName'/'staffDept' 則是從「使用人員」的姓名/部門取不重複清單。招募/面試/
+// 駐廠專員、招募/面試/駐廠部門排在狀態後面；選擇廠商名稱時自動帶入客戶資訊裡
+// 對應的駐廠人員到駐廠專員，選擇招募/面試/駐廠專員時自動帶入該人員在使用人員
+// 裡的部門到對應部門欄位（仍可手動覆蓋）。
 const JOB_FIELDS = [
-  { key: 'recruiter', label: '招募專員', dynamicOptions: 'staffName' },
-  { key: 'interviewer', label: '面試專員', dynamicOptions: 'staffName' },
-  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'staffName' },
-  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'staffDept' },
-  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'staffDept' },
-  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'staffDept' },
   { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
   { key: 'branch', label: '分店名稱' },
   { key: 'shift', label: '班別' },
@@ -53,6 +50,12 @@ const JOB_FIELDS = [
   { key: 'lastWorkDate', label: '最後工作日', type: 'date' },
   { key: 'blacklist', label: '黑名單', options: ['', '否', '是'] },
   { key: 'status', label: '狀態' },
+  { key: 'recruiter', label: '招募專員', dynamicOptions: 'staffName' },
+  { key: 'interviewer', label: '面試專員', dynamicOptions: 'staffName' },
+  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'staffName' },
+  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'staffDept' },
+  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'staffDept' },
+  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'staffDept' },
 ];
 
 const FIELDS = [...PERSONAL_FIELDS, ...JOB_FIELDS];
@@ -64,6 +67,7 @@ export default function JobSeekersPage() {
   const { rows, loading, add, update, remove } = useCollection('dispatch_jobSeekers');
   const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
   const { rows: userRows } = useCollection('dispatch_users');
+  const { rows: clientsRows } = useCollection('dispatch_clients');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_jobSeekers', CSV_FIELDS, { entityLabel: '求職者資訊', canEdit: canEditPage });
@@ -181,7 +185,7 @@ export default function JobSeekersPage() {
           </table></div>
         )}
       </div>
-      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} userRows={userRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} userRows={userRows} clientsRows={clientsRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -190,7 +194,7 @@ function uniqueValues(list) {
   return [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
-function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, onSave }) {
+function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, clientsRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
   // 廠商名稱下拉選單選項從客戶費用建檔抓客戶名稱；招募/面試/駐廠專員從使用
@@ -205,6 +209,29 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, o
     return base;
   }
 
+  // 選擇廠商名稱時，自動帶入客戶資訊裡該廠商的駐廠人員到駐廠專員；選擇招募/
+  // 面試/駐廠專員時，自動帶入該人員在使用人員裡的部門到對應部門欄位。兩者都
+  // 只在找得到對應資料時才覆蓋，且之後仍可手動改成別的值。
+  function handleChange(key, value) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'client') {
+        const c = clientsRows.find((r) => r.client === value);
+        if (c && c.onsiteStaff) next.onsiteSpecialist = c.onsiteStaff;
+      } else if (key === 'recruiter') {
+        const u = userRows.find((r) => r.displayName === value);
+        if (u) next.recruitDept = u.department || '';
+      } else if (key === 'interviewer') {
+        const u = userRows.find((r) => r.displayName === value);
+        if (u) next.interviewDept = u.department || '';
+      } else if (key === 'onsiteSpecialist') {
+        const u = userRows.find((r) => r.displayName === value);
+        if (u) next.onsiteDept = u.department || '';
+      }
+      return next;
+    });
+  }
+
   function renderField(f) {
     if (f.key === 'status') {
       return (
@@ -215,7 +242,7 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, o
     }
     if (f.dynamicOptions) {
       return (
-        <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+        <select value={form[f.key] || ''} onChange={(e) => handleChange(f.key, e.target.value)}>
           <option value="">請選擇</option>
           {optionsFor(f).map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
