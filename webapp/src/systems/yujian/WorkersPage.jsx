@@ -75,7 +75,7 @@ export default function WorkersPage() {
       await update(id, rest);
       if (payload.status === '轉出中' && prevStatus !== '轉出中') await ensurePlacementRecord(id);
     } else {
-      const ref = await add({ status: '待媒合', ...payload });
+      const ref = await add({ ...payload, status: payload.status || '待媒合' });
       await addDoc(collection(db, 'yujian_matches'), { workerId: ref.id, employerId: '', status: '媒合中' });
       if (payload.status === '轉出中') await ensurePlacementRecord(ref.id);
     }
@@ -101,7 +101,7 @@ export default function WorkersPage() {
           <div className="page-desc">管理外籍看護工／家庭幫傭人員的基本資料與狀態{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增人員</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ status: WORKER_STATUS[0] })}>+ 新增人員</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
