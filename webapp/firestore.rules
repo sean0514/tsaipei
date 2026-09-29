@@ -443,6 +443,10 @@ service cloud.firestore {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('applicationForms');
     }
+    match /dispatch_clients/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('bonus');
+    }
     match /dispatch_clientFeeSetup/{docId} {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('bonus');

@@ -21,7 +21,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   dispatch: [
     'dashboard', 'jobSeekers', 'interviews', 'employmentStatus', 'managerReport', 'meetings',
-    'dailyExpenseApplication', 'cashPaymentList', 'salaryChange', 'clientBilling', 'employeeMasterSheet', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'users',
+    'dailyExpenseApplication', 'cashPaymentList', 'salaryChange', 'clientBilling', 'employeeMasterSheet', 'clients', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'users',
   ],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
   yujian: [
@@ -119,6 +119,7 @@ const GROUP_ROUTES = {
           { route: 'employeeMasterSheet', label: '員工資料總檔' },
         ] },
         { label: '資料建檔', items: [
+          { route: 'clients', label: '客戶資訊' },
           { route: 'clientFeeSetup', label: '客戶費用建檔' },
           { route: 'internalFeeSetup', label: '內部費用建檔' },
           { route: 'bonus', label: '內部獎金計算' },

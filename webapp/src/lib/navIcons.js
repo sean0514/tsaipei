@@ -47,6 +47,7 @@ export const NAV_ICONS = {
     salaryChange: '💴',
     clientBilling: '⌗',
     employeeMasterSheet: '▥',
+    clients: '⌘',
     clientFeeSetup: '▦',
     internalFeeSetup: '▧',
     bonus: '◈',
