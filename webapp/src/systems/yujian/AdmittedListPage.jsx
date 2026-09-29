@@ -66,9 +66,12 @@ export default function AdmittedListPage() {
           const employer = employers.find((e) => e.id === match.employerId);
           await addDoc(collection(db, 'yujian_applicationProgress'), {
             matchId: match.id,
+            workerId: match.workerId || '',
             employerName: employer?.employerName || '',
             nationality: worker?.nationality || '',
-            demandCount: 1,
+            foreignAgency: worker?.foreignAgency || '',
+            taiwanAgency: match.taiwanAgency || employer?.taiwanAgency || '',
+            admissionConfirmedDate: rest.admitDate || '',
             status: '進行中',
             notes: [],
           });

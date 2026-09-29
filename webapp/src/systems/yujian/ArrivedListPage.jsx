@@ -30,16 +30,21 @@ export default function ArrivedListPage() {
   const { handleExport, handleImport } = useCsvOverwrite('yujian_arrivedList', CSV_FIELDS, { entityLabel: '已入台名單', requiredKeys: ['employerName'], canEdit: canEditPage });
   const { visibleKeys, toggleColumn } = useColumnVisibility(ARRIVED_LIST_COLUMNS);
 
-  function workerStatusForMatch(matchId) {
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) return '—';
-    return workers.find((x) => x.id === m.workerId)?.status || '—';
+  function resolveWorkerId(r) {
+    return r.workerId || matches.find((x) => x.id === r.matchId)?.workerId;
+  }
+  function workerStatusFor(r) {
+    return workers.find((x) => x.id === resolveWorkerId(r))?.status || '—';
+  }
+  function workerNameFor(r) {
+    const w = workers.find((x) => x.id === resolveWorkerId(r));
+    return w?.chineseName || w?.originalName || '—';
   }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
-    .map((r) => ({ ...r, workerStatus: workerStatusForMatch(r.matchId) }))
+    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
