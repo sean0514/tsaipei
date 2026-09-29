@@ -14,6 +14,7 @@ const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'date', label: '二面日期' },
   { key: 'method', label: '面試方式' }, { key: 'status', label: '進度狀態' }, { key: 'notes', label: '備註' },
+  { key: 'confirmedClosed', label: '結案' },
 ];
 
 export default function SecondInterviewsPage() {

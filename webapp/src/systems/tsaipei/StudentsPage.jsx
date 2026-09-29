@@ -45,7 +45,7 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
 // Ported from docChecklist/docSummary in apps-script/Index.html — 5-item
 // checklist of document fields stored directly on the student record.

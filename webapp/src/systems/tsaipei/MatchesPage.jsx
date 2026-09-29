@@ -15,7 +15,7 @@ const NATIONALITIES = ['越南', '印尼', '泰國', '菲律賓', '台灣'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'positionId', label: '職缺ID' },
   { key: 'venue', label: '實習場域' }, { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' },
-  { key: 'program', label: '來台方案' }, { key: 'notes', label: '備註' },
+  { key: 'program', label: '來台方案' }, { key: 'notes', label: '備註' }, { key: 'confirmedClosed', label: '結案' },
 ];
 
 export default function MatchesPage() {

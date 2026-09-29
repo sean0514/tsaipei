@@ -21,7 +21,7 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
 export default function DormManagementPage() {
   const { system, role, overrides } = useOutletContext();
