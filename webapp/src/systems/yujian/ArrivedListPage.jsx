@@ -6,7 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
-import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
+import { FIELDS, INFO_FIELDS, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, MilestoneFields, newNoteId } from './ApplicationProgressPage';
 import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 import { workerLabel } from './WorkersPage';
 
@@ -217,17 +217,7 @@ function ArrivedFormModal({ initial, onCancel, onSave }) {
           </select>
 
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
-          <div className="form-grid">
-            {MILESTONES.map((m) => (
-              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label>
-                  {m.label}
-                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
-                </label>
-                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
-              </div>
-            ))}
-          </div>
+          <MilestoneFields form={form} setForm={setForm} showOverdue={false} />
 
           <h4 style={{ marginTop: 20 }}>轉出/離境紀錄</h4>
           <ul className="note-list">
