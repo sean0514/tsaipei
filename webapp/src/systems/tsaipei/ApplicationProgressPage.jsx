@@ -49,7 +49,7 @@ export function lastCompletedMilestone(r) {
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' },
   ...MILESTONES.flatMap((m) => [m, { key: milestoneNoteKey(m.key), label: `${m.label}備註` }]),
-  { key: 'notes', label: '備註' },
+  { key: 'notes', label: '備註' }, { key: 'confirmedClosed', label: '結案' },
 ];
 
 function studentFullLabel(s) {

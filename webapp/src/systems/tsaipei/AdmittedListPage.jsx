@@ -14,7 +14,7 @@ import SegmentedControl from '../../components/SegmentedControl';
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'admitDate', label: '錄取日期' },
-  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
+  { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' }, { key: 'confirmedClosed', label: '結案' },
 ];
 
 export default function AdmittedListPage() {
