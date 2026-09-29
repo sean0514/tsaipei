@@ -18,7 +18,7 @@ const ARRIVED_LIST_COLUMNS = (() => {
   return [...LIST_COLUMNS.slice(0, idx + 1), ...extra, ...LIST_COLUMNS.slice(idx + 1)];
 })();
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 export default function ArrivedListPage() {
   const { system, role, overrides } = useOutletContext();
@@ -32,7 +32,10 @@ export default function ArrivedListPage() {
   const [rangeEnd, setRangeEnd] = useState('');
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   // 依入境時間篩選區間，下載總表；沒有輸入起訖日期的一端就不限制那一邊。
@@ -111,6 +114,7 @@ export default function ArrivedListPage() {
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>管理</button>
                         <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                        <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
                       </td>
                     )}
                   </tr>

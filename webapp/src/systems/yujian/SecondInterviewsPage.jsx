@@ -16,6 +16,7 @@ const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'matchId', label: '媒合ID' }, { key: 'date', label: '面談日期' },
   { key: 'method', label: '面談方式' }, { key: 'status', label: '進度狀態' }, { key: 'notes', label: '備註' },
+  { key: 'confirmedClosed', label: '已結案' },
 ];
 const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'date', label: '面談日期' }, { key: 'method', label: '面談方式' }];
 
@@ -41,7 +42,10 @@ export default function SecondInterviewsPage() {
   }
 
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows.filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filteredRows = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
 
   // 狀態變成「通過」時自動建立錄取名單（通過二面），比照境外實習生系統。
   async function handleSave(data) {
@@ -88,6 +92,7 @@ export default function SecondInterviewsPage() {
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                  <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
                 </td>
               )}
             </tr>
