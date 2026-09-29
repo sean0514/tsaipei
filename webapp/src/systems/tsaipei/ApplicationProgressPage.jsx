@@ -13,13 +13,44 @@ async function existsForStudent(collectionName, studentId) {
   return !snap.empty;
 }
 
-export const STAGES = [
-  '學生錄取', 'MOU簽署-學校端用印', 'MOU簽署-企業端用印', '收集學生資料', '收集企業資料',
-  '撰寫計劃書', '企業用印', '經濟部/交通部審核', '發函後寄國外', '辦理簽證',
-  '住宿安排', '預約體檢公司', '入台',
+// 比照聿見國際申辦進度追蹤系統的模式：原本只有單一「目前進度」下拉選單，
+// 改成每個關卡都各自有一個日期欄位（填了日期代表這關已完成）＋備註，跟
+// 進度圖示一起顯示，才看得出每個關卡實際完成的時間點。
+export const MILESTONES = [
+  { key: 'admittedDate', label: '學生錄取' },
+  { key: 'mouSchoolDate', label: 'MOU簽署-學校端用印' },
+  { key: 'mouCompanyDate', label: 'MOU簽署-企業端用印' },
+  { key: 'studentDocsDate', label: '收集學生資料' },
+  { key: 'companyDocsDate', label: '收集企業資料' },
+  { key: 'proposalDate', label: '撰寫計劃書' },
+  { key: 'companySealDate', label: '企業用印' },
+  { key: 'ministryReviewDate', label: '經濟部/交通部審核' },
+  { key: 'sentAbroadDate', label: '發函後寄國外' },
+  { key: 'visaDate', label: '辦理簽證' },
+  { key: 'housingArrangedDate', label: '住宿安排' },
+  { key: 'healthCheckDate', label: '預約體檢公司' },
+  { key: 'arrivalDate', label: '入台' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'currentStage', label: '目前進度' }, { key: 'notes', label: '備註' }];
+export function milestoneNoteKey(key) {
+  return `${key}Note`;
+}
+
+// 依日期回推「目前進度」：抓最後一個已經到期（日期 <= 今天）的關卡；還沒有
+// 任何關卡完成就回傳 null。跟 ProgressPipeline 用同一套判斷，未來/預約日期
+// 不算已完成。
+export function lastCompletedMilestone(r) {
+  const today = new Date().toISOString().slice(0, 10);
+  let last = null;
+  MILESTONES.forEach((m) => { if (r?.[m.key] && r[m.key] <= today) last = m; });
+  return last;
+}
+
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' },
+  ...MILESTONES.flatMap((m) => [m, { key: milestoneNoteKey(m.key), label: `${m.label}備註` }]),
+  { key: 'notes', label: '備註' },
+];
 
 function studentFullLabel(s) {
   if (!s) return '(已刪除)';
@@ -43,13 +74,18 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
   return parts.join(' ') || '未指定客戶';
 }
 
-// Ported from progressPipelineHTML in apps-script/Index.html.
-function ProgressPipeline({ stage }) {
-  const idx = STAGES.indexOf(stage);
+// 進度圖示：只保留「最近完成的一步」到「入台」之間的步驟；都還沒開始就整條
+// 鏈完整顯示。如果先把日期填成未來的時間（預約/預計日期），時間還沒到之前
+// 不算「已完成」，不會影響進度顯示。
+export function ProgressPipeline({ p }) {
+  const today = new Date().toISOString().slice(0, 10);
+  let lastDoneIdx = -1;
+  MILESTONES.forEach((m, i) => { if (p?.[m.key] && p[m.key] <= today) lastDoneIdx = i; });
+  const visible = lastDoneIdx === -1 ? MILESTONES : MILESTONES.slice(lastDoneIdx);
   return (
     <div className="pipeline">
-      {STAGES.map((step, i) => (
-        <span key={step} className={`pip-step${idx >= 0 && i <= idx ? ' done' : ''}`}>{step}</span>
+      {visible.map((m, i) => (
+        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}`}>{m.label}</span>
       ))}
     </div>
   );
@@ -73,9 +109,11 @@ export default function ApplicationProgressPage() {
   const searchQuery = q.trim().toLowerCase();
 
   const filteredRows = rows.filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
-  // 先分成已入台／未入台兩大類，再各自依客戶/專案分組（跟原本一致）。
-  const arrived = filteredRows.filter((r) => r.currentStage === '入台');
-  const notArrived = filteredRows.filter((r) => r.currentStage !== '入台');
+  // 先分成已入台／未入台兩大類，再各自依客戶/專案分組（跟原本一致）；入台
+  // 日期如果先填成未來的日期，時間還沒到之前仍算「未入台」。
+  const today = new Date().toISOString().slice(0, 10);
+  const arrived = filteredRows.filter((r) => r.arrivalDate && r.arrivalDate <= today);
+  const notArrived = filteredRows.filter((r) => !(r.arrivalDate && r.arrivalDate <= today));
 
   function groupByCompany(items) {
     const byCompany = {};
@@ -91,42 +129,42 @@ export default function ApplicationProgressPage() {
     }));
   }
 
-  // 進度到達「辦理簽證」時就先建立住宿安排空白紀錄（未安排），讓宿舍安排
-  // 提早準備，不用等到學生實際入台；進度到達「入台」時自動建立在台簽證追蹤、
-  // 在台關懷紀錄空白紀錄，跟原本 Apps Script 版的 ensureInTaiwanVisaForStudent
-  // 一致。住宿安排另外也會在「新增/更新在台簽證追蹤」那一步補建一次（見
-  // InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用 existsForStudent 檢查避免重複建立。
-  async function afterStageChange(studentId, stage) {
-    if (stage === '辦理簽證' && !(await hasActiveHousingRecord(studentId))) {
-      await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
-    }
-    if (stage !== '入台') return;
-    if (!(await existsForStudent('tsaipei_inTaiwanVisa', studentId))) {
-      await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId });
-    }
-    if (!(await existsForStudent('tsaipei_inTaiwanCare', studentId))) {
-      await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId, status: '良好' });
-    }
-  }
-
+  // 「辦理簽證」日期第一次填入時就先建立住宿安排空白紀錄（未安排），讓宿舍
+  // 安排提早準備，不用等到學生實際入台；「入台」日期第一次填入時自動建立
+  // 在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本 Apps Script 版的
+  // ensureInTaiwanVisaForStudent 一致。住宿安排另外也會在「新增/更新在台簽證
+  // 追蹤」那一步補建一次（見 InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用
+  // existsForStudent/hasActiveHousingRecord 檢查避免重複建立。
   async function handleSave(data) {
+    const prevVisaDate = editing?.visaDate || '';
+    const prevArrivalDate = editing?.arrivalDate || '';
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
       await add(data);
     }
-    await afterStageChange(data.studentId, data.currentStage);
+    if (data.visaDate && !prevVisaDate && !(await hasActiveHousingRecord(data.studentId))) {
+      await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: data.studentId });
+    }
+    if (data.arrivalDate && !prevArrivalDate) {
+      if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
+        await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
+      }
+      if (!(await existsForStudent('tsaipei_inTaiwanCare', data.studentId))) {
+        await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId: data.studentId, status: '良好' });
+      }
+    }
     setEditing(null);
   }
 
-  // 補救用：把目前所有「辦理簽證」的學生都檢查一次，缺住宿安排紀錄的補上。
+  // 補救用：把目前所有「辦理簽證」日期已填的學生都檢查一次，缺住宿安排紀錄的補上。
   // 用來修正在住宿安排自動連動邏輯修好之前，就已經卡在辦理簽證但沒被
   // 補到的學生（例如當時該學生已有一筆「已完成」的舊住宿紀錄被誤判為已處理）。
   async function reconcileHousingForVisaStage() {
     setCheckingHousing(true);
     try {
-      const visaRows = rows.filter((r) => r.currentStage === '辦理簽證');
+      const visaRows = rows.filter((r) => r.visaDate);
       let fixed = 0;
       for (const r of visaRows) {
         if (!(await hasActiveHousingRecord(r.studentId))) {
@@ -134,7 +172,7 @@ export default function ApplicationProgressPage() {
           fixed++;
         }
       }
-      alert(`檢查完成：目前共 ${visaRows.length} 位學生進度為「辦理簽證」，其中補上了 ${fixed} 筆缺少的住宿安排紀錄。`);
+      alert(`檢查完成：目前共 ${visaRows.length} 位學生已填入「辦理簽證」日期，其中補上了 ${fixed} 筆缺少的住宿安排紀錄。`);
     } finally {
       setCheckingHousing(false);
     }
@@ -148,7 +186,7 @@ export default function ApplicationProgressPage() {
           <div className="page-desc">依客戶分類，追蹤每位學生從錄取到入台的整體申辦流程{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({ currentStage: STAGES[0] })}>+ 新增進度紀錄</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增進度紀錄</button>}
           {canEditPage && (
             <button onClick={reconcileHousingForVisaStage} disabled={checkingHousing}>
               {checkingHousing ? '檢查中…' : '核對辦理簽證學生的住宿安排'}
@@ -222,7 +260,7 @@ function ArrivalSection({ title, groups, canEditPage, ctx, studentById, onEdit, 
                     )}
                   </div>
                   <div style={{ marginTop: 8 }}>
-                    <ProgressPipeline stage={r.currentStage} />
+                    <ProgressPipeline p={r} />
                   </div>
                 </div>
               ))}
@@ -238,7 +276,7 @@ function ProgressFormModal({ initial, students, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯進度紀錄' : '新增進度紀錄'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <label>
@@ -248,15 +286,26 @@ function ProgressFormModal({ initial, students, onCancel, onSave }) {
               {students.map((s) => <option key={s.id} value={s.id}>{studentFullLabel(s)}</option>)}
             </select>
           </label>
-          <label>
-            目前進度
-            <select value={form.currentStage || STAGES[0]} onChange={(e) => setForm({ ...form, currentStage: e.target.value })} style={{ marginBottom: 16 }}>
-              {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
+
+          <h4 style={{ marginTop: 0 }}>申辦流程</h4>
+          <div className="form-grid">
+            {MILESTONES.map((m) => (
+              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label>
+                  {m.label}
+                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
+                </label>
+                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+
+          <h4 style={{ marginTop: 20 }}>進度圖示</h4>
+          <ProgressPipeline p={form} />
+
           <label>
             備註
-            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ marginBottom: 16 }} />
+            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ marginTop: 16, marginBottom: 16 }} />
           </label>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>

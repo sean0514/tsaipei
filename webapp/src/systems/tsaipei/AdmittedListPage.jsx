@@ -63,7 +63,7 @@ export default function AdmittedListPage() {
         }
         const existingProgress = await getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId)));
         if (existingProgress.empty) {
-          await addDoc(collection(db, 'tsaipei_applicationProgress'), { studentId, currentStage: '學生錄取' });
+          await addDoc(collection(db, 'tsaipei_applicationProgress'), { studentId, admittedDate: rest.admitDate || '' });
         }
       } else if (studentId && prevStatus === '確認錄取' && rest.status === '通過二面') {
         const snap = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));

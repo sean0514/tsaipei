@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
+import { lastCompletedMilestone } from './ApplicationProgressPage';
 
 function studentFullLabel(s) {
   if (!s) return '(已刪除)';
@@ -40,7 +41,7 @@ export default function VisaReminderPage() {
   const searchQuery = q.trim().toLowerCase();
 
   const pending = rows
-    .filter((r) => r.currentStage === '辦理簽證')
+    .filter((r) => lastCompletedMilestone(r)?.key === 'visaDate')
     .filter((r) => !searchQuery || `${studentFullLabel(studentById(r.studentId))} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
 
   const byCompany = {};
