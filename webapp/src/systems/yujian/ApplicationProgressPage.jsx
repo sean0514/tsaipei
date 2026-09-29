@@ -24,17 +24,28 @@ export const TRANSFER_STEP_STATUS = ['已接離', '轉出中', '已轉出', '已
 export const INFO_FIELDS = [
   { key: 'employerName', label: '雇主姓名', required: true, sticky: true },
   { key: 'caseNo', label: '編號' },
-  { key: 'demandCount', label: '需求量', type: 'number' },
+  { key: 'workerId', label: '工人姓名' },
   { key: 'selectionStatus', label: '選工狀態' },
   { key: 'foreignAgency', label: '國外仲介' },
   { key: 'taiwanAgency', label: '國內仲介' },
   { key: 'nationality', label: '國籍', options: NATIONALITIES },
 ];
 
-// 申辦流程清單：對應實際申辦流程從認證到送工的每個關卡；日期欄位留空代表
+export function addDays(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// 申辦流程清單：對應實際申辦流程從選工到送工的每個關卡；日期欄位留空代表
 // 尚未完成，標籤上的「（N天）」是預期作業天數，僅供填寫時參考。
+// 認證領件日期有 overdueFrom/overdueDays：超過送件日期＋天數還沒填領件
+// 日期時，該欄位標籤會變紅色提醒逾期。
 export const MILESTONES = [
-  { key: 'certCompleteDate', label: '認證（14天）' },
+  { key: 'admissionConfirmedDate', label: '確認錄取日' },
+  { key: 'certCompleteDate', label: '認證（14天）送件日期' },
+  { key: 'certReceiveDate', label: '認證領件日期', overdueFrom: 'certCompleteDate', overdueDays: 14 },
+  { key: 'sentAbroadDate', label: '寄出國外日期' },
   { key: 'healthCheckDate', label: '體檢/時間' },
   { key: 'trainingDate', label: '訓練/時間' },
   { key: 'owwaDate', label: '福利部OWWA（2天）' },
@@ -65,7 +76,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClos
 export const LIST_COLUMNS = [
   { key: 'employerName', label: '雇主姓名', sticky: true },
   { key: 'caseNo', label: '編號' },
-  { key: 'demandCount', label: '需求量' },
+  { key: 'workerName', label: '工人姓名' },
   { key: 'nationality', label: '國籍' },
   { key: 'workerStatus', label: '工人狀態' },
   { key: 'status', label: '進度狀態' },
@@ -103,16 +114,23 @@ export default function ApplicationProgressPage() {
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
   const { visibleKeys, toggleColumn } = useColumnVisibility(LIST_COLUMNS);
 
-  function workerStatusForMatch(matchId) {
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) return '—';
-    return workers.find((x) => x.id === m.workerId)?.status || '—';
+  // 資料總檔的「工人姓名」是直接選的 workerId；沒有選過（例如舊資料）就退回
+  // 用 matchId 找對應人員，兩種來源都支援。
+  function resolveWorkerId(r) {
+    return r.workerId || matches.find((x) => x.id === r.matchId)?.workerId;
+  }
+  function workerStatusFor(r) {
+    return workers.find((x) => x.id === resolveWorkerId(r))?.status || '—';
+  }
+  function workerNameFor(r) {
+    const w = workers.find((x) => x.id === resolveWorkerId(r));
+    return w?.chineseName || w?.originalName || '—';
   }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
-    .map((r) => ({ ...r, workerStatus: workerStatusForMatch(r.matchId) }))
+    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
     .slice()
@@ -199,7 +217,7 @@ export default function ApplicationProgressPage() {
           </div>
         </div>
       )}
-      {editing && <ProgressFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <ProgressFormModal initial={editing} workers={workers} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -247,13 +265,36 @@ function ProgressTable({ items, columns, canEditPage, onEdit, onRemove, onClose 
   );
 }
 
-function ProgressFormModal({ initial, onCancel, onSave }) {
+function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
   const [form, setForm] = useState({ ...initial, notes: initial.notes || [], transferSteps: initial.transferSteps || [] });
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteText, setEditingNoteText] = useState('');
   const [newStepStatus, setNewStepStatus] = useState(TRANSFER_STEP_STATUS[0]);
   const [newStepDate, setNewStepDate] = useState('');
+
+  // 選擇工人姓名時，自動帶入該工人的國外仲介、國籍，以及該工人媒合紀錄裡
+  // 的國內仲介（仍可手動修改）。
+  function handleWorkerChange(workerId) {
+    const w = workers.find((x) => x.id === workerId);
+    const m = matches.find((x) => x.workerId === workerId);
+    setForm({
+      ...form, workerId,
+      foreignAgency: w?.foreignAgency || form.foreignAgency,
+      nationality: w?.nationality || form.nationality,
+      taiwanAgency: m?.taiwanAgency || form.taiwanAgency,
+    });
+  }
+
+  // 認證送件日期第一次填入（或還沒手動填過領件日期）時，自動把領件日期
+  // 帶成送件日期＋14天，仍可手動修改。
+  function handleCertCompleteDateChange(value) {
+    const shouldAutoFill = !form.certReceiveDate;
+    setForm({
+      ...form, certCompleteDate: value,
+      certReceiveDate: shouldAutoFill && value ? addDays(value, 14) : form.certReceiveDate,
+    });
+  }
 
   function addTransferStep() {
     setForm({ ...form, transferSteps: [...form.transferSteps, { id: newNoteId(), status: newStepStatus, date: newStepDate }] });
@@ -304,15 +345,24 @@ function ProgressFormModal({ initial, onCancel, onSave }) {
 
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
-            {MILESTONES.map((m) => (
-              <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label>
-                  {m.label}
-                  <input type="date" value={form[m.key] || ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })} />
-                </label>
-                <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
-              </div>
-            ))}
+            {MILESTONES.map((m) => {
+              // 領件日期逾期提醒：送件日期＋overdueDays 天已過，領件日期卻還沒填。
+              const isOverdue = m.overdueFrom && form[m.overdueFrom] && !form[m.key]
+                && new Date() >= new Date(`${addDays(form[m.overdueFrom], m.overdueDays)}T00:00:00`);
+              return (
+                <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label>
+                    <span style={isOverdue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>{m.label}{isOverdue && '（已逾期）'}</span>
+                    <input
+                      type="date"
+                      value={form[m.key] || ''}
+                      onChange={(e) => (m.key === 'certCompleteDate' ? handleCertCompleteDateChange(e.target.value) : setForm({ ...form, [m.key]: e.target.value }))}
+                    />
+                  </label>
+                  <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+                </div>
+              );
+            })}
           </div>
 
           <h4 style={{ marginTop: 20 }}>轉出/離境紀錄</h4>
@@ -346,7 +396,12 @@ function ProgressFormModal({ initial, onCancel, onSave }) {
             {INFO_FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                {f.options ? (
+                {f.key === 'workerId' ? (
+                  <select value={form.workerId || ''} onChange={(e) => handleWorkerChange(e.target.value)}>
+                    <option value="">請選擇</option>
+                    {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
+                  </select>
+                ) : f.options ? (
                   <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     <option value="">請選擇</option>
                     {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
