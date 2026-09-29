@@ -14,11 +14,13 @@ import { MATCH_TAG } from '../../lib/tags';
 const STATUSES = ['媒合中', '已媒合', '取消'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'employerId', label: '雇主ID' },
-  { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
+  { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'taiwanAgency', label: '台仲' }, { key: 'notes', label: '備註' },
+  { key: 'confirmedClosed', label: '已結案' },
 ];
 // 狀態已經是分類的區塊標題，欄位裡不用再重複顯示。
 const COLUMNS = [
-  { key: 'worker', label: '人員' }, { key: 'employer', label: '雇主' }, { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
+  { key: 'worker', label: '工人姓名' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
+  { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
 ];
 
 export default function MatchesPage() {
@@ -37,7 +39,10 @@ export default function MatchesPage() {
   const employerName = (id) => employers.find((x) => x.id === id)?.employerName || '(未設定)';
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${workerName(r.workerId)} ${employerName(r.employerId)}`.toLowerCase().includes(searchQuery));
+  // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || `${workerName(r.workerId)} ${employerName(r.employerId)}`.toLowerCase().includes(searchQuery));
 
   // 狀態變成「已媒合」時自動建立一筆二面進度（待安排），比照境外實習生系統
   // 媒合紀錄→二面進度的自動連動。
@@ -71,7 +76,7 @@ export default function MatchesPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」「雇主ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
-        <input placeholder="搜尋人員或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <input placeholder="搜尋工人姓名或雇主" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
       {loading ? <p className="muted">載入中…</p> : (
@@ -92,6 +97,7 @@ export default function MatchesPage() {
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                  <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
                 </td>
               )}
             </tr>
@@ -105,6 +111,13 @@ export default function MatchesPage() {
 
 function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+
+  // 選擇雇主時，台仲同步帶入該雇主的國內仲介（仍可手動修改）。
+  function handleEmployerChange(id) {
+    const e = employers.find((x) => x.id === id);
+    setForm({ ...form, employerId: id, taiwanAgency: e?.taiwanAgency || form.taiwanAgency });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -112,7 +125,7 @@ function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
-              人員
+              工人姓名
               <select required value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
                 <option value="" disabled>請選擇</option>
                 {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
@@ -120,10 +133,14 @@ function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
             </label>
             <label>
               雇主
-              <select required value={form.employerId || ''} onChange={(e) => setForm({ ...form, employerId: e.target.value })}>
+              <select required value={form.employerId || ''} onChange={(e) => handleEmployerChange(e.target.value)}>
                 <option value="" disabled>請選擇</option>
                 {employers.map((e2) => <option key={e2.id} value={e2.id}>{e2.employerName}</option>)}
               </select>
+            </label>
+            <label>
+              台仲
+              <input value={form.taiwanAgency || ''} onChange={(e) => setForm({ ...form, taiwanAgency: e.target.value })} />
             </label>
             <label>
               狀態
