@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-const SERVICE_CATEGORIES = ['派遣', '待招', '承攬'];
+const SERVICE_CATEGORIES = ['派遣', '代招', '承攬'];
 const QUOTE_METHODS = ['時薪制', '月薪制', '計件制'];
 
 const FIELDS = [
