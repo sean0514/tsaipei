@@ -22,6 +22,7 @@ export function workerLabel(w) {
 }
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
+export const RECRUIT_TYPES = ['國內承接', '海外引進', '指定工', '回鍋工'];
 
 const FIELDS = [
   { key: 'workerNo', label: '工人編號', required: true },
@@ -35,6 +36,7 @@ const FIELDS = [
   { key: 'passportNumber', label: '護照號碼' },
   { key: 'phone', label: '聯絡電話' },
   { key: 'workType', label: '工作類型', options: WORK_TYPES },
+  { key: 'recruitType', label: '工人類型', options: RECRUIT_TYPES },
   { key: 'foreignAgency', label: '國外仲介' },
   { key: 'entryDate', label: '入境日期', type: 'date' },
   { key: 'status', label: '狀態', options: WORKER_STATUS },

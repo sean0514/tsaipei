@@ -93,6 +93,7 @@ export const LIST_COLUMNS = [
   { key: 'caseNo', label: '編號' },
   { key: 'workerName', label: '工人編號' },
   { key: 'nationality', label: '國籍' },
+  { key: 'workerType', label: '工人類型' },
   { key: 'workerStatus', label: '工人狀態' },
   { key: 'status', label: '進度狀態' },
   { key: 'progress', label: '進度' },
@@ -241,11 +242,14 @@ export default function ApplicationProgressPage() {
   function workerNameFor(r) {
     return workerLabel(workers.find((x) => x.id === resolveWorkerId(r)));
   }
+  function workerTypeFor(r) {
+    return workers.find((x) => x.id === resolveWorkerId(r))?.recruitType || '—';
+  }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
-    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r) }))
+    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r), workerType: workerTypeFor(r) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
     .slice()

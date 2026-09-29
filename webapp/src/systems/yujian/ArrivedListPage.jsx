@@ -41,11 +41,14 @@ export default function ArrivedListPage() {
   function workerNameFor(r) {
     return workerLabel(workers.find((x) => x.id === resolveWorkerId(r)));
   }
+  function workerTypeFor(r) {
+    return workers.find((x) => x.id === resolveWorkerId(r))?.recruitType || '—';
+  }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
-    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r) }))
+    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r), workerType: workerTypeFor(r) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery));
   const columns = ARRIVED_LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
