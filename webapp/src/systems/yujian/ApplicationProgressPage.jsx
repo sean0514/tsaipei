@@ -161,11 +161,12 @@ export default function ApplicationProgressPage() {
   const notArrived = filtered.filter((r) => !r.entryDate || r.entryDate > today);
   const arrived = filtered.filter((r) => r.entryDate && r.entryDate <= today);
 
-  // 送工時間第一次填入時，自動把這筆案件帶入已入台名單；一旦已經帶入過，
-  // 之後案件本身任何欄位（包含進度狀態）再變更，都同步更新已入台名單那筆
-  // 對應紀錄，兩邊不會分家。
+  // 入境時間到了（跟這一頁「已入台」分類同一套判斷）自動把這筆案件帶入已入台
+  // 名單；一旦已經帶入過，之後案件本身任何欄位（包含進度狀態）再變更，都
+  // 同步更新已入台名單那筆對應紀錄，兩邊不會分家、畫面上的分類也會一致。
   async function syncArrivedList(saved) {
-    if (!saved.dispatchDate) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (!saved.entryDate || saved.entryDate > today) return;
     const existing = await getDocs(query(collection(db, 'yujian_arrivedList'), where('sourceCaseId', '==', saved.id)));
     const { id, ...rest } = saved;
     if (existing.empty) {
@@ -210,7 +211,7 @@ export default function ApplicationProgressPage() {
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「送工時間」第一次填入日期時，進度狀態會自動改成「已入台」，並把該筆案件帶入「已入台名單」；之後這筆案件的任何欄位異動也會同步更新到已入台名單那筆紀錄。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有進度紀錄，請先下載備份再匯入。「入境時間」到了（本頁「已入台」分類同一套判斷）會自動把該筆案件帶入「已入台名單」；「送工時間」第一次填入日期時，進度狀態會自動改成「已入台」。之後這筆案件的任何欄位異動，只要已經帶入過已入台名單，都會同步更新到那筆紀錄。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
         <input placeholder="搜尋編號、雇主姓名或國外仲介" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={LIST_COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />

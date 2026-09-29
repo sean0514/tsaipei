@@ -9,7 +9,7 @@ export const STUDENT_TAG = {
 
 export const POSITION_TAG = { 開放中: 'tag-green', 已額滿: 'tag-amber', 已結束: 'tag-grey' };
 
-export const MATCH_TAG = { 媒合中: 'tag-amber', 已媒合: 'tag-green', 取消: 'tag-red' };
+export const MATCH_TAG = { 媒合中: 'tag-amber', 已媒合: 'tag-green', 已錄取: 'tag-jade', 取消: 'tag-red' };
 
 export const SECOND_INTERVIEW_TAG = { 待安排: 'tag-grey', 已安排: 'tag-blue', 通過: 'tag-green', 未通過: 'tag-red' };
 
