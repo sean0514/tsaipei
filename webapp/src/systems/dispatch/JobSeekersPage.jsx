@@ -1,26 +1,31 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-// 比照使用者提供的「招募人員資訊」Excel 完整欄位結構與順序（45 欄）。
+// 比照使用者提供的「招募人員資訊」Excel 欄位結構調整：專員/部門欄位改下拉
+// 選單（選項來自既有資料裡已經出現過的值）、招募/面試時間改選日期、廠商
+// 名稱改從「客戶費用建檔」抓取、移除員工編號/員工部門/出席/複試/錄取/
+// 報到/隸屬公司這幾欄、黑名單改是/否選單。
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
+// dynamicOptions 標記的欄位在表單裡改成下拉選單：'existing' 從求職者資料
+// 裡目前已經出現過的值取不重複清單，'client' 從客戶費用建檔抓客戶名稱。
 const FIELDS = [
-  { key: 'recruiter', label: '招募專員' },
-  { key: 'interviewer', label: '面試專員' },
-  { key: 'onsiteSpecialist', label: '駐廠專員' },
-  { key: 'recruitDept', label: '招募部門' },
-  { key: 'interviewDept', label: '面試部門' },
-  { key: 'onsiteDept', label: '駐廠部門' },
-  { key: 'recruitTime', label: '招募時間' },
-  { key: 'client', label: '廠商名稱' },
+  { key: 'recruiter', label: '招募專員', dynamicOptions: 'existing' },
+  { key: 'interviewer', label: '面試專員', dynamicOptions: 'existing' },
+  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'existing' },
+  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'existing' },
+  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'existing' },
+  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'existing' },
+  { key: 'recruitTime', label: '招募時間', type: 'date' },
+  { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
   { key: 'branch', label: '分店名稱' },
-  { key: 'interviewSession', label: '面試場次' },
+  { key: 'interviewSession', label: '面試時間', type: 'date' },
   { key: 'chineseName', label: '姓名', required: true },
   { key: 'gender', label: '性別', options: ['', '男', '女'] },
   { key: 'age', label: '年齡', type: 'number' },
@@ -29,22 +34,16 @@ const FIELDS = [
   { key: 'birthDate', label: '生日', type: 'date' },
   { key: 'idNumber', label: '身份證字號' },
   { key: 'acceptableArea', label: '可接受地區' },
-  { key: 'employeeId', label: '員工編號' },
-  { key: 'employeeDept', label: '員工部門' },
   { key: 'licensePlate', label: '車牌' },
   { key: 'education', label: '學歷' },
   { key: 'emergencyContact', label: '緊急聯絡人' },
   { key: 'emergencyContactPhone', label: '緊急聯絡人電話' },
   { key: 'address', label: '地址' },
   { key: 'shift', label: '班別' },
-  { key: 'attendance', label: '出席' },
-  { key: 'secondInterview', label: '複試' },
-  { key: 'admitted', label: '錄取' },
-  { key: 'reported', label: '報到' },
   { key: 'startDate', label: '報到日期', type: 'date' },
   { key: 'insuranceEndDate', label: '退保日期', type: 'date' },
   { key: 'lastWorkDate', label: '最後工作日', type: 'date' },
-  { key: 'blacklist', label: '黑名單' },
+  { key: 'blacklist', label: '黑名單', options: ['', '否', '是'] },
   { key: 'notes', label: '備註' },
   { key: 'transferFee', label: '轉帳手續費' },
   { key: 'bankCode', label: '銀行別代碼' },
@@ -55,7 +54,6 @@ const FIELDS = [
   { key: 'bankAccount', label: '銀行帳號' },
   { key: 'score', label: '績分', type: 'number' },
   { key: 'status', label: '狀態' },
-  { key: 'affiliatedCompany', label: '隸屬公司' },
 ];
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
@@ -64,6 +62,7 @@ export default function JobSeekersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'jobSeekers', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('dispatch_jobSeekers');
+  const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_jobSeekers', CSV_FIELDS, { entityLabel: '求職者資訊', canEdit: canEditPage });
@@ -95,11 +94,7 @@ export default function JobSeekersPage() {
     }
   }
 
-  // 已有報到日期時，代表招募流程的出席/複試/錄取/報到都已經完成，自動帶入「是」。
-  async function handleSave(rawData) {
-    const data = rawData.startDate
-      ? { ...rawData, attendance: '是', secondInterview: '是', admitted: '是', reported: '是' }
-      : rawData;
+  async function handleSave(data) {
     try {
       let id = data.id;
       if (id) {
@@ -114,22 +109,6 @@ export default function JobSeekersPage() {
     } catch (err) {
       alert(`存檔失敗：${err.message || err}`);
     }
-  }
-
-  // 「連動表格內資料」：把已經存在資料庫、但還沒同步過的舊資料（例如比這個
-  // 規則早匯入的資料）一次性補上——只要有報到日期，就把出席/複試/錄取/報到
-  // 都設成「是」，不動其他欄位。
-  const outOfSync = rows.filter((r) => r.startDate && (r.attendance !== '是' || r.secondInterview !== '是' || r.admitted !== '是' || r.reported !== '是'));
-
-  async function handleSyncPipelineFlags() {
-    if (outOfSync.length === 0) return;
-    if (!window.confirm(`將把 ${outOfSync.length} 筆已有報到日期的紀錄，出席/複試/錄取/報到都補上「是」，確定要繼續嗎？`)) return;
-    const batch = writeBatch(db);
-    outOfSync.forEach((r) => {
-      batch.update(doc(db, 'dispatch_jobSeekers', r.id), { attendance: '是', secondInterview: '是', admitted: '是', reported: '是' });
-    });
-    await batch.commit();
-    alert(`已同步 ${outOfSync.length} 筆資料。`);
   }
 
   async function handleDelete(jobSeekerId) {
@@ -160,13 +139,10 @@ export default function JobSeekersPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ status: JOB_SEEKER_STATUS[0] })}>+ 新增求職者</button>}
-          {canEditPage && outOfSync.length > 0 && (
-            <button onClick={handleSyncPipelineFlags}>連動出席/複試/錄取/報到（{outOfSync.length}）</button>
-          )}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有求職者資料，請先下載備份再匯入。狀態為「在職」或「離職」時會自動同步到「在職/離職概況」。已有報到日期但出席/複試/錄取/報到還沒補上「是」的舊資料，可按「連動出席/複試/錄取/報到」一次補齊。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有求職者資料，請先下載備份再匯入。狀態為「在職」或「離職」時會自動同步到「在職/離職概況」。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋姓名/身分證號/廠商/分店" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
@@ -174,7 +150,6 @@ export default function JobSeekersPage() {
             <thead>
               <tr>
                 <th>姓名 / 身份證字號</th><th>廠商 / 分店</th><th>招募 / 面試 / 駐廠專員</th>
-                <th>出席</th><th>複試</th><th>錄取</th><th>報到</th>
                 <th>報到日期</th><th>狀態</th>{canEditPage && <th></th>}
               </tr>
             </thead>
@@ -190,10 +165,6 @@ export default function JobSeekersPage() {
                     <div className="muted" style={{ fontSize: 12 }}>{r.branch || ''}</div>
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>{[r.recruiter, r.interviewer, r.onsiteSpecialist].filter(Boolean).join(' / ') || '—'}</td>
-                  <td>{r.attendance || '—'}</td>
-                  <td>{r.secondInterview || '—'}</td>
-                  <td>{r.admitted || '—'}</td>
-                  <td>{r.reported || '—'}</td>
                   <td>{r.startDate || '—'}</td>
                   <td><span className="tag tag-blue">{r.status || '—'}</span></td>
                   {canEditPage && (
@@ -204,18 +175,34 @@ export default function JobSeekersPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
       </div>
-      {editing && <JobSeekerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <JobSeekerFormModal initial={editing} rows={rows} clientFeeSetupRows={clientFeeSetupRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function JobSeekerFormModal({ initial, onCancel, onSave }) {
+function uniqueValues(list) {
+  return [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function JobSeekerFormModal({ initial, rows, clientFeeSetupRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+
+  // 下拉選單的選項：'existing' 從求職者資料裡這個欄位目前已經出現過的值
+  // 取不重複清單，'client' 從客戶費用建檔抓客戶名稱；目前表單裡填的值就算
+  // 不在清單裡也要保留（例如舊資料、剛新增還沒被其他人用過的值）。
+  function optionsFor(f) {
+    const base = f.dynamicOptions === 'client'
+      ? uniqueValues(clientFeeSetupRows.map((r) => r.client))
+      : uniqueValues(rows.map((r) => r[f.key]));
+    if (form[f.key] && !base.includes(form[f.key])) return [...base, form[f.key]];
+    return base;
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -228,6 +215,11 @@ function JobSeekerFormModal({ initial, onCancel, onSave }) {
                 {f.key === 'status' ? (
                   <select value={form.status || JOB_SEEKER_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                     {JOB_SEEKER_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : f.dynamicOptions ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {optionsFor(f).map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : f.options ? (
                   <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
