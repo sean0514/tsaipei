@@ -124,6 +124,7 @@ export default function ApplicationProgressPage() {
   const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
+  const { rows: employers } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_applicationProgress', CSV_FIELDS, { entityLabel: '申辦進度追蹤', requiredKeys: ['employerName'], canEdit: canEditPage });
@@ -233,7 +234,7 @@ export default function ApplicationProgressPage() {
           </div>
         </div>
       )}
-      {editing && <ProgressFormModal initial={editing} workers={workers} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <ProgressFormModal initial={editing} workers={workers} matches={matches} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -281,7 +282,7 @@ function ProgressTable({ items, columns, canEditPage, onEdit, onRemove, onClose 
   );
 }
 
-function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
+function ProgressFormModal({ initial, workers, matches, employers, onCancel, onSave }) {
   const [form, setForm] = useState({ ...initial, notes: initial.notes || [], transferSteps: initial.transferSteps || [] });
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
@@ -289,16 +290,18 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
   const [newStepStatus, setNewStepStatus] = useState(TRANSFER_STEP_STATUS[0]);
   const [newStepDate, setNewStepDate] = useState('');
 
-  // 選擇工人姓名時，自動帶入該工人的國外仲介、國籍，以及該工人媒合紀錄裡
-  // 的國內仲介（仍可手動修改）。
+  // 選擇工人編號時，自動帶入資料總檔其他欄位：該工人的國外仲介、國籍，以及
+  // 該工人媒合紀錄裡的雇主姓名、國內仲介（仍可手動修改）。
   function handleWorkerChange(workerId) {
     const w = workers.find((x) => x.id === workerId);
     const m = matches.find((x) => x.workerId === workerId);
+    const e = employers.find((x) => x.id === m?.employerId);
     setForm({
       ...form, workerId,
+      employerName: e?.employerName || form.employerName,
       foreignAgency: w?.foreignAgency || form.foreignAgency,
       nationality: w?.nationality || form.nationality,
-      taiwanAgency: m?.taiwanAgency || form.taiwanAgency,
+      taiwanAgency: m?.taiwanAgency || e?.taiwanAgency || form.taiwanAgency,
     });
   }
 
