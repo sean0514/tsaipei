@@ -31,13 +31,15 @@ export default function PositionBenefitsPage() {
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card" style={{ overflowX: 'auto' }}>
           <div className="table-wrap"><table>
-            <thead><tr><th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>其他福利</th></tr></thead>
+            <thead><tr><th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習津貼金額</th><th>膳宿費扣款金額</th><th>其他福利</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.projectCode || '—'}</td>
                   <td>{r.company || '—'}</td>
                   <td>{r.title || '—'}</td>
+                  <td>{r.stipendAmount ? Number(r.stipendAmount).toLocaleString() : '—'}</td>
+                  <td>{r.boardDeduction ? Number(r.boardDeduction).toLocaleString() : '—'}</td>
                   <td>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {r.benefits.map((b, i) => <span key={i} className="tag" style={{ fontSize: 12 }}>{b}</span>)}
@@ -45,7 +47,7 @@ export default function PositionBenefitsPage() {
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={4} className="muted">目前沒有登記其他福利的職缺。</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={6} className="muted">目前沒有登記其他福利的職缺。</td></tr>}
             </tbody>
           </table></div>
         </div>
