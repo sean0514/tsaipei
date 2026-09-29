@@ -11,8 +11,9 @@ import ColumnPicker from '../../components/ColumnPicker';
 import StatusSections from '../../components/StatusSections';
 import { MATCH_TAG } from '../../lib/tags';
 import { workerLabel } from './WorkersPage';
+import { ensureAdmittedRecord } from '../../lib/yujianCascade';
 
-const STATUSES = ['媒合中', '已媒合', '取消'];
+const STATUSES = ['媒合中', '已媒合', '已錄取', '取消'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'employerId', label: '雇主ID' },
   { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'admittedDate', label: '錄取時間' },
@@ -51,16 +52,24 @@ export default function MatchesPage() {
   // 媒合紀錄→二面進度的自動連動。
   async function handleSave(data) {
     const wasMatched = editing?.status === '已媒合';
+    const wasAdmitted = editing?.status === '已錄取';
     let matchId = data.id;
+    let savedMatch;
     if (matchId) {
       const { id, ...rest } = data;
       await update(id, rest);
+      savedMatch = { id, ...rest };
     } else {
       const ref = await add({ status: '媒合中', ...data });
       matchId = ref.id;
+      savedMatch = { id: matchId, ...data };
     }
     if (data.status === '已媒合' && !wasMatched) {
       await addDoc(collection(db, 'yujian_secondInterviews'), { matchId, status: '待安排' });
+    }
+    // 狀態變成「已錄取」時自動帶入錄取名單（確認錄取），並接著連動申辦進度追蹤。
+    if (data.status === '已錄取' && !wasAdmitted) {
+      await ensureAdmittedRecord(savedMatch, { admitDate: data.admittedDate, status: '確認錄取', workers, employers });
     }
     setEditing(null);
   }

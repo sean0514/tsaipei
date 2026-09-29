@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { ADMITTED_TAG } from '../../lib/tags';
 import { workerLabel } from './WorkersPage';
+import { ensureApplicationProgressFromMatch } from '../../lib/yujianCascade';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
@@ -60,23 +59,8 @@ export default function AdmittedListPage() {
     try {
       await update(id, rest);
       const match = matches.find((m) => m.id === rest.matchId);
-      if (match?.id && rest.status === '確認錄取' && prevStatus !== '確認錄取') {
-        const existingProgress = await getDocs(query(collection(db, 'yujian_applicationProgress'), where('matchId', '==', match.id)));
-        if (existingProgress.empty) {
-          const worker = workers.find((w) => w.id === match.workerId);
-          const employer = employers.find((e) => e.id === match.employerId);
-          await addDoc(collection(db, 'yujian_applicationProgress'), {
-            matchId: match.id,
-            workerId: match.workerId || '',
-            employerName: employer?.employerName || '',
-            nationality: worker?.nationality || '',
-            foreignAgency: worker?.foreignAgency || '',
-            taiwanAgency: match.taiwanAgency || employer?.taiwanAgency || '',
-            admissionConfirmedDate: rest.admitDate || '',
-            status: '進行中',
-            notes: [],
-          });
-        }
+      if (rest.status === '確認錄取' && prevStatus !== '確認錄取') {
+        await ensureApplicationProgressFromMatch(match, { admitDate: rest.admitDate, workers, employers });
       }
       setEditing(null);
     } catch (err) {
