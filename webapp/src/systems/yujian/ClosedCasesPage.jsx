@@ -4,6 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { workerLabel } from './WorkersPage';
 
 // 彙整各分頁按下「已結案」後被隱藏的紀錄，依國外仲介分類，並提供「復原」
 // 按鈕把 confirmedClosed 改回 false，讓那筆紀錄回到原本分頁的清單裡。
@@ -21,8 +22,7 @@ export default function ClosedCasesPage() {
   const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
 
   function workerName(id) {
-    const w = workers.find((x) => x.id === id);
-    return w?.chineseName || w?.originalName || '(未設定)';
+    return workerLabel(workers.find((x) => x.id === id));
   }
   function employerName(id) {
     return employers.find((x) => x.id === id)?.employerName || '(未設定)';
@@ -42,7 +42,7 @@ export default function ClosedCasesPage() {
   const closedItems = [
     ...workers.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_workers', sourceLabel: '看護/家事人員資料',
-      name: r.chineseName || r.originalName || '(未設定)', foreignAgency: r.foreignAgency,
+      name: workerLabel(r), foreignAgency: r.foreignAgency,
     })),
     ...employers.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_employers', sourceLabel: '雇主家庭/需求單',

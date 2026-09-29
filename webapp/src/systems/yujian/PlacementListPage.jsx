@@ -6,6 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import { workerLabel } from './WorkersPage';
 
 // 還沒有正式雇主、先安排在其他地方（宿舍/訓練中心等）待命的看護/家事人員名單。
 const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '已離台', '其他'];
@@ -17,7 +18,7 @@ const CSV_FIELDS = [
 ];
 
 const COLUMNS = [
-  { key: 'worker', label: '人員' }, { key: 'nationality', label: '國籍' }, { key: 'entryDate', label: '入境日期' },
+  { key: 'worker', label: '工人編號' }, { key: 'nationality', label: '國籍' }, { key: 'entryDate', label: '入境日期' },
   { key: 'placementLocation', label: '安置地點' }, { key: 'placementStartDate', label: '安置開始日期' },
   { key: 'contactPerson', label: '聯絡人' }, { key: 'contactPhone', label: '聯絡電話' }, { key: 'status', label: '狀態' }, { key: 'notes', label: '備註' },
 ];
@@ -34,7 +35,7 @@ export default function PlacementListPage() {
   const columns = COLUMNS.filter((c) => visibleKeys.has(c.key));
 
   const workerById = (id) => workers.find((w) => w.id === id);
-  const workerName = (id) => { const w = workerById(id); return w?.chineseName || w?.originalName || '(未設定)'; };
+  const workerName = (id) => workerLabel(workerById(id));
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「確認離台」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
@@ -72,7 +73,7 @@ export default function PlacementListPage() {
       </div>
       {canEditPage && <p className="split-note">狀態為「已離台」的紀錄，按「確認離台」後會從清單消失（資料仍保留，下載完整資料時仍會包含）。「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「人員ID」欄位）；上傳後會完全取代目前所有安置中名單資料，請先下載備份再匯入。</p>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
-        <input placeholder="搜尋人員或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <input placeholder="搜尋工人編號或安置地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         <ColumnPicker columns={COLUMNS} visibleKeys={visibleKeys} onToggle={toggleColumn} />
       </div>
       {loading ? <p className="muted">載入中…</p> : (
@@ -132,10 +133,10 @@ function PlacementFormModal({ initial, workers, onCancel, onSave }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
-              人員
+              工人編號
               <select required value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
                 <option value="" disabled>請選擇</option>
-                {workers.map((w) => <option key={w.id} value={w.id}>{w.chineseName || w.originalName}</option>)}
+                {workers.map((w) => <option key={w.id} value={w.id}>{workerLabel(w)}</option>)}
               </select>
             </label>
             <label>

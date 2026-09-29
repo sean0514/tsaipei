@@ -5,6 +5,7 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { ADMITTED_TAG } from '../../lib/tags';
+import { workerLabel } from './WorkersPage';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
@@ -37,7 +38,7 @@ export default function AdmittedListPage() {
     if (!m) return '(未設定)';
     const w = workers.find((x) => x.id === m.workerId);
     const e = employers.find((x) => x.id === m.employerId);
-    return `${w?.chineseName || w?.originalName || '?'} · ${e?.employerName || '?'}`;
+    return `${workerLabel(w)} · ${e?.employerName || '?'}`;
   }
 
   function workerStatusForMatch(matchId) {

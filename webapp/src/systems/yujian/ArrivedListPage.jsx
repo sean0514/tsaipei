@@ -8,6 +8,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { FIELDS, INFO_FIELDS, MILESTONES, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, newNoteId, milestoneNoteKey } from './ApplicationProgressPage';
 import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
+import { workerLabel } from './WorkersPage';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
@@ -38,8 +39,7 @@ export default function ArrivedListPage() {
     return workers.find((x) => x.id === resolveWorkerId(r))?.status || '—';
   }
   function workerNameFor(r) {
-    const w = workers.find((x) => x.id === resolveWorkerId(r));
-    return w?.chineseName || w?.originalName || '—';
+    return workerLabel(workers.find((x) => x.id === resolveWorkerId(r)));
   }
 
   const searchQuery = q.trim().toLowerCase();

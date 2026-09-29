@@ -9,6 +9,7 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
 import SegmentedControl from '../../components/SegmentedControl';
 import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
+import { workerLabel } from './WorkersPage';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 
@@ -38,7 +39,7 @@ export default function SecondInterviewsPage() {
     if (!m) return '(未設定)';
     const w = workers.find((x) => x.id === m.workerId);
     const e = employers.find((x) => x.id === m.employerId);
-    return `${w?.chineseName || w?.originalName || '?'} · ${e?.employerName || '?'}`;
+    return `${workerLabel(w)} · ${e?.employerName || '?'}`;
   }
 
   function workerStatusForMatch(matchId) {
