@@ -10,6 +10,14 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
+import { fileToDataUrl, viewFile, downloadFile } from '../../lib/fileAttachment';
+
+// 附件大小上限；同一筆案件可能同時有好幾個關卡的附件，抓小一點避免超過
+// Firestore 單一文件 1MB 的限制。
+export const MAX_MILESTONE_ATTACHMENT_SIZE = 400 * 1024;
+export function attachmentDataKey(key) { return `${key}AttachmentData`; }
+export function attachmentNameKey(key) { return `${key}AttachmentName`; }
+export function attachmentsKey(key) { return `${key}Attachments`; }
 
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const CASE_STATUS = [
@@ -43,13 +51,15 @@ export function addDays(dateStr, days) {
 // 尚未完成，標籤上的「（N天）」是預期作業天數，僅供填寫時參考。
 // 認證領件日期有 overdueFrom/overdueDays：超過送件日期＋天數還沒填領件
 // 日期時，該欄位標籤會變紅色提醒逾期。
+// attachment: 'single' 可上傳一個檔案，'multiple' 可上傳多個檔案；檔案存成
+// data URL 直接放在案件文件裡（見 fileAttachment.js），不列入 CSV 匯出/匯入。
 export const MILESTONES = [
   { key: 'admissionConfirmedDate', label: '確認錄取日' },
-  { key: 'certCompleteDate', label: '認證（14天）送件日期' },
+  { key: 'certCompleteDate', label: '認證（14天）送件日期', attachment: 'single' },
   { key: 'certReceiveDate', label: '認證領件日期', overdueFrom: 'certCompleteDate', overdueDays: 14 },
   { key: 'sentAbroadDate', label: '寄出國外日期' },
   { key: 'healthCheckInDate', label: '體檢/時間 IN' },
-  { key: 'healthCheckOutDate', label: '體檢/時間 OUT' },
+  { key: 'healthCheckOutDate', label: '體檢/時間 OUT', attachment: 'single' },
   { key: 'trainingInDate', label: '訓練/時間 IN' },
   { key: 'trainingOutDate', label: '訓練/時間 OUT' },
   { key: 'owwaDate', label: '福利部OWWA（2天）' },
@@ -59,8 +69,8 @@ export const MILESTONES = [
   { key: 'tecoVisaInDate', label: '中華商會TECO VISA IN' },
   { key: 'visaOutDate', label: 'VISA OUT' },
   { key: 'oecDate', label: '海外工作證OEC' },
-  { key: 'preDepartureDate', label: 'PDOS海外就業講習' },
-  { key: 'entryDate', label: '入境時間' },
+  { key: 'preDepartureDate', label: 'PDOS海外就業講習', attachment: 'single' },
+  { key: 'entryDate', label: '入境時間', attachment: 'multiple' },
   { key: 'dispatchDate', label: '送工時間' },
 ];
 
@@ -83,6 +93,7 @@ export const LIST_COLUMNS = [
   { key: 'caseNo', label: '編號' },
   { key: 'workerName', label: '工人編號' },
   { key: 'nationality', label: '國籍' },
+  { key: 'workerType', label: '工人類型' },
   { key: 'workerStatus', label: '工人狀態' },
   { key: 'status', label: '進度狀態' },
   { key: 'progress', label: '進度' },
@@ -104,6 +115,96 @@ export function isMilestoneOverdue(m, p) {
 // 逾期的步驟（目前只有認證領件日期）不管在不在這個範圍內都會顯示紅色提醒。
 // 如果先把日期填成未來的時間（預約/預計日期），時間還沒到之前不算「已完成」，
 // 不會影響進度顯示（不會被當成已完成而跳過前面步驟）。
+// 申辦流程欄位共用元件：「申辦進度追蹤」和「已入台名單」的編輯視窗都是同一組
+// 關卡欄位（含逾期提醒、附件上傳），抽成共用元件避免兩邊各寫一份互相漏改。
+// onDateChange 沒帶入時，日期變更就直接寫回 form；帶入的話（例如認證送件
+// 日期要自動推算領件日期）交給呼叫端決定怎麼處理。
+export function MilestoneFields({ form, setForm, onDateChange, showOverdue = true }) {
+  async function handleSingleUpload(key, e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_MILESTONE_ATTACHMENT_SIZE) {
+      alert('檔案太大（上限約 400KB），請精簡後再上傳。');
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    setForm({ ...form, [attachmentDataKey(key)]: dataUrl, [attachmentNameKey(key)]: file.name });
+  }
+
+  function handleRemoveSingle(key) {
+    setForm({ ...form, [attachmentDataKey(key)]: '', [attachmentNameKey(key)]: '' });
+  }
+
+  async function handleMultiUpload(key, e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    if (files.some((f) => f.size > MAX_MILESTONE_ATTACHMENT_SIZE)) {
+      alert('檔案太大（上限約 400KB），請精簡後再上傳。');
+      return;
+    }
+    const items = await Promise.all(files.map(async (f) => ({ id: newNoteId(), name: f.name, dataUrl: await fileToDataUrl(f) })));
+    setForm({ ...form, [attachmentsKey(key)]: [...(form[attachmentsKey(key)] || []), ...items] });
+  }
+
+  function handleRemoveMulti(key, id) {
+    setForm({ ...form, [attachmentsKey(key)]: (form[attachmentsKey(key)] || []).filter((it) => it.id !== id) });
+  }
+
+  return (
+    <div className="form-grid">
+      {MILESTONES.map((m) => {
+        const isOverdue = showOverdue && isMilestoneOverdue(m, form);
+        return (
+          <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label>
+              <span style={isOverdue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>{m.label}{isOverdue && '（已逾期）'}</span>
+              <input
+                type="date"
+                value={form[m.key] || ''}
+                onChange={(e) => (onDateChange ? onDateChange(m.key, e.target.value) : setForm({ ...form, [m.key]: e.target.value }))}
+              />
+            </label>
+            <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
+            {m.attachment === 'single' && (
+              form[attachmentNameKey(m.key)] ? (
+                <div className="row-actions">
+                  <span style={{ fontSize: 12 }}>{form[attachmentNameKey(m.key)]}</span>
+                  <button type="button" onClick={() => viewFile(form[attachmentDataKey(m.key)])}>顯示</button>
+                  <button type="button" onClick={() => downloadFile(form[attachmentDataKey(m.key)], form[attachmentNameKey(m.key)])}>下載</button>
+                  <button type="button" className="danger" onClick={() => handleRemoveSingle(m.key)}>移除</button>
+                </div>
+              ) : (
+                <label style={{ fontSize: 12 }}>
+                  上傳檔案（上限約 400KB）
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleSingleUpload(m.key, e)} />
+                </label>
+              )
+            )}
+            {m.attachment === 'multiple' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {(form[attachmentsKey(m.key)] || []).map((it) => (
+                  <div className="row-actions" key={it.id}>
+                    <span style={{ fontSize: 12 }}>{it.name}</span>
+                    <button type="button" onClick={() => viewFile(it.dataUrl)}>顯示</button>
+                    <button type="button" onClick={() => downloadFile(it.dataUrl, it.name)}>下載</button>
+                    <button type="button" className="danger" onClick={() => handleRemoveMulti(m.key, it.id)}>移除</button>
+                  </div>
+                ))}
+                <label style={{ fontSize: 12 }}>
+                  上傳檔案（可多選，每個上限約 400KB）
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => handleMultiUpload(m.key, e)} />
+                </label>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ProgressPipeline({ p }) {
   const today = new Date().toISOString().slice(0, 10);
   let lastDoneIdx = -1;
@@ -141,11 +242,14 @@ export default function ApplicationProgressPage() {
   function workerNameFor(r) {
     return workerLabel(workers.find((x) => x.id === resolveWorkerId(r)));
   }
+  function workerTypeFor(r) {
+    return workers.find((x) => x.id === resolveWorkerId(r))?.recruitType || '—';
+  }
 
   const searchQuery = q.trim().toLowerCase();
   // 按過「已結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
-    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r) }))
+    .map((r) => ({ ...r, workerStatus: workerStatusFor(r), workerName: workerNameFor(r), workerType: workerTypeFor(r) }))
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${r.employerName || ''} ${r.caseNo || ''} ${r.foreignAgency || ''}`.toLowerCase().includes(searchQuery))
     .slice()
@@ -359,24 +463,11 @@ function ProgressFormModal({ initial, workers, matches, employers, onCancel, onS
           </select>
 
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
-          <div className="form-grid">
-            {MILESTONES.map((m) => {
-              const isOverdue = isMilestoneOverdue(m, form);
-              return (
-                <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label>
-                    <span style={isOverdue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>{m.label}{isOverdue && '（已逾期）'}</span>
-                    <input
-                      type="date"
-                      value={form[m.key] || ''}
-                      onChange={(e) => (m.key === 'certCompleteDate' ? handleCertCompleteDateChange(e.target.value) : setForm({ ...form, [m.key]: e.target.value }))}
-                    />
-                  </label>
-                  <input placeholder="備註" value={form[milestoneNoteKey(m.key)] || ''} onChange={(e) => setForm({ ...form, [milestoneNoteKey(m.key)]: e.target.value })} />
-                </div>
-              );
-            })}
-          </div>
+          <MilestoneFields
+            form={form}
+            setForm={setForm}
+            onDateChange={(key, value) => (key === 'certCompleteDate' ? handleCertCompleteDateChange(value) : setForm({ ...form, [key]: value }))}
+          />
 
           <h4 style={{ marginTop: 20 }}>轉出/離境紀錄</h4>
           <ul className="note-list">

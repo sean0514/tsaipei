@@ -9,41 +9,10 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { deleteWorkerCascade } from '../../lib/yujianCascade';
+import { fileToDataUrl, viewFile, downloadFile } from '../../lib/fileAttachment';
 
-// 履歷表存成 data URL（含 MIME type）直接存在人員文件裡，跟客戶請款範本上傳
-// 同一套做法；上限抓 700KB 避免超過 Firestore 單一文件 1MB 的限制。
+// 上限抓 700KB 避免超過 Firestore 單一文件 1MB 的限制。
 const MAX_RESUME_SIZE = 700 * 1024;
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-// Chrome 不允許直接把 data: URL 當成分頁導覽目標開新分頁（會被靜默擋下、
-// 按了「顯示」沒有任何反應），要先轉成 Blob URL 才能正常在新分頁開啟或下載。
-function dataUrlToBlobUrl(dataUrl) {
-  const [header, base64] = dataUrl.split(',');
-  const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: mime }));
-}
-
-function viewResume(dataUrl) {
-  window.open(dataUrlToBlobUrl(dataUrl), '_blank');
-}
-
-function downloadResume(dataUrl, filename) {
-  const a = document.createElement('a');
-  a.href = dataUrlToBlobUrl(dataUrl);
-  a.download = filename || '履歷表';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
 
 export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '已錄取', '在職中', '轉出中', '已轉出', '已離境', '取消'];
 
@@ -53,6 +22,7 @@ export function workerLabel(w) {
 }
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
+export const RECRUIT_TYPES = ['國內承接', '海外引進', '指定工', '回鍋工'];
 
 const FIELDS = [
   { key: 'workerNo', label: '工人編號', required: true },
@@ -66,6 +36,7 @@ const FIELDS = [
   { key: 'passportNumber', label: '護照號碼' },
   { key: 'phone', label: '聯絡電話' },
   { key: 'workType', label: '工作類型', options: WORK_TYPES },
+  { key: 'recruitType', label: '工人類型', options: RECRUIT_TYPES },
   { key: 'foreignAgency', label: '國外仲介' },
   { key: 'entryDate', label: '入境日期', type: 'date' },
   { key: 'status', label: '狀態', options: WORKER_STATUS },
@@ -173,8 +144,8 @@ export default function WorkersPage() {
                             <button onClick={() => setEditing(r)}>編輯</button>
                             <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                             <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
-                            {r.resumeData && <button onClick={() => viewResume(r.resumeData)}>顯示履歷表</button>}
-                            {r.resumeData && <button onClick={() => downloadResume(r.resumeData, r.resumeName)}>下載履歷表</button>}
+                            {r.resumeData && <button onClick={() => viewFile(r.resumeData)}>顯示履歷表</button>}
+                            {r.resumeData && <button onClick={() => downloadFile(r.resumeData, r.resumeName)}>下載履歷表</button>}
                           </td>
                         )}
                       </tr>
@@ -234,8 +205,8 @@ function WorkerFormModal({ initial, onCancel, onSave }) {
           {form.resumeName ? (
             <div className="row-actions" style={{ marginBottom: 16 }}>
               <span>{form.resumeName}</span>
-              <button type="button" onClick={() => viewResume(form.resumeData)}>顯示</button>
-              <button type="button" onClick={() => downloadResume(form.resumeData, form.resumeName)}>下載</button>
+              <button type="button" onClick={() => viewFile(form.resumeData)}>顯示</button>
+              <button type="button" onClick={() => downloadFile(form.resumeData, form.resumeName)}>下載</button>
               <button type="button" className="danger" onClick={handleRemoveResume}>移除</button>
             </div>
           ) : (
