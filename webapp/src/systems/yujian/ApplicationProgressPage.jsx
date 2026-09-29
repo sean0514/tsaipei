@@ -92,8 +92,15 @@ export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// 領件日期逾期提醒：送件日期＋overdueDays 天已過，領件日期卻還沒填。
+export function isMilestoneOverdue(m, p) {
+  return !!(m.overdueFrom && p?.[m.overdueFrom] && !p?.[m.key]
+    && new Date() >= new Date(`${addDays(p[m.overdueFrom], m.overdueDays)}T00:00:00`));
+}
+
 // 進度圖示：只保留「最近完成的一步」到「送工時間」之間的步驟，已經完成很久的
 // 步驟不用一直佔畫面；都還沒開始的話就整條鏈完整顯示，讓人知道下一步是什麼。
+// 逾期的步驟（目前只有認證領件日期）不管在不在這個範圍內都會顯示紅色提醒。
 export function ProgressPipeline({ p }) {
   let lastDoneIdx = -1;
   MILESTONES.forEach((m, i) => { if (p?.[m.key]) lastDoneIdx = i; });
@@ -101,7 +108,7 @@ export function ProgressPipeline({ p }) {
   return (
     <div className="pipeline">
       {visible.map((m, i) => (
-        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}`}>{m.label}</span>
+        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}>{m.label}</span>
       ))}
     </div>
   );
@@ -288,14 +295,10 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
     });
   }
 
-  // 認證送件日期第一次填入（或還沒手動填過領件日期）時，自動把領件日期
-  // 帶成送件日期＋14天，仍可手動修改。
+  // 送件日期每次變更都自動把領件日期改成送件日期＋14天（存檔後仍可再手動
+  // 覆蓋領件日期，但下次送件日期一變，又會重新蓋回去）。
   function handleCertCompleteDateChange(value) {
-    const shouldAutoFill = !form.certReceiveDate;
-    setForm({
-      ...form, certCompleteDate: value,
-      certReceiveDate: shouldAutoFill && value ? addDays(value, 14) : form.certReceiveDate,
-    });
+    setForm({ ...form, certCompleteDate: value, certReceiveDate: value ? addDays(value, 14) : '' });
   }
 
   function addTransferStep() {
@@ -348,9 +351,7 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
             {MILESTONES.map((m) => {
-              // 領件日期逾期提醒：送件日期＋overdueDays 天已過，領件日期卻還沒填。
-              const isOverdue = m.overdueFrom && form[m.overdueFrom] && !form[m.key]
-                && new Date() >= new Date(`${addDays(form[m.overdueFrom], m.overdueDays)}T00:00:00`);
+              const isOverdue = isMilestoneOverdue(m, form);
               return (
                 <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label>
