@@ -45,7 +45,7 @@ function downloadResume(dataUrl, filename) {
   document.body.removeChild(a);
 }
 
-export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '在職中', '轉出中', '已轉出', '已離境', '取消'];
+export const WORKER_STATUS = ['待媒合', '媒合中', '已媒合', '已錄取', '在職中', '轉出中', '已轉出', '已離境', '取消'];
 
 // 其他分頁顯示/選擇人員時一律改用工人編號（沒有編號的舊資料才退回姓名）。
 export function workerLabel(w) {
