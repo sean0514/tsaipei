@@ -495,6 +495,8 @@ service cloud.firestore {
         'matching': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'applicationProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'arrivedList': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
+        'arrivedSummary': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
+        'closedCases': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
@@ -517,13 +519,17 @@ service cloud.firestore {
       allow read: if yjIsMember();
       allow write: if yjIsMember() && yjRole() == '系統管理員';
     }
+    // 已結案名單的「復原」按鈕會把 confirmedClosed 改回 false，所以 update 也
+    // 放行 closedCases。
     match /yujian_workers/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('workers');
+      allow create, delete: if yjCanEdit('workers');
+      allow update: if yjCanEdit('workers') || yjCanEdit('closedCases');
     }
     match /yujian_employers/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('employers');
+      allow create, delete: if yjCanEdit('employers');
+      allow update: if yjCanEdit('employers') || yjCanEdit('closedCases');
     }
     // 新增看護/家事人員資料時會自動在這裡建立一筆媒合紀錄（雇主待指定），
     // 所以 create 也放行 workers。
@@ -533,7 +539,7 @@ service cloud.firestore {
     match /yujian_matches/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('matching') || yjCanEdit('workers');
-      allow update: if yjCanEdit('matching');
+      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 人員狀態變「轉出中」時會自動在這裡建立一筆安置紀錄，所以 create 也
@@ -551,12 +557,14 @@ service cloud.firestore {
     // 錄取名單，所以 create 都放行 matching。
     match /yujian_secondInterviews/{docId} {
       allow read: if yjIsMember();
-      allow create, update: if yjCanEdit('matching');
+      allow create: if yjCanEdit('matching');
+      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_admittedList/{docId} {
       allow read: if yjIsMember();
-      allow create, update: if yjCanEdit('matching');
+      allow create: if yjCanEdit('matching');
+      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
       allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 錄取名單狀態變「確認錄取」會自動建立申辦進度追蹤紀錄，所以 create 也
@@ -564,7 +572,7 @@ service cloud.firestore {
     match /yujian_applicationProgress/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
-      allow update: if yjCanEdit('applicationProgress');
+      allow update: if yjCanEdit('applicationProgress') || yjCanEdit('closedCases');
       allow delete: if yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 申辦進度追蹤案件的「入境時間」第一次填入日期時會自動帶入這裡，所以
@@ -574,7 +582,7 @@ service cloud.firestore {
     match /yujian_arrivedList/{docId} {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
-      allow update: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
+      allow update: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('closedCases');
       allow delete: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_meetings/{docId} {

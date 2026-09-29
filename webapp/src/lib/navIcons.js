@@ -66,6 +66,8 @@ export const NAV_ICONS = {
     admitted: '✓',
     applicationProgress: '▶',
     arrivedList: '🛬',
+    arrivedSummary: '📊',
+    closedCases: '📁',
     meetings: '✎',
     dailyExpenseApplication: '🧾',
     users: '▣',
