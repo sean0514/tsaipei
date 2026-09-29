@@ -27,7 +27,6 @@ const FIELDS = [
   { key: 'description', label: '職務內容' },
   { key: 'stipendAmount', label: '實習津貼金額', type: 'number' },
   { key: 'boardDeduction', label: '膳宿費扣款金額', type: 'number' },
-  { key: 'otherBenefits', label: '其他福利' },
   { key: 'specialNotes', label: '特殊備註' },
 ];
 
@@ -47,7 +46,10 @@ export const ROLE_FIELDS = [
   { key: 'dormManager2', label: '宿管人員2' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'locationGroups', label: '實習場域/實習地點/缺額/狀態' }, { key: 'closed', label: '已結案' }, ...ROLE_FIELDS];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, ...FIELDS, { key: 'locationGroups', label: '實習場域/實習地點/缺額/狀態' },
+  { key: 'otherBenefits', label: '其他福利' }, { key: 'closed', label: '已結案' }, ...ROLE_FIELDS,
+];
 
 const POSITION_STATUS = ['開放中', '已額滿', '已結束'];
 const POSITION_TAG = { 開放中: 'tag-green', 已額滿: 'tag-amber', 已結束: 'tag-grey' };
@@ -57,6 +59,19 @@ function parseLocationGroups(json) {
     const arr = json ? JSON.parse(json) : [];
     return Array.isArray(arr) ? arr : [];
   } catch { return []; }
+}
+
+// 其他福利存成 JSON 字串陣列，跟實習場域/地點的 locationGroups 同一套做法，
+// 讓「其他福利」可以一項一項新增/移除，而不是塞在單一文字欄位裡用逗號硬湊。
+// 這欄位原本是單一文字欄位，既有資料不是 JSON 陣列格式——不能直接當空清單
+// 處理（那樣重新存檔會把舊資料整個弄不見），退回把整段舊文字當成第一項福利。
+export function parseBenefits(text) {
+  if (!text) return [];
+  try {
+    const arr = JSON.parse(text);
+    if (Array.isArray(arr)) return arr;
+  } catch { /* 不是 JSON，當作舊版單一文字欄位處理 */ }
+  return [text];
 }
 
 // 依現有專案編號的規則（前綴 + 數字結尾）猜下一個編號，方便新增職缺時不用每次手動累加。
@@ -256,9 +271,51 @@ function LocationGroupsEditor({ groups, onChange }) {
   );
 }
 
+function BenefitsEditor({ benefits, onChange }) {
+  const [newItem, setNewItem] = useState('');
+
+  function addItem() {
+    const text = newItem.trim();
+    if (!text) return;
+    onChange([...benefits, text]);
+    setNewItem('');
+  }
+  function removeItem(i) {
+    onChange(benefits.filter((_, idx) => idx !== i));
+  }
+
+  return (
+    <div>
+      {benefits.length > 0 && (
+        <ul className="note-list">
+          {benefits.map((b, i) => (
+            <li key={i}>
+              <div className="row-actions">
+                <span style={{ flex: 1 }}>{b}</span>
+                <button type="button" className="danger" onClick={() => removeItem(i)}>移除</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="row-actions">
+        <input
+          placeholder="輸入福利項目"
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+          style={{ flex: 1 }}
+        />
+        <button type="button" onClick={addItem}>+ 新增福利</button>
+      </div>
+    </div>
+  );
+}
+
 function PositionFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const groups = parseLocationGroups(form.locationGroups);
+  const benefits = parseBenefits(form.otherBenefits);
 
   // 只更新原始內容，不要在這裡就把空白列濾掉——濾掉的話「新增地點」剛加的
   // 空白列會在下一次 render 就消失，使用者根本來不及輸入（回報的「功能無法
@@ -268,10 +325,14 @@ function PositionFormModal({ initial, onCancel, onSave }) {
     setForm({ ...form, locationGroups: JSON.stringify(next) });
   }
 
+  function setBenefits(next) {
+    setForm({ ...form, otherBenefits: JSON.stringify(next) });
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const cleanedGroups = parseLocationGroups(form.locationGroups).filter((g) => g.location);
-    onSave({ ...form, locationGroups: JSON.stringify(cleanedGroups) });
+    onSave({ ...form, locationGroups: JSON.stringify(cleanedGroups), otherBenefits: JSON.stringify(parseBenefits(form.otherBenefits)) });
   }
 
   return (
@@ -289,6 +350,8 @@ function PositionFormModal({ initial, onCancel, onSave }) {
           </div>
           <h4>實習場域 / 地點 / 缺額 / 狀態</h4>
           <LocationGroupsEditor groups={groups} onChange={setGroups} />
+          <h4>其他福利</h4>
+          <BenefitsEditor benefits={benefits} onChange={setBenefits} />
           <h4>角色指派（內部獎金計算對照用）</h4>
           <div className="form-grid">
             {ROLE_FIELDS.map((f) => (
