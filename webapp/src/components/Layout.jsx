@@ -20,7 +20,7 @@ export const IMPLEMENTED_MODULES = {
     'qcTemplates', 'qcRecords', 'cost', 'pettyCash', 'incomeStatement', 'partners', 'billing', 'history', 'users',
   ],
   dispatch: [
-    'dashboard', 'jobSeekers', 'interviews', 'employmentStatus', 'managerReport', 'meetings',
+    'dashboard', 'jobSeekers', 'clients', 'interviews', 'employmentStatus', 'managerReport', 'meetings',
     'dailyExpenseApplication', 'cashPaymentList', 'salaryChange', 'clientBilling', 'employeeMasterSheet', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'users',
   ],
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],

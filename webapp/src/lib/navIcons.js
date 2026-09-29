@@ -38,6 +38,7 @@ export const NAV_ICONS = {
   dispatch: {
     dashboard: '◆',
     jobSeekers: '◇',
+    clients: '⌘',
     interviews: '◐',
     employmentStatus: '⇄',
     managerReport: '▲',

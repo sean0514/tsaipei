@@ -379,6 +379,7 @@ service cloud.firestore {
       return {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view','會計人員':'view'},
         'jobSeekers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit','會計人員':'view'},
+        'clients': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit','會計人員':'view'},
         'interviews': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view','會計人員':'none'},
         'employmentStatus': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit','會計人員':'view'},
         'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'none','會計人員':'none'},
@@ -409,6 +410,10 @@ service cloud.firestore {
       allow read: if dpIsMember();
       allow create, delete: if dpCanEdit('jobSeekers');
       allow update: if dpCanEdit('jobSeekers');
+    }
+    match /dispatch_clients/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('clients');
     }
     // 面試概況：新增求職者自動建立一筆待安排的面試紀錄，所以 create 也開放
     // 給能編輯 jobSeekers 的角色；刪除求職者會連動刪除面試紀錄。

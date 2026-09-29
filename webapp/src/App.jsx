@@ -37,6 +37,7 @@ import DailyExpenseApplicationPage from './systems/tsaipei/DailyExpenseApplicati
 import UsersPage from './components/UsersPage';
 import DispatchDashboardPage from './systems/dispatch/DashboardPage';
 import DispatchJobSeekersPage from './systems/dispatch/JobSeekersPage';
+import DispatchClientsPage from './systems/dispatch/ClientsPage';
 import DispatchInterviewsPage from './systems/dispatch/InterviewsPage';
 import DispatchEmploymentStatusPage from './systems/dispatch/EmploymentStatusPage';
 import DispatchManagerReportPage from './systems/dispatch/ManagerReportPage';
@@ -129,6 +130,7 @@ const PAGES = {
   dispatch: {
     dashboard: DispatchDashboardPage,
     jobSeekers: DispatchJobSeekersPage,
+    clients: DispatchClientsPage,
     interviews: DispatchInterviewsPage,
     employmentStatus: DispatchEmploymentStatusPage,
     managerReport: DispatchManagerReportPage,

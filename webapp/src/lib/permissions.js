@@ -57,6 +57,7 @@ export const SYSTEMS = {
     modules: {
       dashboard: '儀表板',
       jobSeekers: '求職者資訊',
+      clients: '客戶資訊',
       interviews: '面試概況',
       employmentStatus: '在職/離職概況',
       managerReport: '主管報表',
@@ -68,6 +69,7 @@ export const SYSTEMS = {
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view', 會計人員: 'view' },
       jobSeekers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit', 會計人員: 'view' },
+      clients: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit', 會計人員: 'view' },
       interviews: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view', 會計人員: 'none' },
       employmentStatus: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit', 會計人員: 'view' },
       managerReport: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'none', 會計人員: 'none' },
