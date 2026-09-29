@@ -5,17 +5,34 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-const BILLING_TYPES = ['固定制', '月費制'];
+const SERVICE_CATEGORIES = ['派遣', '待招', '承攬'];
+const QUOTE_METHODS = ['時薪制', '月薪制', '計件制'];
 
 const FIELDS = [
   { key: 'client', label: '客戶名稱', required: true },
-  { key: 'billingType', label: '收費類型', options: BILLING_TYPES },
-  { key: 'fixedFee', label: '固定金額（固定制）', type: 'number' },
-  { key: 'monthlyServiceFee', label: '每月服務費（月費制）', type: 'number' },
-  { key: 'notes', label: '備註' },
+  { key: 'taxId', label: '統一編號' },
+  { key: 'industry', label: '產業別' },
+  { key: 'contactName', label: '聯絡人' },
+  { key: 'contactPhone', label: '聯絡電話' },
+  { key: 'address', label: '地址' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'reviewStatus', label: '審核狀態' }];
+// 服務類別/報價方式（複選）、報價內容（可多筆新增的項目/內容清單）都存成
+// JSON 字串陣列，跟其他系統「實習場域/地點」「其他福利」同一套做法，CSV
+// 匯出入才能完整保留、重新匯入後也能正確還原成清單。
+function parseList(text) {
+  if (!text) return [];
+  try {
+    const arr = JSON.parse(text);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, ...FIELDS,
+  { key: 'serviceCategories', label: '服務費用計算類別' }, { key: 'quoteMethods', label: '報價方式' },
+  { key: 'quoteItems', label: '報價內容' }, { key: 'notes', label: '備註' },
+];
 
 export default function ClientFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
@@ -29,18 +46,13 @@ export default function ClientFeeSetupPage() {
   const filteredRows = rows
     .filter((r) => !searchQuery || (r.client || '').toLowerCase().includes(searchQuery))
     .sort((a, b) => (a.client || '').localeCompare(b.client || ''));
-  const groups = { 待審核: [], 固定制: [], 月費制: [] };
-  filteredRows.forEach((r) => {
-    if (r.reviewStatus !== '已審核') { groups.待審核.push(r); return; }
-    groups[r.billingType === '固定制' ? '固定制' : '月費制'].push(r);
-  });
 
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ reviewStatus: '待審核', ...data });
+      await add(data);
     }
     setEditing(null);
   }
@@ -50,68 +62,49 @@ export default function ClientFeeSetupPage() {
       <div className="page-header">
         <div>
           <h2>客戶費用建檔</h2>
-          <div className="page-desc">設定各客戶每月應收取的費用金額{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">客戶基本資料、服務費用計算類別、報價方式與報價內容{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增費率</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增客戶建檔</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有客戶費用設定，請先下載備份再匯入。新增的費率預設「待審核」，按下「審核」後才會歸入固定制／月費制分類。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有客戶費用建檔，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <p className="muted" style={{ marginTop: 0 }}>「客戶請款計算」的費率來源，一個客戶一列，不是計算結果本身。</p>
         <input placeholder="搜尋客戶名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <h3 style={{ margin: '0 0 8px' }}>待審核 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups.待審核.length} 筆</span></h3>
-              <div className="table-wrap"><table>
-                <thead><tr><th>客戶名稱</th><th>收費類型</th><th>固定金額</th><th>每月服務費</th>{canEditPage && <th></th>}</tr></thead>
-                <tbody>
-                  {groups.待審核.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.client || '—'}</td>
-                      <td>{r.billingType || '—'}</td>
-                      <td>{r.fixedFee || '—'}</td>
-                      <td>{r.monthlyServiceFee || '—'}</td>
-                      {canEditPage && (
-                        <td className="row-actions">
-                          <button onClick={() => update(r.id, { reviewStatus: '已審核' })}>審核</button>
-                          <button onClick={() => setEditing(r)}>編輯</button>
-                          <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {groups.待審核.length === 0 && <tr><td colSpan={canEditPage ? 5 : 4} className="muted">沒有資料</td></tr>}
-                </tbody>
-              </table></div>
-            </div>
-            {BILLING_TYPES.map((type) => (
-              <div key={type}>
-                <h3 style={{ margin: '0 0 8px' }}>{type} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[type].length} 筆</span></h3>
-                <div className="table-wrap"><table>
-                  <thead><tr><th>客戶名稱</th>{type === '固定制' ? <th>固定金額</th> : <th>每月服務費</th>}<th>備註</th>{canEditPage && <th></th>}</tr></thead>
-                  <tbody>
-                    {groups[type].map((r) => (
-                      <tr key={r.id}>
-                        <td>{r.client || '—'}</td>
-                        <td>{type === '固定制' ? (r.fixedFee || '—') : (r.monthlyServiceFee || '—')}</td>
-                        <td>{r.notes || '—'}</td>
-                        {canEditPage && (
-                          <td className="row-actions">
-                            <button onClick={() => setEditing(r)}>編輯</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {groups[type].length === 0 && <tr><td colSpan={canEditPage ? 4 : 3} className="muted">沒有資料</td></tr>}
-                  </tbody>
-                </table></div>
-              </div>
-            ))}
-          </div>
+          <div className="table-wrap"><table>
+            <thead>
+              <tr>
+                <th>客戶名稱</th><th>統一編號</th><th>產業別</th><th>服務類別</th><th>報價方式</th><th>報價內容</th>
+                {canEditPage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((r) => {
+                const categories = parseList(r.serviceCategories);
+                const methods = parseList(r.quoteMethods);
+                const items = parseList(r.quoteItems);
+                return (
+                  <tr key={r.id}>
+                    <td>{r.client || '—'}</td>
+                    <td>{r.taxId || '—'}</td>
+                    <td>{r.industry || '—'}</td>
+                    <td>{categories.length ? categories.join('、') : '—'}</td>
+                    <td>{methods.length ? methods.join('、') : '—'}</td>
+                    <td>{items.length ? `${items.length} 筆` : '—'}</td>
+                    {canEditPage && (
+                      <td className="row-actions">
+                        <button onClick={() => setEditing(r)}>編輯</button>
+                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
         )}
       </div>
       {editing && <ClientFeeFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
@@ -119,29 +112,101 @@ export default function ClientFeeSetupPage() {
   );
 }
 
+function CheckboxGroup({ options, values, onChange }) {
+  function toggle(o) {
+    onChange(values.includes(o) ? values.filter((v) => v !== o) : [...values, o]);
+  }
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      {options.map((o) => (
+        <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+          <input type="checkbox" checked={values.includes(o)} onChange={() => toggle(o)} />
+          {o}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function QuoteItemsEditor({ items, onChange }) {
+  function updateItem(i, patch) {
+    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  }
+  function removeItem(i) {
+    onChange(items.filter((_, idx) => idx !== i));
+  }
+  function addItem() {
+    onChange([...items, { item: '', content: '' }]);
+  }
+
+  return (
+    <div>
+      {items.map((it, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 10, alignItems: 'end' }}>
+          <label>
+            項目
+            <input value={it.item || ''} onChange={(e) => updateItem(i, { item: e.target.value })} />
+          </label>
+          <label style={{ gridColumn: 'span 1' }}>
+            內容
+            <div className="row-actions">
+              <input value={it.content || ''} onChange={(e) => updateItem(i, { content: e.target.value })} style={{ flex: 1 }} />
+              <button type="button" className="danger" onClick={() => removeItem(i)}>移除</button>
+            </div>
+          </label>
+        </div>
+      ))}
+      <button type="button" onClick={addItem}>+ 新增報價內容</button>
+    </div>
+  );
+}
+
 function ClientFeeFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const categories = parseList(form.serviceCategories);
+  const methods = parseList(form.quoteMethods);
+  const items = parseList(form.quoteItems);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave({
+      ...form,
+      serviceCategories: JSON.stringify(categories),
+      quoteMethods: JSON.stringify(methods),
+      quoteItems: JSON.stringify(items.filter((it) => it.item || it.content)),
+    });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? '編輯費率' : '新增費率'}</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3>{initial.id ? '編輯客戶建檔' : '新增客戶建檔'}</h3>
+        <form onSubmit={handleSubmit}>
+          <h4 style={{ marginTop: 0 }}>客戶建檔</h4>
           <div className="form-grid">
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                {f.options ? (
-                  <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    <option value="">請選擇</option>
-                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
-                )}
+                <input required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </label>
             ))}
           </div>
-          <div className="row-actions">
+
+          <h4>服務費用計算類別</h4>
+          <CheckboxGroup options={SERVICE_CATEGORIES} values={categories} onChange={(next) => setForm({ ...form, serviceCategories: JSON.stringify(next) })} />
+
+          <h4>報價方式</h4>
+          <CheckboxGroup options={QUOTE_METHODS} values={methods} onChange={(next) => setForm({ ...form, quoteMethods: JSON.stringify(next) })} />
+
+          <h4>報價內容</h4>
+          <QuoteItemsEditor items={items} onChange={(next) => setForm({ ...form, quoteItems: JSON.stringify(next) })} />
+
+          <label style={{ marginTop: 16, display: 'block' }}>
+            備註
+            <textarea rows={3} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </label>
+
+          <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
           </div>
