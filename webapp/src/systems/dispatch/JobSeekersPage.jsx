@@ -7,56 +7,48 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
-// 比照使用者提供的「招募人員資訊」Excel 欄位結構調整：專員/部門欄位改下拉
-// 選單（選項來自既有資料裡已經出現過的值）、招募/面試時間改選日期、廠商
-// 名稱改從「客戶費用建檔」抓取、移除員工編號/員工部門/出席/複試/錄取/
-// 報到/隸屬公司這幾欄、黑名單改是/否選單。
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
-// dynamicOptions 標記的欄位在表單裡改成下拉選單：'staffName' 從「使用人員」
-// 的姓名取不重複清單，'staffDept' 從「使用人員」的部門取不重複清單，
-// 'client' 從客戶費用建檔抓客戶名稱。
-const FIELDS = [
-  { key: 'recruiter', label: '招募專員', dynamicOptions: 'staffName' },
-  { key: 'interviewer', label: '面試專員', dynamicOptions: 'staffName' },
-  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'staffName' },
-  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'staffDept' },
-  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'staffDept' },
-  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'staffDept' },
-  { key: 'recruitTime', label: '招募時間', type: 'date' },
-  { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
-  { key: 'branch', label: '分店名稱' },
-  { key: 'interviewSession', label: '面試時間', type: 'date' },
+// 表單分兩區：個人資料、應徵工作，依使用者指定的順序排列。原本的招募/面試/
+// 駐廠專員、招募/面試/駐廠部門、招募時間、績分這幾欄已依需求從表單移除
+// （既有資料不受影響，只是這裡不再顯示/編輯）。
+const PERSONAL_FIELDS = [
   { key: 'chineseName', label: '姓名', required: true },
-  { key: 'gender', label: '性別', options: ['', '男', '女'] },
+  { key: 'idNumber', label: '身份證字號' },
+  { key: 'birthDate', label: '生日', type: 'date' },
   { key: 'age', label: '年齡', type: 'number' },
+  { key: 'gender', label: '性別', options: ['', '男', '女'] },
   { key: 'mobile', label: '手機' },
   { key: 'phone', label: '電話' },
-  { key: 'birthDate', label: '生日', type: 'date' },
-  { key: 'idNumber', label: '身份證字號' },
-  { key: 'acceptableArea', label: '可接受地區' },
+  { key: 'address', label: '地址' },
   { key: 'licensePlate', label: '車牌' },
   { key: 'education', label: '學歷' },
   { key: 'emergencyContact', label: '緊急聯絡人' },
   { key: 'emergencyContactPhone', label: '緊急聯絡人電話' },
-  { key: 'address', label: '地址' },
-  { key: 'shift', label: '班別' },
-  { key: 'startDate', label: '報到日期', type: 'date' },
-  { key: 'insuranceEndDate', label: '退保日期', type: 'date' },
-  { key: 'lastWorkDate', label: '最後工作日', type: 'date' },
-  { key: 'blacklist', label: '黑名單', options: ['', '否', '是'] },
   { key: 'notes', label: '備註' },
-  { key: 'transferFee', label: '轉帳手續費' },
   { key: 'bankCode', label: '銀行別代碼' },
   { key: 'bankName', label: '銀行別名稱' },
   { key: 'bankBranchCode', label: '銀行分行代碼' },
   { key: 'bankBranchName', label: '銀行分行名稱' },
   { key: 'bankAccountName', label: '銀行戶名' },
   { key: 'bankAccount', label: '銀行帳號' },
-  { key: 'score', label: '績分', type: 'number' },
+  { key: 'transferFee', label: '轉帳手續費' },
+];
+
+// dynamicOptions: 'client' 的欄位在表單裡是下拉選單，選項從客戶費用建檔抓客戶名稱。
+const JOB_FIELDS = [
+  { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
+  { key: 'branch', label: '分店名稱' },
+  { key: 'shift', label: '班別' },
+  { key: 'interviewSession', label: '面試時間', type: 'date' },
+  { key: 'startDate', label: '報到日期', type: 'date' },
+  { key: 'insuranceEndDate', label: '退保日期', type: 'date' },
+  { key: 'lastWorkDate', label: '最後工作日', type: 'date' },
+  { key: 'blacklist', label: '黑名單', options: ['', '否', '是'] },
   { key: 'status', label: '狀態' },
 ];
 
+const FIELDS = [...PERSONAL_FIELDS, ...JOB_FIELDS];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function JobSeekersPage() {
@@ -64,7 +56,6 @@ export default function JobSeekersPage() {
   const canEditPage = computeCanEdit(system, 'jobSeekers', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('dispatch_jobSeekers');
   const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
-  const { rows: userRows } = useCollection('dispatch_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_jobSeekers', CSV_FIELDS, { entityLabel: '求職者資訊', canEdit: canEditPage });
@@ -137,7 +128,7 @@ export default function JobSeekersPage() {
       <div className="page-header">
         <div>
           <h2>求職者資訊</h2>
-          <div className="page-desc">管理求職者招募、面試與駐廠資訊{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">管理求職者個人資料與應徵工作資訊{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ status: JOB_SEEKER_STATUS[0] })}>+ 新增求職者</button>}
@@ -151,7 +142,7 @@ export default function JobSeekersPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>姓名 / 身份證字號</th><th>廠商 / 分店</th><th>招募 / 面試 / 駐廠專員</th>
+                <th>姓名 / 身份證字號</th><th>廠商 / 分店</th><th>班別</th>
                 <th>報到日期</th><th>狀態</th>{canEditPage && <th></th>}
               </tr>
             </thead>
@@ -166,7 +157,7 @@ export default function JobSeekersPage() {
                     {r.client || '—'}
                     <div className="muted" style={{ fontSize: 12 }}>{r.branch || ''}</div>
                   </td>
-                  <td className="muted" style={{ fontSize: 12 }}>{[r.recruiter, r.interviewer, r.onsiteSpecialist].filter(Boolean).join(' / ') || '—'}</td>
+                  <td>{r.shift || '—'}</td>
                   <td>{r.startDate || '—'}</td>
                   <td><span className="tag tag-blue">{r.status || '—'}</span></td>
                   {canEditPage && (
@@ -182,7 +173,7 @@ export default function JobSeekersPage() {
           </table></div>
         )}
       </div>
-      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} userRows={userRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -191,19 +182,41 @@ function uniqueValues(list) {
   return [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
-function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, onSave }) {
+function JobSeekerFormModal({ initial, clientFeeSetupRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
-  // 下拉選單的選項：'staffName' 從「使用人員」的姓名取不重複清單，
-  // 'staffDept' 從「使用人員」的部門取不重複清單，'client' 從客戶費用建檔
-  // 抓客戶名稱；目前表單裡填的值就算不在清單裡也要保留（例如舊資料）。
-  function optionsFor(f) {
-    let base;
-    if (f.dynamicOptions === 'client') base = uniqueValues(clientFeeSetupRows.map((r) => r.client));
-    else if (f.dynamicOptions === 'staffName') base = uniqueValues(userRows.map((r) => r.displayName));
-    else base = uniqueValues(userRows.map((r) => r.department));
-    if (form[f.key] && !base.includes(form[f.key])) return [...base, form[f.key]];
+  // 廠商名稱下拉選單選項從客戶費用建檔抓客戶名稱；目前表單裡填的值就算不在
+  // 清單裡也要保留（例如舊資料）。
+  const clientOptions = (() => {
+    const base = uniqueValues(clientFeeSetupRows.map((r) => r.client));
+    if (form.client && !base.includes(form.client)) return [...base, form.client];
     return base;
+  })();
+
+  function renderField(f) {
+    if (f.key === 'status') {
+      return (
+        <select value={form.status || JOB_SEEKER_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          {JOB_SEEKER_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      );
+    }
+    if (f.dynamicOptions === 'client') {
+      return (
+        <select value={form.client || ''} onChange={(e) => setForm({ ...form, client: e.target.value })}>
+          <option value="">請選擇</option>
+          {clientOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    }
+    if (f.options) {
+      return (
+        <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+          {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
+        </select>
+      );
+    }
+    return <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />;
   }
 
   return (
@@ -211,26 +224,21 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, o
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯求職者' : '新增求職者'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <h4 style={{ marginTop: 0 }}>個人資料</h4>
           <div className="form-grid">
-            {FIELDS.map((f) => (
+            {PERSONAL_FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                {f.key === 'status' ? (
-                  <select value={form.status || JOB_SEEKER_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                    {JOB_SEEKER_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                ) : f.dynamicOptions ? (
-                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    <option value="">請選擇</option>
-                    {optionsFor(f).map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : f.options ? (
-                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
-                  </select>
-                ) : (
-                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
-                )}
+                {renderField(f)}
+              </label>
+            ))}
+          </div>
+          <h4>應徵工作</h4>
+          <div className="form-grid">
+            {JOB_FIELDS.map((f) => (
+              <label key={f.key}>
+                {f.label}
+                {renderField(f)}
               </label>
             ))}
           </div>
