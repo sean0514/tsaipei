@@ -51,7 +51,7 @@ export default function EmployersPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '待媒合', ...data });
+      await add({ ...data, status: data.status || '待媒合' });
     }
     setEditing(null);
   }
@@ -75,7 +75,7 @@ export default function EmployersPage() {
           <div className="page-desc">管理雇主家庭的基本資料與聘僱需求{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增需求單</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ status: EMPLOYER_STATUS[0] })}>+ 新增需求單</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
