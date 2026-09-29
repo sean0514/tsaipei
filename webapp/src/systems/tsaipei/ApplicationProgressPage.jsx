@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -129,6 +129,17 @@ export default function ApplicationProgressPage() {
     }));
   }
 
+  // 「學生錄取」日期異動時，同步回寫到對應的錄取名單（tsaipei_admittedList）
+  // 的「錄取日期」，兩邊看到的日期才會一致（透過媒合紀錄關聯，跟
+  // studentCompanyLabel 找客戶資料同一套關聯方式）。
+  async function syncAdmittedDate(studentId, admittedDate) {
+    const match = matches.find((m) => m.studentId === studentId);
+    if (!match) return;
+    const admitted = admittedList.find((a) => a.matchId === match.id);
+    if (!admitted || admitted.admitDate === admittedDate) return;
+    await updateDoc(doc(db, 'tsaipei_admittedList', admitted.id), { admitDate: admittedDate });
+  }
+
   // 「辦理簽證」日期第一次填入時就先建立住宿安排空白紀錄（未安排），讓宿舍
   // 安排提早準備，不用等到學生實際入台；「入台」日期第一次填入時自動建立
   // 在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本 Apps Script 版的
@@ -138,14 +149,25 @@ export default function ApplicationProgressPage() {
   async function handleSave(data) {
     const prevVisaDate = editing?.visaDate || '';
     const prevArrivalDate = editing?.arrivalDate || '';
+    const prevAdmittedDate = editing?.admittedDate || '';
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
       await add(data);
     }
-    if (data.visaDate && !prevVisaDate && !(await hasActiveHousingRecord(data.studentId))) {
-      await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: data.studentId });
+    if ((data.admittedDate || '') !== prevAdmittedDate) {
+      await syncAdmittedDate(data.studentId, data.admittedDate || '');
+    }
+    if (data.visaDate && !prevVisaDate) {
+      if (!(await hasActiveHousingRecord(data.studentId))) {
+        await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: data.studentId });
+      }
+      // 進度到「辦理簽證」就先建立在台簽證追蹤空白紀錄，不用等到實際入台，
+      // 讓在台簽證追蹤頁面提早看得到這位學生（見 InTaiwanVisaPage.jsx）。
+      if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
+        await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
+      }
     }
     if (data.arrivalDate && !prevArrivalDate) {
       if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
@@ -158,21 +180,27 @@ export default function ApplicationProgressPage() {
     setEditing(null);
   }
 
-  // 補救用：把目前所有「辦理簽證」日期已填的學生都檢查一次，缺住宿安排紀錄的補上。
-  // 用來修正在住宿安排自動連動邏輯修好之前，就已經卡在辦理簽證但沒被
-  // 補到的學生（例如當時該學生已有一筆「已完成」的舊住宿紀錄被誤判為已處理）。
+  // 補救用：把目前所有「辦理簽證」日期已填的學生都檢查一次，缺住宿安排紀錄、
+  // 缺在台簽證追蹤紀錄的都補上。用來修正這兩個自動連動邏輯修好之前，就已經
+  // 卡在辦理簽證但沒被補到的學生（例如當時該學生已有一筆「已完成」的舊住宿
+  // 紀錄被誤判為已處理）。
   async function reconcileHousingForVisaStage() {
     setCheckingHousing(true);
     try {
       const visaRows = rows.filter((r) => r.visaDate);
-      let fixed = 0;
+      let housingFixed = 0;
+      let visaTrackingFixed = 0;
       for (const r of visaRows) {
         if (!(await hasActiveHousingRecord(r.studentId))) {
           await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: r.studentId });
-          fixed++;
+          housingFixed++;
+        }
+        if (!(await existsForStudent('tsaipei_inTaiwanVisa', r.studentId))) {
+          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: r.studentId });
+          visaTrackingFixed++;
         }
       }
-      alert(`檢查完成：目前共 ${visaRows.length} 位學生已填入「辦理簽證」日期，其中補上了 ${fixed} 筆缺少的住宿安排紀錄。`);
+      alert(`檢查完成：目前共 ${visaRows.length} 位學生已填入「辦理簽證」日期，其中補上了 ${housingFixed} 筆缺少的住宿安排紀錄、${visaTrackingFixed} 筆缺少的在台簽證追蹤紀錄。`);
     } finally {
       setCheckingHousing(false);
     }
@@ -189,7 +217,7 @@ export default function ApplicationProgressPage() {
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增進度紀錄</button>}
           {canEditPage && (
             <button onClick={reconcileHousingForVisaStage} disabled={checkingHousing}>
-              {checkingHousing ? '檢查中…' : '核對辦理簽證學生的住宿安排'}
+              {checkingHousing ? '檢查中…' : '核對辦理簽證學生的住宿安排/簽證追蹤'}
             </button>
           )}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
