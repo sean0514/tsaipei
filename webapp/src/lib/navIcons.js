@@ -22,6 +22,7 @@ export const NAV_ICONS = {
     housing: '⌂',
     dormManagement: '▤',
     meetings: '✎',
+    closedCases: '📁',
     foreignSubsidyApplication: '🌐',
     dailyExpenseApplication: '🧾',
     clientBilling: '⌗',

@@ -40,7 +40,9 @@ export default function MatchesPage() {
   // 沒有 createdAt 的既有資料維持原本順序排在後面。搜尋依學生姓名／職缺（原本
   // matchesSearchQuery 的過濾邏輯）。
   const searchQuery = q.trim().toLowerCase();
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const sortedRows = [...rows]
+    .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${studentName(r.studentId)} ${positionLabel(r.positionId)}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => {
       const at = a.createdAt?.toMillis?.() ?? 0;
@@ -113,6 +115,7 @@ export default function MatchesPage() {
                           <td className="row-actions">
                             <button onClick={() => setEditing(r)}>編輯</button>
                             <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                            <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                           </td>
                         )}
                       </tr>

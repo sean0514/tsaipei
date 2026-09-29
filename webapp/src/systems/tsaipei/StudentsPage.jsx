@@ -76,7 +76,11 @@ export default function StudentsPage() {
     if (at !== bt) return bt - at;
     return (a.chineseName || '').localeCompare(b.chineseName || '');
   });
-  const filtered = sorted.filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含，也可以
+  // 到「已結案名單」頁面按「復原」把它找回來）。
+  const filtered = sorted
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
 
   // 新增學生存檔後自動在「媒合紀錄」建立一筆「媒合中」的空白紀錄（職缺待補），
@@ -173,6 +177,7 @@ export default function StudentsPage() {
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>編輯</button>
                         <button className="danger" onClick={() => handleDelete(r.id)}>刪除</button>
+                        <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                       </td>
                     )}
                   </tr>
