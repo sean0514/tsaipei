@@ -14,13 +14,14 @@ import { MATCH_TAG } from '../../lib/tags';
 const STATUSES = ['媒合中', '已媒合', '取消'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'employerId', label: '雇主ID' },
-  { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'taiwanAgency', label: '台仲' }, { key: 'notes', label: '備註' },
+  { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'admittedDate', label: '錄取時間' },
+  { key: 'taiwanAgency', label: '台仲' }, { key: 'notes', label: '備註' },
   { key: 'confirmedClosed', label: '已結案' },
 ];
 // 狀態已經是分類的區塊標題，欄位裡不用再重複顯示。
 const COLUMNS = [
   { key: 'worker', label: '工人姓名' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'employer', label: '雇主' }, { key: 'taiwanAgency', label: '台仲' },
-  { key: 'matchDate', label: '媒合日期' }, { key: 'notes', label: '備註' },
+  { key: 'matchDate', label: '媒合日期' }, { key: 'admittedDate', label: '錄取時間' }, { key: 'notes', label: '備註' },
 ];
 
 export default function MatchesPage() {
@@ -153,6 +154,10 @@ function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
             <label>
               媒合日期
               <input type="date" value={form.matchDate || ''} onChange={(e) => setForm({ ...form, matchDate: e.target.value })} />
+            </label>
+            <label>
+              錄取時間
+              <input type="date" value={form.admittedDate || ''} onChange={(e) => setForm({ ...form, admittedDate: e.target.value })} />
             </label>
             <label style={{ gridColumn: 'span 2' }}>
               備註
