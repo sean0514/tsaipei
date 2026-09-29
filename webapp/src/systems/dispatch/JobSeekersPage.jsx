@@ -6,6 +6,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { parseBranches } from './ClientsPage';
 
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
@@ -209,15 +210,17 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, clientsRows
     return base;
   }
 
-  // 選擇廠商名稱時，自動帶入客戶資訊裡該廠商的駐廠人員到駐廠專員；選擇招募/
-  // 面試/駐廠專員時，自動帶入該人員在使用人員裡的部門到對應部門欄位。兩者都
-  // 只在找得到對應資料時才覆蓋，且之後仍可手動改成別的值。
+  // 選擇廠商名稱或分店名稱時，自動帶入客戶資訊裡該廠商該分店對應的駐廠人員
+  // 到駐廠專員；選擇招募/面試/駐廠專員時，自動帶入該人員在使用人員裡的部門
+  // 到對應部門欄位。兩者都只在找得到對應資料時才覆蓋，且之後仍可手動改成
+  // 別的值。
   function handleChange(key, value) {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === 'client') {
-        const c = clientsRows.find((r) => r.client === value);
-        if (c && c.onsiteStaff) next.onsiteSpecialist = c.onsiteStaff;
+      if (key === 'client' || key === 'branch') {
+        const c = clientsRows.find((r) => r.client === next.client);
+        const match = c && parseBranches(c.branches).find((b) => b.branch === (next.branch || ''));
+        if (match && match.onsiteStaff) next.onsiteSpecialist = match.onsiteStaff;
       } else if (key === 'recruiter') {
         const u = userRows.find((r) => r.displayName === value);
         if (u) next.recruitDept = u.department || '';
@@ -254,6 +257,9 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, clientsRows
           {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
         </select>
       );
+    }
+    if (f.key === 'branch') {
+      return <input value={form.branch || ''} onChange={(e) => handleChange('branch', e.target.value)} />;
     }
     return <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />;
   }
