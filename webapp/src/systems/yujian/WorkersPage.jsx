@@ -21,9 +21,24 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
-function downloadDataUrl(dataUrl, filename) {
+// Chrome 不允許直接把 data: URL 當成分頁導覽目標開新分頁（會被靜默擋下、
+// 按了「顯示」沒有任何反應），要先轉成 Blob URL 才能正常在新分頁開啟或下載。
+function dataUrlToBlobUrl(dataUrl) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+}
+
+function viewResume(dataUrl) {
+  window.open(dataUrlToBlobUrl(dataUrl), '_blank');
+}
+
+function downloadResume(dataUrl, filename) {
   const a = document.createElement('a');
-  a.href = dataUrl;
+  a.href = dataUrlToBlobUrl(dataUrl);
   a.download = filename || '履歷表';
   document.body.appendChild(a);
   a.click();
@@ -153,8 +168,8 @@ export default function WorkersPage() {
                             <button onClick={() => setEditing(r)}>編輯</button>
                             <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                             <button onClick={() => update(r.id, { confirmedClosed: true })}>已結案</button>
-                            {r.resumeData && <button onClick={() => window.open(r.resumeData, '_blank')}>顯示履歷表</button>}
-                            {r.resumeData && <button onClick={() => downloadDataUrl(r.resumeData, r.resumeName)}>下載履歷表</button>}
+                            {r.resumeData && <button onClick={() => viewResume(r.resumeData)}>顯示履歷表</button>}
+                            {r.resumeData && <button onClick={() => downloadResume(r.resumeData, r.resumeName)}>下載履歷表</button>}
                           </td>
                         )}
                       </tr>
@@ -214,8 +229,8 @@ function WorkerFormModal({ initial, onCancel, onSave }) {
           {form.resumeName ? (
             <div className="row-actions" style={{ marginBottom: 16 }}>
               <span>{form.resumeName}</span>
-              <button type="button" onClick={() => window.open(form.resumeData, '_blank')}>顯示</button>
-              <button type="button" onClick={() => downloadDataUrl(form.resumeData, form.resumeName)}>下載</button>
+              <button type="button" onClick={() => viewResume(form.resumeData)}>顯示</button>
+              <button type="button" onClick={() => downloadResume(form.resumeData, form.resumeName)}>下載</button>
               <button type="button" className="danger" onClick={handleRemoveResume}>移除</button>
             </div>
           ) : (
