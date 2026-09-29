@@ -146,36 +146,63 @@ export default function ApplicationProgressPage() {
   // ensureInTaiwanVisaForStudent 一致。住宿安排另外也會在「新增/更新在台簽證
   // 追蹤」那一步補建一次（見 InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用
   // existsForStudent/hasActiveHousingRecord 檢查避免重複建立。
+  // 每個連動步驟各自包一層 try/catch：任何一步失敗（例如權限、網路問題）都
+  // 只在主控台記錄、彈窗提醒，不會讓後面幾個獨立的連動步驟被跳過——之前
+  // 寫成一串沒有隔開的 await，只要住宿安排那步丟出例外，後面在台簽證追蹤
+  // 的建立就整個不會執行，畫面上完全看不出來（沒有任何錯誤訊息），跟「編輯
+  // 進度紀錄存檔後，在台簽證追蹤卻沒有顯示」的回報症狀吻合。
+  async function runCascadeStep(label, fn) {
+    try {
+      await fn();
+    } catch (err) {
+      console.error(`申辦進度追蹤：${label}失敗`, err);
+      alert(`${label}失敗：${err.message || err}（其他項目仍會繼續處理，請稍後手動確認或使用「核對辦理簽證學生的住宿安排/簽證追蹤」按鈕補救）`);
+    }
+  }
+
   async function handleSave(data) {
     const prevVisaDate = editing?.visaDate || '';
     const prevArrivalDate = editing?.arrivalDate || '';
     const prevAdmittedDate = editing?.admittedDate || '';
-    if (data.id) {
-      const { id, ...rest } = data;
-      await update(id, rest);
-    } else {
-      await add(data);
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+      } else {
+        await add(data);
+      }
+    } catch (err) {
+      alert(`存檔失敗：${err.message || err}`);
+      return;
     }
     if ((data.admittedDate || '') !== prevAdmittedDate) {
-      await syncAdmittedDate(data.studentId, data.admittedDate || '');
+      await runCascadeStep('同步錄取名單的錄取日期', () => syncAdmittedDate(data.studentId, data.admittedDate || ''));
     }
     if (data.visaDate && !prevVisaDate) {
-      if (!(await hasActiveHousingRecord(data.studentId))) {
-        await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: data.studentId });
-      }
+      await runCascadeStep('建立住宿安排紀錄', async () => {
+        if (!(await hasActiveHousingRecord(data.studentId))) {
+          await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: data.studentId });
+        }
+      });
       // 進度到「辦理簽證」就先建立在台簽證追蹤空白紀錄，不用等到實際入台，
       // 讓在台簽證追蹤頁面提早看得到這位學生（見 InTaiwanVisaPage.jsx）。
-      if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
-        await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
-      }
+      await runCascadeStep('建立在台簽證追蹤紀錄', async () => {
+        if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
+          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
+        }
+      });
     }
     if (data.arrivalDate && !prevArrivalDate) {
-      if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
-        await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
-      }
-      if (!(await existsForStudent('tsaipei_inTaiwanCare', data.studentId))) {
-        await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId: data.studentId, status: '良好' });
-      }
+      await runCascadeStep('建立在台簽證追蹤紀錄', async () => {
+        if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
+          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
+        }
+      });
+      await runCascadeStep('建立在台關懷紀錄', async () => {
+        if (!(await existsForStudent('tsaipei_inTaiwanCare', data.studentId))) {
+          await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId: data.studentId, status: '良好' });
+        }
+      });
     }
     setEditing(null);
   }
@@ -190,14 +217,24 @@ export default function ApplicationProgressPage() {
       const visaRows = rows.filter((r) => r.visaDate);
       let housingFixed = 0;
       let visaTrackingFixed = 0;
+      // 每位學生兩個檢查各自獨立 try/catch，其中一項失敗（例如某筆資料
+      // 異常）不會連累其他學生或另一項檢查被中途跳過。
       for (const r of visaRows) {
-        if (!(await hasActiveHousingRecord(r.studentId))) {
-          await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: r.studentId });
-          housingFixed++;
+        try {
+          if (!(await hasActiveHousingRecord(r.studentId))) {
+            await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId: r.studentId });
+            housingFixed++;
+          }
+        } catch (err) {
+          console.error('核對住宿安排失敗:', r.studentId, err);
         }
-        if (!(await existsForStudent('tsaipei_inTaiwanVisa', r.studentId))) {
-          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: r.studentId });
-          visaTrackingFixed++;
+        try {
+          if (!(await existsForStudent('tsaipei_inTaiwanVisa', r.studentId))) {
+            await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: r.studentId });
+            visaTrackingFixed++;
+          }
+        } catch (err) {
+          console.error('核對在台簽證追蹤失敗:', r.studentId, err);
         }
       }
       alert(`檢查完成：目前共 ${visaRows.length} 位學生已填入「辦理簽證」日期，其中補上了 ${housingFixed} 筆缺少的住宿安排紀錄、${visaTrackingFixed} 筆缺少的在台簽證追蹤紀錄。`);
