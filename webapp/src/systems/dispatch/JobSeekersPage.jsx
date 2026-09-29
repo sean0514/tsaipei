@@ -35,8 +35,15 @@ const PERSONAL_FIELDS = [
   { key: 'transferFee', label: '轉帳手續費' },
 ];
 
-// dynamicOptions: 'client' 的欄位在表單裡是下拉選單，選項從客戶費用建檔抓客戶名稱。
+// dynamicOptions: 'client' 的欄位在表單裡是下拉選單，選項從客戶費用建檔抓客戶名稱；
+// 'staffName'/'staffDept' 則是從「使用人員」的姓名/部門取不重複清單。
 const JOB_FIELDS = [
+  { key: 'recruiter', label: '招募專員', dynamicOptions: 'staffName' },
+  { key: 'interviewer', label: '面試專員', dynamicOptions: 'staffName' },
+  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'staffName' },
+  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'staffDept' },
+  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'staffDept' },
+  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'staffDept' },
   { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
   { key: 'branch', label: '分店名稱' },
   { key: 'shift', label: '班別' },
@@ -56,6 +63,7 @@ export default function JobSeekersPage() {
   const canEditPage = computeCanEdit(system, 'jobSeekers', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('dispatch_jobSeekers');
   const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
+  const { rows: userRows } = useCollection('dispatch_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_jobSeekers', CSV_FIELDS, { entityLabel: '求職者資訊', canEdit: canEditPage });
@@ -173,7 +181,7 @@ export default function JobSeekersPage() {
           </table></div>
         )}
       </div>
-      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} userRows={userRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -182,16 +190,20 @@ function uniqueValues(list) {
   return [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
-function JobSeekerFormModal({ initial, clientFeeSetupRows, onCancel, onSave }) {
+function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
-  // 廠商名稱下拉選單選項從客戶費用建檔抓客戶名稱；目前表單裡填的值就算不在
-  // 清單裡也要保留（例如舊資料）。
-  const clientOptions = (() => {
-    const base = uniqueValues(clientFeeSetupRows.map((r) => r.client));
-    if (form.client && !base.includes(form.client)) return [...base, form.client];
+  // 廠商名稱下拉選單選項從客戶費用建檔抓客戶名稱；招募/面試/駐廠專員從使用
+  // 人員的姓名抓，招募/面試/駐廠部門從使用人員的部門抓；目前表單裡填的值
+  // 就算不在清單裡也要保留（例如舊資料）。
+  function optionsFor(f) {
+    let base;
+    if (f.dynamicOptions === 'client') base = uniqueValues(clientFeeSetupRows.map((r) => r.client));
+    else if (f.dynamicOptions === 'staffName') base = uniqueValues(userRows.map((r) => r.displayName));
+    else base = uniqueValues(userRows.map((r) => r.department));
+    if (form[f.key] && !base.includes(form[f.key])) return [...base, form[f.key]];
     return base;
-  })();
+  }
 
   function renderField(f) {
     if (f.key === 'status') {
@@ -201,11 +213,11 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, onCancel, onSave }) {
         </select>
       );
     }
-    if (f.dynamicOptions === 'client') {
+    if (f.dynamicOptions) {
       return (
-        <select value={form.client || ''} onChange={(e) => setForm({ ...form, client: e.target.value })}>
+        <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
           <option value="">請選擇</option>
-          {clientOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+          {optionsFor(f).map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       );
     }
