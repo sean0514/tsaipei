@@ -25,7 +25,7 @@ export default function UsersPage() {
 
   async function createUser(data) {
     await setDoc(doc(db, `${system}_users`, data.uid), {
-      email: data.email, displayName: data.displayName, role: data.role,
+      email: data.email, displayName: data.displayName, department: data.department || '', role: data.role,
     });
     setEditing(null);
   }
@@ -52,12 +52,17 @@ export default function UsersPage() {
         </p>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>Email</th><th>姓名</th><th>角色</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>Email</th><th>姓名</th><th>部門</th><th>角色</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.email}</td>
                   <td>{r.displayName || '—'}</td>
+                  <td>
+                    {canEditPage ? (
+                      <input value={r.department || ''} onChange={(e) => update(r.id, { department: e.target.value })} style={{ width: 120 }} />
+                    ) : (r.department || '—')}
+                  </td>
                   <td>
                     {canEditPage ? (
                       <select value={r.role} onChange={(e) => update(r.id, { role: e.target.value })}>
@@ -68,7 +73,7 @@ export default function UsersPage() {
                   {canEditPage && <td><button className="danger" onClick={() => remove(r.id)}>移除</button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={4} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -128,6 +133,10 @@ function UserFormModal({ roles, onCancel, onSave }) {
             <label>
               姓名
               <input value={form.displayName || ''} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+            </label>
+            <label>
+              部門
+              <input value={form.department || ''} onChange={(e) => setForm({ ...form, department: e.target.value })} />
             </label>
             <label>
               角色
