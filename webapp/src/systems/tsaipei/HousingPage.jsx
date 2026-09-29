@@ -26,6 +26,10 @@ function studentVenueLabel(studentId, { matches, admittedList, positions }) {
   return m?.venue || '—';
 }
 
+// 有第二次入出境紀錄就用第二次，沒有才退回第一次（跟 DashboardPage 同一套判斷）。
+function effectiveEntryDate(s) { return s?.secondEntryDate || s?.firstEntryDate || ''; }
+function effectiveExitDate(s) { return s?.secondExitDate || s?.firstExitDate || ''; }
+
 export default function HousingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'housing', role, overrides);
@@ -41,6 +45,8 @@ export default function HousingPage() {
 
   const ctx = { matches, admittedList, positions };
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
+  const studentEntryDate = (id) => effectiveEntryDate(students.find((x) => x.id === id)) || '—';
+  const studentExitDate = (id) => effectiveExitDate(students.find((x) => x.id === id)) || '—';
   const today = new Date().toISOString().slice(0, 10);
 
   function classify(r) {
@@ -82,12 +88,14 @@ export default function HousingPage() {
   function renderTable(list, label) {
     return (
       <div className="table-wrap"><table>
-        <thead><tr><th>學生</th><th>分店</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (
             <tr key={r.id}>
               <td>{studentName(r.studentId)}</td>
               <td>{studentVenueLabel(r.studentId, ctx)}</td>
+              <td>{studentEntryDate(r.studentId)}</td>
+              <td>{studentExitDate(r.studentId)}</td>
               <td>{r.type || '—'}</td>
               <td>{r.payer || '—'}</td>
               <td>{r.checkIn || '—'}</td>
@@ -101,7 +109,7 @@ export default function HousingPage() {
               )}
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+          {list.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
