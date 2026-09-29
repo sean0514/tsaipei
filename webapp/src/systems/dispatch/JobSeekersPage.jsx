@@ -13,15 +13,16 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 // 報到/隸屬公司這幾欄、黑名單改是/否選單。
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
-// dynamicOptions 標記的欄位在表單裡改成下拉選單：'existing' 從求職者資料
-// 裡目前已經出現過的值取不重複清單，'client' 從客戶費用建檔抓客戶名稱。
+// dynamicOptions 標記的欄位在表單裡改成下拉選單：'staffName' 從「使用人員」
+// 的姓名取不重複清單，'staffDept' 從「使用人員」的部門取不重複清單，
+// 'client' 從客戶費用建檔抓客戶名稱。
 const FIELDS = [
-  { key: 'recruiter', label: '招募專員', dynamicOptions: 'existing' },
-  { key: 'interviewer', label: '面試專員', dynamicOptions: 'existing' },
-  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'existing' },
-  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'existing' },
-  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'existing' },
-  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'existing' },
+  { key: 'recruiter', label: '招募專員', dynamicOptions: 'staffName' },
+  { key: 'interviewer', label: '面試專員', dynamicOptions: 'staffName' },
+  { key: 'onsiteSpecialist', label: '駐廠專員', dynamicOptions: 'staffName' },
+  { key: 'recruitDept', label: '招募部門', dynamicOptions: 'staffDept' },
+  { key: 'interviewDept', label: '面試部門', dynamicOptions: 'staffDept' },
+  { key: 'onsiteDept', label: '駐廠部門', dynamicOptions: 'staffDept' },
   { key: 'recruitTime', label: '招募時間', type: 'date' },
   { key: 'client', label: '廠商名稱', dynamicOptions: 'client' },
   { key: 'branch', label: '分店名稱' },
@@ -63,6 +64,7 @@ export default function JobSeekersPage() {
   const canEditPage = computeCanEdit(system, 'jobSeekers', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('dispatch_jobSeekers');
   const { rows: clientFeeSetupRows } = useCollection('dispatch_clientFeeSetup');
+  const { rows: userRows } = useCollection('dispatch_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('dispatch_jobSeekers', CSV_FIELDS, { entityLabel: '求職者資訊', canEdit: canEditPage });
@@ -180,7 +182,7 @@ export default function JobSeekersPage() {
           </table></div>
         )}
       </div>
-      {editing && <JobSeekerFormModal initial={editing} rows={rows} clientFeeSetupRows={clientFeeSetupRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <JobSeekerFormModal initial={editing} clientFeeSetupRows={clientFeeSetupRows} userRows={userRows} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -189,16 +191,17 @@ function uniqueValues(list) {
   return [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
-function JobSeekerFormModal({ initial, rows, clientFeeSetupRows, onCancel, onSave }) {
+function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
-  // 下拉選單的選項：'existing' 從求職者資料裡這個欄位目前已經出現過的值
-  // 取不重複清單，'client' 從客戶費用建檔抓客戶名稱；目前表單裡填的值就算
-  // 不在清單裡也要保留（例如舊資料、剛新增還沒被其他人用過的值）。
+  // 下拉選單的選項：'staffName' 從「使用人員」的姓名取不重複清單，
+  // 'staffDept' 從「使用人員」的部門取不重複清單，'client' 從客戶費用建檔
+  // 抓客戶名稱；目前表單裡填的值就算不在清單裡也要保留（例如舊資料）。
   function optionsFor(f) {
-    const base = f.dynamicOptions === 'client'
-      ? uniqueValues(clientFeeSetupRows.map((r) => r.client))
-      : uniqueValues(rows.map((r) => r[f.key]));
+    let base;
+    if (f.dynamicOptions === 'client') base = uniqueValues(clientFeeSetupRows.map((r) => r.client));
+    else if (f.dynamicOptions === 'staffName') base = uniqueValues(userRows.map((r) => r.displayName));
+    else base = uniqueValues(userRows.map((r) => r.department));
     if (form[f.key] && !base.includes(form[f.key])) return [...base, form[f.key]];
     return base;
   }
