@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -129,6 +129,17 @@ export default function ApplicationProgressPage() {
     }));
   }
 
+  // 「學生錄取」日期異動時，同步回寫到對應的錄取名單（tsaipei_admittedList）
+  // 的「錄取日期」，兩邊看到的日期才會一致（透過媒合紀錄關聯，跟
+  // studentCompanyLabel 找客戶資料同一套關聯方式）。
+  async function syncAdmittedDate(studentId, admittedDate) {
+    const match = matches.find((m) => m.studentId === studentId);
+    if (!match) return;
+    const admitted = admittedList.find((a) => a.matchId === match.id);
+    if (!admitted || admitted.admitDate === admittedDate) return;
+    await updateDoc(doc(db, 'tsaipei_admittedList', admitted.id), { admitDate: admittedDate });
+  }
+
   // 「辦理簽證」日期第一次填入時就先建立住宿安排空白紀錄（未安排），讓宿舍
   // 安排提早準備，不用等到學生實際入台；「入台」日期第一次填入時自動建立
   // 在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本 Apps Script 版的
@@ -138,11 +149,15 @@ export default function ApplicationProgressPage() {
   async function handleSave(data) {
     const prevVisaDate = editing?.visaDate || '';
     const prevArrivalDate = editing?.arrivalDate || '';
+    const prevAdmittedDate = editing?.admittedDate || '';
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
       await add(data);
+    }
+    if ((data.admittedDate || '') !== prevAdmittedDate) {
+      await syncAdmittedDate(data.studentId, data.admittedDate || '');
     }
     if (data.visaDate && !prevVisaDate) {
       if (!(await hasActiveHousingRecord(data.studentId))) {
