@@ -4,6 +4,7 @@ import { addDoc, collection, getDocs, query, updateDoc, where } from 'firebase/f
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
@@ -46,11 +47,14 @@ export const MILESTONES = [
   { key: 'certCompleteDate', label: '認證（14天）送件日期' },
   { key: 'certReceiveDate', label: '認證領件日期', overdueFrom: 'certCompleteDate', overdueDays: 14 },
   { key: 'sentAbroadDate', label: '寄出國外日期' },
-  { key: 'healthCheckDate', label: '體檢/時間' },
-  { key: 'trainingDate', label: '訓練/時間' },
+  { key: 'healthCheckInDate', label: '體檢/時間 IN' },
+  { key: 'healthCheckOutDate', label: '體檢/時間 OUT' },
+  { key: 'trainingInDate', label: '訓練/時間 IN' },
+  { key: 'trainingOutDate', label: '訓練/時間 OUT' },
   { key: 'owwaDate', label: '福利部OWWA（2天）' },
   { key: 'laborLetterDate', label: '台灣勞動部函' },
-  { key: 'poeaDate', label: '海外勞工署POEA（3-4天）' },
+  { key: 'poeaInDate', label: '海外勞工署POEA（3-4天）IN' },
+  { key: 'poeaOutDate', label: '海外勞工署POEA（3-4天）OUT' },
   { key: 'tecoVisaInDate', label: '中華商會TECO VISA IN' },
   { key: 'visaOutDate', label: 'VISA OUT' },
   { key: 'oecDate', label: '海外工作證OEC' },
@@ -88,8 +92,15 @@ export function newNoteId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// 領件日期逾期提醒：送件日期＋overdueDays 天已過，領件日期卻還沒填。
+export function isMilestoneOverdue(m, p) {
+  return !!(m.overdueFrom && p?.[m.overdueFrom] && !p?.[m.key]
+    && new Date() >= new Date(`${addDays(p[m.overdueFrom], m.overdueDays)}T00:00:00`));
+}
+
 // 進度圖示：只保留「最近完成的一步」到「送工時間」之間的步驟，已經完成很久的
 // 步驟不用一直佔畫面；都還沒開始的話就整條鏈完整顯示，讓人知道下一步是什麼。
+// 逾期的步驟（目前只有認證領件日期）不管在不在這個範圍內都會顯示紅色提醒。
 export function ProgressPipeline({ p }) {
   let lastDoneIdx = -1;
   MILESTONES.forEach((m, i) => { if (p?.[m.key]) lastDoneIdx = i; });
@@ -97,7 +108,7 @@ export function ProgressPipeline({ p }) {
   return (
     <div className="pipeline">
       {visible.map((m, i) => (
-        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}`}>{m.label}</span>
+        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}>{m.label}</span>
       ))}
     </div>
   );
@@ -158,22 +169,15 @@ export default function ApplicationProgressPage() {
     }
   }
 
-  // 進度狀態變成「已接離／轉出中／已轉出／已離台」其中一個時，自動在安置
-  // 中名單建立一筆紀錄（要案件有連結到媒合紀錄才能找到對應人員，手動新增、
-  // 沒有媒合來源的案件無法自動連動）。
-  async function ensurePlacementRecord(workerId) {
-    const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
-    if (!existing.empty) return;
-    await addDoc(collection(db, 'yujian_placementList'), { workerId, status: '安置中' });
-  }
-
   // 送工時間第一次填入時，進度狀態自動改成「已入台」，不用分開手動改兩個欄位。
   async function handleSave(data) {
     const prevDispatchDate = editing?.dispatchDate || '';
-    const prevStatus = editing?.status || '';
     const payload = { ...data };
     if (payload.dispatchDate && !prevDispatchDate) payload.status = '已入台';
-    if (TRANSFER_STEP_STATUS.includes(payload.status) && !TRANSFER_STEP_STATUS.includes(prevStatus) && payload.matchId) {
+    // 進度狀態或轉出/離境紀錄清單裡任一筆變成「已接離／轉出中／已轉出／
+    // 已離台」時，自動在安置中名單建立一筆紀錄（要案件有連結到媒合紀錄才能
+    // 找到對應人員，手動新增、沒有媒合來源的案件無法自動連動）。
+    if (hasTransferStatus(payload, TRANSFER_STEP_STATUS) && !hasTransferStatus(editing, TRANSFER_STEP_STATUS) && payload.matchId) {
       const match = matches.find((m) => m.id === payload.matchId);
       if (match?.workerId) await ensurePlacementRecord(match.workerId);
     }
@@ -209,6 +213,11 @@ export default function ApplicationProgressPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div className="card" style={{ overflowX: 'auto' }}>
             <h4 style={{ marginTop: 0 }}>未入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{notArrived.length} 個案件</span></h4>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+              流程：確認錄取 → 認證送件／領件（14天）→ 寄出國外 → 體檢 IN/OUT → 訓練 IN/OUT →
+              福利部OWWA（2天）→ 台灣勞動部函 → 海外勞工署POEA IN/OUT（3-4天）→ 中華商會TECO VISA IN → VISA OUT →
+              海外工作證OEC → 出國前講習 → 入境時間 → 送工時間（自動改為已入台）。
+            </p>
             <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
           </div>
           <div className="card" style={{ overflowX: 'auto' }}>
@@ -286,14 +295,10 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
     });
   }
 
-  // 認證送件日期第一次填入（或還沒手動填過領件日期）時，自動把領件日期
-  // 帶成送件日期＋14天，仍可手動修改。
+  // 送件日期每次變更都自動把領件日期改成送件日期＋14天（存檔後仍可再手動
+  // 覆蓋領件日期，但下次送件日期一變，又會重新蓋回去）。
   function handleCertCompleteDateChange(value) {
-    const shouldAutoFill = !form.certReceiveDate;
-    setForm({
-      ...form, certCompleteDate: value,
-      certReceiveDate: shouldAutoFill && value ? addDays(value, 14) : form.certReceiveDate,
-    });
+    setForm({ ...form, certCompleteDate: value, certReceiveDate: value ? addDays(value, 14) : '' });
   }
 
   function addTransferStep() {
@@ -346,9 +351,7 @@ function ProgressFormModal({ initial, workers, matches, onCancel, onSave }) {
           <h4 style={{ marginTop: 20 }}>申辦流程</h4>
           <div className="form-grid">
             {MILESTONES.map((m) => {
-              // 領件日期逾期提醒：送件日期＋overdueDays 天已過，領件日期卻還沒填。
-              const isOverdue = m.overdueFrom && form[m.overdueFrom] && !form[m.key]
-                && new Date() >= new Date(`${addDays(form[m.overdueFrom], m.overdueDays)}T00:00:00`);
+              const isOverdue = isMilestoneOverdue(m, form);
               return (
                 <div key={m.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label>
