@@ -27,7 +27,7 @@ export const INFO_FIELDS = [
   { key: 'demandCount', label: '需求量', type: 'number' },
   { key: 'selectionStatus', label: '選工狀態' },
   { key: 'foreignAgency', label: '國外仲介' },
-  { key: 'taiwanAgency', label: '台仲' },
+  { key: 'taiwanAgency', label: '國內仲介' },
   { key: 'nationality', label: '國籍', options: NATIONALITIES },
 ];
 
