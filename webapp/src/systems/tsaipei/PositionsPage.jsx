@@ -125,6 +125,7 @@ export default function PositionsPage() {
       return (
         <tr key={r.id}>
           <td>{r.projectCode || '—'}</td>
+          <td>{r.letterNo || '—'}</td>
           <td><div style={{ fontWeight: 600 }}>{r.company}</div><div className="muted" style={{ fontSize: 12 }}>{r.industry || ''}</div></td>
           <td>{r.title || '—'}</td>
           <td>
@@ -179,13 +180,13 @@ export default function PositionsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>
+                <th>專案編號</th><th>函文編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
               {renderRows(open)}
-              {open.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
+              {open.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -195,7 +196,7 @@ export default function PositionsPage() {
         <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已結案</h3>
           <div className="table-wrap"><table>
-            <thead><tr><th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>專案編號</th><th>函文編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>{renderRows(closed)}</tbody>
           </table></div>
         </div>
