@@ -10,6 +10,9 @@ import { parseBranches } from './ClientsPage';
 
 const JOB_SEEKER_STATUS = ['求職中', '在職', '離職'];
 
+// 類型欄位放在表單最前面，跟個人資料/應徵工作兩區分開。
+const TYPE_FIELD = { key: 'type', label: '類型', options: ['', '派遣', '代招', '承攬', '外包喜多', '外包異同'] };
+
 // 表單分兩區：個人資料、應徵工作，依使用者指定的順序排列。原本的招募/面試/
 // 駐廠專員、招募/面試/駐廠部門、招募時間、績分這幾欄已依需求從表單移除
 // （既有資料不受影響，只是這裡不再顯示/編輯）。
@@ -60,7 +63,7 @@ const JOB_FIELDS = [
 ];
 
 const FIELDS = [...PERSONAL_FIELDS, ...JOB_FIELDS];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, TYPE_FIELD, ...FIELDS];
 
 export default function JobSeekersPage() {
   const { system, role, overrides } = useOutletContext();
@@ -269,6 +272,12 @@ function JobSeekerFormModal({ initial, clientFeeSetupRows, userRows, clientsRows
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯求職者' : '新增求職者'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid" style={{ marginBottom: 8 }}>
+            <label>
+              {TYPE_FIELD.label}
+              {renderField(TYPE_FIELD)}
+            </label>
+          </div>
           <h4 style={{ marginTop: 0 }}>個人資料</h4>
           <div className="form-grid">
             {PERSONAL_FIELDS.map((f) => (
