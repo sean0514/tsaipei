@@ -102,8 +102,9 @@ export default function PositionsPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
 
-  const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q))));
-  const closed = rows.filter((r) => r.closed === '是');
+  const byCompany = (a, b) => (a.company || '').localeCompare(b.company || '');
+  const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q)))).sort(byCompany);
+  const closed = rows.filter((r) => r.closed === '是').sort(byCompany);
 
   // 產業類別需求：把未結案職缺依產業別加總（總缺額 - 已媒合），顯示目前還缺
   // 多少人，跟每一列自己顯示的「已媒合/總名額」算法一致。
