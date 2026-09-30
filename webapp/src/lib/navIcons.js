@@ -52,6 +52,8 @@ export const NAV_ICONS = {
     clientFeeSetup: '▦',
     internalFeeSetup: '▧',
     bonus: '◈',
+    referralBonusRate: '⚙',
+    referralBonus: '🎯',
     users: '▣',
   },
   dormMgmt: {

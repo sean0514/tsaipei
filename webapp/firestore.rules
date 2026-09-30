@@ -405,9 +405,23 @@ service cloud.firestore {
       allow read: if dpIsMember();
       allow write: if dpIsMember() && dpRole() == '系統管理員';
     }
+    // 公開線上履歷連結（/apply/dispatch?ref=...）不需要登入即可新增一筆求職
+    // 者資料，只允許這裡列出的個人資料欄位＋recruiter/status/createdAt，且
+    // status 一定要是「求職中」，避免公開連結被用來塞入其他欄位（黑名單、
+    // 薪資、狀態等）或改到既有資料。
+    function isPublicJobSeekerApply() {
+      return request.resource.data.keys().hasOnly([
+        'chineseName', 'idNumber', 'birthDate', 'age', 'gender', 'mobile', 'phone', 'address',
+        'licensePlate', 'education', 'emergencyContact', 'emergencyContactPhone', 'notes',
+        'bankCode', 'bankName', 'bankBranchCode', 'bankBranchName', 'bankAccountName', 'bankAccount',
+        'transferFee', 'recruiter', 'status', 'createdAt'
+      ]) && request.resource.data.chineseName is string && request.resource.data.chineseName.size() > 0
+        && request.resource.data.status == '求職中';
+    }
     match /dispatch_jobSeekers/{docId} {
       allow read: if dpIsMember();
-      allow create, delete: if dpCanEdit('jobSeekers');
+      allow create: if dpCanEdit('jobSeekers') || isPublicJobSeekerApply();
+      allow delete: if dpCanEdit('jobSeekers');
       allow update: if dpCanEdit('jobSeekers');
     }
     // 面試概況：新增求職者自動建立一筆待安排的面試紀錄，所以 create 也開放
@@ -448,6 +462,10 @@ service cloud.firestore {
       allow write: if dpCanEdit('bonus');
     }
     match /dispatch_clientFeeSetup/{docId} {
+      allow read: if dpIsMember();
+      allow write: if dpCanEdit('bonus');
+    }
+    match /dispatch_referralBonusRate/{docId} {
       allow read: if dpIsMember();
       allow write: if dpCanEdit('bonus');
     }

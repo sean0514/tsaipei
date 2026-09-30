@@ -36,6 +36,18 @@ export default function UsersPage() {
     await setDoc(doc(db, `${system}_rolePermissions`, `${module}__${r}`), { level: next });
   }
 
+  // 宸暐企業專用：每個人一條專屬的線上履歷填寫連結，求職者填完會自動把
+  // 這個人設成招募專員，供之後計算招募獎金使用。
+  async function handleCopyApplyLink(r) {
+    const url = `${window.location.origin}/apply/dispatch?ref=${encodeURIComponent(r.displayName || '')}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(`已複製連結：\n${url}`);
+    } catch {
+      window.prompt('複製失敗，請手動複製以下連結：', url);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -52,7 +64,7 @@ export default function UsersPage() {
         </p>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>Email</th><th>姓名</th><th>部門</th><th>角色</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>Email</th><th>姓名</th><th>部門</th><th>角色</th>{system === 'dispatch' && <th></th>}{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -70,10 +82,11 @@ export default function UsersPage() {
                       </select>
                     ) : r.role}
                   </td>
+                  {system === 'dispatch' && <td><button onClick={() => handleCopyApplyLink(r)}>複製履歷連結</button></td>}
                   {canEditPage && <td><button className="danger" onClick={() => remove(r.id)}>移除</button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={system === 'dispatch' ? 6 : 5} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

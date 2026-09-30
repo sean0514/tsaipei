@@ -16,7 +16,7 @@ const TYPE_FIELD = { key: 'type', label: '類型', options: ['', '派遣', '代�
 // 表單分兩區：個人資料、應徵工作，依使用者指定的順序排列。原本的招募/面試/
 // 駐廠專員、招募/面試/駐廠部門、招募時間、績分這幾欄已依需求從表單移除
 // （既有資料不受影響，只是這裡不再顯示/編輯）。
-const PERSONAL_FIELDS = [
+export const PERSONAL_FIELDS = [
   { key: 'chineseName', label: '姓名', required: true },
   { key: 'idNumber', label: '身份證字號' },
   { key: 'birthDate', label: '生日', type: 'date' },

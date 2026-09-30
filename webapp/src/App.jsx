@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
+import DispatchApplyPage from './pages/DispatchApplyPage';
 import CompanyPicker from './pages/CompanyPicker';
 import CompanyHomePage from './pages/CompanyHomePage';
 import Layout, { IMPLEMENTED_MODULES, TodoModule } from './components/Layout';
@@ -51,6 +52,8 @@ import DispatchBlacklistPage from './systems/dispatch/BlacklistPage';
 import DispatchClientFeeSetupPage from './systems/dispatch/ClientFeeSetupPage';
 import DispatchInternalFeeSetupPage from './systems/dispatch/InternalFeeSetupPage';
 import DispatchBonusPage from './systems/dispatch/BonusPage';
+import DispatchReferralBonusRatePage from './systems/dispatch/ReferralBonusRatePage';
+import DispatchReferralBonusPage from './systems/dispatch/ReferralBonusPage';
 import DormMgmtDashboardPage from './systems/dormMgmt/DashboardPage';
 import DormMgmtLeasesPage from './systems/dormMgmt/LeasesPage';
 import DormMgmtRemittancePage from './systems/dormMgmt/RemittancePage';
@@ -145,6 +148,8 @@ const PAGES = {
     clientFeeSetup: DispatchClientFeeSetupPage,
     internalFeeSetup: DispatchInternalFeeSetupPage,
     bonus: DispatchBonusPage,
+    referralBonusRate: DispatchReferralBonusRatePage,
+    referralBonus: DispatchReferralBonusPage,
     users: UsersPage,
   },
   dormMgmt: {
@@ -207,6 +212,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
         <Route path="/" element={<RequireAuth><CompanyPicker /></RequireAuth>} />
         <Route path="/company/:companyKey" element={<RequireAuth><CompanyHomePage /></RequireAuth>} />
         <Route path="/:system" element={<RequireAuth><Layout /></RequireAuth>}>
