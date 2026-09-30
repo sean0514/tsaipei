@@ -320,8 +320,9 @@ function PositionFormModal({ initial, onCancel, onSave }) {
 
   // 只更新原始內容，不要在這裡就把空白列濾掉——濾掉的話「新增地點」剛加的
   // 空白列會在下一次 render 就消失，使用者根本來不及輸入（回報的「功能無法
-  // 作用」）。真正要濾掉沒填地點的列，留到送出表單那一刻再做（跟原本
-  // collectLocationGroups 只在送出時才過濾一樣）。
+  // 作用」）。真正要濾掉完全空白的列，留到送出表單那一刻再做（跟原本
+  // collectLocationGroups 只在送出時才過濾一樣）。實習地點本身不是必填，
+  // 只要場域或地點有填其中一個就保留這一列。
   function setGroups(next) {
     setForm({ ...form, locationGroups: JSON.stringify(next) });
   }
@@ -332,7 +333,7 @@ function PositionFormModal({ initial, onCancel, onSave }) {
 
   function handleSubmit(e) {
     e.preventDefault();
-    const cleanedGroups = parseLocationGroups(form.locationGroups).filter((g) => g.location);
+    const cleanedGroups = parseLocationGroups(form.locationGroups).filter((g) => g.venue || g.location);
     onSave({ ...form, locationGroups: JSON.stringify(cleanedGroups), otherBenefits: JSON.stringify(parseBenefits(form.otherBenefits)) });
   }
 
