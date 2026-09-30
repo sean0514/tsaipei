@@ -47,6 +47,7 @@ import DispatchSalaryChangePage from './systems/dispatch/SalaryChangePage';
 import DispatchClientBillingPage from './systems/dispatch/ClientBillingPage';
 import DispatchEmployeeMasterSheetPage from './systems/dispatch/EmployeeMasterSheetPage';
 import DispatchClientsPage from './systems/dispatch/ClientsPage';
+import DispatchBlacklistPage from './systems/dispatch/BlacklistPage';
 import DispatchClientFeeSetupPage from './systems/dispatch/ClientFeeSetupPage';
 import DispatchInternalFeeSetupPage from './systems/dispatch/InternalFeeSetupPage';
 import DispatchBonusPage from './systems/dispatch/BonusPage';
@@ -140,6 +141,7 @@ const PAGES = {
     clientBilling: DispatchClientBillingPage,
     employeeMasterSheet: DispatchEmployeeMasterSheetPage,
     clients: DispatchClientsPage,
+    blacklist: DispatchBlacklistPage,
     clientFeeSetup: DispatchClientFeeSetupPage,
     internalFeeSetup: DispatchInternalFeeSetupPage,
     bonus: DispatchBonusPage,

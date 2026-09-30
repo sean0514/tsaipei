@@ -48,6 +48,7 @@ export const NAV_ICONS = {
     clientBilling: '⌗',
     employeeMasterSheet: '▥',
     clients: '⌘',
+    blacklist: '⛔',
     clientFeeSetup: '▦',
     internalFeeSetup: '▧',
     bonus: '◈',
