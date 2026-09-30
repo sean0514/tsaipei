@@ -163,10 +163,16 @@ function ForeignSubsidyFormModal({ initial, students, users, positions, matches,
     return m ? positions.find((p) => p.id === m.positionId)?.company || '' : '';
   }
 
+  // 編輯既有申請時，目前選的學生就算跟現在的學生來源/就讀學校/實習單位篩選
+  // 條件對不上（例如學生資料後來改過），也要留在清單裡，不然下拉選單會顯示
+  // 空白（studentId 有值，但選項裡找不到對應的 option）。
   const matchingStudents = students.filter((s) =>
-    (!form.sourceSupplier || s.sourceSupplier === form.sourceSupplier) &&
-    (!form.school || s.school === form.school) &&
-    (!form.internshipCompany || companyForStudent(s.id) === form.internshipCompany)
+    s.id === form.studentId ||
+    (
+      (!form.sourceSupplier || s.sourceSupplier === form.sourceSupplier) &&
+      (!form.school || s.school === form.school) &&
+      (!form.internshipCompany || companyForStudent(s.id) === form.internshipCompany)
+    )
   );
 
   function handleSourceChange(source) {
