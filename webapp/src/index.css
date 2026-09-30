@@ -97,44 +97,44 @@
 .theme-yujian .tag { border-radius: 999px; }
 .theme-yujian .brand-sub { color: #B7D2CE; }
 
-/* 宸暐企業（派遣公司專用系統）：淺藍色系，圓潤可愛的按鈕/卡片/輸入框，
-   比照境外實習生系統的少女系風格微調（使用者多為女性），只在這個系統的
+/* 宸暐企業（派遣公司專用系統）：中國風配色，朱紅側邊欄配金色文字/邊框，
+   象牙白底、方正邊角（牌匾/印章感），書法感標題字體，只在這個系統的
    頁面範圍內生效。 */
 .theme-dispatch {
-  --bg: #F2F8FD;
-  --panel: #FFFFFF;
-  --border: #D6E9F7;
-  --text: #3D5568;
-  --text-muted: #85A6BA;
-  --accent: #5FA8DE;
-  --accent-soft: #E6F3FC;
-  --danger: #E8909A;
-  --sidebar-bg: #3E6E94;
-  --sidebar-border: rgba(255,255,255,0.14);
-  --sidebar-text: #D6EAF8;
-  --sidebar-text-muted: #A8CBE2;
-  --sidebar-active-bg: #5FA8DE;
-  --sidebar-active-text: #ffffff;
-  --heading-font: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius: 12px;
-  --radius-lg: 12px;
+  --bg: #FBF6EA;
+  --panel: #FFFDF7;
+  --border: #E3C572;
+  --text: #3B2A1A;
+  --text-muted: #8A7355;
+  --accent: #B8860B;
+  --accent-soft: #F7ECC9;
+  --danger: #A63A2C;
+  --sidebar-bg: #7A1F2B;
+  --sidebar-border: rgba(243,217,160,0.25);
+  --sidebar-text: #F3D9A0;
+  --sidebar-text-muted: #D8B571;
+  --sidebar-active-bg: #B8860B;
+  --sidebar-active-text: #4A1116;
+  --heading-font: 'Noto Serif TC', serif;
+  --radius: 6px;
+  --radius-lg: 8px;
   font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.theme-dispatch button.primary { background: var(--accent); border-color: var(--accent); }
-.theme-dispatch button.primary:hover { background: #4489BE; border-color: #4489BE; }
-.theme-dispatch h2, .theme-dispatch h3, .theme-dispatch h4 { font-family: var(--heading-font); color: #4489BE; }
-.theme-dispatch button { border-radius: 999px; border-color: #D6E9F7; }
-.theme-dispatch button:not(.primary):not(.danger):hover { background: #EAF5FC; border-color: #C3E0F3; }
-.theme-dispatch button.danger { background: #FDF1F2; color: #D06B78; border-color: #F5D2D6; }
-.theme-dispatch button.danger:hover { background: #FBE3E6; }
-.theme-dispatch input, .theme-dispatch select, .theme-dispatch textarea { border-radius: 14px; border-color: #D6E9F7; }
+.theme-dispatch button.primary { background: var(--accent); border-color: var(--accent); color: #FFFDF7; }
+.theme-dispatch button.primary:hover { background: #9C7009; border-color: #9C7009; }
+.theme-dispatch h2, .theme-dispatch h3, .theme-dispatch h4 { font-family: var(--heading-font); color: #7A1F2B; }
+.theme-dispatch button { border-radius: var(--radius); border-color: #E3C572; }
+.theme-dispatch button:not(.primary):not(.danger):hover { background: #F7ECC9; border-color: #D4AF37; }
+.theme-dispatch button.danger { background: #FBEAE7; color: #A63A2C; border-color: #E3B3A9; }
+.theme-dispatch button.danger:hover { background: #F5DAD4; }
+.theme-dispatch input, .theme-dispatch select, .theme-dispatch textarea { border-radius: 4px; border-color: #E3C572; }
 .theme-dispatch input:focus, .theme-dispatch select:focus, .theme-dispatch textarea:focus {
-  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(95,168,222,0.15);
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(184,134,11,0.18);
 }
-.theme-dispatch .card { border-radius: 18px; box-shadow: 0 4px 18px rgba(95,168,222,0.10); }
-.theme-dispatch .modal { border-radius: 20px; box-shadow: 0 20px 60px rgba(62,110,148,0.25); }
-.theme-dispatch .tag { border-radius: 999px; }
-.theme-dispatch .brand-sub { color: #A8CBE2; }
+.theme-dispatch .card { border-radius: 8px; border-color: #E3C572; box-shadow: 0 4px 18px rgba(184,134,11,0.10); }
+.theme-dispatch .modal { border-radius: 10px; border: 1px solid #E3C572; box-shadow: 0 20px 60px rgba(122,31,43,0.25); }
+.theme-dispatch .tag { border-radius: 4px; }
+.theme-dispatch .brand-sub { color: #D8B571; }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
