@@ -70,7 +70,7 @@ export const MILESTONES = [
   { key: 'tecoVisaInDate', label: '中華商會TECO VISA IN' },
   { key: 'visaOutDate', label: 'VISA OUT' },
   { key: 'oecDate', label: '海外工作證OEC' },
-  { key: 'preDepartureDate', label: 'PDOS海外就業講習', attachment: 'single' },
+  { key: 'preDepartureDate', label: '出國前講習', attachment: 'single' },
   { key: 'entryDate', label: '入境時間', attachment: 'multiple' },
   { key: 'dispatchDate', label: '送工時間' },
 ];
