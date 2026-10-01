@@ -92,11 +92,20 @@ export default function ExpectedArrivalPage() {
     );
   }
 
-  function ListTable({ items }) {
+  // 入台清單多顯示體檢日期/體檢公司/送工地點/送工日期（資料來自在台簽證
+  // 追蹤，要編輯請到「在台簽證追蹤」的表單），日期欄位標題改成「入境日期」；
+  // 離台清單維持原本欄位。
+  function ListTable({ items, dateLabel = '日期', showArrivalExtras = false }) {
+    const colCount = showArrivalExtras ? 8 : 4;
     return (
       <div className="table-wrap">
         <table>
-          <thead><tr><th>學生</th><th>客戶</th><th>日期</th><th>項目</th></tr></thead>
+          <thead>
+            <tr>
+              <th>學生</th><th>客戶</th><th>{dateLabel}</th><th>項目</th>
+              {showArrivalExtras && <><th>體檢日期</th><th>體檢公司</th><th>送工地點</th><th>送工日期</th></>}
+            </tr>
+          </thead>
           <tbody>
             {items.map(({ v, date, label }, i) => (
               <tr key={`${v.id}-${label}-${i}`}>
@@ -104,9 +113,17 @@ export default function ExpectedArrivalPage() {
                 <td>{studentCompanyLabel(v.studentId, ctx)}</td>
                 <td>{date}</td>
                 <td>{label}</td>
+                {showArrivalExtras && (
+                  <>
+                    <td>{v.healthCheckDate || '—'}</td>
+                    <td>{v.healthCheckCompany || '—'}</td>
+                    <td>{v.dispatchLocation || '—'}</td>
+                    <td>{v.dispatchDate || '—'}</td>
+                  </>
+                )}
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={4} className="muted">目前沒有資料。</td></tr>}
+            {items.length === 0 && <tr><td colSpan={colCount} className="muted">目前沒有資料。</td></tr>}
           </tbody>
         </table>
       </div>
@@ -129,7 +146,7 @@ export default function ExpectedArrivalPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
             <h3 style={{ margin: '0 0 12px' }}>入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {arrivals.length} 筆</span></h3>
-            <div className="card"><ListTable items={arrivals} /></div>
+            <div className="card"><ListTable items={arrivals} dateLabel="入境日期" showArrivalExtras /></div>
           </div>
           <div>
             <h3 style={{ margin: '0 0 12px' }}>離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {departures.length} 筆</span></h3>
