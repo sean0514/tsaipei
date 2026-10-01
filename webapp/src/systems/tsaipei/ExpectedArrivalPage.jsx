@@ -1,8 +1,23 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canView } from '../../lib/permissions';
+import { canView, canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+
+const ARRIVAL_EXTRA_FIELDS = [
+  { key: 'healthCheckDate', label: '體檢日期', type: 'date' },
+  { key: 'healthCheckCompany', label: '體檢公司' },
+  { key: 'dispatchLocation', label: '送工地點' },
+  { key: 'dispatchDate', label: '送工日期', type: 'date' },
+];
+
+const DEPARTURE_EXTRA_FIELDS = [
+  { key: 'airline', label: '航空公司' },
+  { key: 'flightNumber', label: '航班編號' },
+  { key: 'terminal', label: '航廈' },
+  { key: 'flightTime', label: '班機時間', type: 'datetime-local' },
+  { key: 'payer', label: '付款人', options: ['', '學生', '廠商', '鈞羽'] },
+];
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -39,12 +54,14 @@ function daysBetween(dateStr, today) {
 export default function ExpectedArrivalPage() {
   const { system, role, overrides } = useOutletContext();
   const canSee = canView(system, 'inTaiwanTracking', role, overrides);
+  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
-  const { rows: visaRecords, loading } = useCollection('tsaipei_inTaiwanVisa');
+  const { rows: visaRecords, loading, update } = useCollection('tsaipei_inTaiwanVisa');
   const [reportMonth, setReportMonth] = useState(currentMonthStr());
+  const [editingExtras, setEditingExtras] = useState(null);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -93,18 +110,19 @@ export default function ExpectedArrivalPage() {
   }
 
   // 入台清單多顯示體檢日期/體檢公司/送工地點/送工日期；離台清單多顯示航空
-  // 公司/航班編號/航廈/班機時間/付款人。資料都來自在台簽證追蹤，要編輯請
-  // 到「在台簽證追蹤」的表單。
+  // 公司/航班編號/航廈/班機時間/付款人。資料都來自在台簽證追蹤，這裡也可以
+  // 直接編輯這些欄位（寫回同一筆在台簽證追蹤紀錄），不用特地切到那個頁面。
   function ListTable({ items, dateLabel = '日期', showArrivalExtras = false, showDepartureExtras = false }) {
-    const colCount = 4 + (showArrivalExtras ? 4 : 0) + (showDepartureExtras ? 5 : 0);
+    const extraFields = showArrivalExtras ? ARRIVAL_EXTRA_FIELDS : showDepartureExtras ? DEPARTURE_EXTRA_FIELDS : [];
+    const colCount = 4 + extraFields.length + (canEditPage ? 1 : 0);
     return (
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>學生</th><th>客戶</th><th>{dateLabel}</th><th>項目</th>
-              {showArrivalExtras && <><th>體檢日期</th><th>體檢公司</th><th>送工地點</th><th>送工日期</th></>}
-              {showDepartureExtras && <><th>航空公司</th><th>航班編號</th><th>航廈</th><th>班機時間</th><th>付款人</th></>}
+              {extraFields.map((f) => <th key={f.key}>{f.label}</th>)}
+              {canEditPage && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -114,22 +132,15 @@ export default function ExpectedArrivalPage() {
                 <td>{studentCompanyLabel(v.studentId, ctx)}</td>
                 <td>{date}</td>
                 <td>{label}</td>
-                {showArrivalExtras && (
-                  <>
-                    <td>{v.healthCheckDate || '—'}</td>
-                    <td>{v.healthCheckCompany || '—'}</td>
-                    <td>{v.dispatchLocation || '—'}</td>
-                    <td>{v.dispatchDate || '—'}</td>
-                  </>
-                )}
-                {showDepartureExtras && (
-                  <>
-                    <td>{v.airline || '—'}</td>
-                    <td>{v.flightNumber || '—'}</td>
-                    <td>{v.terminal || '—'}</td>
-                    <td>{v.flightTime || '—'}</td>
-                    <td>{v.payer || '—'}</td>
-                  </>
+                {extraFields.map((f) => <td key={f.key}>{v[f.key] || '—'}</td>)}
+                {canEditPage && (
+                  <td>
+                    <button onClick={() => {
+                      const initial = {};
+                      extraFields.forEach((f) => { initial[f.key] = v[f.key] || ''; });
+                      setEditingExtras({ visaId: v.id, fields: extraFields, initial, title: `${studentFullLabel(studentById(v.studentId))} - ${showArrivalExtras ? '體檢/送工資訊' : '航班/付款資訊'}` });
+                    }}>編輯</button>
+                  </td>
                 )}
               </tr>
             ))}
@@ -138,6 +149,14 @@ export default function ExpectedArrivalPage() {
         </table>
       </div>
     );
+  }
+
+  async function handleSaveExtras(data) {
+    const { visaId, fields } = editingExtras;
+    const payload = {};
+    fields.forEach((f) => { payload[f.key] = data[f.key] || ''; });
+    await update(visaId, payload);
+    setEditingExtras(null);
   }
 
   return (
@@ -164,6 +183,46 @@ export default function ExpectedArrivalPage() {
           </div>
         </div>
       )}
+      {editingExtras && (
+        <ExtrasFormModal
+          title={editingExtras.title}
+          fields={editingExtras.fields}
+          initial={editingExtras.initial}
+          onCancel={() => setEditingExtras(null)}
+          onSave={handleSaveExtras}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExtrasFormModal({ title, fields, initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{title}</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            {fields.map((f) => (
+              <label key={f.key}>
+                {f.label}
+                {f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
+              </label>
+            ))}
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
