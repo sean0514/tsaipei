@@ -40,6 +40,15 @@ const FIELDS = [
   { key: 'secondEntryDate', label: '第二次入台時間', type: 'date' },
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
+  { key: 'healthCheckDate', label: '體檢日期', type: 'date' },
+  { key: 'healthCheckCompany', label: '體檢公司' },
+  { key: 'dispatchLocation', label: '送工地點' },
+  { key: 'dispatchDate', label: '送工日期', type: 'date' },
+  { key: 'airline', label: '航空公司' },
+  { key: 'flightNumber', label: '航班編號' },
+  { key: 'terminal', label: '航廈' },
+  { key: 'flightTime', label: '班機時間', type: 'datetime-local' },
+  { key: 'payer', label: '付款人', options: ['', '學生', '廠商', '鈞羽'] },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
 
@@ -194,7 +203,13 @@ function VisaFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             ))}
           </div>
