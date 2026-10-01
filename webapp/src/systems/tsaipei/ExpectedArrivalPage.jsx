@@ -92,11 +92,11 @@ export default function ExpectedArrivalPage() {
     );
   }
 
-  // 入台清單多顯示體檢日期/體檢公司/送工地點/送工日期（資料來自在台簽證
-  // 追蹤，要編輯請到「在台簽證追蹤」的表單），日期欄位標題改成「入境日期」；
-  // 離台清單維持原本欄位。
-  function ListTable({ items, dateLabel = '日期', showArrivalExtras = false }) {
-    const colCount = showArrivalExtras ? 8 : 4;
+  // 入台清單多顯示體檢日期/體檢公司/送工地點/送工日期；離台清單多顯示航空
+  // 公司/航班編號/航廈/班機時間/付款人。資料都來自在台簽證追蹤，要編輯請
+  // 到「在台簽證追蹤」的表單。
+  function ListTable({ items, dateLabel = '日期', showArrivalExtras = false, showDepartureExtras = false }) {
+    const colCount = 4 + (showArrivalExtras ? 4 : 0) + (showDepartureExtras ? 5 : 0);
     return (
       <div className="table-wrap">
         <table>
@@ -104,6 +104,7 @@ export default function ExpectedArrivalPage() {
             <tr>
               <th>學生</th><th>客戶</th><th>{dateLabel}</th><th>項目</th>
               {showArrivalExtras && <><th>體檢日期</th><th>體檢公司</th><th>送工地點</th><th>送工日期</th></>}
+              {showDepartureExtras && <><th>航空公司</th><th>航班編號</th><th>航廈</th><th>班機時間</th><th>付款人</th></>}
             </tr>
           </thead>
           <tbody>
@@ -119,6 +120,15 @@ export default function ExpectedArrivalPage() {
                     <td>{v.healthCheckCompany || '—'}</td>
                     <td>{v.dispatchLocation || '—'}</td>
                     <td>{v.dispatchDate || '—'}</td>
+                  </>
+                )}
+                {showDepartureExtras && (
+                  <>
+                    <td>{v.airline || '—'}</td>
+                    <td>{v.flightNumber || '—'}</td>
+                    <td>{v.terminal || '—'}</td>
+                    <td>{v.flightTime || '—'}</td>
+                    <td>{v.payer || '—'}</td>
                   </>
                 )}
               </tr>
@@ -150,7 +160,7 @@ export default function ExpectedArrivalPage() {
           </div>
           <div>
             <h3 style={{ margin: '0 0 12px' }}>離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {departures.length} 筆</span></h3>
-            <div className="card"><ListTable items={departures} /></div>
+            <div className="card"><ListTable items={departures} showDepartureExtras /></div>
           </div>
         </div>
       )}
