@@ -62,8 +62,8 @@ export const MILESTONES = [
   { key: 'healthCheckOutDate', label: '體檢/時間 OUT', attachment: 'single' },
   { key: 'trainingInDate', label: '訓練/時間 IN' },
   { key: 'trainingOutDate', label: '訓練/時間 OUT' },
-  { key: 'owwaDate', label: '福利部OWWA（2天）IN' },
-  { key: 'owwaOutDate', label: '福利部OWWA（2天）OUT' },
+  { key: 'owwaDate', label: '福利部OWWA(認證影本SCAN 6個工作天)IN' },
+  { key: 'owwaOutDate', label: '福利部OWWA(認證影本SCAN 6個工作天)OUT' },
   { key: 'laborLetterDate', label: '台灣勞動部函' },
   { key: 'poeaInDate', label: '海外勞工署POEA(DMW)(需要認證正本7個工作天)IN' },
   { key: 'poeaOutDate', label: '海外勞工署POEA(DMW)(需要認證正本7個工作天)OUT' },
@@ -328,8 +328,8 @@ export default function ApplicationProgressPage() {
             <h4 style={{ marginTop: 0 }}>未入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{notArrived.length} 個案件</span></h4>
             <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
               流程：確認錄取 → 認證送件／領件（14天）→ 寄出國外 → 體檢 IN/OUT → 訓練 IN/OUT →
-              福利部OWWA（2天）→ 台灣勞動部函 → 海外勞工署POEA IN/OUT（3-4天）→ 中華商會TECO VISA IN → VISA OUT →
-              海外工作證OEC → PDOS海外就業講習 → 入境時間 → 送工時間（自動改為已入台）。
+              福利部OWWA IN/OUT(認證影本SCAN 6個工作天) → 台灣勞動部函 → 海外勞工署POEA IN/OUT(DMW)(需要認證正本7個工作天) → 中華商會TECO VISA IN → VISA OUT →
+              海外工作證OEC → 出國前講習 → 入境時間 → 送工時間（自動改為已入台）。
             </p>
             <ProgressTable items={notArrived} columns={columns} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onClose={(id) => update(id, { confirmedClosed: true })} />
           </div>
