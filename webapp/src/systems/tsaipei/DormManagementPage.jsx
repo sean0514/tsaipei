@@ -5,9 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
+const ROOM_COUNT_OPTIONS = Array.from({ length: 30 }, (_, i) => String(i + 1));
+
 const FIELDS = [
   { key: 'name', label: '宿舍名稱', required: true },
   { key: 'location', label: '地點' },
+  { key: 'gender', label: '宿舍性別', options: ['', '男', '女', '混住'] },
+  { key: 'roomCount', label: '房間數', options: ['', ...ROOM_COUNT_OPTIONS] },
   { key: 'leaseStart', label: '起租日', type: 'date' },
   { key: 'leaseEnd', label: '退租日', type: 'date' },
   { key: 'deposit', label: '押金金額', type: 'number' },
@@ -86,7 +90,7 @@ export default function DormManagementPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>宿舍名稱</th><th>地點</th><th>起租日</th><th>退租日</th><th>可住人數</th>
+                <th>宿舍名稱</th><th>地點</th><th>宿舍性別</th><th>房間數</th><th>起租日</th><th>退租日</th><th>可住人數</th>
                 <th>{month} 水費</th><th>{month} 電費</th>
                 {canEditPage && <th></th>}
               </tr>
@@ -98,6 +102,8 @@ export default function DormManagementPage() {
                   <tr key={r.id}>
                     <td>{r.name}</td>
                     <td>{r.location || '—'}</td>
+                    <td>{r.gender || '—'}</td>
+                    <td>{r.roomCount || '—'}</td>
                     <td>{r.leaseStart || '—'}</td>
                     <td>{r.leaseEnd || '—'}</td>
                     <td>{r.capacity || '—'}</td>
@@ -114,7 +120,7 @@ export default function DormManagementPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={8} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -143,7 +149,13 @@ function DormFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             ))}
           </div>
