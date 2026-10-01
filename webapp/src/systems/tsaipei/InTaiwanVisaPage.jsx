@@ -48,6 +48,7 @@ const FIELDS = [
   { key: 'flightNumber', label: '航班編號' },
   { key: 'terminal', label: '航廈' },
   { key: 'flightTime', label: '班機時間', type: 'datetime-local' },
+  { key: 'ticketFee', label: '機票費用', type: 'number' },
   { key: 'payer', label: '付款人', options: ['', '學生', '廠商', '鈞羽'] },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
