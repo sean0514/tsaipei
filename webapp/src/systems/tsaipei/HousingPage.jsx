@@ -64,6 +64,9 @@ export default function HousingPage() {
     if (searchQuery && !`${studentName(r.studentId)} ${studentVenueLabel(r.studentId, ctx)} ${r.type || ''}`.toLowerCase().includes(searchQuery)) return;
     groups[c].push(r);
   });
+  // 「住宿中」「已離宿」也依分店排序（「未安排」本來就依分店分組顯示）。
+  groups.住宿中.sort((a, b) => studentVenueLabel(a.studentId, ctx).localeCompare(studentVenueLabel(b.studentId, ctx)));
+  groups.已離宿.sort((a, b) => studentVenueLabel(a.studentId, ctx).localeCompare(studentVenueLabel(b.studentId, ctx)));
 
   // 「未安排」再依分店（實習場域）分類，方便各分店各自安排住宿。
   function groupByVenue(list) {
