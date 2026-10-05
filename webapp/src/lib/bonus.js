@@ -185,16 +185,18 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     const isFixed = rate?.billingType === '固定制';
     const billDorm = !rate || rate.billDormFee !== '否';
     const amounts = {};
-    let total = 0;
     CLIENT_FEE_KEYS.forEach((k) => {
       if (!billDorm && DORM_FEE_KEYS.includes(k)) { amounts[k] = 0; return; }
-      if (k === 'monthlyProcessingFee' && isFixed) { amounts[k] = fixedCharges[key] || 0; total += amounts[k]; return; }
+      if (k === 'monthlyProcessingFee' && isFixed) { amounts[k] = fixedCharges[key] || 0; return; }
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
-      const amt = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
-      amounts[k] = amt;
-      total += amt;
+      amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
     });
-    return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, total };
+    // 辦件費是含稅金額，不用再加稅；服務費/宿舍費/宿管費是未稅金額，稅金只
+    // 算這三項的 5%。合計＝辦件費(含稅) + 服務費/宿舍費/宿管費(未稅) + 稅金。
+    const taxableAmount = amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee;
+    const tax = Math.round(taxableAmount * 0.05);
+    const total = amounts.monthlyProcessingFee + taxableAmount + tax;
+    return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }
 

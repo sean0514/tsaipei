@@ -118,8 +118,11 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
   }
   const periodLabel = `第${periodNumber}期`;
 
+  // 辦件費是含稅金額，不再加稅；服務費/宿管費/宿舍費是未稅金額，稅金只算
+  // 這三項的 5%。小計(subtotal)維持含辦件費的總額，請款總額＝小計＋稅金。
   const subtotal = rows.reduce((sum, r) => sum + r.total, 0);
-  const tax = Math.round(subtotal * 0.05);
+  const taxableSubtotal = rows.reduce((sum, r) => sum + r.serviceFee + r.dormManageFee + r.dormFee, 0);
+  const tax = Math.round(taxableSubtotal * 0.05);
   const grandTotal = subtotal + tax;
 
   return { rows, range, periodLabel, subtotal, tax, grandTotal, taxId: feeSetup?.taxId || '' };
