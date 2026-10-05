@@ -33,6 +33,9 @@ async function afterVisaSave(studentId, row) {
   });
 }
 
+// 體檢/送工地點/航班等欄位已經移到「預計入台/離台」頁各自的編輯視窗維護
+// （同一個 tsaipei_inTaiwanVisa 集合，只是那邊欄位名稱是 ARRIVAL_EXTRA_FIELDS/
+// DEPARTURE_EXTRA_FIELDS），這裡的簽證追蹤列表/編輯視窗不用重複顯示。
 const FIELDS = [
   { key: 'firstEntryDate', label: '第一次入台時間', type: 'date' },
   { key: 'firstExitDate', label: '第一次離台時間', type: 'date' },
@@ -40,16 +43,6 @@ const FIELDS = [
   { key: 'secondEntryDate', label: '第二次入台時間', type: 'date' },
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
-  { key: 'healthCheckDate', label: '體檢日期', type: 'date' },
-  { key: 'healthCheckCompany', label: '體檢公司' },
-  { key: 'dispatchLocation', label: '送工地點' },
-  { key: 'dispatchDate', label: '送工日期', type: 'date' },
-  { key: 'airline', label: '航空公司' },
-  { key: 'flightNumber', label: '航班編號' },
-  { key: 'terminal', label: '航廈' },
-  { key: 'flightTime', label: '班機時間', type: 'datetime-local' },
-  { key: 'ticketFee', label: '機票費用', type: 'number' },
-  { key: 'payer', label: '付款人', options: ['', '學生', '廠商', '鈞羽'] },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
 
