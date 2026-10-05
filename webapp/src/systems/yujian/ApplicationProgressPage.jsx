@@ -237,14 +237,18 @@ export function ProgressPipeline({ p }) {
   const today = new Date().toISOString().slice(0, 10);
   let lastDoneIdx = -1;
   MILESTONES.forEach((m, i) => { if (p?.[m.key] && p[m.key] <= today) lastDoneIdx = i; });
-  const visible = lastDoneIdx === -1 ? MILESTONES : MILESTONES.slice(lastDoneIdx);
+  // 時間已過（已完成）的關卡隱藏，只顯示還沒到期的下一步開始的關卡。
+  const visible = MILESTONES.slice(lastDoneIdx + 1);
+  if (visible.length === 0) {
+    return <div className="pipeline"><span className="pip-step done">全部已完成</span></div>;
+  }
   return (
     <div className="pipeline">
-      {visible.map((m, i) => (
+      {visible.map((m) => (
         <span key={m.key} style={{ position: 'relative' }}>
           <button
             type="button"
-            className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}
+            className={`pip-step${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}
             onClick={() => setActiveKey(activeKey === m.key ? '' : m.key)}
           >
             {m.label}
