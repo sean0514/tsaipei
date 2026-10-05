@@ -8,6 +8,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { deleteEmployerCascade } from '../../lib/yujianCascade';
 import { WORK_TYPES } from './WorkersPage';
+import { NATIONALITIES } from './ApplicationProgressPage';
 
 const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
 
@@ -17,6 +18,7 @@ const FIELDS = [
   { key: 'phone', label: '聯絡電話' },
   { key: 'address', label: '地址' },
   { key: 'workType', label: '需求類型', options: WORK_TYPES },
+  { key: 'nationality', label: '國籍', options: NATIONALITIES },
   { key: 'careRecipient', label: '被照顧者狀況' },
   { key: 'status', label: '狀態', options: EMPLOYER_STATUS },
   { key: 'notes', label: '備註' },
