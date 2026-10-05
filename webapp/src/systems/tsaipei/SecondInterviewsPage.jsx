@@ -19,7 +19,7 @@ const CSV_FIELDS = [
 
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'secondInterview', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_secondInterviews');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: students } = useCollection('tsaipei_students');

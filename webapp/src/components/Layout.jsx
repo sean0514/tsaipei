@@ -30,48 +30,19 @@ export const IMPLEMENTED_MODULES = {
   ],
 };
 
-// A permission module can cover several routes at once (matches the
-// original app's single 'matching' permission module governing
-// 實習單位/媒合紀錄/二面進度/錄取名單 together). Anything not listed here is
-// a single module == single route.
+// A permission module can cover several routes at once — each route under
+// the key shares that single permission. Anything not listed here is a
+// single module == single route. (tsaipei's 職缺媒合/實習在台追蹤/會計專用/
+// 資料建檔 used to be set up this way too; they're now each-page-independent
+// permissions, so they're not listed here anymore — see GROUP_SECTIONS below
+// for their sidebar section headers, which are purely visual now.)
 const GROUP_ROUTES = {
   tsaipei: {
-    matching: [
-      { route: 'positions', label: '實習單位' },
-      { route: 'matches', label: '媒合紀錄' },
-      { route: 'secondInterview', label: '二面進度' },
-      { route: 'admitted', label: '錄取名單' },
-      { route: 'visaReminder', label: '辦理簽證提醒' },
-    ],
-    inTaiwanTracking: [
-      { route: 'inTaiwanVisa', label: '在台簽證追蹤' },
-      { route: 'inTaiwanCare', label: '在台關懷紀錄' },
-      { route: 'expectedArrival', label: '預計入台/離台' },
-      { route: 'bankAccountProgress', label: '開戶進度追蹤' },
-    ],
     applicationForms: [
       { route: 'foreignSubsidyApplication', label: '國外補助申請' },
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
       { route: 'postageFee', label: '郵資費用紀錄' },
     ],
-    // 跟原本 NAV_STRUCTURE 一樣分成「會計專用」「資料建檔」兩個子群組顯示，
-    // 雖然這裡兩組都是同一個 'bonus' 權限模組把關（跟原本 pageModuleKey()
-    // 把這幾頁都對到 'bonus' 一致）。
-    bonus: {
-      subgroups: [
-        { label: '會計專用', items: [
-          { route: 'clientBilling', label: '客戶請款計算' },
-          { route: 'studentSelfPayHousing', label: '學生自付宿舍' },
-          { route: 'studentMasterSheet', label: '學生資料總檔' },
-          { route: 'foreignPayment', label: '國外付款紀錄' },
-        ] },
-        { label: '資料建檔', items: [
-          { route: 'clientFeeSetup', label: '客戶費用建檔' },
-          { route: 'internalFeeSetup', label: '內部費用建檔' },
-          { route: 'bonus', label: '內部獎金計算' },
-        ] },
-      ],
-    },
   },
   foodfactory: {
     inventory: [
@@ -132,6 +103,17 @@ const GROUP_ROUTES = {
   },
 };
 
+// 純視覺分組：只是讓側邊欄還是分組顯示標題，跟 GROUP_ROUTES 不一樣的地方是
+// 這裡每個項目的權限都各自独立查自己的 canView，不是整組共用一個權限鍵。
+const GROUP_SECTIONS = {
+  tsaipei: [
+    { label: '職缺媒合', items: ['positions', 'matches', 'secondInterview', 'admitted', 'visaReminder'] },
+    { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress'] },
+    { label: '會計專用', items: ['clientBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment'] },
+    { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
+  ],
+};
+
 function NavItem({ system, route, label }) {
   const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
   const icon = NAV_ICONS[system]?.[route];
@@ -182,42 +164,58 @@ export default function Layout() {
         )}
         <div className="back"><Link to={backTo}>← 切換系統</Link></div>
         <nav>
-          {Object.entries(sys.modules).map(([key, label]) => {
-            const visible = canView(system, key, role, overrides);
-            if (!visible) return null;
-            const group = GROUP_ROUTES[system]?.[key];
-            if (group?.subgroups) {
+          {(() => {
+            const renderedSections = new Set();
+            return Object.entries(sys.modules).map(([key, label]) => {
+              const section = GROUP_SECTIONS[system]?.find((s) => s.items.includes(key));
+              if (section) {
+                if (renderedSections.has(section)) return null;
+                renderedSections.add(section);
+                const visibleItems = section.items.filter((route) => canView(system, route, role, overrides));
+                if (visibleItems.length === 0) return null;
+                return (
+                  <div key={section.label}>
+                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{section.label}</div>
+                    {visibleItems.map((route) => <NavItem key={route} system={system} route={route} label={sys.modules[route]} />)}
+                  </div>
+                );
+              }
+              const visible = canView(system, key, role, overrides);
+              if (!visible) return null;
+              const group = GROUP_ROUTES[system]?.[key];
+              if (group?.subgroups) {
+                return (
+                  <div key={key}>
+                    {group.subgroups.map((sub) => (
+                      <div key={sub.label}>
+                        <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{sub.label}</div>
+                        {sub.items.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              if (group) {
+                return (
+                  <div key={key}>
+                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
+                    {group.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
+                  </div>
+                );
+              }
+              const implemented = IMPLEMENTED_MODULES[system]?.includes(key);
+              const icon = NAV_ICONS[system]?.[key];
               return (
-                <div key={key}>
-                  {group.subgroups.map((sub) => (
-                    <div key={sub.label}>
-                      <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{sub.label}</div>
-                      {sub.items.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
-                    </div>
-                  ))}
-                </div>
+                <NavLink
+                  key={key}
+                  to={`/${system}/${implemented ? key : `todo/${key}`}`}
+                  className={({ isActive }) => (isActive ? 'active' : '')}
+                >
+                  {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
+                </NavLink>
               );
-            }
-            if (group) {
-              return (
-                <div key={key}>
-                  <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
-                  {group.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
-                </div>
-              );
-            }
-            const implemented = IMPLEMENTED_MODULES[system]?.includes(key);
-            const icon = NAV_ICONS[system]?.[key];
-            return (
-              <NavLink
-                key={key}
-                to={`/${system}/${implemented ? key : `todo/${key}`}`}
-                className={({ isActive }) => (isActive ? 'active' : '')}
-              >
-                {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
-              </NavLink>
-            );
-          })}
+            });
+          })()}
         </nav>
       </aside>
       <div className="main">

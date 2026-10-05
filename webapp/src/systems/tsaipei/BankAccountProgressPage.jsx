@@ -51,7 +51,7 @@ const CSV_FIELDS = [
 
 export default function BankAccountProgressPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
+  const canEditPage = computeCanEdit(system, 'bankAccountProgress', role, overrides);
   const { rows: visaRecords, loading } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: progressRows, add: addProgress, update: updateProgress } = useCollection('tsaipei_bankAccountProgress');
   const { rows: students } = useCollection('tsaipei_students');

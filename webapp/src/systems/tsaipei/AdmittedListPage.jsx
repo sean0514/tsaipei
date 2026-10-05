@@ -19,7 +19,7 @@ const CSV_FIELDS = [
 
 export default function AdmittedListPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'admitted', role, overrides);
   const { rows, loading, update, remove } = useCollection('tsaipei_admittedList');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: students } = useCollection('tsaipei_students');

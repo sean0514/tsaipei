@@ -54,8 +54,8 @@ function daysBetween(dateStr, today) {
 // 不需要另外維護。
 export default function ExpectedArrivalPage() {
   const { system, role, overrides } = useOutletContext();
-  const canSee = canView(system, 'inTaiwanTracking', role, overrides);
-  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
+  const canSee = canView(system, 'expectedArrival', role, overrides);
+  const canEditPage = computeCanEdit(system, 'expectedArrival', role, overrides);
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');

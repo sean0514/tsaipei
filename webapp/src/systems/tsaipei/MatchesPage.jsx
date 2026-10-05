@@ -20,7 +20,7 @@ const CSV_FIELDS = [
 
 export default function MatchesPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'matches', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_matches');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: positions } = useCollection('tsaipei_positions');

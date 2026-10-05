@@ -80,7 +80,7 @@ function parseOtherFees(json) {
 
 export default function ClientFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
+  const canEditPage = computeCanEdit(system, 'clientFeeSetup', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_clientFeeSetup');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);

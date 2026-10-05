@@ -25,7 +25,11 @@ function BarRow({ label, count, max }) {
 
 export default function ManagerReportPage() {
   const { system, role, overrides } = useOutletContext();
-  const canSeeFinance = canView(system, 'bonus', role, overrides);
+  // 內部獎金計算、客戶請款計算現在是各自独立的權限，只要能看其中一個就顯示
+  // 這個區塊，個別金額試算則各自看自己的權限再決定要不要算。
+  const canSeeBonus = canView(system, 'bonus', role, overrides);
+  const canSeeBilling = canView(system, 'clientBilling', role, overrides);
+  const canSeeFinance = canSeeBonus || canSeeBilling;
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: positions } = useCollection('tsaipei_positions');
@@ -77,10 +81,8 @@ export default function ManagerReportPage() {
   });
 
   let bonusTotal = 0, billingTotal = 0;
-  if (canSeeFinance) {
-    computeInternalBonusForMonth(month, ctx).forEach((r) => BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
-    computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });
-  }
+  if (canSeeBonus) computeInternalBonusForMonth(month, ctx).forEach((r) => BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+  if (canSeeBilling) computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });
 
   return (
     <div className="content">
@@ -89,8 +91,8 @@ export default function ManagerReportPage() {
         <>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{bonusTotal.toLocaleString()}</div><div className="muted">本月內部獎金試算</div></div>
-            <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{billingTotal.toLocaleString()}</div><div className="muted">本月客戶請款試算</div></div>
+            {canSeeBonus && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{bonusTotal.toLocaleString()}</div><div className="muted">本月內部獎金試算</div></div>}
+            {canSeeBilling && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{billingTotal.toLocaleString()}</div><div className="muted">本月客戶請款試算</div></div>}
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsComplete}</div><div className="muted">文件已齊全學生</div></div>
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsPending}</div><div className="muted">文件待補件學生</div></div>
           </div>
