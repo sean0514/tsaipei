@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function yjIsMember() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/yujian_users/$(request.auth.uid));
+    }
+
+    // 聿見國際「申辦進度追蹤」關卡附件，只有登入的聿見國際使用人員可以上傳/
+    // 讀取，單檔上限 4MB（跟前端 MAX_ATTACHMENT_SIZE 一致，這裡再擋一次避免
+    // 繞過前端檢查）。
+    match /yujian_attachments/{allPaths=**} {
+      allow read: if yjIsMember();
+      allow write: if yjIsMember() && request.resource.size <= 4 * 1024 * 1024;
+    }
+  }
+}
