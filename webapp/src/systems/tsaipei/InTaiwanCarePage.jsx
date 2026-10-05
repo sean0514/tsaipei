@@ -29,7 +29,7 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
 
 export default function InTaiwanCarePage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
+  const canEditPage = computeCanEdit(system, 'inTaiwanCare', role, overrides);
   const { rows, loading, update, remove } = useCollection('tsaipei_inTaiwanCare');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');

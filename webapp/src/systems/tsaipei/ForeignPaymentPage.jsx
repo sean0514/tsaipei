@@ -20,7 +20,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'paid', label:
 
 export default function ForeignPaymentPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
+  const canEditPage = computeCanEdit(system, 'foreignPayment', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_foreignPayments');
   const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);

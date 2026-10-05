@@ -38,15 +38,28 @@ service cloud.firestore {
       return {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'view','翻譯人員':'view','國外供應':'view','行政人員':'view','會計人員':'view','宿管人員':'view'},
         'students': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'edit','翻譯人員':'view','國外供應':'view','行政人員':'edit','會計人員':'view','宿管人員':'view'},
-        'matching': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'positions': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'matches': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'secondInterview': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'admitted': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
+        'visaReminder': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'none','宿管人員':'none'},
         'applicationProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
-        'inTaiwanTracking': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'inTaiwanVisa': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'inTaiwanCare': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'expectedArrival': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'bankAccountProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'internshipDocs': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
         'housing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'dormManagement': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
         'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'view','會計人員':'view','宿管人員':'view'},
         'closedCases': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
         'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
+        'clientBilling': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'studentSelfPayHousing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'studentMasterSheet': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'foreignPayment': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'clientFeeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'internalFeeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
         'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
         'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
@@ -72,59 +85,59 @@ service cloud.firestore {
     match /tsaipei_students/{docId} {
       allow read: if tsIsMember();
       allow create, delete: if tsCanEdit('students');
-      // update is also allowed to internshipDocs/inTaiwanTracking editors:
+      // update is also allowed to internshipDocs/inTaiwanVisa editors:
       // InternshipDocsPage syncs doc-status fields back onto the student
       // record, and InTaiwanVisaPage syncs entry/exit dates back the same
       // way the original apps-script backend's syncStudentDocField_/
       // syncStudentDatesFromVisa_ did. closedCases 也放行：「已結案名單」的
       // 復原按鈕要能把 confirmedClosed 改回 false。
-      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanTracking') || tsCanEdit('closedCases');
+      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanVisa') || tsCanEdit('closedCases');
     }
-    // 職缺媒合 group — all four collections share the single 'matching'
-    // permission module, same as the original app's DEFAULT_PERMISSIONS.
+    // 職缺媒合 group — 原本四個集合共用 'matching' 權限，依需求改成每個
+    // 分頁各自独立（positions/matches/secondInterview/admitted/visaReminder）。
     match /tsaipei_positions/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('matching');
+      allow write: if tsCanEdit('positions');
     }
     match /tsaipei_matches/{docId} {
       allow read: if tsIsMember();
       // create is also allowed to anyone who can edit 'students': new-student
       // save auto-creates a blank match record (see StudentsPage.jsx), and
-      // some roles (服務人員/行政人員) can edit students without editing matching.
-      allow create: if tsCanEdit('matching') || tsCanEdit('students');
-      allow update: if tsCanEdit('matching') || tsCanEdit('closedCases');
+      // some roles (服務人員/行政人員) can edit students without editing matches.
+      allow create: if tsCanEdit('matches') || tsCanEdit('students');
+      allow update: if tsCanEdit('matches') || tsCanEdit('closedCases');
       // delete also allowed to 'students' editors: deleting a student
       // cascade-deletes their match records (see StudentsPage.jsx handleDelete,
       // mirroring deleteStudent() in apps-script/Code.gs).
-      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
+      allow delete: if tsCanEdit('matches') || tsCanEdit('students');
     }
     match /tsaipei_secondInterviews/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('matching');
-      allow update: if tsCanEdit('matching') || tsCanEdit('closedCases');
-      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
+      allow create: if tsCanEdit('secondInterview');
+      allow update: if tsCanEdit('secondInterview') || tsCanEdit('closedCases');
+      allow delete: if tsCanEdit('secondInterview') || tsCanEdit('students');
     }
     match /tsaipei_admittedList/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('matching');
+      allow create: if tsCanEdit('admitted');
       // 申辦進度追蹤「學生錄取」日期異動會回寫這裡的錄取日期，所以 update
       // 也放行 applicationProgress（見 ApplicationProgressPage.jsx 的 syncAdmittedDate）；
       // closedCases 放行是為了「已結案名單」的復原按鈕。
-      allow update: if tsCanEdit('matching') || tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
-      allow delete: if tsCanEdit('matching') || tsCanEdit('students');
+      allow update: if tsCanEdit('admitted') || tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
+      allow delete: if tsCanEdit('admitted') || tsCanEdit('students');
     }
-    // 確認錄取 cascades into these two, written by whoever can edit 'matching'
+    // 確認錄取 cascades into these two, written by whoever can edit 'admitted'
     // even if they can't edit these modules directly (same reasoning as
     // tsaipei_matches' create above).
     match /tsaipei_internshipDocs/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('internshipDocs') || tsCanEdit('matching');
+      allow create: if tsCanEdit('internshipDocs') || tsCanEdit('admitted');
       allow update: if tsCanEdit('internshipDocs');
-      allow delete: if tsCanEdit('internshipDocs') || tsCanEdit('matching') || tsCanEdit('students');
+      allow delete: if tsCanEdit('internshipDocs') || tsCanEdit('admitted') || tsCanEdit('students');
     }
     match /tsaipei_applicationProgress/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('applicationProgress') || tsCanEdit('matching');
+      allow create: if tsCanEdit('applicationProgress') || tsCanEdit('admitted');
       allow update: if tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students');
     }
@@ -134,26 +147,28 @@ service cloud.firestore {
     // ensureInTaiwanCareForStudent_/ensureHousingRecordForStudent_）。
     match /tsaipei_inTaiwanVisa/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
-      allow update: if tsCanEdit('inTaiwanTracking');
-      allow delete: if tsCanEdit('inTaiwanTracking') || tsCanEdit('students');
+      allow create: if tsCanEdit('inTaiwanVisa') || tsCanEdit('applicationProgress');
+      // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
+      // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
+      allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival');
+      allow delete: if tsCanEdit('inTaiwanVisa') || tsCanEdit('students');
     }
     match /tsaipei_inTaiwanCare/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('inTaiwanTracking') || tsCanEdit('applicationProgress');
-      allow update: if tsCanEdit('inTaiwanTracking');
-      allow delete: if tsCanEdit('inTaiwanTracking') || tsCanEdit('students');
+      allow create: if tsCanEdit('inTaiwanVisa') || tsCanEdit('applicationProgress');
+      allow update: if tsCanEdit('inTaiwanCare');
+      allow delete: if tsCanEdit('inTaiwanCare') || tsCanEdit('students');
     }
     match /tsaipei_housingRecords/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanTracking');
+      allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanVisa');
       allow update: if tsCanEdit('housing');
       allow delete: if tsCanEdit('housing') || tsCanEdit('students');
     }
     // 開戶進度追蹤：一位學生一筆，勾選框第一次操作時才建立，所以 create/update 都放行。
     match /tsaipei_bankAccountProgress/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('inTaiwanTracking');
+      allow write: if tsCanEdit('bankAccountProgress');
     }
     match /tsaipei_dormitories/{docId} {
       allow read: if tsIsMember();
@@ -183,26 +198,26 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('applicationForms');
     }
-    // 內部獎金計算/客戶費用建檔/內部費用建檔 share the 'bonus' permission
-    // module (matches the original app's pageModuleKey mapping).
+    // 內部獎金計算/客戶費用建檔/內部費用建檔原本共用 'bonus' 權限，依需求
+    // 改成每個分頁各自独立。
     match /tsaipei_internalFeeSetup/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('bonus');
+      allow write: if tsCanEdit('internalFeeSetup');
     }
-    // create 額外放行 matching：新增實習單位時會自動在這裡帶入一筆空白費率，
-    // 經辦人不一定有 bonus 權限。
+    // create 額外放行 positions：新增實習單位時會自動在這裡帶入一筆空白費率，
+    // 經辦人不一定有 clientFeeSetup 權限。
     match /tsaipei_clientFeeSetup/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('bonus') || tsCanEdit('matching');
-      allow update, delete: if tsCanEdit('bonus');
+      allow create: if tsCanEdit('clientFeeSetup') || tsCanEdit('positions');
+      allow update, delete: if tsCanEdit('clientFeeSetup');
     }
     // create/update 額外放行 applicationForms：國外補助申請核准（或核准後
     // 又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人不一定有
-    // bonus 權限。delete 仍只限 bonus，避免誤刪已維護的付款紀錄。
+    // foreignPayment 權限。delete 仍只限 foreignPayment，避免誤刪已維護的付款紀錄。
     match /tsaipei_foreignPayments/{docId} {
       allow read: if tsIsMember();
-      allow create, update: if tsCanEdit('bonus') || tsCanEdit('applicationForms');
-      allow delete: if tsCanEdit('bonus');
+      allow create, update: if tsCanEdit('foreignPayment') || tsCanEdit('applicationForms');
+      allow delete: if tsCanEdit('foreignPayment');
     }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------

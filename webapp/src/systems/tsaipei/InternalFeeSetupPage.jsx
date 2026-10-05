@@ -13,7 +13,7 @@ const CSV_FIELDS = [
 
 export default function InternalFeeSetupPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'bonus', role, overrides);
+  const canEditPage = computeCanEdit(system, 'internalFeeSetup', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_internalFeeSetup');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);

@@ -101,7 +101,7 @@ function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove, onToggleD
 
 export default function InTaiwanVisaPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'inTaiwanTracking', role, overrides);
+  const canEditPage = computeCanEdit(system, 'inTaiwanVisa', role, overrides);
   const { rows, loading, update, remove } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');

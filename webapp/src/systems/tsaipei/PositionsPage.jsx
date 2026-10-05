@@ -95,7 +95,7 @@ function positionRowInfo(p, matches) {
 
 export default function PositionsPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'positions', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_positions', { order: ['projectCode', 'asc'] });
   const { rows: matches } = useCollection('tsaipei_matches');
   const [editing, setEditing] = useState(null);
