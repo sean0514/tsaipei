@@ -26,6 +26,12 @@ export default function MatchesPage() {
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  // 開會時常需要只看某個狀態/國籍/方案/客戶的媒合紀錄，加上篩選下拉選單
+  // 讓畫面可以直接縮小範圍秀出，不用一直捲動找資料。
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterNationality, setFilterNationality] = useState('');
+  const [filterProgram, setFilterProgram] = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_matches', CSV_FIELDS, { entityLabel: '媒合紀錄', requiredKeys: ['studentId', 'positionId'], canEdit: canEditPage });
 
   const studentById = (id) => students.find((x) => x.id === id);
@@ -35,15 +41,25 @@ export default function MatchesPage() {
     const p = positions.find((x) => x.id === id);
     return p ? `${p.projectCode} ${p.company}` : '(未設定)';
   };
+  const companyOf = (id) => positions.find((x) => x.id === id)?.company || '';
+  const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
+  // 篩選下拉選單的國籍選項要固定（不受目前篩選結果影響），不能用依篩選後
+  // 資料算出來的 nationalityKeys，不然選了篩選條件後選單本身會跟著變動。
+  const allNationalityKeys = [...NATIONALITIES, ...new Set(rows.map((r) => studentNationality(r.studentId)).filter((n) => !NATIONALITIES.includes(n)))];
 
   // 依建立時間排序，新的媒合紀錄（含新增學生時系統自動建立的那筆）浮在最上面；
   // 沒有 createdAt 的既有資料維持原本順序排在後面。搜尋依學生姓名／職缺（原本
   // matchesSearchQuery 的過濾邏輯）。
   const searchQuery = q.trim().toLowerCase();
-  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
+  // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）；
+  // 篩選條件（狀態/國籍/來台方案/客戶）都留空代表不篩選，直接顯示全部。
   const sortedRows = [...rows]
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${studentName(r.studentId)} ${positionLabel(r.positionId)}`.toLowerCase().includes(searchQuery))
+    .filter((r) => !filterStatus || (r.status || '媒合中') === filterStatus)
+    .filter((r) => !filterNationality || studentNationality(r.studentId) === filterNationality)
+    .filter((r) => !filterProgram || r.program === filterProgram)
+    .filter((r) => !filterCompany || companyOf(r.positionId) === filterCompany)
     .sort((a, b) => {
       const at = a.createdAt?.toMillis?.() ?? 0;
       const bt = b.createdAt?.toMillis?.() ?? 0;
@@ -93,7 +109,28 @@ export default function MatchesPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」「職缺ID」欄位）；上傳後會完全取代目前所有媒合紀錄，請先下載備份再匯入。</p>}
-      <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input placeholder="搜尋學生或職缺" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <option value="">全部狀態</option>
+          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={filterNationality} onChange={(e) => setFilterNationality(e.target.value)}>
+          <option value="">全部國籍</option>
+          {allNationalityKeys.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)}>
+          <option value="">全部來台方案</option>
+          {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)}>
+          <option value="">全部客戶</option>
+          {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {(filterStatus || filterNationality || filterProgram || filterCompany) && (
+          <button type="button" onClick={() => { setFilterStatus(''); setFilterNationality(''); setFilterProgram(''); setFilterCompany(''); }}>清除篩選</button>
+        )}
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {nationalityKeys.filter((nat) => byNationality[nat]?.length).map((nat) => (
