@@ -71,6 +71,7 @@ export const NAV_ICONS = {
     secondInterview: '◐',
     admitted: '✓',
     applicationProgress: '▶',
+    expectedArrival: '◷',
     arrivedList: '🛬',
     arrivedSummary: '📊',
     closedCases: '📁',
