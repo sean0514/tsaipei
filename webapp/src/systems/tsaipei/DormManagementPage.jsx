@@ -25,6 +25,19 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
+function parseOtherFees(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function otherFeesSummary(json) {
+  const fees = parseOtherFees(json);
+  if (!fees.length) return '—';
+  return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}`).join('、');
+}
+
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
 // 「住宿中」的判斷跟 HousingPage 同一套邏輯：已完成的紀錄不算、沒有入住日
@@ -89,14 +102,14 @@ export default function DormManagementPage() {
       <div className="page-header">
         <div>
           <h2>宿舍管理</h2>
-          <div className="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的水電費{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的其他費用{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增宿舍</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。水電費請改用清單上的「填寫水電費」依月份個別輸入。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。水費/電費/瓦斯費/其他費用請改用清單上的「填寫其他費用」依月份個別輸入。</p>}
       <div className="card">
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <input placeholder="搜尋名稱/地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
@@ -107,7 +120,7 @@ export default function DormManagementPage() {
             <thead>
               <tr>
                 <th>宿舍名稱</th><th>地點</th><th>宿舍性別</th><th>房間數</th><th>起租日</th><th>退租日</th><th>可住人數</th><th>已住人數</th>
-                <th>{month} 水費</th><th>{month} 電費</th>
+                <th>{month} 水費</th><th>{month} 電費</th><th>{month} 瓦斯費</th><th>{month} 其他費用</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -126,10 +139,12 @@ export default function DormManagementPage() {
                     <td>{residentsOf(r.name).length}</td>
                     <td>{u?.waterFee ?? '—'}</td>
                     <td>{u?.electricityFee ?? '—'}</td>
+                    <td>{u?.gasFee ?? '—'}</td>
+                    <td>{otherFeesSummary(u?.otherFees)}</td>
                     {canEditPage && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>編輯</button>
-                        <button onClick={() => setUtilEditing({ dormId: r.id, waterFee: u?.waterFee || '', electricityFee: u?.electricityFee || '' })}>填寫水電費</button>
+                        <button onClick={() => setUtilEditing({ dormId: r.id, waterFee: u?.waterFee || '', electricityFee: u?.electricityFee || '', gasFee: u?.gasFee || '', otherFees: u?.otherFees || '' })}>填寫其他費用</button>
                         <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                       </td>
@@ -137,14 +152,14 @@ export default function DormManagementPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
       </div>
       {editing && <DormFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
       {utilEditing && (
-        <UtilityFormModal
+        <OtherFeesFormModal
           month={month}
           initial={utilEditing}
           onCancel={() => setUtilEditing(null)}
@@ -216,13 +231,56 @@ function DormFormModal({ initial, onCancel, onSave }) {
   );
 }
 
-function UtilityFormModal({ month, initial, onCancel, onSave }) {
+function OtherFeesListEditor({ fees, onChange }) {
+  function updateRow(i, patch) {
+    onChange(fees.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+  }
+  function removeRow(i) {
+    onChange(fees.filter((_, idx) => idx !== i));
+  }
+  function addRow() {
+    onChange([...fees, { label: '', amount: '' }]);
+  }
+
+  return (
+    <div>
+      {fees.map((f, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+          <label>
+            項目名稱
+            <input value={f.label || ''} onChange={(e) => updateRow(i, { label: e.target.value })} />
+          </label>
+          <label>
+            金額
+            <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+          </label>
+          <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
+        </div>
+      ))}
+      <button type="button" onClick={addRow}>+ 新增其他費用</button>
+    </div>
+  );
+}
+
+function OtherFeesFormModal({ month, initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const otherFees = parseOtherFees(form.otherFees);
+
+  function setOtherFees(next) {
+    setForm({ ...form, otherFees: JSON.stringify(next) });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const cleaned = parseOtherFees(form.otherFees).filter((f) => f.label);
+    onSave({ ...form, otherFees: JSON.stringify(cleaned) });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{month} 水電費</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+        <h3>{month} 其他費用</h3>
+        <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <label>
               水費
@@ -232,8 +290,14 @@ function UtilityFormModal({ month, initial, onCancel, onSave }) {
               電費
               <input type="number" value={form.electricityFee} onChange={(e) => setForm({ ...form, electricityFee: e.target.value })} />
             </label>
+            <label>
+              瓦斯費
+              <input type="number" value={form.gasFee} onChange={(e) => setForm({ ...form, gasFee: e.target.value })} />
+            </label>
           </div>
-          <div className="row-actions">
+          <h4>其他費用（可自行新增）</h4>
+          <OtherFeesListEditor fees={otherFees} onChange={setOtherFees} />
+          <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
           </div>
