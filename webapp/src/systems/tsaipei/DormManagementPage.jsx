@@ -27,16 +27,32 @@ function currentMonthStr() {
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
+// 「住宿中」的判斷跟 HousingPage 同一套邏輯：已完成的紀錄不算、沒有入住日
+// 的不算、退宿日已過的也不算（當作已離宿）。
+function isCurrentResident(r, today) {
+  if (r.completed || !r.checkIn) return false;
+  return !r.checkOut || r.checkOut >= today;
+}
+
 export default function DormManagementPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'dormManagement', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dormitories', { order: ['name', 'asc'] });
   const { rows: utilities, add: addUtility, update: updateUtility } = useCollection('tsaipei_dormitoryUtilities');
+  const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
+  const { rows: students } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null);
   const [utilEditing, setUtilEditing] = useState(null);
+  const [viewingDorm, setViewingDorm] = useState(null);
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dormitories', CSV_FIELDS, { entityLabel: '宿舍管理', requiredKeys: ['name'], canEdit: canEditPage });
+
+  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
+  const today = new Date().toISOString().slice(0, 10);
+  function residentsOf(dormName) {
+    return housingRecords.filter((r) => r.type === dormName && isCurrentResident(r, today));
+  }
 
   // 按過「結案」的紀錄從清單消失（資料還在，下載完整資料時仍會包含）。
   const filtered = rows
@@ -100,7 +116,7 @@ export default function DormManagementPage() {
                 const u = utilityFor(r.id);
                 return (
                   <tr key={r.id}>
-                    <td>{r.name}</td>
+                    <td><button type="button" className="link-button" onClick={() => setViewingDorm(r)}>{r.name}</button></td>
                     <td>{r.location || '—'}</td>
                     <td>{r.gender || '—'}</td>
                     <td>{r.roomCount || '—'}</td>
@@ -134,6 +150,36 @@ export default function DormManagementPage() {
           onSave={(data) => handleSaveUtility(utilEditing.dormId, data)}
         />
       )}
+      {viewingDorm && (
+        <ResidentsModal dorm={viewingDorm} residents={residentsOf(viewingDorm.name)} studentName={studentName} onClose={() => setViewingDorm(null)} />
+      )}
+    </div>
+  );
+}
+
+function ResidentsModal({ dorm, residents, studentName, onClose }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{dorm.name} · 目前住宿人員</h3>
+        <div className="table-wrap"><table>
+          <thead><tr><th>學生</th><th>付款方式</th><th>入住日</th><th>退宿日</th></tr></thead>
+          <tbody>
+            {residents.map((r) => (
+              <tr key={r.id}>
+                <td>{studentName(r.studentId)}</td>
+                <td>{r.payer || '—'}</td>
+                <td>{r.checkIn || '—'}</td>
+                <td>{r.checkOut || '—'}</td>
+              </tr>
+            ))}
+            {residents.length === 0 && <tr><td colSpan={4} className="muted">目前沒有住宿人員</td></tr>}
+          </tbody>
+        </table></div>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button type="button" onClick={onClose}>關閉</button>
+        </div>
+      </div>
     </div>
   );
 }
