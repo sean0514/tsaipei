@@ -235,10 +235,9 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
 export function ProgressPipeline({ p }) {
   const [activeKey, setActiveKey] = useState('');
   const today = new Date().toISOString().slice(0, 10);
-  let lastDoneIdx = -1;
-  MILESTONES.forEach((m, i) => { if (p?.[m.key] && p[m.key] <= today) lastDoneIdx = i; });
-  // 時間已過（已完成）的關卡隱藏，只顯示還沒到期的下一步開始的關卡。
-  const visible = MILESTONES.slice(lastDoneIdx + 1);
+  // 逐一關卡判斷：還沒 KEY 日期的、或日期還沒到期的都顯示；日期已經到期
+  // （已完成）的關卡隱藏，不管前後有沒有漏填的關卡夾在中間。
+  const visible = MILESTONES.filter((m) => !p?.[m.key] || p[m.key] > today);
   if (visible.length === 0) {
     return <div className="pipeline"><span className="pip-step done">全部已完成</span></div>;
   }
