@@ -1,6 +1,8 @@
 // Ported from generateClientInvoice/buildInvoiceSummarySheet_/
 // buildInvoiceDetailSheet_ in apps-script/Code.gs.
 
+import { resolveFixedChargeMonth, studentAdmitDate } from './bonus';
+
 export const COMPANY_INFO = {
   name: '鈞羽有限公司',
   addressZh: '新北市板橋區文化路2段90號5樓',
@@ -80,13 +82,25 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     }
 
     const days = studentDaysInTaiwan(inTaiwanVisaRecords, s.id, range);
-    if (days <= 0) return;
-    const stint = studentStintDates(inTaiwanVisaRecords, s.id, range);
+
+    // 固定制的辦件費是一次性款項，依第一次/第二次收費時間規則各自落在某一
+    // 個月整筆收取，不是按月比例分攤；這筆費用可能落在學生當月在台天數為
+    // 0 的月份（例如確認錄取當月就先收第一筆款項），所以要獨立判斷是否要
+    // 把這個學生留在這份請款明細裡。
+    const isFixed = feeSetup?.billingType === '固定制';
+    let fixedCharge = 0;
+    if (isFixed) {
+      const chargeCtx = { firstEntryDate: v?.firstEntryDate, secondEntryDate: v?.secondEntryDate, admitDate: studentAdmitDate(s.id, ctx) };
+      if (resolveFixedChargeMonth(feeSetup.firstChargeDate, chargeCtx) === monthStr) fixedCharge += Number(feeSetup.firstChargeAmount) || 0;
+      if (resolveFixedChargeMonth(feeSetup.secondChargeDate, chargeCtx) === monthStr) fixedCharge += Number(feeSetup.secondChargeAmount) || 0;
+    }
+    if (days <= 0 && !fixedCharge) return;
+    const stint = days > 0 ? studentStintDates(inTaiwanVisaRecords, s.id, range) : { start: v?.firstEntryDate || '', end: v?.firstExitDate || '' };
 
     const serviceFee = feeSetup?.monthlyServiceFee ? Math.round((Number(feeSetup.monthlyServiceFee) / range.daysInMonth) * days) : 0;
     const dormManageFee = feeSetup?.monthlyDormManageFee ? Math.round((Number(feeSetup.monthlyDormManageFee) / range.daysInMonth) * days) : 0;
     const dormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * days) : 0;
-    const processingFee = feeSetup?.monthlyProcessingFee ? Math.round((Number(feeSetup.monthlyProcessingFee) / range.daysInMonth) * days) : 0;
+    const processingFee = isFixed ? fixedCharge : (feeSetup?.monthlyProcessingFee ? Math.round((Number(feeSetup.monthlyProcessingFee) / range.daysInMonth) * days) : 0);
 
     rows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
