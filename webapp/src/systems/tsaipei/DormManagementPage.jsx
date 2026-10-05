@@ -106,7 +106,7 @@ export default function DormManagementPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>宿舍名稱</th><th>地點</th><th>宿舍性別</th><th>房間數</th><th>起租日</th><th>退租日</th><th>可住人數</th>
+                <th>宿舍名稱</th><th>地點</th><th>宿舍性別</th><th>房間數</th><th>起租日</th><th>退租日</th><th>可住人數</th><th>已住人數</th>
                 <th>{month} 水費</th><th>{month} 電費</th>
                 {canEditPage && <th></th>}
               </tr>
@@ -123,6 +123,7 @@ export default function DormManagementPage() {
                     <td>{r.leaseStart || '—'}</td>
                     <td>{r.leaseEnd || '—'}</td>
                     <td>{r.capacity || '—'}</td>
+                    <td>{residentsOf(r.name).length}</td>
                     <td>{u?.waterFee ?? '—'}</td>
                     <td>{u?.electricityFee ?? '—'}</td>
                     {canEditPage && (
@@ -136,7 +137,7 @@ export default function DormManagementPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
