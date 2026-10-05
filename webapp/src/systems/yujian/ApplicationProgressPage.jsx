@@ -137,6 +137,8 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
     try {
       const { url, name, path } = await uploadAttachment(file, 'yujian_attachments/applicationProgress');
       setForm({ ...form, [attachmentDataKey(key)]: url, [attachmentNameKey(key)]: name, [attachmentPathKey(key)]: path });
+    } catch (err) {
+      alert(`上傳失敗：${err?.message || '請稍後再試'}`);
     } finally {
       setUploadingKey('');
     }
@@ -162,6 +164,8 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
         return { id: newNoteId(), name, dataUrl: url, path };
       }));
       setForm({ ...form, [attachmentsKey(key)]: [...(form[attachmentsKey(key)] || []), ...items] });
+    } catch (err) {
+      alert(`上傳失敗：${err?.message || '請稍後再試'}`);
     } finally {
       setUploadingKey('');
     }
@@ -226,7 +230,10 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
   );
 }
 
+// 點進度項目的小標籤會秀出一個小框，顯示這個關卡實際 KEY IN 的日期（還沒
+// 填就顯示「尚未填寫」），業務不用打開編輯視窗就能快速確認某個關卡的日期。
 export function ProgressPipeline({ p }) {
+  const [activeKey, setActiveKey] = useState('');
   const today = new Date().toISOString().slice(0, 10);
   let lastDoneIdx = -1;
   MILESTONES.forEach((m, i) => { if (p?.[m.key] && p[m.key] <= today) lastDoneIdx = i; });
@@ -234,7 +241,25 @@ export function ProgressPipeline({ p }) {
   return (
     <div className="pipeline">
       {visible.map((m, i) => (
-        <span key={m.key} className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}>{m.label}</span>
+        <span key={m.key} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className={`pip-step${lastDoneIdx !== -1 && i === 0 ? ' done' : ''}${isMilestoneOverdue(m, p) ? ' overdue' : ''}`}
+            onClick={() => setActiveKey(activeKey === m.key ? '' : m.key)}
+          >
+            {m.label}
+          </button>
+          {activeKey === m.key && (
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setActiveKey('')} />
+              <div className="pip-popup" onClick={(e) => e.stopPropagation()}>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>{m.label}</div>
+                <div>{p?.[m.key] || '尚未填寫'}</div>
+                {p?.[milestoneNoteKey(m.key)] && <div className="muted" style={{ marginTop: 2 }}>{p[milestoneNoteKey(m.key)]}</div>}
+              </div>
+            </>
+          )}
+        </span>
       ))}
     </div>
   );
