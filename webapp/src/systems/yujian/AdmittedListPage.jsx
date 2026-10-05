@@ -21,7 +21,7 @@ const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label
 
 export default function AdmittedListPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'admitted', role, overrides);
   const { rows, loading, update, remove } = useCollection('yujian_admittedList');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');

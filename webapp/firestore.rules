@@ -538,13 +538,17 @@ service cloud.firestore {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
         'workers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
-        'matching': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'matches': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'secondInterview': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'admitted': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'placementList': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'applicationProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'arrivedList': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
         'arrivedSummary': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
         'closedCases': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
-        'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'dailyExpenseApplication': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'postageFee': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
       }[module][role];
     }
@@ -584,42 +588,42 @@ service cloud.firestore {
     // 所以 delete 也放行 workers、employers。
     match /yujian_matches/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('matching') || yjCanEdit('workers');
-      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
-      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
+      allow create: if yjCanEdit('matches') || yjCanEdit('workers');
+      allow update: if yjCanEdit('matches') || yjCanEdit('closedCases');
+      allow delete: if yjCanEdit('matches') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 人員狀態變「轉出中」時會自動在這裡建立一筆安置紀錄，所以 create 也
     // 放行 workers。
-    // 人員狀態變「轉出中」、或申辦進度追蹤案件的進度狀態變「轉出中」時都會
-    // 自動在這裡建立一筆安置紀錄，所以 create 也放行 workers、
-    // applicationProgress。
+    // 申辦進度追蹤／已入台名單案件的進度狀態變「轉出中」時也會自動在這裡
+    // 建立一筆安置紀錄，所以 create 也放行 applicationProgress、arrivedList。
     match /yujian_placementList/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('applicationProgress');
-      allow update: if yjCanEdit('matching');
-      allow delete: if yjCanEdit('matching') || yjCanEdit('workers');
+      allow create: if yjCanEdit('placementList') || yjCanEdit('workers') || yjCanEdit('applicationProgress') || yjCanEdit('arrivedList');
+      allow update: if yjCanEdit('placementList');
+      allow delete: if yjCanEdit('placementList') || yjCanEdit('workers');
     }
-    // 媒合紀錄狀態變「已媒合」會自動建立二面進度，二面進度「通過」會自動建立
-    // 錄取名單，所以 create 都放行 matching。
+    // 媒合紀錄狀態變「已媒合」會自動建立二面進度，所以 create 也放行 matches。
     match /yujian_secondInterviews/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('matching');
-      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
-      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
+      allow create: if yjCanEdit('secondInterview') || yjCanEdit('matches');
+      allow update: if yjCanEdit('secondInterview') || yjCanEdit('closedCases');
+      allow delete: if yjCanEdit('secondInterview') || yjCanEdit('workers') || yjCanEdit('employers');
     }
+    // 二面進度「通過」、或媒合紀錄狀態變「已錄取」都會自動建立/更新錄取
+    // 名單，所以 create 也放行 secondInterview、matches。
     match /yujian_admittedList/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('matching');
-      allow update: if yjCanEdit('matching') || yjCanEdit('closedCases');
-      allow delete: if yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
+      allow create: if yjCanEdit('admitted') || yjCanEdit('secondInterview') || yjCanEdit('matches');
+      allow update: if yjCanEdit('admitted') || yjCanEdit('closedCases');
+      allow delete: if yjCanEdit('admitted') || yjCanEdit('workers') || yjCanEdit('employers');
     }
-    // 錄取名單狀態變「確認錄取」會自動建立申辦進度追蹤紀錄，所以 create 也
-    // 放行 matching。
+    // 錄取名單狀態變「確認錄取」、或媒合紀錄狀態變「已錄取」都會自動建立
+    // 申辦進度追蹤紀錄，所以 create 也放行 admitted、matches。
     match /yujian_applicationProgress/{docId} {
       allow read: if yjIsMember();
-      allow create: if yjCanEdit('applicationProgress') || yjCanEdit('matching');
+      allow create: if yjCanEdit('applicationProgress') || yjCanEdit('admitted') || yjCanEdit('matches');
       allow update: if yjCanEdit('applicationProgress') || yjCanEdit('closedCases');
-      allow delete: if yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
+      allow delete: if yjCanEdit('applicationProgress') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     // 申辦進度追蹤案件的「入境時間」第一次填入日期時會自動帶入這裡，所以
     // create 也放行 applicationProgress。
@@ -629,7 +633,7 @@ service cloud.firestore {
       allow read: if yjIsMember();
       allow create: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress');
       allow update: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('closedCases');
-      allow delete: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('matching') || yjCanEdit('workers') || yjCanEdit('employers');
+      allow delete: if yjCanEdit('arrivedList') || yjCanEdit('applicationProgress') || yjCanEdit('workers') || yjCanEdit('employers');
     }
     match /yujian_meetings/{docId} {
       allow read: if yjIsMember();
@@ -637,11 +641,11 @@ service cloud.firestore {
     }
     match /yujian_dailyExpenseApplications/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('applicationForms');
+      allow write: if yjCanEdit('dailyExpenseApplication');
     }
     match /yujian_postageFeeRecords/{docId} {
       allow read: if yjIsMember();
-      allow write: if yjCanEdit('applicationForms');
+      allow write: if yjCanEdit('postageFee');
     }
 
     match /{document=**} {

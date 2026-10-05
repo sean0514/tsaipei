@@ -65,18 +65,6 @@ const GROUP_ROUTES = {
       { route: 'partners', label: '合夥分潤' },
     ],
   },
-  yujian: {
-    matching: [
-      { route: 'matches', label: '媒合紀錄' },
-      { route: 'secondInterview', label: '二面進度' },
-      { route: 'admitted', label: '錄取名單' },
-      { route: 'placementList', label: '安置中名單' },
-    ],
-    applicationForms: [
-      { route: 'dailyExpenseApplication', label: '日常支出申請' },
-      { route: 'postageFee', label: '郵資費用紀錄' },
-    ],
-  },
   dispatch: {
     applicationForms: [
       { route: 'dailyExpenseApplication', label: '日常支出申請' },
@@ -111,6 +99,10 @@ const GROUP_SECTIONS = {
     { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress'] },
     { label: '會計專用', items: ['clientBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment'] },
     { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
+  ],
+  yujian: [
+    { label: '媒合紀錄', items: ['matches', 'secondInterview', 'admitted', 'placementList'] },
+    { label: '申請表格', items: ['dailyExpenseApplication', 'postageFee'] },
   ],
 };
 

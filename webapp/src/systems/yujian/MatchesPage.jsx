@@ -28,7 +28,7 @@ const COLUMNS = [
 
 export default function MatchesPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'matches', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');

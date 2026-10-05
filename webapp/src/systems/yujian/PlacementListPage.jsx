@@ -25,7 +25,7 @@ const COLUMNS = [
 
 export default function PlacementListPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'placementList', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_placementList');
   const { rows: workers } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);

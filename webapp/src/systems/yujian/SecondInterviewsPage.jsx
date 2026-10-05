@@ -23,7 +23,7 @@ const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label
 
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'matching', role, overrides);
+  const canEditPage = computeCanEdit(system, 'secondInterview', role, overrides);
   const { rows, loading, update, remove } = useCollection('yujian_secondInterviews');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
