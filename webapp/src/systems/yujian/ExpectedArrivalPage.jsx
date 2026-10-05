@@ -47,18 +47,20 @@ export default function ExpectedArrivalPage() {
     return (
       <div className="table-wrap">
         <table>
-          <thead><tr><th>工人</th><th>雇主姓名</th><th>國籍</th><th>日期</th><th>進度狀態</th></tr></thead>
+          <thead><tr><th>工人</th><th>雇主姓名</th><th>國籍</th><th>國外仲介</th><th>國內仲介</th><th>日期</th><th>進度狀態</th></tr></thead>
           <tbody>
             {items.map(({ r, date }, i) => (
               <tr key={`${r.id}-${i}`}>
                 <td>{workerNameFor(r)}</td>
                 <td>{r.employerName || '—'}</td>
                 <td>{r.nationality || '—'}</td>
+                <td>{r.foreignAgency || '—'}</td>
+                <td>{r.taiwanAgency || '—'}</td>
                 <td>{date}</td>
                 <td>{r.status || '—'}</td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={5} className="muted">目前沒有資料。</td></tr>}
+            {items.length === 0 && <tr><td colSpan={7} className="muted">目前沒有資料。</td></tr>}
           </tbody>
         </table>
       </div>
