@@ -10,13 +10,15 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
-import { fileToDataUrl, viewFile, downloadFile } from '../../lib/fileAttachment';
+import { uploadAttachment, deleteAttachmentFile, viewFile, downloadFile, MAX_ATTACHMENT_SIZE } from '../../lib/fileAttachment';
 
-// 附件大小上限；同一筆案件可能同時有好幾個關卡的附件，這裡抓 800KB，若同一筆
-// 記錄裡有兩個以上附件接近上限，仍有可能超過 Firestore 單一文件 1MB 的限制。
-export const MAX_MILESTONE_ATTACHMENT_SIZE = 800 * 1024;
+// 附件存在 Firebase Storage（不是 Firestore 文件本身），單檔上限 4MB；
+// AttachmentData 欄位存的是 Storage 下載連結（舊資料是搬去 Storage 之前上傳
+// 的 data URL，viewFile/downloadFile 會自動分辨兩種格式）。
+export const MAX_MILESTONE_ATTACHMENT_SIZE = MAX_ATTACHMENT_SIZE;
 export function attachmentDataKey(key) { return `${key}AttachmentData`; }
 export function attachmentNameKey(key) { return `${key}AttachmentName`; }
+export function attachmentPathKey(key) { return `${key}AttachmentPath`; }
 export function attachmentsKey(key) { return `${key}Attachments`; }
 
 export const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
@@ -121,20 +123,28 @@ export function isMilestoneOverdue(m, p) {
 // onDateChange 沒帶入時，日期變更就直接寫回 form；帶入的話（例如認證送件
 // 日期要自動推算領件日期）交給呼叫端決定怎麼處理。
 export function MilestoneFields({ form, setForm, onDateChange, showOverdue = true }) {
+  const [uploadingKey, setUploadingKey] = useState('');
+
   async function handleSingleUpload(key, e) {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
     if (file.size > MAX_MILESTONE_ATTACHMENT_SIZE) {
-      alert('檔案太大（上限約 800KB），請精簡後再上傳。');
+      alert('檔案太大（上限 4MB），請精簡後再上傳。');
       return;
     }
-    const dataUrl = await fileToDataUrl(file);
-    setForm({ ...form, [attachmentDataKey(key)]: dataUrl, [attachmentNameKey(key)]: file.name });
+    setUploadingKey(key);
+    try {
+      const { url, name, path } = await uploadAttachment(file, 'yujian_attachments/applicationProgress');
+      setForm({ ...form, [attachmentDataKey(key)]: url, [attachmentNameKey(key)]: name, [attachmentPathKey(key)]: path });
+    } finally {
+      setUploadingKey('');
+    }
   }
 
   function handleRemoveSingle(key) {
-    setForm({ ...form, [attachmentDataKey(key)]: '', [attachmentNameKey(key)]: '' });
+    deleteAttachmentFile(form[attachmentPathKey(key)]);
+    setForm({ ...form, [attachmentDataKey(key)]: '', [attachmentNameKey(key)]: '', [attachmentPathKey(key)]: '' });
   }
 
   async function handleMultiUpload(key, e) {
@@ -142,14 +152,24 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
     e.target.value = '';
     if (files.length === 0) return;
     if (files.some((f) => f.size > MAX_MILESTONE_ATTACHMENT_SIZE)) {
-      alert('檔案太大（上限約 800KB），請精簡後再上傳。');
+      alert('檔案太大（上限 4MB），請精簡後再上傳。');
       return;
     }
-    const items = await Promise.all(files.map(async (f) => ({ id: newNoteId(), name: f.name, dataUrl: await fileToDataUrl(f) })));
-    setForm({ ...form, [attachmentsKey(key)]: [...(form[attachmentsKey(key)] || []), ...items] });
+    setUploadingKey(key);
+    try {
+      const items = await Promise.all(files.map(async (f) => {
+        const { url, name, path } = await uploadAttachment(f, 'yujian_attachments/applicationProgress');
+        return { id: newNoteId(), name, dataUrl: url, path };
+      }));
+      setForm({ ...form, [attachmentsKey(key)]: [...(form[attachmentsKey(key)] || []), ...items] });
+    } finally {
+      setUploadingKey('');
+    }
   }
 
   function handleRemoveMulti(key, id) {
+    const item = (form[attachmentsKey(key)] || []).find((it) => it.id === id);
+    deleteAttachmentFile(item?.path);
     setForm({ ...form, [attachmentsKey(key)]: (form[attachmentsKey(key)] || []).filter((it) => it.id !== id) });
   }
 
@@ -178,8 +198,8 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
                 </div>
               ) : (
                 <label style={{ fontSize: 12 }}>
-                  上傳檔案（上限約 800KB）
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleSingleUpload(m.key, e)} />
+                  {uploadingKey === m.key ? '上傳中…' : '上傳檔案（上限 4MB）'}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" disabled={uploadingKey === m.key} onChange={(e) => handleSingleUpload(m.key, e)} />
                 </label>
               )
             )}
@@ -194,8 +214,8 @@ export function MilestoneFields({ form, setForm, onDateChange, showOverdue = tru
                   </div>
                 ))}
                 <label style={{ fontSize: 12 }}>
-                  上傳檔案（可多選，每個上限約 800KB）
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={(e) => handleMultiUpload(m.key, e)} />
+                  {uploadingKey === m.key ? '上傳中…' : '上傳檔案（可多選，每個上限 4MB）'}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple disabled={uploadingKey === m.key} onChange={(e) => handleMultiUpload(m.key, e)} />
                 </label>
               </div>
             )}
