@@ -65,6 +65,7 @@ import YujianPlacementListPage from './systems/yujian/PlacementListPage';
 import YujianSecondInterviewsPage from './systems/yujian/SecondInterviewsPage';
 import YujianAdmittedListPage from './systems/yujian/AdmittedListPage';
 import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressPage';
+import YujianExpectedArrivalPage from './systems/yujian/ExpectedArrivalPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -167,6 +168,7 @@ const PAGES = {
     secondInterview: YujianSecondInterviewsPage,
     admitted: YujianAdmittedListPage,
     applicationProgress: YujianApplicationProgressPage,
+    expectedArrival: YujianExpectedArrivalPage,
     arrivedList: YujianArrivedListPage,
     arrivedSummary: YujianArrivedSummaryPage,
     closedCases: YujianClosedCasesPage,

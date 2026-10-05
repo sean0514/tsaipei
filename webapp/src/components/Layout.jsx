@@ -26,7 +26,7 @@ export const IMPLEMENTED_MODULES = {
   dormMgmt: ['dashboard', 'leases', 'remittance', 'users'],
   yujian: [
     'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted', 'placementList',
-    'applicationProgress', 'arrivedList', 'arrivedSummary', 'closedCases', 'meetings', 'dailyExpenseApplication', 'postageFee', 'users',
+    'applicationProgress', 'expectedArrival', 'arrivedList', 'arrivedSummary', 'closedCases', 'meetings', 'dailyExpenseApplication', 'postageFee', 'users',
   ],
 };
 
