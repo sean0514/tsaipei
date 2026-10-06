@@ -12,7 +12,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
-    'dormManagement', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
+    'dormManagement', 'customerServicePending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
     'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee',
   ],
   foodfactory: [

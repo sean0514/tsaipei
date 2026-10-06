@@ -21,6 +21,7 @@ export const NAV_ICONS = {
     managerReport: '▲',
     housing: '⌂',
     dormManagement: '▤',
+    customerServicePending: '☎',
     benefits: '🎁',
     meetings: '✎',
     closedCases: '📁',
