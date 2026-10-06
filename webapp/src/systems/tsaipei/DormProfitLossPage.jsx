@@ -24,6 +24,13 @@ export default function DormProfitLossPage() {
   const managerGroups = computeDormProfitLossForYear(year, ctx);
   const loading = loadingDorms || loadingHousing || loadingUtilities || loadingApps;
 
+  const grandMonthly = Array.from({ length: 12 }, (_, i) => {
+    const income = managerGroups.reduce((sum, g) => sum + g.managerMonthly[i].income, 0);
+    const cost = managerGroups.reduce((sum, g) => sum + g.managerMonthly[i].cost, 0);
+    return { month: i + 1, income, cost, profit: income - cost };
+  });
+  const grandTotal = grandMonthly.reduce((acc, m) => ({ income: acc.income + m.income, cost: acc.cost + m.cost, profit: acc.profit + m.profit }), { income: 0, cost: 0, profit: 0 });
+
   return (
     <div className="content">
       <div className="page-header">
@@ -36,6 +43,33 @@ export default function DormProfitLossPage() {
       {loading ? <p className="muted">載入中…</p> : (
         managerGroups.length === 0 ? <p className="muted">目前沒有資料。</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="card" style={{ overflowX: 'auto' }}>
+              <h3 style={{ marginTop: 0 }}>全部宿舍總計 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{year}年合計 收入 {fmt(grandTotal.income)}／成本 {fmt(grandTotal.cost)}／利潤 {fmt(grandTotal.profit)}</span></h3>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th></th>{MONTH_LABELS.map((l) => <th key={l}>{l}</th>)}<th>合計</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>收入</td>
+                      {grandMonthly.map((m) => <td key={m.month}>{fmt(m.income)}</td>)}
+                      <td style={{ fontWeight: 600 }}>{fmt(grandTotal.income)}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>成本</td>
+                      {grandMonthly.map((m) => <td key={m.month}>{fmt(m.cost)}</td>)}
+                      <td style={{ fontWeight: 600 }}>{fmt(grandTotal.cost)}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>利潤</td>
+                      {grandMonthly.map((m) => <td key={m.month} style={{ color: m.profit < 0 ? 'var(--danger)' : undefined }}>{fmt(m.profit)}</td>)}
+                      <td style={{ fontWeight: 600, color: grandTotal.profit < 0 ? 'var(--danger)' : undefined }}>{fmt(grandTotal.profit)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {managerGroups.map((g) => (
               <div key={g.manager1}>
                 <h3 style={{ margin: '0 0 12px' }}>
