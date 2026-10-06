@@ -20,6 +20,7 @@ const ITEM_CUSTOM = '__custom__';
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
   { key: 'billToCompany', label: '須請款(實習單位)' },
+  { key: 'studentId', label: '學生姓名' },
   { key: 'item', label: '項目' },
   { key: 'date', label: '日期', type: 'date' },
   { key: 'purpose', label: '用途說明', required: true },
@@ -35,10 +36,14 @@ export default function DailyExpenseApplicationPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: users } = useCollection('tsaipei_users');
   const { rows: positions } = useCollection('tsaipei_positions');
+  const { rows: students } = useCollection('tsaipei_students');
+  const { rows: matches } = useCollection('tsaipei_matches');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dailyExpenseApplications', CSV_FIELDS, { entityLabel: '日常支出申請', requiredKeys: ['purpose'], canEdit: canEditPage });
+
+  const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
@@ -83,12 +88,13 @@ export default function DailyExpenseApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
                       <td>{r.applicant || '—'}</td>
                       <td>{r.billToCompany || '—'}</td>
+                      <td>{studentName(r.studentId) || '—'}</td>
                       <td>{r.item || '—'}</td>
                       <td>{r.date || '—'}</td>
                       <td>{r.purpose || '—'}</td>
@@ -105,23 +111,41 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
           ))}
         </div>
       )}
-      {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} students={students} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function DailyExpenseFormModal({ initial, users, positions, onCancel, onSave }) {
+function DailyExpenseFormModal({ initial, users, positions, students, matches, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const [itemCustom, setItemCustom] = useState(initial.item && !ITEM_OPTIONS.includes(initial.item));
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
+
+  function companyForStudent(studentId) {
+    const m = matches.find((mm) => mm.studentId === studentId);
+    return m ? positions.find((p) => p.id === m.positionId)?.company || '' : '';
+  }
+
+  // 選了須請款的實習單位，學生姓名下拉就只顯示該廠商底下的學生，方便直接
+  // 選取；選「不須請款」時不篩選，顯示全部學生。跟既有選的學生對不上時就
+  // 清掉，避免下拉選單卡在一個清單裡看不到的選項上。
+  const billableCompany = form.billToCompany && form.billToCompany !== NOT_BILLABLE ? form.billToCompany : '';
+  const matchingStudents = students.filter((s) => s.id === form.studentId || !billableCompany || companyForStudent(s.id) === billableCompany);
+
+  function handleBillToCompanyChange(company) {
+    const billable = company && company !== NOT_BILLABLE ? company : '';
+    const stillMatches = !billable || companyForStudent(form.studentId) === billable;
+    setForm({ ...form, billToCompany: company, studentId: stillMatches ? form.studentId : '' });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -137,9 +161,14 @@ function DailyExpenseFormModal({ initial, users, positions, onCancel, onSave }) 
                     {applicantOptions.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : f.key === 'billToCompany' ? (
-                  <select value={form.billToCompany || NOT_BILLABLE} onChange={(e) => setForm({ ...form, billToCompany: e.target.value })}>
+                  <select value={form.billToCompany || NOT_BILLABLE} onChange={(e) => handleBillToCompanyChange(e.target.value)}>
                     <option value={NOT_BILLABLE}>{NOT_BILLABLE}</option>
                     {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : f.key === 'studentId' ? (
+                  <select value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
+                    <option value="">（不限）</option>
+                    {matchingStudents.map((s) => <option key={s.id} value={s.id}>{s.chineseName || s.originalName}</option>)}
                   </select>
                 ) : f.key === 'item' ? (
                   <>
