@@ -31,6 +31,7 @@ import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
 import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
 import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
 import ClientBillingPage from './systems/tsaipei/ClientBillingPage';
+import StudentBillingPage from './systems/tsaipei/StudentBillingPage';
 import StudentSelfPayHousingPage from './systems/tsaipei/StudentSelfPayHousingPage';
 import StudentMasterSheetPage from './systems/tsaipei/StudentMasterSheetPage';
 import ForeignPaymentPage from './systems/tsaipei/ForeignPaymentPage';
@@ -130,6 +131,7 @@ const PAGES = {
     internalFeeSetup: InternalFeeSetupPage,
     managerReport: ManagerReportPage,
     clientBilling: ClientBillingPage,
+    studentBilling: StudentBillingPage,
     studentSelfPayHousing: StudentSelfPayHousingPage,
     studentMasterSheet: StudentMasterSheetPage,
     foreignPayment: ForeignPaymentPage,
