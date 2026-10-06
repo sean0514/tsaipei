@@ -47,10 +47,11 @@ function residentOverlapDays(h, range) {
   return dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
 }
 
-// 學生請款計算：只列「學生自付」的住宿紀錄（跟 學生自付宿舍 同一份名單），
-// 每人自付宿舍費沿用那頁的試算方式；水費/電費/瓦斯費/其他費用取自 宿舍管理
-// 「填寫其他費用」當月整間宿舍的紀錄，依「這個月住過這間宿舍的人數」平分
-// 到每個人身上，再跟自付宿舍費加總成這個學生這個月要付的總金額。
+// 學生請款計算：只要當月有住宿舍（不論廠商代付或學生自付）都列進來計算；
+// 自付宿舍費只有「學生自付」才試算（廠商代付的宿舍費不跟學生收），水費/
+// 電費/瓦斯費/其他費用則不分付款方式，取自 宿舍管理「填寫其他費用」當月
+// 整間宿舍的紀錄，依「這個月住過這間宿舍的人數」平分到每個人身上，再跟
+// 自付宿舍費加總成這個學生這個月要付的總金額。
 export default function StudentBillingPage() {
   useOutletContext();
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
@@ -78,7 +79,7 @@ export default function StudentBillingPage() {
 
   function billingFor(h) {
     const days = residentOverlapDays(h, range);
-    const selfPayDormFee = h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+    const selfPayDormFee = h.payer === '學生自付' && h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
     const u = utilityFor(h.type);
     const residentCount = residentCountOf(h.type);
     const otherFeesTotal = parseOtherFees(u?.otherFees).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
@@ -93,8 +94,7 @@ export default function StudentBillingPage() {
 
   const query = q.trim().toLowerCase();
   const filtered = housingRecords.filter((h) => {
-    if (h.payer !== '學生自付') return false;
-    if (h.completed) return false;
+    if (residentOverlapDays(h, range) <= 0) return false;
     if (!query) return true;
     const text = `${studentFullLabel(students.find((s) => s.id === h.studentId))} ${h.type || ''}`.toLowerCase();
     return text.includes(query);
@@ -113,6 +113,7 @@ export default function StudentBillingPage() {
       return {
         dorm: h.type || '',
         studentName: studentFullLabel(students.find((s) => s.id === h.studentId)),
+        payer: h.payer || '',
         days: b.days,
         selfPayDormFee: b.selfPayDormFee,
         waterFee: b.waterFee,
@@ -123,7 +124,7 @@ export default function StudentBillingPage() {
       };
     });
     exportEntityCSV(rows, [
-      { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'days', label: '當月天數' },
+      { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'payer', label: '付款方式' }, { key: 'days', label: '當月天數' },
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
     ], `學生請款計算_${month}`);
@@ -136,7 +137,7 @@ export default function StudentBillingPage() {
       <div className="page-header">
         <div>
           <h2>學生請款計算</h2>
-          <div className="page-desc">只列住宿費由學生自行負擔的學生；自付宿舍費依每月租金試算，水電瓦斯/其他費用取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分</div>
+          <div className="page-desc">只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算，水電瓦斯/其他費用取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分</div>
         </div>
         <div className="row-actions">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
@@ -145,19 +146,20 @@ export default function StudentBillingPage() {
       </div>
       <input placeholder="搜尋學生或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        groupKeys.length === 0 ? <p className="muted">{query ? '沒有符合搜尋條件的紀錄。' : '目前沒有付款方式為「學生自付」的住宿紀錄。'}</p> : (
+        groupKeys.length === 0 ? <p className="muted">{query ? '沒有符合搜尋條件的紀錄。' : '目前沒有住宿中的紀錄。'}</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {groupKeys.map((key) => (
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>學生</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th></tr></thead>
+                  <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th></tr></thead>
                   <tbody>
                     {groups[key].map((h) => {
                       const b = billingFor(h);
                       return (
                         <tr key={h.id}>
                           <td style={{ fontWeight: 600 }}>{studentFullLabel(students.find((s) => s.id === h.studentId))}</td>
+                          <td>{h.payer || '—'}</td>
                           <td>{b.days}</td>
                           <td>{b.selfPayDormFee.toLocaleString()}</td>
                           <td>{b.waterFee.toLocaleString()}</td>
