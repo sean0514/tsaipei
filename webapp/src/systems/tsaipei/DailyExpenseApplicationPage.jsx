@@ -18,6 +18,8 @@ const ITEM_CUSTOM = '__custom__';
 
 const CURRENCIES = ['台幣', '美金'];
 
+const INVOICE_OPTIONS = ['鈞羽發票', '供應商發票', '無須發票'];
+
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
   { key: 'billToCompany', label: '須請款(實習單位)' },
@@ -26,6 +28,7 @@ const FIELDS = [
   { key: 'date', label: '日期', type: 'date' },
   { key: 'purpose', label: '用途說明', required: true },
   { key: 'amount', label: '金額', type: 'number' },
+  { key: 'invoiceType', label: '是否開立發票' },
   { key: 'notes', label: '備註' },
 ];
 
@@ -94,7 +97,7 @@ export default function DailyExpenseApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>是否開立發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
@@ -105,6 +108,7 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.date || '—'}</td>
                       <td>{r.purpose || '—'}</td>
                       <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
+                      <td>{r.invoiceType || '—'}</td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
@@ -118,7 +122,7 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -201,6 +205,11 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, o
                     </select>
                     <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                   </div>
+                ) : f.key === 'invoiceType' ? (
+                  <select value={form.invoiceType || ''} onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {INVOICE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
                 ) : (
                   <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 )}
