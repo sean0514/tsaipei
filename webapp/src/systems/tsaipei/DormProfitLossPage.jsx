@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear } from '../../lib/bonus';
+import { exportEntityCSV } from '../../lib/csv';
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
 
@@ -66,6 +67,29 @@ export default function DormProfitLossPage() {
   const { grandMonthly, grandTotal } = sumDormProfitLossGroups(managerGroups);
   const loading = loadingDorms || loadingHousing || loadingUtilities || loadingApps;
 
+  function handleDownload() {
+    const csvFields = [
+      { key: 'manager1', label: '宿管1' }, { key: 'dorm', label: '宿舍' }, { key: 'item', label: '損益細項' },
+      ...MONTH_LABELS.map((l, i) => ({ key: `m${i + 1}`, label: l })),
+      { key: 'total', label: '合計' },
+    ];
+    function rowsFor(manager1, dorm, monthly, yearTotal) {
+      return LINE_ITEMS.map((item) => {
+        const row = { manager1, dorm, item: item.label, total: yearTotal[item.key] || 0 };
+        monthly.forEach((m, i) => { row[`m${i + 1}`] = m[item.key] || 0; });
+        return row;
+      });
+    }
+    const rows = [
+      ...rowsFor('全部宿舍', '全部宿舍', grandMonthly, grandTotal),
+      ...managerGroups.flatMap((g) => [
+        ...rowsFor(g.manager1, '(小計)', g.managerMonthly, g.managerYearTotal),
+        ...g.dorms.flatMap((d) => rowsFor(g.manager1, d.dormName, d.monthly, d.yearTotal)),
+      ]),
+    ];
+    exportEntityCSV(rows, csvFields, `宿舍損益_${year}`);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -73,7 +97,10 @@ export default function DormProfitLossPage() {
           <h2>宿舍損益</h2>
           <div className="page-desc">收入＝住宿費收入(不分付款方式)＋日常支出申請(宿舍設備收入)；成本＝租金/房仲費/水費/電費/瓦斯費/其他費用＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類</div>
         </div>
-        <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear())} style={{ width: 100 }} />
+        <div className="row-actions">
+          <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear())} style={{ width: 100 }} />
+          <button onClick={handleDownload}>下載報表</button>
+        </div>
       </div>
       {loading ? <p className="muted">載入中…</p> : (
         managerGroups.length === 0 ? <p className="muted">目前沒有資料。</p> : (
