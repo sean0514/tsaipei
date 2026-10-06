@@ -47,8 +47,6 @@ export async function downloadClientInvoiceXlsx(client, invoice) {
       cell.numFmt = '#,##0';
     });
 
-    sheet1.getCell(headerRow + 6, 2).value = `${grandTotal}  taxes included`;
-    sheet1.getCell(headerRow + 7, 2).value = 'Type of payment: payment in lump sum';
     const s9 = sheet1.getCell(headerRow + 9, 2);
     s9.value = '★請於10號前或合約約定日期前匯入下列帳號 ★';
     s9.font = { bold: true };
