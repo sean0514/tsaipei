@@ -108,36 +108,44 @@ export const SYSTEMS = {
   yujian: {
     label: '外勞仲介管理系統',
     roles: ['系統管理員', '主管', '業務人員', '行政人員'],
-    // 比照鈞羽 tsaipei 系統的模式陸續擴充：第一批是儀表板 + 看護/家事人員資料、
-    // 雇主家庭/需求單、媒合紀錄；第二批加上二面進度、錄取名單（都掛在
-    // 'matching' 權限下，跟 tsaipei 的職缺媒合群組一樣）、申辦進度追蹤、
-    // 會議記錄、申請表格（日常支出申請）。其他模組之後再依需求加上去。
+    // 媒合紀錄/二面進度/錄取名單/安置中名單、日常支出申請/郵資費用紀錄，
+    // 原本各自掛在 'matching'/'applicationForms' 共用權限下，現在改成每個
+    // 分頁各自独立設定權限（側邊欄的分組標題改用 Layout.jsx 的 GROUP_SECTIONS
+    // 純視覺分組維持，不影響權限本身）。
     modules: {
       dashboard: '儀表板',
       workers: '看護/家事人員資料',
       employers: '雇主家庭/需求單',
-      matching: '媒合紀錄',
+      matches: '媒合紀錄',
+      secondInterview: '二面進度',
+      admitted: '錄取名單',
+      placementList: '安置中名單',
       applicationProgress: '申辦進度追蹤',
       expectedArrival: '預計入台名單',
       arrivedList: '已入台名單',
       arrivedSummary: '下載總表',
       closedCases: '已結案名單',
       meetings: '會議記錄',
-      applicationForms: '申請表格',
+      dailyExpenseApplication: '日常支出申請',
+      postageFee: '郵資費用紀錄',
       users: '使用人員',
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
       workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
-      matching: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      matches: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      secondInterview: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      admitted: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      placementList: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       applicationProgress: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'edit' },
       expectedArrival: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'edit' },
       arrivedList: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit' },
       arrivedSummary: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit' },
       closedCases: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
-      applicationForms: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
+      dailyExpenseApplication: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
+      postageFee: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none' },
     },
   },
