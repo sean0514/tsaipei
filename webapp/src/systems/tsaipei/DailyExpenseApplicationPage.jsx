@@ -17,6 +17,8 @@ const NOT_BILLABLE = '不須請款';
 const ITEM_OPTIONS = ['體檢費', '機票費', '車資費用', '宿舍設備', '水費', '電費', '瓦斯費'];
 const ITEM_CUSTOM = '__custom__';
 
+const CURRENCIES = ['台幣', '美金'];
+
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
   { key: 'billToCompany', label: '須請款(實習單位)' },
@@ -28,7 +30,7 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', label: '審核狀態' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' }];
 
 export default function DailyExpenseApplicationPage() {
   const { system, role, overrides } = useOutletContext();
@@ -61,9 +63,14 @@ export default function DailyExpenseApplicationPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '待審核', ...data });
+      await add({ status: '待審核', currency: '台幣', ...data });
     }
     setEditing(null);
+  }
+
+  function handleDuplicate(r) {
+    const { id, status, ...rest } = r;
+    setEditing({ ...rest });
   }
 
   return (
@@ -98,7 +105,7 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.item || '—'}</td>
                       <td>{r.date || '—'}</td>
                       <td>{r.purpose || '—'}</td>
-                      <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                      <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
@@ -106,6 +113,7 @@ export default function DailyExpenseApplicationPage() {
                             <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
+                          <button onClick={() => handleDuplicate(r)}>複製</button>
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         </td>
                       )}
@@ -187,6 +195,13 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, o
                       <input style={{ marginTop: 6 }} placeholder="自行輸入項目名稱" value={form.item || ''} onChange={(e) => setForm({ ...form, item: e.target.value })} />
                     )}
                   </>
+                ) : f.key === 'amount' ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select style={{ width: 90 }} value={form.currency || '台幣'} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                      {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                  </div>
                 ) : (
                   <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 )}
