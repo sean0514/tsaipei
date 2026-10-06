@@ -52,16 +52,31 @@ function residentOverlapDays(h, range) {
 // 電費/瓦斯費/其他費用則不分付款方式，取自 宿舍管理「填寫其他費用」當月
 // 整間宿舍的紀錄，依「這個月住過這間宿舍的人數」平分到每個人身上，再跟
 // 自付宿舍費加總成這個學生這個月要付的總金額。
+const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
+
 export default function StudentBillingPage() {
   useOutletContext();
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const { rows: utilities } = useCollection('tsaipei_dormitoryUtilities');
+  const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
 
   const range = monthRange(month);
+
+  // 其他費用除了宿舍共用的分攤之外，還要加上這個學生自己名下、日常支出
+  // 申請裡類型=收入、已核准/已匯款、日期落在這個月的金額加總。
+  function studentIncomeTotal(studentId) {
+    if (!studentId) return 0;
+    return dailyExpenseApplications
+      .filter((app) => app.studentId === studentId)
+      .filter((app) => (app.type || '支出') === '收入')
+      .filter((app) => DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status))
+      .filter((app) => (app.date || '').slice(0, 7) === month)
+      .reduce((sum, app) => sum + (Number(app.amount) || 0), 0);
+  }
 
   function dormIdByName(name) {
     return dormitories.find((d) => d.name === name)?.id || '';
@@ -87,7 +102,7 @@ export default function StudentBillingPage() {
     const waterFee = perHead(u?.waterFee);
     const electricityFee = perHead(u?.electricityFee);
     const gasFee = perHead(u?.gasFee);
-    const otherFees = perHead(otherFeesTotal);
+    const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId);
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees;
     return { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };
   }
@@ -137,7 +152,7 @@ export default function StudentBillingPage() {
       <div className="page-header">
         <div>
           <h2>學生請款計算</h2>
-          <div className="page-desc">只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算，水電瓦斯/其他費用取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分</div>
+          <div className="page-desc">只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額</div>
         </div>
         <div className="row-actions">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
