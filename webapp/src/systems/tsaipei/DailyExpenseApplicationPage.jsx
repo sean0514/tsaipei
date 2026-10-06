@@ -20,6 +20,9 @@ const CURRENCIES = ['台幣', '美金'];
 
 const INVOICE_OPTIONS = ['鈞羽發票', '供應商發票', '無須發票'];
 
+const TYPES = ['支出', '收入'];
+const DORM_ITEM = '宿舍設備';
+
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
   { key: 'billToCompany', label: '須請款(實習單位)' },
@@ -32,7 +35,10 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' }];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'type', label: '類型' }, ...FIELDS, { key: 'dormId', label: '宿舍ID' },
+  { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' },
+];
 
 export default function DailyExpenseApplicationPage() {
   const { system, role, overrides } = useOutletContext();
@@ -42,12 +48,15 @@ export default function DailyExpenseApplicationPage() {
   const { rows: positions } = useCollection('tsaipei_positions');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
+  const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [typeFilter, setTypeFilter] = useState('全部');
   const [month, setMonth] = useState(currentMonthStr());
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dailyExpenseApplications', CSV_FIELDS, { entityLabel: '日常支出申請', requiredKeys: ['purpose'], canEdit: canEditPage });
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
+  const dormName = (id) => dormitories.find((d) => d.id === id)?.name || '';
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
@@ -55,7 +64,9 @@ export default function DailyExpenseApplicationPage() {
   }
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.applicant || ''} ${r.item || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
+  const filtered = rows
+    .filter((r) => typeFilter === '全部' || (r.type || '支出') === typeFilter)
+    .filter((r) => !searchQuery || `${r.applicant || ''} ${r.item || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
@@ -65,7 +76,7 @@ export default function DailyExpenseApplicationPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '待審核', currency: '台幣', ...data });
+      await add({ status: '待審核', currency: '台幣', type: '支出', ...data });
     }
     setEditing(null);
   }
@@ -90,23 +101,31 @@ export default function DailyExpenseApplicationPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有日常支出申請紀錄，請先下載備份再匯入。「下載此月份資料」依「日期」篩選。</p>}
-      <input placeholder="搜尋申請人、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <input placeholder="搜尋申請人、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="全部">全部類型</option>
+          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {STATUSES.map((status) => (
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>是否開立發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>宿舍</th><th>金額</th><th>是否開立發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
+                      <td>{r.type || '支出'}</td>
                       <td>{r.applicant || '—'}</td>
                       <td>{r.billToCompany || '—'}</td>
                       <td>{studentName(r.studentId) || '—'}</td>
                       <td>{r.item || '—'}</td>
                       <td>{r.date || '—'}</td>
                       <td>{r.purpose || '—'}</td>
+                      <td>{r.item === DORM_ITEM ? (dormName(r.dormId) || '—') : '—'}</td>
                       <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                       <td>{r.invoiceType || '—'}</td>
                       <td>{r.notes || '—'}</td>
@@ -122,21 +141,23 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 12 : 11} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
           ))}
         </div>
       )}
-      {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} students={students} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} students={students} matches={matches} dormitories={dormitories} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function DailyExpenseFormModal({ initial, users, positions, students, matches, onCancel, onSave }) {
-  const [form, setForm] = useState(initial);
+function DailyExpenseFormModal({ initial, users, positions, students, matches, dormitories, onCancel, onSave }) {
+  const [form, setForm] = useState({ type: '支出', ...initial });
   const [itemCustom, setItemCustom] = useState(initial.item && !ITEM_OPTIONS.includes(initial.item));
+  const isIncome = form.type === '收入';
+  const applicantLabel = isIncome ? '填表人' : '申請人';
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
 
@@ -163,9 +184,15 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, o
         <h3>{initial.id ? '編輯申請' : '新增申請'}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
+            <label>
+              類型
+              <select value={form.type || '支出'} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
             {FIELDS.map((f) => (
               <label key={f.key}>
-                {f.label}
+                {f.key === 'applicant' ? applicantLabel : f.label}
                 {f.key === 'applicant' ? (
                   <select value={form.applicant || ''} onChange={(e) => setForm({ ...form, applicant: e.target.value })}>
                     <option value="">請選擇</option>
@@ -196,6 +223,12 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, o
                     </select>
                     {itemCustom && (
                       <input style={{ marginTop: 6 }} placeholder="自行輸入項目名稱" value={form.item || ''} onChange={(e) => setForm({ ...form, item: e.target.value })} />
+                    )}
+                    {isIncome && form.item === DORM_ITEM && (
+                      <select style={{ marginTop: 6 }} value={form.dormId || ''} onChange={(e) => setForm({ ...form, dormId: e.target.value })}>
+                        <option value="">請選擇宿舍</option>
+                        {dormitories.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
                     )}
                   </>
                 ) : f.key === 'amount' ? (
