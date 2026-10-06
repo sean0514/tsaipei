@@ -32,6 +32,7 @@ export const SYSTEMS = {
       managerReport: '主管報表',
       housing: '住宿安排',
       dormManagement: '宿舍管理',
+      customerServicePending: '客服未完成事項',
       benefits: '實習單位福利',
       meetings: '會議記錄',
       closedCases: '已結案名單',
@@ -61,6 +62,11 @@ export const SYSTEMS = {
       internshipDocs: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
       housing: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'edit' },
       dormManagement: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'view', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'view', 宿管人員: 'edit' },
+      // 這頁只是彙整預計入台/離台、開戶進度追蹤、住宿安排三頁「未完成」的
+      // 名單，方便客服一次看完；實際打勾寫入還是各自沿用原本那頁的權限
+      // （expectedArrival/bankAccountProgress），這裡的權限只決定看不看得到
+      // 這個彙整頁本身。
+      customerServicePending: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'edit' },
       benefits: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },
       closedCases: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
