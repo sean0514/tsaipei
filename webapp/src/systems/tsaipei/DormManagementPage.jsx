@@ -20,6 +20,8 @@ const FIELDS = [
   { key: 'agentFee', label: '房仲費金額', type: 'number' },
   { key: 'rent', label: '租金金額', type: 'number' },
   { key: 'capacity', label: '可住人數', type: 'number' },
+  { key: 'manager1', label: '宿管1' },
+  { key: 'manager2', label: '宿管2' },
   { key: 'notes', label: '備註' },
 ];
 
