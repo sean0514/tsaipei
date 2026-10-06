@@ -37,6 +37,7 @@ export const NAV_ICONS = {
     internalFeeSetup: '▧',
     bonus: '◈',
     foreignPayment: '¥',
+    dormProfitLoss: '📈',
   },
   dispatch: {
     dashboard: '◆',
