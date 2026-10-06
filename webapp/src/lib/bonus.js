@@ -140,6 +140,37 @@ export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
 const CLIENT_FEE_KEYS = ['monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee'];
 const DORM_FEE_KEYS = ['monthlyDormFee', 'monthlyDormManageFee'];
 
+// 日常支出申請選了「須請款(實習單位)」且已核准/已匯款的，併入該實習單位
+// 當月的客戶請款裡（辦件費/服務費/宿舍費/宿管費以外，直接加總不計稅）。
+export const NOT_BILLABLE = '不須請款';
+const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
+
+export function buildDailyExpenseChargeTotals(monthStr, ctx) {
+  const { dailyExpenseApplications, positions } = ctx;
+  const totals = {};
+  (dailyExpenseApplications || []).forEach((app) => {
+    if (!app.billToCompany || app.billToCompany === NOT_BILLABLE) return;
+    if (!DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status)) return;
+    if ((app.date || '').slice(0, 7) !== monthStr) return;
+    const amount = Number(app.amount) || 0;
+    if (!amount) return;
+    let projectCode = '';
+    if (app.studentId) {
+      const pair = studentProjectClientPair(app.studentId, ctx);
+      if (pair && pair.client === app.billToCompany) projectCode = pair.projectCode;
+    }
+    if (!projectCode) {
+      const p = (positions || []).find((pp) => pp.company === app.billToCompany);
+      projectCode = p?.projectCode || '';
+    }
+    const key = `${projectCode}||${app.billToCompany}`;
+    const entry = (totals[key] ||= { total: 0, items: [] });
+    entry.total += amount;
+    entry.items.push({ studentId: app.studentId || '', item: app.item || '', amount, date: app.date || '', currency: app.currency || '台幣' });
+  });
+  return totals;
+}
+
 // 固定制的辦件費不是按月比例分攤，是依「第一次收費時間／第二次收費時間」
 // 規則各自落在某一個月整筆收取（預設是第一次入境當月、第二次入境當月，
 // 也可以設定成入境滿 3/6/9/12 個月或確認錄取即收取）；這裡把每個學生自己
@@ -172,12 +203,15 @@ export function computeClientBillingForMonth(monthStr, ctx) {
   const { clientFeeSetupRecords } = ctx;
   const groups = buildMonthlyProjectClientDayTotals(monthStr, ctx);
   const fixedCharges = buildFixedChargeTotals(monthStr, ctx);
-  // 固定制學生的固定收費可能落在沒有當月在台天數的月份（例如確認錄取就先
-  // 收第一筆款項），這種情況也要補一個群組才能顯示這筆費用。
-  Object.keys(fixedCharges).forEach((key) => {
-    if (groups[key]) return;
-    const [projectCode, client] = key.split('||');
-    groups[key] = { projectCode, client, totalDays: 0 };
+  const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
+  // 固定制學生的固定收費、須請款的日常支出申請都可能落在沒有當月在台天數
+  // 的月份，這種情況也要補一個群組才能顯示這筆費用。
+  [fixedCharges, dailyExpenseCharges].forEach((charges) => {
+    Object.keys(charges).forEach((key) => {
+      if (groups[key]) return;
+      const [projectCode, client] = key.split('||');
+      groups[key] = { projectCode, client, totalDays: 0 };
+    });
   });
   return Object.values(groups).map((g) => {
     const key = `${g.projectCode}||${g.client}`;
@@ -191,12 +225,15 @@ export function computeClientBillingForMonth(monthStr, ctx) {
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
     });
+    const dailyExpenseCharge = dailyExpenseCharges[key]?.total || 0;
+    amounts.dailyExpenseCharge = dailyExpenseCharge;
     // 辦件費是含稅金額，不用再加稅；服務費/宿舍費/宿管費是未稅金額，稅金只
-    // 算這三項的 5%。合計＝辦件費(含稅) + 服務費/宿舍費/宿管費(未稅) + 稅金。
+    // 算這三項的 5%；日常支出申請併入的代墊費用也不計稅。合計＝辦件費
+    // (含稅) + 服務費/宿舍費/宿管費(未稅) + 稅金 + 代墊費用。
     const taxableAmount = amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee;
     const tax = Math.round(taxableAmount * 0.05);
-    const total = amounts.monthlyProcessingFee + taxableAmount + tax;
-    return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total };
+    const total = amounts.monthlyProcessingFee + taxableAmount + tax + dailyExpenseCharge;
+    return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }
 
