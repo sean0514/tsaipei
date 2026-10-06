@@ -12,6 +12,7 @@ const LINE_ITEMS = [
   { key: 'income', label: '收入合計', bold: true },
   { key: 'rentCost', label: '租金' },
   { key: 'agentFeeCost', label: '房仲費' },
+  { key: 'depositLossCost', label: '押金損失(押金-退還押金)' },
   { key: 'waterCost', label: '水費' },
   { key: 'electricityCost', label: '電費' },
   { key: 'gasCost', label: '瓦斯費' },
@@ -95,7 +96,7 @@ export default function DormProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>宿舍損益</h2>
-          <div className="page-desc">收入＝住宿費收入(不分付款方式)＋日常支出申請(宿舍設備收入)；成本＝租金/房仲費/水費/電費/瓦斯費/其他費用＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類</div>
+          <div className="page-desc">收入＝住宿費收入(不分付款方式)＋日常支出申請(宿舍設備收入)；成本＝租金/房仲費/押金損失/水費/電費/瓦斯費/其他費用＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類</div>
         </div>
         <div className="row-actions">
           <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear())} style={{ width: 100 }} />

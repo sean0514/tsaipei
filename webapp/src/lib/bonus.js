@@ -314,7 +314,7 @@ const DORM_PROFIT_SHARE_RATE = 0.2;
 // 電費、瓦斯費、其他費用、宿舍設備支出)——月/宿舍/宿管1/全部宿舍這幾層
 // 加總都用同一組欄位，避免每層各寫一次加總邏輯。
 const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormItemIncome'];
-const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
+const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
 
 function sumDormPnlEntries(entries) {
   const sum = {};
@@ -330,9 +330,10 @@ function sumDormPnlEntries(entries) {
 // 宿舍損益：收入＝住宿費收入(這個月住過這間宿舍的所有紀錄，不分付款方式，
 // 依每月租金 ÷ 當月天數 × 入住天數加總) + 日常支出申請(項目=宿舍設備、綁定
 // 這間宿舍、類型=收入、已核准/已匯款)；成本＝租金(每月固定) + 房仲費(只算
-// 在起租月份) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄) + 日常
-// 支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；利潤＝
-// 收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1分類呈現。
+// 在起租月份) + 押金損失(押金金額－退還押金金額，算在退還押金日期那個月)
+// + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄) + 日常支出申請(項目
+// =宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；利潤＝收入－成本；
+// 分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1分類呈現。
 export function computeDormProfitLossForYear(year, ctx) {
   const { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications } = ctx;
   const dormResults = (dormitories || []).filter((d) => !d.confirmedClosed).map((d) => {
@@ -362,6 +363,10 @@ export function computeDormProfitLossForYear(year, ctx) {
 
       const rentCost = Number(d.rent) || 0;
       const agentFeeCost = (d.leaseStart && d.leaseStart.slice(0, 7) === monthStr) ? (Number(d.agentFee) || 0) : 0;
+      // 押金損失＝押金金額－退還押金金額，算在退還押金日期那個月（真正確
+      // 認損失的時間點）；沒有填退還押金日期就還不算損失，不計入。
+      const depositLossCost = (d.depositRefundDate && d.depositRefundDate.slice(0, 7) === monthStr)
+        ? (Number(d.deposit) || 0) - (Number(d.depositRefundAmount) || 0) : 0;
       const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
       const waterCost = Number(u?.waterFee) || 0;
       const electricityCost = Number(u?.electricityFee) || 0;
@@ -370,7 +375,7 @@ export function computeDormProfitLossForYear(year, ctx) {
 
       monthly.push({
         month: m,
-        ...sumDormPnlEntries([{ housingIncome, dormItemIncome, rentCost, agentFeeCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+        ...sumDormPnlEntries([{ housingIncome, dormItemIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
       });
     }
     const yearTotal = sumDormPnlEntries(monthly);
