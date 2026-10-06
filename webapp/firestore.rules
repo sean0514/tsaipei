@@ -180,6 +180,11 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('dormManagement');
     }
+    // 行政未完成事項：自由新增的代辦事項清單，不綁定其他集合。
+    match /tsaipei_adminTodos/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('adminPending');
+    }
     match /tsaipei_meetings/{docId} {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('meetings');
