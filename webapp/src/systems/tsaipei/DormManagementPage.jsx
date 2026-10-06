@@ -15,6 +15,8 @@ const FIELDS = [
   { key: 'leaseStart', label: '起租日', type: 'date' },
   { key: 'leaseEnd', label: '退租日', type: 'date' },
   { key: 'deposit', label: '押金金額', type: 'number' },
+  { key: 'depositRefundAmount', label: '退還押金金額', type: 'number' },
+  { key: 'depositRefundDate', label: '退還押金日期', type: 'date' },
   { key: 'agentFee', label: '房仲費金額', type: 'number' },
   { key: 'rent', label: '租金金額', type: 'number' },
   { key: 'capacity', label: '可住人數', type: 'number' },
