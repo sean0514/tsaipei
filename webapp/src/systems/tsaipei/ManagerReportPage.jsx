@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
 import {
-  BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, studentProjectClientPair, currentMonthStr,
+  PROJECT_CLIENT_BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, computeDormManagerBonusForMonth, studentProjectClientPair, currentMonthStr,
 } from '../../lib/bonus';
 
 // 跟原本 renderManagerReport 一樣，狀態長條圖依固定的流程順序排列，未知狀態排在最後。
@@ -39,9 +39,10 @@ export default function ManagerReportPage() {
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: internshipDocs } = useCollection('tsaipei_internshipDocs');
+  const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const [month, setMonth] = useState(currentMonthStr());
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, clientFeeSetupRecords };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, clientFeeSetupRecords, dormitories, housingRecords };
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });
@@ -81,7 +82,10 @@ export default function ManagerReportPage() {
   });
 
   let bonusTotal = 0, billingTotal = 0;
-  if (canSeeBonus) computeInternalBonusForMonth(month, ctx).forEach((r) => BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+  if (canSeeBonus) {
+    computeInternalBonusForMonth(month, ctx).forEach((r) => PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+    computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
+  }
   if (canSeeBilling) computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });
 
   return (
