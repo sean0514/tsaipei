@@ -33,6 +33,7 @@ export const SYSTEMS = {
       housing: '住宿安排',
       dormManagement: '宿舍管理',
       customerServicePending: '客服未完成事項',
+      adminPending: '行政未完成事項',
       benefits: '實習單位福利',
       meetings: '會議記錄',
       closedCases: '已結案名單',
@@ -68,6 +69,10 @@ export const SYSTEMS = {
       // （expectedArrival/bankAccountProgress），這裡的權限只決定看不看得到
       // 這個彙整頁本身。
       customerServicePending: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'edit' },
+      // 這頁彙整實習文件追蹤、辦理簽證提醒兩頁「未完成」的名單，純讀取、
+      // 沒有編輯功能，這裡的權限只決定看不看得到這個彙整頁本身；實際編輯
+      // 還是要到原本那頁操作，沿用各自既有的權限。
+      adminPending: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
       benefits: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },
       closedCases: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
