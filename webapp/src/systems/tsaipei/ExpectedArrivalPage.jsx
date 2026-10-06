@@ -7,8 +7,9 @@ import { exportEntityCSV } from '../../lib/csv';
 const ARRIVAL_EXTRA_FIELDS = [
   { key: 'healthCheckDate', label: '體檢日期', type: 'date' },
   { key: 'healthCheckCompany', label: '體檢公司' },
-  { key: 'dispatchLocation', label: '送工地點' },
+  { key: 'dispatchLocation', label: '體檢公司送達地' },
   { key: 'dispatchDate', label: '送工日期', type: 'date' },
+  { key: 'workDispatchLocation', label: '送工地點' },
 ];
 
 const DEPARTURE_EXTRA_FIELDS = [
@@ -115,7 +116,7 @@ export default function ExpectedArrivalPage() {
   // 直接編輯這些欄位（寫回同一筆在台簽證追蹤紀錄），不用特地切到那個頁面。
   function ListTable({ items, dateLabel = '日期', showArrivalExtras = false, showDepartureExtras = false }) {
     const extraFields = showArrivalExtras ? ARRIVAL_EXTRA_FIELDS : showDepartureExtras ? DEPARTURE_EXTRA_FIELDS : [];
-    const colCount = 4 + extraFields.length + (canEditPage ? 1 : 0);
+    const colCount = 4 + extraFields.length + (showArrivalExtras ? 2 : 0) + (canEditPage ? 1 : 0);
     return (
       <div className="table-wrap">
         <table>
@@ -123,6 +124,7 @@ export default function ExpectedArrivalPage() {
             <tr>
               <th>學生</th><th>客戶</th><th>{dateLabel}</th><th>項目</th>
               {extraFields.map((f) => <th key={f.key}>{f.label}</th>)}
+              {showArrivalExtras && <><th>已體檢</th><th>已送工</th></>}
               {canEditPage && <th></th>}
             </tr>
           </thead>
@@ -134,6 +136,20 @@ export default function ExpectedArrivalPage() {
                 <td>{date}</td>
                 <td>{label}</td>
                 {extraFields.map((f) => <td key={f.key}>{v[f.key] || '—'}</td>)}
+                {showArrivalExtras && (
+                  <>
+                    <td>
+                      {canEditPage ? (
+                        <input type="checkbox" checked={!!v.healthCheckDone} onChange={(e) => update(v.id, { healthCheckDone: e.target.checked })} />
+                      ) : (v.healthCheckDone ? '是' : '否')}
+                    </td>
+                    <td>
+                      {canEditPage ? (
+                        <input type="checkbox" checked={!!v.dispatchDone} onChange={(e) => update(v.id, { dispatchDone: e.target.checked })} />
+                      ) : (v.dispatchDone ? '是' : '否')}
+                    </td>
+                  </>
+                )}
                 {canEditPage && (
                   <td>
                     <button onClick={() => {
