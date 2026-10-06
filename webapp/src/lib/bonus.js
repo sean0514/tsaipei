@@ -308,13 +308,31 @@ function parseOtherFeesJson(json) {
 
 const DORM_EQUIPMENT_ITEM = '宿舍設備';
 const DORM_PNL_BILLABLE_STATUSES = ['已核准', '已匯款'];
+const DORM_PROFIT_SHARE_RATE = 0.2;
+
+// 損益細項欄位：收入(住宿費收入、宿舍設備收入)、成本(租金、房仲費、水費、
+// 電費、瓦斯費、其他費用、宿舍設備支出)——月/宿舍/宿管1/全部宿舍這幾層
+// 加總都用同一組欄位，避免每層各寫一次加總邏輯。
+const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormItemIncome'];
+const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
+
+function sumDormPnlEntries(entries) {
+  const sum = {};
+  [...DORM_PNL_INCOME_KEYS, ...DORM_PNL_COST_KEYS].forEach((k) => {
+    sum[k] = entries.reduce((acc, e) => acc + (e[k] || 0), 0);
+  });
+  const income = DORM_PNL_INCOME_KEYS.reduce((acc, k) => acc + sum[k], 0);
+  const cost = DORM_PNL_COST_KEYS.reduce((acc, k) => acc + sum[k], 0);
+  const profit = income - cost;
+  return { ...sum, income, cost, profit, bonus: Math.round(profit * DORM_PROFIT_SHARE_RATE) };
+}
 
 // 宿舍損益：收入＝住宿費收入(這個月住過這間宿舍的所有紀錄，不分付款方式，
 // 依每月租金 ÷ 當月天數 × 入住天數加總) + 日常支出申請(項目=宿舍設備、綁定
 // 這間宿舍、類型=收入、已核准/已匯款)；成本＝租金(每月固定) + 房仲費(只算
-// 在起租月份) + 水電瓦斯/其他費用(宿舍管理當月填寫的紀錄) + 日常支出申請
-// (項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；利潤＝收入－
-// 成本。最後依宿舍在「宿舍管理」設定的宿管1分類呈現。
+// 在起租月份) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄) + 日常
+// 支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；利潤＝
+// 收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1分類呈現。
 export function computeDormProfitLossForYear(year, ctx) {
   const { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications } = ctx;
   const dormResults = (dormitories || []).filter((d) => !d.confirmedClosed).map((d) => {
@@ -331,30 +349,31 @@ export function computeDormProfitLossForYear(year, ctx) {
         housingIncome += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
       });
 
-      let expenseIncome = 0;
-      let expenseCost = 0;
+      let dormItemIncome = 0;
+      let dormItemCost = 0;
       (dailyExpenseApplications || []).forEach((app) => {
         if (app.item !== DORM_EQUIPMENT_ITEM || app.dormId !== d.id) return;
         if ((app.date || '').slice(0, 7) !== monthStr) return;
         if (!DORM_PNL_BILLABLE_STATUSES.includes(app.status)) return;
         const amount = Number(app.amount) || 0;
         if (!amount) return;
-        if ((app.type || '支出') === '收入') expenseIncome += amount; else expenseCost += amount;
+        if ((app.type || '支出') === '收入') dormItemIncome += amount; else dormItemCost += amount;
       });
 
-      let cost = Number(d.rent) || 0;
-      if (d.leaseStart && d.leaseStart.slice(0, 7) === monthStr) cost += Number(d.agentFee) || 0;
+      const rentCost = Number(d.rent) || 0;
+      const agentFeeCost = (d.leaseStart && d.leaseStart.slice(0, 7) === monthStr) ? (Number(d.agentFee) || 0) : 0;
       const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
-      if (u) {
-        cost += (Number(u.waterFee) || 0) + (Number(u.electricityFee) || 0) + (Number(u.gasFee) || 0);
-        cost += parseOtherFeesJson(u.otherFees).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-      }
-      cost += expenseCost;
+      const waterCost = Number(u?.waterFee) || 0;
+      const electricityCost = Number(u?.electricityFee) || 0;
+      const gasCost = Number(u?.gasFee) || 0;
+      const otherUtilityCost = parseOtherFeesJson(u?.otherFees).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
-      const income = housingIncome + expenseIncome;
-      monthly.push({ month: m, income, cost, profit: income - cost });
+      monthly.push({
+        month: m,
+        ...sumDormPnlEntries([{ housingIncome, dormItemIncome, rentCost, agentFeeCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+      });
     }
-    const yearTotal = monthly.reduce((acc, mm) => ({ income: acc.income + mm.income, cost: acc.cost + mm.cost, profit: acc.profit + mm.profit }), { income: 0, cost: 0, profit: 0 });
+    const yearTotal = sumDormPnlEntries(monthly);
     return { dormId: d.id, dormName: d.name, manager1: d.manager1 || '未指定宿管1', monthly, yearTotal };
   });
 
@@ -362,12 +381,15 @@ export function computeDormProfitLossForYear(year, ctx) {
   dormResults.forEach((d) => { (byManager[d.manager1] ||= []).push(d); });
   return Object.keys(byManager).sort((a, b) => a.localeCompare(b)).map((manager1) => {
     const dorms = byManager[manager1].sort((a, b) => a.dormName.localeCompare(b.dormName));
-    const managerMonthly = Array.from({ length: 12 }, (_, i) => {
-      const income = dorms.reduce((sum, d) => sum + d.monthly[i].income, 0);
-      const cost = dorms.reduce((sum, d) => sum + d.monthly[i].cost, 0);
-      return { month: i + 1, income, cost, profit: income - cost };
-    });
-    const managerYearTotal = managerMonthly.reduce((acc, mm) => ({ income: acc.income + mm.income, cost: acc.cost + mm.cost, profit: acc.profit + mm.profit }), { income: 0, cost: 0, profit: 0 });
+    const managerMonthly = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, ...sumDormPnlEntries(dorms.map((d) => d.monthly[i])) }));
+    const managerYearTotal = sumDormPnlEntries(managerMonthly);
     return { manager1, dorms, managerMonthly, managerYearTotal };
   });
+}
+
+// 全部宿舍（跨所有宿管1）合計，供頁面上方的總覽表使用。
+export function sumDormProfitLossGroups(managerGroups) {
+  const grandMonthly = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, ...sumDormPnlEntries(managerGroups.map((g) => g.managerMonthly[i])) }));
+  const grandTotal = sumDormPnlEntries(grandMonthly);
+  return { grandMonthly, grandTotal };
 }
