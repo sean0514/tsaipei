@@ -28,6 +28,7 @@ export const NAV_ICONS = {
     foreignSubsidyApplication: '🌐',
     dailyExpenseApplication: '🧾',
     clientBilling: '⌗',
+    studentBilling: '🧮',
     studentSelfPayHousing: '⌂',
     studentMasterSheet: '▥',
     users: '▣',

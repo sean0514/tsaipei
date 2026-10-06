@@ -12,7 +12,7 @@ export const IMPLEMENTED_MODULES = {
   tsaipei: [
     'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
-    'dormManagement', 'customerServicePending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling',
+    'dormManagement', 'customerServicePending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling', 'studentBilling',
     'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee',
   ],
   foodfactory: [
@@ -97,7 +97,7 @@ const GROUP_SECTIONS = {
   tsaipei: [
     { label: '職缺媒合', items: ['positions', 'matches', 'secondInterview', 'admitted', 'visaReminder'] },
     { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress'] },
-    { label: '會計專用', items: ['clientBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment'] },
+    { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment'] },
     { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
   ],
   yujian: [
