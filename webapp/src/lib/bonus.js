@@ -141,9 +141,11 @@ const CLIENT_FEE_KEYS = ['monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDo
 const DORM_FEE_KEYS = ['monthlyDormFee', 'monthlyDormManageFee'];
 
 // 日常支出申請選了「須請款(實習單位)」且已核准/已匯款的，併入該實習單位
-// 當月的客戶請款裡（辦件費/服務費/宿舍費/宿管費以外，直接加總不計稅）。
+// 當月的客戶請款裡：開「鈞羽發票」的要算稅(跟服務費/宿舍費/宿管費一起算
+// 5%)，開「供應商發票」或「無須發票」的不計稅，直接加進合計總額。
 export const NOT_BILLABLE = '不須請款';
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
+const JUNYU_INVOICE_TYPE = '鈞羽發票';
 
 export function buildDailyExpenseChargeTotals(monthStr, ctx) {
   const { dailyExpenseApplications, positions } = ctx;
@@ -164,9 +166,10 @@ export function buildDailyExpenseChargeTotals(monthStr, ctx) {
       projectCode = p?.projectCode || '';
     }
     const key = `${projectCode}||${app.billToCompany}`;
-    const entry = (totals[key] ||= { total: 0, items: [] });
-    entry.total += amount;
-    entry.items.push({ studentId: app.studentId || '', item: app.item || '', amount, date: app.date || '', currency: app.currency || '台幣' });
+    const entry = (totals[key] ||= { junyuTotal: 0, supplierTotal: 0, items: [] });
+    const taxable = app.invoiceType === JUNYU_INVOICE_TYPE;
+    if (taxable) entry.junyuTotal += amount; else entry.supplierTotal += amount;
+    entry.items.push({ studentId: app.studentId || '', item: app.item || '', amount, date: app.date || '', currency: app.currency || '台幣', invoiceType: app.invoiceType || '', taxable });
   });
   return totals;
 }
@@ -225,14 +228,17 @@ export function computeClientBillingForMonth(monthStr, ctx) {
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
     });
-    const dailyExpenseCharge = dailyExpenseCharges[key]?.total || 0;
-    amounts.dailyExpenseCharge = dailyExpenseCharge;
-    // 辦件費是含稅金額，不用再加稅；服務費/宿舍費/宿管費是未稅金額，稅金只
-    // 算這三項的 5%；日常支出申請併入的代墊費用也不計稅。合計＝辦件費
-    // (含稅) + 服務費/宿舍費/宿管費(未稅) + 稅金 + 代墊費用。
-    const taxableAmount = amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee;
+    const dailyExpenseJunyu = dailyExpenseCharges[key]?.junyuTotal || 0;
+    const dailyExpenseSupplier = dailyExpenseCharges[key]?.supplierTotal || 0;
+    amounts.dailyExpenseChargeJunyu = dailyExpenseJunyu;
+    amounts.dailyExpenseChargeSupplier = dailyExpenseSupplier;
+    // 辦件費是含稅金額，不用再加稅；服務費/宿舍費/宿管費是未稅金額，稅金算
+    // 這三項加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。
+    // 合計＝辦件費(含稅) + 服務費/宿舍費/宿管費/代墊費用(鈞羽未稅) + 稅金 +
+    // 代墊費用(供應商)。
+    const taxableAmount = amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
-    const total = amounts.monthlyProcessingFee + taxableAmount + tax + dailyExpenseCharge;
+    const total = amounts.monthlyProcessingFee + taxableAmount + tax + dailyExpenseSupplier;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }
