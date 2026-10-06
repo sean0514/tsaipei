@@ -68,7 +68,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
   const range = monthRangeYMD(monthStr);
   const feeSetup = clientFeeSetupRecords.find((r) => (r.projectCode || '') === (projectCode || '') && r.client === client);
 
-  const rows = [];
+  const studentRows = [];
   let no = 1;
   let earliestDate = null;
   students.forEach((s) => {
@@ -102,7 +102,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     const dormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * days) : 0;
     const processingFee = isFixed ? fixedCharge : (feeSetup?.monthlyProcessingFee ? Math.round((Number(feeSetup.monthlyProcessingFee) / range.daysInMonth) * days) : 0);
 
-    rows.push({
+    studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
       startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee,
       total: serviceFee + dormManageFee + dormFee + processingFee,
@@ -110,24 +110,22 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
   });
 
   // 日常支出申請選了這個實習單位當「須請款」對象的，併入明細裡各成一列，
-  // 姓名欄放學生＋項目名稱方便辨識，金額算進請款金額(total)；開「鈞羽發票」
-  // 的要計稅(算進 expenseTaxable)，開「供應商發票」或「無須發票」的不計
-  // 稅，邏輯跟 computeClientBillingForMonth 一致。
+  // 跟學生明細分開放一個表格，姓名欄放學生＋項目名稱方便辨識；開「鈞羽
+  // 發票」的要計稅，開「供應商發票」或「無須發票」的不計稅，邏輯跟
+  // computeClientBillingForMonth 一致。
   const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
   const expenseItems = dailyExpenseCharges[`${projectCode || ''}||${client}`]?.items || [];
-  let expenseTaxable = 0;
-  expenseItems.forEach((it) => {
+  const expenseRows = expenseItems.map((it) => {
     const s = it.studentId ? students.find((x) => x.id === it.studentId) : null;
     const studentLabel = s ? (s.chineseName || s.originalName || '') : '';
-    if (it.taxable) expenseTaxable += it.amount;
-    rows.push({
+    return {
       no: no++, name: [studentLabel, it.item].filter(Boolean).join(' - ') || it.item || '代墊費用', passport: '',
       startDate: it.date, endDate: it.date, days: '', serviceFee: 0, dormManageFee: 0, dormFee: 0, processingFee: 0,
-      total: it.amount,
-    });
+      total: it.amount, item: it.item || '', invoiceType: it.invoiceType || '', taxable: it.taxable,
+    };
   });
 
-  if (!rows.length) return null;
+  if (!studentRows.length && !expenseRows.length) return null;
 
   let periodNumber = 1;
   if (earliestDate) {
@@ -136,13 +134,23 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
   }
   const periodLabel = `第${periodNumber}期`;
 
+  const categoryTotals = {
+    processingFee: studentRows.reduce((sum, r) => sum + r.processingFee, 0),
+    serviceFee: studentRows.reduce((sum, r) => sum + r.serviceFee, 0),
+    dormFee: studentRows.reduce((sum, r) => sum + r.dormFee, 0),
+    dormManageFee: studentRows.reduce((sum, r) => sum + r.dormManageFee, 0),
+    dailyExpenseJunyu: expenseRows.filter((r) => r.taxable).reduce((sum, r) => sum + r.total, 0),
+    dailyExpenseSupplier: expenseRows.filter((r) => !r.taxable).reduce((sum, r) => sum + r.total, 0),
+  };
+
   // 辦件費是含稅金額，不再加稅；服務費/宿管費/宿舍費、開鈞羽發票的代墊費用
   // 是未稅金額，稅金只算這些的 5%。小計(subtotal)維持含辦件費的總額，請款
   // 總額＝小計＋稅金。
+  const rows = [...studentRows, ...expenseRows];
   const subtotal = rows.reduce((sum, r) => sum + r.total, 0);
-  const taxableSubtotal = rows.reduce((sum, r) => sum + r.serviceFee + r.dormManageFee + r.dormFee, 0) + expenseTaxable;
+  const taxableSubtotal = categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dailyExpenseJunyu;
   const tax = Math.round(taxableSubtotal * 0.05);
   const grandTotal = subtotal + tax;
 
-  return { rows, range, periodLabel, subtotal, tax, grandTotal, taxId: feeSetup?.taxId || '' };
+  return { rows, studentRows, expenseRows, categoryTotals, range, periodLabel, subtotal, tax, grandTotal, taxId: feeSetup?.taxId || '' };
 }
