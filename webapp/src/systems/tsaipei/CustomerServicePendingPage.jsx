@@ -75,7 +75,7 @@ export default function CustomerServicePendingPage() {
   const { rows: dormitories, loading: loadingDorms } = useCollection('tsaipei_dormitories');
   const { rows: utilities, loading: loadingUtilities, add: addUtility, update: updateUtility } = useCollection('tsaipei_dormitoryUtilities');
   const [utilEditing, setUtilEditing] = useState(null);
-  const utilMonth = currentMonthStr();
+  const [utilMonth, setUtilMonth] = useState(currentMonthStr());
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -224,7 +224,10 @@ export default function CustomerServicePendingPage() {
             </div>
           </div>
           <div>
-            <h3 style={{ margin: '0 0 12px' }}>宿舍管理 · 其他費用 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingUtilities.length} 間（{utilMonth}）</span></h3>
+            <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              宿舍管理 · 其他費用 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingUtilities.length} 間</span>
+              <input type="month" value={utilMonth} onChange={(e) => setUtilMonth(e.target.value)} style={{ fontWeight: 400, fontSize: 13 }} />
+            </h3>
             <div className="card">
               <div className="table-wrap">
                 <table>
