@@ -63,6 +63,7 @@ service cloud.firestore {
         'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
         'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
+        'adminPending': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
       }[module][role];
     }
     function tsCanEdit(module) {
