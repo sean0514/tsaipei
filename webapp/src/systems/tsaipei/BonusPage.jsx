@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import {
-  BONUS_ROLE_KEYS, BONUS_ROLE_LABELS, computeInternalBonusForMonth, computeInternalBonusByPersonForMonth, currentMonthStr,
+  PROJECT_CLIENT_BONUS_ROLE_KEYS, PROJECT_CLIENT_BONUS_ROLE_LABELS,
+  computeInternalBonusForMonth, computeInternalBonusByPersonForMonth, computeDormManagerBonusForMonth, currentMonthStr,
 } from '../../lib/bonus';
 
 export default function BonusPage() {
@@ -13,14 +14,19 @@ export default function BonusPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: inTaiwanVisaRecords } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: internalFeeSetupRecords } = useCollection('tsaipei_internalFeeSetup');
+  const { rows: dormitories } = useCollection('tsaipei_dormitories');
+  const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, dormitories, housingRecords };
   const rows = computeInternalBonusForMonth(month, ctx).filter((r) =>
     !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.projectCode || '').toLowerCase().includes(q.toLowerCase())
   );
   const byPerson = computeInternalBonusByPersonForMonth(month, ctx);
+  const dormRows = computeDormManagerBonusForMonth(month, ctx).filter((d) =>
+    !q || (d.dormName || '').toLowerCase().includes(q.toLowerCase())
+  );
 
   return (
     <div className="content">
@@ -32,12 +38,12 @@ export default function BonusPage() {
       </div>
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <div className="table-wrap"><table>
-          <thead><tr><th>客戶</th>{BONUS_ROLE_LABELS.map((l) => <th key={l}>{l}</th>)}<th>在台總天數</th></tr></thead>
+          <thead><tr><th>客戶</th>{PROJECT_CLIENT_BONUS_ROLE_LABELS.map((l) => <th key={l}>{l}</th>)}<th>在台總天數</th></tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
                 <td><strong>{r.client || '—'}</strong><div className="muted">{r.projectCode}</div></td>
-                {BONUS_ROLE_KEYS.map((k) => (
+                {PROJECT_CLIENT_BONUS_ROLE_KEYS.map((k) => (
                   <td key={k}>
                     {r.roles[k] && <div style={{ fontWeight: 600 }}>{r.roles[k]}</div>}
                     <div className="muted">{(r.amounts[k] || 0).toLocaleString()} 元</div>
@@ -46,7 +52,28 @@ export default function BonusPage() {
                 <td>{r.totalDays} 天</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+          </tbody>
+        </table></div>
+      </div>
+
+      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>宿管人員獎金</h3>
+        <p className="muted" style={{ marginTop: 0 }}>依宿舍管理設定的宿管1/宿管2計算：這個月實際住在這間宿舍的學生天數 ÷ 30 × 該學生實習單位的內部費用建檔「宿管人員1/宿管人員2」金額，加總到對應的宿管身上。</p>
+        <div className="table-wrap"><table>
+          <thead><tr><th>宿舍</th><th>宿管1</th><th>宿管1獎金</th><th>宿管2</th><th>宿管2獎金</th><th>住宿天數合計</th></tr></thead>
+          <tbody>
+            {dormRows.map((d) => (
+              <tr key={d.dormId}>
+                <td>{d.dormName}</td>
+                <td>{d.manager1 || '—'}</td>
+                <td>{d.manager1Amount.toLocaleString()} 元</td>
+                <td>{d.manager2 || '—'}</td>
+                <td>{d.manager2Amount.toLocaleString()} 元</td>
+                <td>{d.totalResidentDays} 天</td>
+              </tr>
+            ))}
+            {dormRows.length === 0 && <tr><td colSpan={6} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>

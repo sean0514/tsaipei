@@ -10,6 +10,12 @@ export const BONUS_ROLE_KEYS = [
 ];
 export const BONUS_ROLE_LABELS = ['開發業務', '服務主管', '服務專員', '翻譯主管', '翻譯專員', '行政主管', '行政專員', '會計人員', '會計助理', '宿管人員1', '宿管人員2'];
 
+// 宿管人員1/2 改成依「宿舍管理」設定的宿管1/宿管2計算（見
+// computeDormManagerBonusForMonth），不再跟著學生的實習單位(專案+客戶)走，
+// 這裡的主表（依實習單位分列）只保留其餘角色。
+export const PROJECT_CLIENT_BONUS_ROLE_KEYS = BONUS_ROLE_KEYS.filter((k) => k !== 'dormManager1' && k !== 'dormManager2');
+export const PROJECT_CLIENT_BONUS_ROLE_LABELS = PROJECT_CLIENT_BONUS_ROLE_KEYS.map((k) => BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)]);
+
 export function monthRange(monthStr) {
   const [y, m] = (monthStr || '').split('-').map(Number);
   if (!y || !m) return null;
@@ -113,7 +119,7 @@ export function computeInternalBonusForMonth(monthStr, ctx) {
     const rate = internalFeeSetupRecords.find((r) => (r.projectCode || '') === g.projectCode && r.client === g.client);
     const roles = rolesForProjectClient(g.projectCode, g.client, positions);
     const amounts = {};
-    BONUS_ROLE_KEYS.forEach((k) => {
+    PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => {
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
     });
@@ -121,17 +127,59 @@ export function computeInternalBonusForMonth(monthStr, ctx) {
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }
 
+// 宿管人員1/2 改成依「宿舍管理」設定的宿管1/宿管2計算：看這個月誰實際住在
+// 哪間宿舍、住了幾天（跟住宿安排/學生請款計算同一套天數判斷，但宿管獎金
+// 固定除以 30 天，不是當月實際天數），乘以該學生自己實習單位(專案+客戶)
+// 內部費用建檔的「宿管人員1/宿管人員2」月費率 ÷ 30，加總到宿舍設定的宿管
+// 1/宿管2身上。
+export function computeDormManagerBonusForMonth(monthStr, ctx) {
+  const range = monthRange(monthStr);
+  if (!range) return [];
+  const { dormitories, housingRecords, internalFeeSetupRecords } = ctx;
+  return (dormitories || [])
+    .filter((d) => !d.confirmedClosed && (d.manager1 || d.manager2))
+    .map((d) => {
+      let manager1Amount = 0;
+      let manager2Amount = 0;
+      let totalResidentDays = 0;
+      (housingRecords || []).forEach((h) => {
+        if (h.type !== d.name || h.completed) return;
+        const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
+        if (days <= 0) return;
+        totalResidentDays += days;
+        const pair = studentProjectClientPair(h.studentId, ctx);
+        if (!pair) return;
+        const rate = internalFeeSetupRecords.find((r) => (r.projectCode || '') === pair.projectCode && r.client === pair.client);
+        if (!rate) return;
+        if (d.manager1) manager1Amount += Math.round(((Number(rate.dormManager1) || 0) / 30) * days);
+        if (d.manager2) manager2Amount += Math.round(((Number(rate.dormManager2) || 0) / 30) * days);
+      });
+      return { dormId: d.id, dormName: d.name, manager1: d.manager1 || '', manager2: d.manager2 || '', manager1Amount, manager2Amount, totalResidentDays };
+    })
+    .filter((r) => r.totalResidentDays > 0)
+    .sort((a, b) => a.dormName.localeCompare(b.dormName));
+}
+
 export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
   const rows = computeInternalBonusForMonth(monthStr, ctx);
   const personTotals = {};
   rows.forEach((r) => {
-    BONUS_ROLE_KEYS.forEach((k, i) => {
+    PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => {
       const name = r.roles[k];
       const amt = r.amounts[k];
       if (!name || !amt) return;
       const entry = (personTotals[name] ||= { name, total: 0, breakdown: [] });
       entry.total += amt;
-      entry.breakdown.push({ client: r.client, projectCode: r.projectCode, role: BONUS_ROLE_LABELS[i], amount: amt });
+      entry.breakdown.push({ client: r.client, projectCode: r.projectCode, role: BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)], amount: amt });
+    });
+  });
+  const dormRows = computeDormManagerBonusForMonth(monthStr, ctx);
+  dormRows.forEach((d) => {
+    [['manager1', d.manager1, d.manager1Amount, '宿管人員1'], ['manager2', d.manager2, d.manager2Amount, '宿管人員2']].forEach(([, name, amt, roleLabel]) => {
+      if (!name || !amt) return;
+      const entry = (personTotals[name] ||= { name, total: 0, breakdown: [] });
+      entry.total += amt;
+      entry.breakdown.push({ client: d.dormName, projectCode: '', role: roleLabel, amount: amt });
     });
   });
   return Object.values(personTotals).sort((a, b) => b.total - a.total);
