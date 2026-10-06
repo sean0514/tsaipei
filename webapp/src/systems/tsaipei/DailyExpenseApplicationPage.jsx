@@ -224,7 +224,7 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, d
                     {itemCustom && (
                       <input style={{ marginTop: 6 }} placeholder="自行輸入項目名稱" value={form.item || ''} onChange={(e) => setForm({ ...form, item: e.target.value })} />
                     )}
-                    {isIncome && form.item === DORM_ITEM && (
+                    {form.item === DORM_ITEM && (
                       <select style={{ marginTop: 6 }} value={form.dormId || ''} onChange={(e) => setForm({ ...form, dormId: e.target.value })}>
                         <option value="">請選擇宿舍</option>
                         {dormitories.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
