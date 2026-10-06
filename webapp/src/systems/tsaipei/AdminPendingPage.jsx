@@ -17,17 +17,33 @@ export default function AdminPendingPage() {
   const [editing, setEditing] = useState(null);
 
   async function handleSave(data) {
-    if (data.id) {
-      const { id, ...rest } = data;
-      await update(id, rest);
-    } else {
-      await add({ status: '未開始', ...data });
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+      } else {
+        await add({ status: '未開始', ...data });
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`儲存失敗：${err?.message || '請稍後再試'}`);
     }
-    setEditing(null);
   }
 
-  function toggleDone(r) {
-    update(r.id, { status: r.status === '已完成' ? '待處理' : '已完成' });
+  async function toggleDone(r) {
+    try {
+      await update(r.id, { status: r.status === '已完成' ? '待處理' : '已完成' });
+    } catch (err) {
+      alert(`更新失敗：${err?.message || '請稍後再試'}`);
+    }
+  }
+
+  async function handleRemove(id) {
+    try {
+      await remove(id);
+    } catch (err) {
+      alert(`刪除失敗：${err?.message || '請稍後再試'}`);
+    }
   }
 
   return (
@@ -89,7 +105,7 @@ export default function AdminPendingPage() {
                     {canEditPage && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>編輯</button>
-                        <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                        <button className="danger" onClick={() => handleRemove(r.id)}>刪除</button>
                       </td>
                     )}
                   </tr>
