@@ -1,7 +1,7 @@
 // Ported from generateClientInvoice/buildInvoiceSummarySheet_/
 // buildInvoiceDetailSheet_ in apps-script/Code.gs.
 
-import { resolveFixedChargeMonth, studentAdmitDate } from './bonus';
+import { resolveFixedChargeMonth, studentAdmitDate, buildDailyExpenseChargeTotals } from './bonus';
 
 export const COMPANY_INFO = {
   name: '鈞羽有限公司',
@@ -106,6 +106,21 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
       startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee,
       total: serviceFee + dormManageFee + dormFee + processingFee,
+    });
+  });
+
+  // 日常支出申請選了這個實習單位當「須請款」對象的，併入明細裡各成一列，
+  // 姓名欄放學生＋項目名稱方便辨識，金額算進請款金額(total)，不列入服務費
+  // /宿舍費/宿管費三項、不計稅，邏輯跟 computeClientBillingForMonth 一致。
+  const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
+  const expenseItems = dailyExpenseCharges[`${projectCode || ''}||${client}`]?.items || [];
+  expenseItems.forEach((it) => {
+    const s = it.studentId ? students.find((x) => x.id === it.studentId) : null;
+    const studentLabel = s ? (s.chineseName || s.originalName || '') : '';
+    rows.push({
+      no: no++, name: [studentLabel, it.item].filter(Boolean).join(' - ') || it.item || '代墊費用', passport: '',
+      startDate: it.date, endDate: it.date, days: '', serviceFee: 0, dormManageFee: 0, dormFee: 0, processingFee: 0,
+      total: it.amount,
     });
   });
 

@@ -5,14 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { exportEntityCSV } from '../../lib/csv';
+import { NOT_BILLABLE } from '../../lib/bonus';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
-
-const NOT_BILLABLE = '不須請款';
 
 const ITEM_OPTIONS = ['體檢費', '機票費', '車資費用', '宿舍設備', '水費', '電費', '瓦斯費'];
 const ITEM_CUSTOM = '__custom__';
