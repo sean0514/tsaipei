@@ -54,7 +54,7 @@ export default function ClientBillingPage() {
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap"><table>
-          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(含稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>代墊費用(日常支出)</th><th>稅金5%</th><th>合計(含稅)</th><th>在台總天數</th><th></th></tr></thead>
+          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(含稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>合計總額</th><th>在台總天數</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
@@ -66,15 +66,16 @@ export default function ClientBillingPage() {
                   <td>{(r.amounts.monthlyServiceFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormManageFee || 0).toLocaleString()}</td>
-                  <td>{(r.amounts.dailyExpenseCharge || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.dailyExpenseChargeJunyu || 0).toLocaleString()}</td>
                   <td>{(r.tax || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.dailyExpenseChargeSupplier || 0).toLocaleString()}</td>
                   <td>{r.total.toLocaleString()}</td>
                   <td>{r.totalDays} 天</td>
                   <td><button disabled={busyKey === key} onClick={() => handleDownload(r)}>{busyKey === key ? '產生中…' : '下載請款單'}</button></td>
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
