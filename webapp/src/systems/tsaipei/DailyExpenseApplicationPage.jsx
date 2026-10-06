@@ -12,8 +12,14 @@ function currentMonthStr() {
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
+const NOT_BILLABLE = '不須請款';
+
+const ITEM_OPTIONS = ['體檢費', '機票費', '車資費用', '宿舍設備', '水費', '電費', '瓦斯費'];
+const ITEM_CUSTOM = '__custom__';
+
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
+  { key: 'billToCompany', label: '須請款(實習單位)' },
   { key: 'item', label: '項目' },
   { key: 'date', label: '日期', type: 'date' },
   { key: 'purpose', label: '用途說明', required: true },
@@ -28,6 +34,7 @@ export default function DailyExpenseApplicationPage() {
   const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: users } = useCollection('tsaipei_users');
+  const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
@@ -76,11 +83,12 @@ export default function DailyExpenseApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>申請人</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>須請款(實習單位)</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
                       <td>{r.applicant || '—'}</td>
+                      <td>{r.billToCompany || '—'}</td>
                       <td>{r.item || '—'}</td>
                       <td>{r.date || '—'}</td>
                       <td>{r.purpose || '—'}</td>
@@ -97,21 +105,23 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
           ))}
         </div>
       )}
-      {editing && <DailyExpenseFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function DailyExpenseFormModal({ initial, users, onCancel, onSave }) {
+function DailyExpenseFormModal({ initial, users, positions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const [itemCustom, setItemCustom] = useState(initial.item && !ITEM_OPTIONS.includes(initial.item));
   const applicantOptions = [...new Set(users.map((u) => u.displayName || u.email).filter(Boolean))].sort();
+  const companies = [...new Set(positions.map((p) => p.company).filter(Boolean))].sort();
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -126,6 +136,28 @@ function DailyExpenseFormModal({ initial, users, onCancel, onSave }) {
                     <option value="">請選擇</option>
                     {applicantOptions.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
+                ) : f.key === 'billToCompany' ? (
+                  <select value={form.billToCompany || NOT_BILLABLE} onChange={(e) => setForm({ ...form, billToCompany: e.target.value })}>
+                    <option value={NOT_BILLABLE}>{NOT_BILLABLE}</option>
+                    {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : f.key === 'item' ? (
+                  <>
+                    <select
+                      value={itemCustom ? ITEM_CUSTOM : (form.item || '')}
+                      onChange={(e) => {
+                        if (e.target.value === ITEM_CUSTOM) { setItemCustom(true); setForm({ ...form, item: '' }); }
+                        else { setItemCustom(false); setForm({ ...form, item: e.target.value }); }
+                      }}
+                    >
+                      <option value="">請選擇</option>
+                      {ITEM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      <option value={ITEM_CUSTOM}>自行輸入…</option>
+                    </select>
+                    {itemCustom && (
+                      <input style={{ marginTop: 6 }} placeholder="自行輸入項目名稱" value={form.item || ''} onChange={(e) => setForm({ ...form, item: e.target.value })} />
+                    )}
+                  </>
                 ) : (
                   <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 )}
