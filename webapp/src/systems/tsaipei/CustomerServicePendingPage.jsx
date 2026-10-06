@@ -1,6 +1,24 @@
+import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+
+function currentMonthStr() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function parseOtherFees(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function isUtilityFilled(u) {
+  if (!u) return false;
+  if (u.waterFee || u.electricityFee || u.gasFee) return true;
+  return parseOtherFees(u.otherFees).length > 0;
+}
 
 function studentFullLabel(s) {
   if (!s) return '(已刪除)';
@@ -38,10 +56,10 @@ function daysBetween(dateStr, today) {
   return Math.abs((new Date(dateStr) - new Date(today)) / 86400000);
 }
 
-// 彙整「預計入台/離台」「開戶進度追蹤」「住宿安排」三個頁面裡還沒完成的
-// 項目，客服不用三個頁面分別點進去檢查，一次看完要追的事項；資料來源都是
-// 各自分頁既有的集合，這裡只讀取跟（已體檢/已送工/銀行帳戶）打勾直接寫回
-// 原本那頁的紀錄，不會另外存一份。
+// 彙整「預計入台/離台」「開戶進度追蹤」「住宿安排」「宿舍管理」幾個頁面裡
+// 還沒完成的項目，客服不用分別點進去檢查，一次看完要追的事項；資料來源都
+// 是各自分頁既有的集合，這裡的打勾/填寫其他費用都直接寫回原本那頁的紀錄，
+// 不會另外存一份。
 export default function CustomerServicePendingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditArrival = computeCanEdit(system, 'expectedArrival', role, overrides);
@@ -53,6 +71,11 @@ export default function CustomerServicePendingPage() {
   const { rows: visaRecords, loading: loadingVisa, update: updateVisa } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: bankProgress, loading: loadingBank, add: addBankProgress, update: updateBankProgress } = useCollection('tsaipei_bankAccountProgress');
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
+  const canEditDorm = computeCanEdit(system, 'dormManagement', role, overrides);
+  const { rows: dormitories, loading: loadingDorms } = useCollection('tsaipei_dormitories');
+  const { rows: utilities, loading: loadingUtilities, add: addUtility, update: updateUtility } = useCollection('tsaipei_dormitoryUtilities');
+  const [utilEditing, setUtilEditing] = useState(null);
+  const utilMonth = currentMonthStr();
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -86,6 +109,13 @@ export default function CustomerServicePendingPage() {
   // 住宿安排：還沒填入住日的，跟 HousingPage 的「未安排」同一套邏輯。
   const pendingHousing = housingRecords.filter((r) => !r.completed && !r.checkIn);
 
+  // 宿舍管理：這個月還沒填「其他費用」（水費/電費/瓦斯費/自訂其他費用）的
+  // 宿舍，跟 DormManagementPage 判斷「這個月有沒有填過」同一套邏輯。
+  function utilityFor(dormId) {
+    return utilities.find((u) => u.dormitoryId === dormId && u.month === utilMonth);
+  }
+  const pendingUtilities = dormitories.filter((d) => !d.confirmedClosed && !isUtilityFilled(utilityFor(d.id)));
+
   async function toggleArrival(visaId, field, checked) {
     await updateVisa(visaId, { [field]: checked });
   }
@@ -96,14 +126,24 @@ export default function CustomerServicePendingPage() {
     else await addBankProgress({ studentId, bankAccountReceived: checked });
   }
 
-  const loading = loadingVisa || loadingBank || loadingHousing;
+  // upsert：跟 DormManagementPage 的 handleSaveUtility 同一套邏輯，找得到
+  // 同宿舍+同月份的既有紀錄就更新，找不到就新增——這裡填寫完會直接寫回
+  // tsaipei_dormitoryUtilities，宿舍管理那頁打開會看到同一筆資料。
+  async function handleSaveUtility(dormId, data) {
+    const existing = utilityFor(dormId);
+    if (existing) await updateUtility(existing.id, data);
+    else await addUtility({ dormitoryId: dormId, month: utilMonth, ...data });
+    setUtilEditing(null);
+  }
+
+  const loading = loadingVisa || loadingBank || loadingHousing || loadingDorms || loadingUtilities;
 
   return (
     <div className="content">
       <div className="page-header">
         <div>
           <h2>客服未完成事項</h2>
-          <div className="page-desc">彙整預計入台/離台（未勾已體檢/已送工）、開戶進度追蹤（未勾銀行帳戶）、住宿安排（未安排）的名單，各項目打勾/編輯請到原本的分頁操作，入台/離台的已體檢/已送工可以直接在這裡打勾</div>
+          <div className="page-desc">彙整預計入台/離台（未勾已體檢/已送工）、開戶進度追蹤（未勾銀行帳戶）、住宿安排（未安排）、宿舍管理（本月未填其他費用）的名單，入台/離台的已體檢/已送工、宿舍管理的其他費用可以直接在這裡填寫，其餘編輯請到原本的分頁操作</div>
         </div>
       </div>
       {loading ? <p className="muted">載入中…</p> : (
@@ -183,8 +223,116 @@ export default function CustomerServicePendingPage() {
               </div>
             </div>
           </div>
+          <div>
+            <h3 style={{ margin: '0 0 12px' }}>宿舍管理 · 其他費用 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingUtilities.length} 間（{utilMonth}）</span></h3>
+            <div className="card">
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>宿舍名稱</th><th>地點</th>{canEditDorm && <th></th>}</tr></thead>
+                  <tbody>
+                    {pendingUtilities.map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.name}</td>
+                        <td>{d.location || '—'}</td>
+                        {canEditDorm && (
+                          <td>
+                            <button onClick={() => setUtilEditing({ dormId: d.id, waterFee: '', electricityFee: '', gasFee: '', otherFees: '' })}>填寫其他費用</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {pendingUtilities.length === 0 && <tr><td colSpan={canEditDorm ? 3 : 2} className="muted">目前沒有未完成的項目。</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+      {utilEditing && (
+        <OtherFeesFormModal
+          month={utilMonth}
+          initial={utilEditing}
+          onCancel={() => setUtilEditing(null)}
+          onSave={(data) => handleSaveUtility(utilEditing.dormId, data)}
+        />
+      )}
+    </div>
+  );
+}
+
+function OtherFeesListEditor({ fees, onChange }) {
+  function updateRow(i, patch) {
+    onChange(fees.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+  }
+  function removeRow(i) {
+    onChange(fees.filter((_, idx) => idx !== i));
+  }
+  function addRow() {
+    onChange([...fees, { label: '', amount: '' }]);
+  }
+
+  return (
+    <div>
+      {fees.map((f, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+          <label>
+            項目名稱
+            <input value={f.label || ''} onChange={(e) => updateRow(i, { label: e.target.value })} />
+          </label>
+          <label>
+            金額
+            <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+          </label>
+          <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
+        </div>
+      ))}
+      <button type="button" onClick={addRow}>+ 新增其他費用</button>
+    </div>
+  );
+}
+
+function OtherFeesFormModal({ month, initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  const otherFees = parseOtherFees(form.otherFees);
+
+  function setOtherFees(next) {
+    setForm({ ...form, otherFees: JSON.stringify(next) });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const cleaned = parseOtherFees(form.otherFees).filter((f) => f.label);
+    onSave({ ...form, otherFees: JSON.stringify(cleaned) });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{month} 其他費用</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <label>
+              水費
+              <input type="number" value={form.waterFee} onChange={(e) => setForm({ ...form, waterFee: e.target.value })} />
+            </label>
+            <label>
+              電費
+              <input type="number" value={form.electricityFee} onChange={(e) => setForm({ ...form, electricityFee: e.target.value })} />
+            </label>
+            <label>
+              瓦斯費
+              <input type="number" value={form.gasFee} onChange={(e) => setForm({ ...form, gasFee: e.target.value })} />
+            </label>
+          </div>
+          <h4>其他費用（可自行新增）</h4>
+          <OtherFeesListEditor fees={otherFees} onChange={setOtherFees} />
+          <div className="row-actions" style={{ marginTop: 16 }}>
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
