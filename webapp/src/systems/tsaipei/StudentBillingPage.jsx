@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
+import { canEdit as computeCanEdit } from '../../lib/permissions';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -55,16 +56,48 @@ function residentOverlapDays(h, range) {
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
 
 export default function StudentBillingPage() {
-  useOutletContext();
+  const { system, role, overrides } = useOutletContext();
+  const canEditPage = computeCanEdit(system, 'studentBilling', role, overrides);
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
   const { rows: utilities } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
+  const { rows: payments, add: addPayment, update: updatePayment } = useCollection('tsaipei_studentBillingPayments');
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
 
   const range = monthRange(month);
+
+  function paymentFor(studentId) {
+    if (!studentId) return null;
+    return payments.find((p) => p.studentId === studentId && p.month === month) || null;
+  }
+
+  // 已收款/收款日期：每個學生每個月各一筆，upsert（找得到當月既有紀錄就
+  // 更新，找不到就新增）。
+  async function handleTogglePaid(studentId, checked) {
+    if (!studentId) return;
+    try {
+      const existing = paymentFor(studentId);
+      const receivedDate = checked ? (existing?.receivedDate || new Date().toISOString().slice(0, 10)) : '';
+      if (existing) await updatePayment(existing.id, { received: checked, receivedDate });
+      else await addPayment({ studentId, month, received: checked, receivedDate });
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
+    }
+  }
+
+  async function handlePaidDateChange(studentId, receivedDate) {
+    if (!studentId) return;
+    try {
+      const existing = paymentFor(studentId);
+      if (existing) await updatePayment(existing.id, { receivedDate });
+      else await addPayment({ studentId, month, received: !!receivedDate, receivedDate });
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
+    }
+  }
 
   // 其他費用除了宿舍共用的分攤之外，還要加上這個學生自己名下、日常支出
   // 申請裡類型=收入、已核准/已匯款、日期落在這個月的金額加總。
@@ -125,6 +158,7 @@ export default function StudentBillingPage() {
   function handleDownload() {
     const rows = filtered.map((h) => {
       const b = billingFor(h);
+      const p = paymentFor(h.studentId);
       return {
         dorm: h.type || '',
         studentName: studentFullLabel(students.find((s) => s.id === h.studentId)),
@@ -136,12 +170,15 @@ export default function StudentBillingPage() {
         gasFee: b.gasFee,
         otherFees: b.otherFees,
         total: b.total,
+        received: p?.received ? '是' : '否',
+        receivedDate: p?.receivedDate || '',
       };
     });
     exportEntityCSV(rows, [
       { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'payer', label: '付款方式' }, { key: 'days', label: '當月天數' },
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
+      { key: 'received', label: '已收款' }, { key: 'receivedDate', label: '收款日期' },
     ], `學生請款計算_${month}`);
   }
 
@@ -167,10 +204,11 @@ export default function StudentBillingPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th></tr></thead>
+                  <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>已收款</th><th>收款日期</th></tr></thead>
                   <tbody>
                     {groups[key].map((h) => {
                       const b = billingFor(h);
+                      const p = paymentFor(h.studentId);
                       return (
                         <tr key={h.id}>
                           <td style={{ fontWeight: 600 }}>{studentFullLabel(students.find((s) => s.id === h.studentId))}</td>
@@ -182,6 +220,23 @@ export default function StudentBillingPage() {
                           <td>{b.gasFee.toLocaleString()}</td>
                           <td>{b.otherFees.toLocaleString()}</td>
                           <td style={{ fontWeight: 600 }}>{b.total.toLocaleString()}</td>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={!!p?.received}
+                              disabled={!canEditPage}
+                              onChange={(e) => handleTogglePaid(h.studentId, e.target.checked)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="date"
+                              value={p?.receivedDate || ''}
+                              disabled={!canEditPage}
+                              onChange={(e) => handlePaidDateChange(h.studentId, e.target.value)}
+                              style={{ width: 140 }}
+                            />
+                          </td>
                         </tr>
                       );
                     })}

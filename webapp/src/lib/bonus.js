@@ -372,8 +372,13 @@ export function computeDormProfitLossForYear(year, ctx) {
         if ((app.type || '支出') === '收入') dormItemIncome += amount; else dormItemCost += amount;
       });
 
-      const rentCost = Number(d.rent) || 0;
-      const agentFeeCost = (d.leaseStart && d.leaseStart.slice(0, 7) === monthStr) ? (Number(d.agentFee) || 0) : 0;
+      // 租金只算在租約生效期間內：起租月份之後、退租月份(含)之前，不然沒
+      // 租約前的月份也會被算進租金成本，利潤看起來莫名其妙是負的。
+      const leaseStartMonth = d.leaseStart ? d.leaseStart.slice(0, 7) : '';
+      const leaseEndMonth = d.leaseEnd ? d.leaseEnd.slice(0, 7) : '';
+      const withinLease = (!leaseStartMonth || monthStr >= leaseStartMonth) && (!leaseEndMonth || monthStr <= leaseEndMonth);
+      const rentCost = withinLease ? (Number(d.rent) || 0) : 0;
+      const agentFeeCost = (leaseStartMonth === monthStr) ? (Number(d.agentFee) || 0) : 0;
       // 押金損失＝押金金額－退還押金金額，算在退還押金日期那個月（真正確
       // 認損失的時間點）；沒有填退還押金日期就還不算損失，不計入。
       const depositLossCost = (d.depositRefundDate && d.depositRefundDate.slice(0, 7) === monthStr)
