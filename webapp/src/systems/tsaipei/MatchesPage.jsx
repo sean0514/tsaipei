@@ -200,8 +200,8 @@ function MatchFormModal({ initial, students, positions, onCancel, onSave }) {
             </label>
             <label>
               職缺
-              <select required value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value, venue: '' })}>
-                <option value="" disabled>請選擇</option>
+              <select value={form.positionId || ''} onChange={(e) => setForm({ ...form, positionId: e.target.value, venue: '' })}>
+                <option value="">（未設定）</option>
                 {positions.map((p) => <option key={p.id} value={p.id}>{p.projectCode} {p.company}</option>)}
               </select>
             </label>
