@@ -327,15 +327,18 @@ function sumDormPnlEntries(entries) {
   return { ...sum, income, cost, profit, bonus: Math.round(profit * DORM_PROFIT_SHARE_RATE) };
 }
 
-// 宿舍損益：收入＝住宿費收入(這個月住過這間宿舍的所有紀錄，不分付款方式，
-// 依每月租金 ÷ 當月天數 × 入住天數加總) + 日常支出申請(項目=宿舍設備、綁定
-// 這間宿舍、類型=收入、已核准/已匯款)；成本＝租金(每月固定) + 房仲費(只算
-// 在起租月份) + 押金損失(押金金額－退還押金金額，算在退還押金日期那個月)
-// + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄) + 日常支出申請(項目
-// =宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；利潤＝收入－成本；
-// 分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1分類呈現。
+// 宿舍損益：收入＝住宿費收入(這個月住過這間宿舍的所有紀錄，依付款方式分流：
+// 學生自付用住宿紀錄的每月租金(學生實際付的錢)；廠商代付改用該學生實習單位
+// (專案+客戶)在「客戶費用建檔」設定的宿舍費費率(公司跟客戶實際收的錢)，不是
+// 住宿紀錄上填的租金，兩者都 ÷ 當月天數 × 住在這間宿舍的天數) + 日常支出
+// 申請(項目=宿舍設備、綁定這間宿舍、類型=收入、已核准/已匯款)；成本＝租金
+// (每月固定) + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
+// 在退還押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄)
+// + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；
+// 利潤＝收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1
+// 分類呈現。
 export function computeDormProfitLossForYear(year, ctx) {
-  const { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications } = ctx;
+  const { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications, clientFeeSetupRecords } = ctx;
   const dormResults = (dormitories || []).filter((d) => !d.confirmedClosed).map((d) => {
     const monthly = [];
     for (let m = 1; m <= 12; m++) {
@@ -347,7 +350,15 @@ export function computeDormProfitLossForYear(year, ctx) {
         if (h.type !== d.name || h.completed) return;
         const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
         if (days <= 0) return;
-        housingIncome += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+        if (h.payer === '廠商代付') {
+          const pair = studentProjectClientPair(h.studentId, ctx);
+          const rate = pair && (clientFeeSetupRecords || []).find((r) => (r.projectCode || '') === pair.projectCode && r.client === pair.client);
+          if (!rate || rate.billDormFee === '否') return;
+          const dormFeeRate = Number(rate.monthlyDormFee) || 0;
+          housingIncome += dormFeeRate ? Math.round((dormFeeRate / range.daysInMonth) * days) : 0;
+        } else {
+          housingIncome += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+        }
       });
 
       let dormItemIncome = 0;
