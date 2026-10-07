@@ -64,6 +64,7 @@ service cloud.firestore {
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
         'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
         'adminPending': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
+        'studentBilling': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
       }[module][role];
     }
     function tsCanEdit(module) {
@@ -185,6 +186,12 @@ service cloud.firestore {
     match /tsaipei_adminTodos/{docId} {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('adminPending');
+    }
+    // 學生請款計算：每個學生每個月的已收款/收款日期記錄，其他金額欄位都是
+    // 即時計算、不落地儲存。
+    match /tsaipei_studentBillingPayments/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('studentBilling');
     }
     match /tsaipei_meetings/{docId} {
       allow read: if tsIsMember();
