@@ -76,9 +76,17 @@ export default function DormProfitLossPage() {
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
   const { rows: dormitoryUtilities, loading: loadingUtilities } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: dailyExpenseApplications, loading: loadingApps } = useCollection('tsaipei_dailyExpenseApplications');
+  const { rows: students } = useCollection('tsaipei_students');
+  const { rows: matches } = useCollection('tsaipei_matches');
+  const { rows: positions } = useCollection('tsaipei_positions');
+  const { rows: admittedList } = useCollection('tsaipei_admittedList');
+  const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const [year, setYear] = useState(currentYear());
 
-  const ctx = { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications };
+  const ctx = {
+    dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications,
+    students, matches, positions, admittedList, clientFeeSetupRecords,
+  };
   const years = availableYears(ctx);
   const managerGroups = computeDormProfitLossForYear(year, ctx);
   const { grandMonthly, grandTotal } = sumDormProfitLossGroups(managerGroups);
@@ -112,7 +120,7 @@ export default function DormProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>宿舍損益</h2>
-          <div className="page-desc">收入＝住宿費收入(不分付款方式)＋日常支出申請(宿舍設備收入)；成本＝租金/房仲費/押金損失/水費/電費/瓦斯費/其他費用＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類</div>
+          <div className="page-desc">收入＝住宿費收入(學生自付用住宿紀錄租金；廠商代付改用客戶費用建檔的宿舍費費率，即實際收到的錢)＋日常支出申請(宿舍設備收入)；成本＝租金/房仲費/押金損失/水費/電費/瓦斯費/其他費用＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
