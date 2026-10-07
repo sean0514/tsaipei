@@ -8,12 +8,15 @@ service firebase.storage {
       return signedIn() && firestore.exists(/databases/(default)/documents/yujian_users/$(request.auth.uid));
     }
 
-    // 聿見國際「申辦進度追蹤」關卡附件，只有登入的聿見國際使用人員可以上傳/
-    // 讀取，單檔上限 4MB（跟前端 MAX_ATTACHMENT_SIZE 一致，這裡再擋一次避免
-    // 繞過前端檢查）。
+    // 暫時診斷用：拿掉 yjIsMember() 的 firestore.exists() 跨服務檢查，只要
+    // 登入就放行，用來確認使用者回報的 storage/unauthorized 是不是這個
+    // 跨服務檢查本身的問題（部署後請實際測試上傳，不要在這個狀態下久放，
+    // 確認原因後要馬上換回嚴格版本或改用别的判斷方式）。
+    // 聿見國際「申辦進度追蹤」關卡附件，單檔上限 4MB（跟前端
+    // MAX_ATTACHMENT_SIZE 一致，這裡再擋一次避免繞過前端檢查）。
     match /yujian_attachments/{allPaths=**} {
-      allow read: if yjIsMember();
-      allow write: if yjIsMember() && request.resource.size <= 4 * 1024 * 1024;
+      allow read: if signedIn();
+      allow write: if signedIn() && request.resource.size <= 4 * 1024 * 1024;
     }
   }
 }
