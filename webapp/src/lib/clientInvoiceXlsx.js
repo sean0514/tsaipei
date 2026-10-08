@@ -46,7 +46,7 @@ function buildSummarySheet(workbook, client, invoice) {
   headerRowCells(sheet.getRow(headerRow), ['項目', '金額']);
 
   const categoryRows = [
-    ['辦件費(含稅)', categoryTotals.processingFee],
+    ['辦件費(未稅)', categoryTotals.processingFee],
     ['服務費(未稅)', categoryTotals.serviceFee],
     ['宿舍費(未稅)', categoryTotals.dormFee],
     ['宿管費(未稅)', categoryTotals.dormManageFee],

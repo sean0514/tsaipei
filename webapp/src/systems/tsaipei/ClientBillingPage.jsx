@@ -55,7 +55,7 @@ export default function ClientBillingPage() {
       <ClientBillingChart rows={rows} />
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap"><table>
-          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(含稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>合計總額</th><th>在台總天數</th><th></th></tr></thead>
+          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>合計總額</th><th>在台總天數</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
@@ -87,7 +87,7 @@ export default function ClientBillingPage() {
 // 不畫圖，只把表格裡的每個金額欄位(辦件費/服務費/.../代墊費用供應商)
 // 跨所有客戶加總，顯示當月各分類的總額數字。
 const CATEGORY_TOTALS = [
-  { key: 'monthlyProcessingFee', label: '辦件費(含稅)', fromAmounts: true },
+  { key: 'monthlyProcessingFee', label: '辦件費(未稅)', fromAmounts: true },
   { key: 'monthlyServiceFee', label: '服務費(未稅)', fromAmounts: true },
   { key: 'monthlyDormFee', label: '宿舍費(未稅)', fromAmounts: true },
   { key: 'monthlyDormManageFee', label: '宿管費(未稅)', fromAmounts: true },
