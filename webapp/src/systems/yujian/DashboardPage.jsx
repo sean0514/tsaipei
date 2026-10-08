@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const total = workers.length;
   const pendingWorkers = workers.filter((w) => w.status === '待媒合').length;
   const employerTotal = employers.length;
+  const pendingEmployers = employers.filter((e) => e.status === '待媒合').length;
   const matchedEmployers = employers.filter((e) => e.status === '已媒合').length;
   const inService = workers.filter((w) => w.status === '在職中').length;
 
@@ -19,8 +20,8 @@ export default function DashboardPage() {
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
           {[
-            ['人員總數', total], ['待媒合人數', pendingWorkers], ['在職中人數', inService],
-            ['雇主家庭總數', employerTotal], ['已媒合家庭數', matchedEmployers], ['媒合紀錄總數', matches.length],
+            ['人員總數', total], ['工人待媒合人數', pendingWorkers], ['在職中人數', inService],
+            ['雇主家庭總數', employerTotal], ['雇主需求待媒合數', pendingEmployers], ['已媒合家庭數', matchedEmployers], ['媒合紀錄總數', matches.length],
           ].map(([label, num]) => (
             <div className="card" key={label}>
               <div style={{ fontFamily: 'var(--heading-font)', fontSize: 28, fontWeight: 700 }}>{num}</div>
