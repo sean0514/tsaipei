@@ -334,7 +334,8 @@ function sumDormPnlEntries(entries) {
 // 住戶另外加計「客戶費用建檔」設定的宿管費費率，同樣 ÷ 當月天數 × 住在這
 // 間宿舍的天數) + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=收入、
 // 已核准/已匯款)；成本＝租金
-// (每月固定) + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
+// (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
+// + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
 // 在退還押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄)
 // + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；
 // 利潤＝收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1
@@ -377,12 +378,12 @@ export function computeDormProfitLossForYear(year, ctx) {
         if ((app.type || '支出') === '收入') dormItemIncome += amount; else dormItemCost += amount;
       });
 
-      // 租金只算在租約生效期間內：起租月份之後、退租月份(含)之前，不然沒
-      // 租約前的月份也會被算進租金成本，利潤看起來莫名其妙是負的。
+      // 租金按租約在這個月實際生效的天數比例計算（起租/退租當月只算部分
+      // 月份的租金，不是整月租金），沒填起租日就不計租金；沒填退租日視為
+      // 租約還沒結束，跟 dateOverlapDays 預設行為一致。
+      const leaseDays = d.leaseStart ? dateOverlapDays(range.start, range.end, d.leaseStart, d.leaseEnd) : 0;
+      const rentCost = leaseDays > 0 ? Math.round(((Number(d.rent) || 0) / range.daysInMonth) * leaseDays) : 0;
       const leaseStartMonth = d.leaseStart ? d.leaseStart.slice(0, 7) : '';
-      const leaseEndMonth = d.leaseEnd ? d.leaseEnd.slice(0, 7) : '';
-      const withinLease = (!leaseStartMonth || monthStr >= leaseStartMonth) && (!leaseEndMonth || monthStr <= leaseEndMonth);
-      const rentCost = withinLease ? (Number(d.rent) || 0) : 0;
       const agentFeeCost = (leaseStartMonth === monthStr) ? (Number(d.agentFee) || 0) : 0;
       // 押金損失＝押金金額－退還押金金額，算在退還押金日期那個月（真正確
       // 認損失的時間點）；沒有填退還押金日期就還不算損失，不計入。
