@@ -21,17 +21,21 @@ const FIRST_ENTRY_EXPENSE_ITEMS = [
   { item: '體檢費用', amount: 300 },
 ];
 
+// 回傳這次實際新增了幾筆，給「補建立入境費用」按鈕統計用。
 async function ensureFirstEntryExpenses(studentId, firstEntryDate) {
-  if (!studentId || !firstEntryDate) return;
+  if (!studentId || !firstEntryDate) return 0;
   const snap = await getDocs(query(collection(db, 'tsaipei_dailyExpenseApplications'), where('studentId', '==', studentId)));
   const existingItems = new Set(snap.docs.map((d) => d.data().item));
+  let created = 0;
   for (const { item, amount } of FIRST_ENTRY_EXPENSE_ITEMS) {
     if (existingItems.has(item)) continue;
     // eslint-disable-next-line no-await-in-loop
     await addDoc(collection(db, 'tsaipei_dailyExpenseApplications'), {
       studentId, item, amount, type: '收入', status: '待審核', date: firstEntryDate, currency: '台幣',
     });
+    created += 1;
   }
+  return created;
 }
 
 // Ported from addInTaiwanVisa/updateInTaiwanVisa/syncStudentDatesFromVisa_ in
@@ -127,6 +131,7 @@ export default function InTaiwanVisaPage() {
   const [editing, setEditing] = useState(null);
   const [showDeparted, setShowDeparted] = useState(false);
   const [q, setQ] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const ctx = { matches, admittedList, positions };
@@ -154,6 +159,29 @@ export default function InTaiwanVisaPage() {
     setEditing(null);
   }
 
+  // 補建立入境費用：掃過所有已經有「第一次入台時間」的學生，把先前（這個
+  // 功能上線以前）就已經入境、所以沒有自動帶入過的三筆費用一次補齊。
+  async function handleBackfillFirstEntryExpenses() {
+    const targets = rows.filter((r) => r.studentId && r.firstEntryDate);
+    if (!targets.length) { alert('目前沒有已填寫第一次入台時間的學生。'); return; }
+    if (!window.confirm(`即將檢查 ${targets.length} 位已填第一次入台時間的學生，幫還沒有寢具/鑰匙/體檢費用紀錄的人補上，確定要繼續嗎？`)) return;
+    setBackfilling(true);
+    try {
+      let studentsCreated = 0;
+      let itemsCreated = 0;
+      for (const r of targets) {
+        // eslint-disable-next-line no-await-in-loop
+        const created = await ensureFirstEntryExpenses(r.studentId, r.firstEntryDate);
+        if (created > 0) { studentsCreated += 1; itemsCreated += created; }
+      }
+      alert(studentsCreated > 0 ? `已幫 ${studentsCreated} 位學生補上共 ${itemsCreated} 筆費用。` : '所有學生都已經有這三筆費用了，沒有需要補的。');
+    } catch (err) {
+      alert(`補建立失敗：${err.message || err}`);
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -163,6 +191,7 @@ export default function InTaiwanVisaPage() {
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+          {canEditPage && <button disabled={backfilling} onClick={handleBackfillFirstEntryExpenses}>{backfilling ? '補建立中…' : '補建立入境費用'}</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
