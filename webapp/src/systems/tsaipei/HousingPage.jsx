@@ -175,9 +175,11 @@ function HousingFormModal({ initial, students, dormitories, users, onCancel, onS
     setForm({
       ...form,
       type: name,
-      address: dorm?.location || form.address,
-      contactName: dorm?.manager1 || form.contactName,
-      contactName2: dorm?.manager2 || form.contactName2,
+      // Firestore updateDoc() 不接受 undefined，三者都沒值時要補空字串，
+      // 不然儲存會直接丟例外（儲存失敗：Unsupported field value: undefined）。
+      address: dorm?.location || form.address || '',
+      contactName: dorm?.manager1 || form.contactName || '',
+      contactName2: dorm?.manager2 || form.contactName2 || '',
     });
   }
 
