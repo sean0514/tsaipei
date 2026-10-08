@@ -39,6 +39,7 @@ export default function HousingPage() {
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -91,7 +92,7 @@ export default function HousingPage() {
   function renderTable(list, label) {
     return (
       <div className="table-wrap"><table>
-        <thead><tr><th>學生</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (
             <tr key={r.id}>
@@ -101,6 +102,7 @@ export default function HousingPage() {
               <td>{studentExitDate(r.studentId)}</td>
               <td>{r.type || '—'}</td>
               <td>{r.payer || '—'}</td>
+              <td>{r.monthlyRent ? Number(r.monthlyRent).toLocaleString() : '—'}</td>
               <td>{r.checkIn || '—'}</td>
               <td>{r.checkOut || '—'}</td>
               {canEditPage && (
@@ -112,7 +114,7 @@ export default function HousingPage() {
               )}
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+          {list.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
@@ -145,15 +147,35 @@ export default function HousingPage() {
           ) : renderTable(list, label)}
         </div>
       ))}
-      {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) {
+function HousingFormModal({ initial, students, dormitories, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const dormNames = [...new Set(dormitories.map((d) => d.name).filter(Boolean))];
   if (form.type && !dormNames.includes(form.type)) dormNames.push(form.type);
+  // 宿管人員1/2 下拉選單的選項，取自「宿舍管理」各宿舍設定的宿管1/宿管2
+  // 名單，避免手打造成名字不一致。
+  const managerNames = [...new Set(dormitories.flatMap((d) => [d.manager1, d.manager2]).filter(Boolean))].sort();
+  if (form.contactName && !managerNames.includes(form.contactName)) managerNames.push(form.contactName);
+  if (form.contactName2 && !managerNames.includes(form.contactName2)) managerNames.push(form.contactName2);
+  // 翻譯下拉選單的選項，取自系統使用人員名單。
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
+
+  // 選了宿舍名稱後，自動帶入該宿舍在「宿舍管理」設定的地點/宿管1/宿管2
+  // （只在宿舍本身有填的欄位才覆蓋，不會把已經填好的值清空）。
+  function handleDormChange(name) {
+    const dorm = dormitories.find((d) => d.name === name);
+    setForm({
+      ...form,
+      type: name,
+      address: dorm?.location || form.address,
+      contactName: dorm?.manager1 || form.contactName,
+      contactName2: dorm?.manager2 || form.contactName2,
+    });
+  }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -170,7 +192,7 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
             </label>
             <label>
               宿舍名稱
-              <select value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <select value={form.type || ''} onChange={(e) => handleDormChange(e.target.value)}>
                 <option value="">請選擇</option>
                 {dormNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -200,15 +222,24 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
             </label>
             <label>
               宿舍管理員1
-              <input value={form.contactName || ''} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+              <select value={form.contactName || ''} onChange={(e) => setForm({ ...form, contactName: e.target.value })}>
+                <option value="">（未設定）</option>
+                {managerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
             </label>
             <label>
               宿舍管理員2
-              <input value={form.contactName2 || ''} onChange={(e) => setForm({ ...form, contactName2: e.target.value })} />
+              <select value={form.contactName2 || ''} onChange={(e) => setForm({ ...form, contactName2: e.target.value })}>
+                <option value="">（未設定）</option>
+                {managerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
             </label>
             <label>
               翻譯
-              <input value={form.contactPhone || ''} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
+              <select value={form.contactPhone || ''} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}>
+                <option value="">（未設定）</option>
+                {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             </label>
             <label style={{ gridColumn: 'span 2' }}>
               備註

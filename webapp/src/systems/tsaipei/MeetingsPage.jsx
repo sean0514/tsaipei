@@ -21,6 +21,7 @@ export default function MeetingsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'meetings', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_meetings', { order: ['date', 'desc'] });
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [q, setQ] = useState('');
@@ -97,13 +98,16 @@ export default function MeetingsPage() {
           </div>
         </div>
       )}
-      {editing && <MeetingFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <MeetingFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function MeetingFormModal({ initial, onCancel, onSave }) {
+function MeetingFormModal({ initial, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  // 主持人下拉選單的選項，取自系統使用人員名單；出席人員可能是多人，維持
+  // 自由輸入。
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -113,7 +117,14 @@ function MeetingFormModal({ initial, onCancel, onSave }) {
             {FIELDS.map((f) => (
               <label key={f.key} style={['content', 'actionItems'].includes(f.key) ? { gridColumn: 'span 2' } : undefined}>
                 {f.label}
-                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                {f.key === 'host' ? (
+                  <select value={form.host || ''} onChange={(e) => setForm({ ...form, host: e.target.value })}>
+                    <option value="">（未設定）</option>
+                    {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                )}
               </label>
             ))}
           </div>

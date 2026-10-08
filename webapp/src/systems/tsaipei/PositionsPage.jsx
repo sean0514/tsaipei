@@ -98,6 +98,7 @@ export default function PositionsPage() {
   const canEditPage = computeCanEdit(system, 'positions', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_positions', { order: ['projectCode', 'asc'] });
   const { rows: matches } = useCollection('tsaipei_matches');
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
@@ -220,7 +221,7 @@ export default function PositionsPage() {
         </div>
       )}
 
-      {editing && <PositionFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <PositionFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
@@ -313,10 +314,13 @@ function BenefitsEditor({ benefits, onChange }) {
   );
 }
 
-function PositionFormModal({ initial, onCancel, onSave }) {
+function PositionFormModal({ initial, onCancel, onSave, users }) {
   const [form, setForm] = useState(initial);
   const groups = parseLocationGroups(form.locationGroups);
   const benefits = parseBenefits(form.otherBenefits);
+  // 角色指派下拉選單的選項，取自系統使用人員名單，避免手打造成名字跟
+  // 內部費用建檔對不起來。
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
 
   // 只更新原始內容，不要在這裡就把空白列濾掉——濾掉的話「新增地點」剛加的
   // 空白列會在下一次 render 就消失，使用者根本來不及輸入（回報的「功能無法
@@ -359,7 +363,10 @@ function PositionFormModal({ initial, onCancel, onSave }) {
             {ROLE_FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                  <option value="">（未設定）</option>
+                  {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
               </label>
             ))}
           </div>
