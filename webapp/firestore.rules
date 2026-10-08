@@ -207,9 +207,13 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('applicationForms');
     }
+    // 已核准/已匯款之後，只有系統管理員/主管/會計人員能再改這筆申請（改狀態/
+    // 編輯/刪除），避免核准過的紀錄被其他角色隨便改掉；新增紀錄不受此限制。
     match /tsaipei_dailyExpenseApplications/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('applicationForms');
+      allow create: if tsCanEdit('applicationForms');
+      allow update, delete: if tsCanEdit('applicationForms') &&
+        (!(resource.data.status in ['已核准', '已匯款']) || tsRole() in ['系統管理員', '主管', '會計人員']);
     }
     // 內部獎金計算/客戶費用建檔/內部費用建檔原本共用 'bonus' 權限，依需求
     // 改成每個分頁各自独立。

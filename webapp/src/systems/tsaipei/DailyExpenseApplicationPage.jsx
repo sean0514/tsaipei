@@ -23,6 +23,11 @@ const INVOICE_OPTIONS = ['鈞羽發票', '供應商發票', '無須發票'];
 const TYPES = ['支出', '收入'];
 const DORM_ITEM = '宿舍設備';
 
+// 已核准/已匯款之後，只有主管、會計人員（跟一律放行的系統管理員）能再改
+// 狀態/編輯/刪除，避免已經核准過的申請被其他角色隨便改掉。
+const LOCKED_STATUSES = ['已核准', '已匯款'];
+const LOCKED_EDIT_ROLES = ['系統管理員', '主管', '會計人員'];
+
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
   { key: 'billToCompany', label: '須請款(實習單位)' },
@@ -57,6 +62,7 @@ export default function DailyExpenseApplicationPage() {
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
   const dormName = (id) => dormitories.find((d) => d.id === id)?.name || '';
+  const canModify = (r) => canEditPage && (!LOCKED_STATUSES.includes(r.status) || LOCKED_EDIT_ROLES.includes(role));
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
@@ -131,12 +137,12 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
-                          {STATUSES.filter((s) => s !== status).map((s) => (
+                          {canModify(r) && STATUSES.filter((s) => s !== status).map((s) => (
                             <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
                           ))}
-                          <button onClick={() => setEditing(r)}>編輯</button>
+                          {canModify(r) && <button onClick={() => setEditing(r)}>編輯</button>}
                           <button onClick={() => handleDuplicate(r)}>複製</button>
-                          <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                          {canModify(r) && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
                         </td>
                       )}
                     </tr>
