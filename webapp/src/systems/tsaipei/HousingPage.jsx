@@ -10,7 +10,7 @@ const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'type', label: '宿舍名稱' },
   { key: 'address', label: '地址' }, { key: 'contactName', label: '宿舍管理員1' }, { key: 'contactName2', label: '宿舍管理員2' },
   { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' },
-  { key: 'checkIn', label: '入住日' }, { key: 'checkOut', label: '退宿日' }, { key: 'monthlyRent', label: '每月租金' },
+  { key: 'checkIn', label: '入住日', type: 'date' }, { key: 'checkOut', label: '退宿日', type: 'date' }, { key: 'monthlyRent', label: '每月租金' },
   { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
 ];
 
