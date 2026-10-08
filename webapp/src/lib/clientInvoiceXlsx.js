@@ -15,10 +15,25 @@ function headerRowCells(row, values, startCol = 2) {
   });
 }
 
-// Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/代墊費用鈞羽/代墊
-// 費用供應商)分行列出，不再像以前全部擠成一行「服務費」，方便客戶對帳。
+// 未稅金額(小計)＝辦件費/服務費/宿舍費/宿管費/代墊費用(鈞羽未稅)五項加總，
+// 不含代墊費用(供應商)；含稅金額＝未稅金額(小計)+營業稅5%；請款總金額＝
+// 含稅金額+代墊費用(供應商)，跟 computeClientInvoice 算出的 grandTotal
+// 是同一個數字，只是攤開顯示計算過程，這裡直接從 categoryTotals 重算，
+// 不需要 computeClientInvoice 額外回傳中間值。
+function taxBreakdown(invoice) {
+  const { categoryTotals, tax, grandTotal } = invoice;
+  const untaxedSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee
+    + categoryTotals.dormManageFee + categoryTotals.dailyExpenseJunyu;
+  const taxedTotal = untaxedSubtotal + tax;
+  return { untaxedSubtotal, taxedTotal, supplierExpense: categoryTotals.dailyExpenseSupplier, grandTotal };
+}
+
+// Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/代墊費用鈞羽)分行
+// 列出未稅金額，再列未稅金額(小計)/營業稅5%/含稅金額，最後加上不計稅的
+// 代墊費用(供應商)算出請款總金額，方便客戶對帳跟核對含不含稅。
 function buildSummarySheet(workbook, client, invoice) {
-  const { range, subtotal, tax, grandTotal, periodLabel, taxId, categoryTotals } = invoice;
+  const { range, periodLabel, taxId, categoryTotals } = invoice;
+  const { untaxedSubtotal, taxedTotal, supplierExpense, grandTotal } = taxBreakdown(invoice);
   const yearRoc = range.year - 1911;
   const mm2 = String(range.month).padStart(2, '0');
 
@@ -51,7 +66,6 @@ function buildSummarySheet(workbook, client, invoice) {
     ['宿舍費(未稅)', categoryTotals.dormFee],
     ['宿管費(未稅)', categoryTotals.dormManageFee],
     ['代墊費用(鈞羽未稅)', categoryTotals.dailyExpenseJunyu],
-    ['代墊費用(供應商)', categoryTotals.dailyExpenseSupplier],
   ];
   categoryRows.forEach(([label, value], idx) => {
     const row = sheet.getRow(headerRow + 1 + idx);
@@ -66,9 +80,11 @@ function buildSummarySheet(workbook, client, invoice) {
 
   const summaryStartRow = headerRow + 1 + categoryRows.length;
   const summaryRows = [
-    ['小計', subtotal],
-    ['營業稅5%', tax],
-    ['應付總額', grandTotal],
+    ['未稅金額(小計)', untaxedSubtotal],
+    ['營業稅5%', invoice.tax],
+    ['含稅金額', taxedTotal],
+    ['代墊費用(供應商)', supplierExpense],
+    ['請款總金額', grandTotal],
   ];
   summaryRows.forEach(([label, value], idx) => {
     const row = sheet.getRow(summaryStartRow + idx);
@@ -101,15 +117,42 @@ function buildSummarySheet(workbook, client, invoice) {
 // Sheet2「明細」：學生明細、代墊費用明細分成兩個獨立表格(各自有自己的
 // 小計)，不再混在同一張表裡用「備註」欄硬塞項目名稱。
 function buildDetailSheet(workbook, invoice) {
-  const { range, subtotal, tax, grandTotal, studentRows, expenseRows } = invoice;
+  const { studentRows, expenseRows } = invoice;
+  const { untaxedSubtotal, taxedTotal, supplierExpense, grandTotal } = taxBreakdown(invoice);
   const sheet = workbook.addWorksheet('明細');
   sheet.columns = Array.from({ length: 6 }, () => ({ width: 14 }));
+  sheet.getColumn(14).width = 16;
+  sheet.getColumn(15).width = 12;
 
   let r = 1;
   const titleCell = sheet.getCell(r, 1);
   titleCell.value = '學生明細';
   titleCell.font = { bold: true, size: 12 };
   r += 1;
+
+  // 右側(N/O欄)對齊學生明細表格頭部，放一份跟「請款單」頁簽一樣的未稅
+  // 金額(小計)/營業稅5%/含稅金額/代墊費用(供應商)/請款總金額，方便在明細
+  // 頁簽就能核對總額，不用切回請款單頁簽。
+  const summaryRows = [
+    ['未稅金額(小計)', untaxedSubtotal],
+    ['營業稅5%', invoice.tax],
+    ['含稅金額', taxedTotal],
+    ['代墊費用(供應商)', supplierExpense],
+    ['請款總金額', grandTotal],
+  ];
+  summaryRows.forEach(([label, value], idx) => {
+    const row = sheet.getRow(r + idx);
+    const isGrandTotal = idx === summaryRows.length - 1;
+    const labelCell = row.getCell(14);
+    labelCell.value = label;
+    labelCell.font = { bold: true };
+    if (isGrandTotal) labelCell.fill = TOTAL_FILL;
+    const valueCell = row.getCell(15);
+    valueCell.value = value;
+    valueCell.numFmt = '#,##0';
+    valueCell.font = { bold: true };
+    if (isGrandTotal) valueCell.fill = TOTAL_FILL;
+  });
 
   const studentHeaders = ['編號', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額'];
   headerRowCells(sheet.getRow(r), studentHeaders, 1);
@@ -170,22 +213,6 @@ function buildDetailSheet(workbook, invoice) {
     totalCell.font = { bold: true };
     r += 1;
   }
-
-  r += 2;
-  const summaryRows = [
-    ['當月天數', range.daysInMonth],
-    ['合計', subtotal],
-    ['營業稅', tax],
-    ['發票金額', grandTotal],
-  ];
-  summaryRows.forEach(([label, value]) => {
-    sheet.getCell(r, 5).value = label;
-    sheet.getCell(r, 5).font = { bold: true };
-    const cell = sheet.getCell(r, 6);
-    cell.value = value;
-    cell.numFmt = '#,##0';
-    r += 1;
-  });
 }
 
 export async function downloadClientInvoiceXlsx(client, invoice) {
