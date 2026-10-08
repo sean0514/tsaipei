@@ -5,10 +5,10 @@
 // same "never persisted, always recomputed on render" behavior as the original.
 
 export const BONUS_ROLE_KEYS = [
-  'bizDev', 'serviceSupervisor', 'serviceSpecialist', 'translationSupervisor', 'translationSpecialist',
+  'bizDev', 'overseasRep', 'serviceSupervisor', 'serviceSpecialist', 'translationSupervisor', 'translationSpecialist',
   'adminSupervisor', 'adminSpecialist', 'accountant', 'accountantAssistant', 'dormManager1', 'dormManager2',
 ];
-export const BONUS_ROLE_LABELS = ['開發業務', '服務主管', '服務專員', '翻譯主管', '翻譯專員', '行政主管', '行政專員', '會計人員', '會計助理', '宿管人員1', '宿管人員2'];
+export const BONUS_ROLE_LABELS = ['開發業務', '國外代表', '服務主管', '服務專員', '翻譯主管', '翻譯專員', '行政主管', '行政專員', '會計人員', '會計助理', '宿管人員1', '宿管人員2'];
 
 // 宿管人員1/2 改成依「宿舍管理」設定的宿管1/宿管2計算（見
 // computeDormManagerBonusForMonth），不再跟著學生的實習單位(專案+客戶)走，

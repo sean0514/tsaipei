@@ -41,6 +41,7 @@ const FIELDS = [
 // 跟 lib/bonus.js 的 BONUS_ROLE_KEYS/BONUS_ROLE_LABELS 保持一致。
 export const ROLE_FIELDS = [
   { key: 'bizDev', label: '開發業務' },
+  { key: 'overseasRep', label: '國外代表' },
   { key: 'serviceSupervisor', label: '服務主管' },
   { key: 'serviceSpecialist', label: '服務專員' },
   { key: 'translationSupervisor', label: '翻譯主管' },
