@@ -13,10 +13,16 @@ const FIELDS = [
   { key: 'studentId', label: '學生', type: 'student' },
   { key: 'currency', label: '幣別', type: 'currency' },
   { key: 'amount', label: '金額', type: 'number' },
+  { key: 'foreignRefund1', label: '國外回款1', type: 'number' },
+  { key: 'foreignRefund1Date', label: '國外回款1日期', type: 'date' },
+  { key: 'foreignRefund2', label: '國外回款2', type: 'number' },
+  { key: 'foreignRefund2Date', label: '國外回款2日期', type: 'date' },
+  { key: 'foreignRefund3', label: '國外回款3', type: 'number' },
+  { key: 'foreignRefund3Date', label: '國外回款3日期', type: 'date' },
   { key: 'notes', label: '備註' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'paid', label: '是否已付款' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'paid', label: '是否已付款' }, { key: 'confirmedClosed', label: '結案' }];
 
 export default function ForeignPaymentPage() {
   const { system, role, overrides } = useOutletContext();
@@ -30,7 +36,9 @@ export default function ForeignPaymentPage() {
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
 
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.company || ''} ${studentName(r.studentId)}`.toLowerCase().includes(searchQuery));
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !searchQuery || `${r.company || ''} ${studentName(r.studentId)}`.toLowerCase().includes(searchQuery));
 
   // 依供應商（單位名稱）分類，同一供應商內未付款排前面，方便對帳。
   const byCompany = {};
@@ -73,7 +81,7 @@ export default function ForeignPaymentPage() {
               <div className="card" key={company}>
                 <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {byCompany[company].map((r) => (
                       <tr key={r.id}>
@@ -81,11 +89,15 @@ export default function ForeignPaymentPage() {
                         <td>{studentName(r.studentId) || '—'}</td>
                         <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                         <td>{r.paid === '是' ? '已付款' : '未付款'}</td>
+                        <td>{r.foreignRefund1 ? `${Number(r.foreignRefund1).toLocaleString()}${r.foreignRefund1Date ? `（${r.foreignRefund1Date}）` : ''}` : '—'}</td>
+                        <td>{r.foreignRefund2 ? `${Number(r.foreignRefund2).toLocaleString()}${r.foreignRefund2Date ? `（${r.foreignRefund2Date}）` : ''}` : '—'}</td>
+                        <td>{r.foreignRefund3 ? `${Number(r.foreignRefund3).toLocaleString()}${r.foreignRefund3Date ? `（${r.foreignRefund3Date}）` : ''}` : '—'}</td>
                         <td>{r.notes || '—'}</td>
                         {canEditPage && (
                           <td className="row-actions">
                             <button onClick={() => update(r.id, { paid: r.paid === '是' ? '否' : '是' })}>{r.paid === '是' ? '取消已付款' : '標記已付款'}</button>
                             <button onClick={() => setEditing(r)}>編輯</button>
+                            <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                             <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                           </td>
                         )}
