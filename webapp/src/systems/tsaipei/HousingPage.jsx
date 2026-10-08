@@ -154,6 +154,24 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
   const [form, setForm] = useState(initial);
   const dormNames = [...new Set(dormitories.map((d) => d.name).filter(Boolean))];
   if (form.type && !dormNames.includes(form.type)) dormNames.push(form.type);
+  // 宿管人員1/2 下拉選單的選項，取自「宿舍管理」各宿舍設定的宿管1/宿管2
+  // 名單，避免手打造成名字不一致。
+  const managerNames = [...new Set(dormitories.flatMap((d) => [d.manager1, d.manager2]).filter(Boolean))].sort();
+  if (form.contactName && !managerNames.includes(form.contactName)) managerNames.push(form.contactName);
+  if (form.contactName2 && !managerNames.includes(form.contactName2)) managerNames.push(form.contactName2);
+
+  // 選了宿舍名稱後，自動帶入該宿舍在「宿舍管理」設定的地點/宿管1/宿管2
+  // （只在宿舍本身有填的欄位才覆蓋，不會把已經填好的值清空）。
+  function handleDormChange(name) {
+    const dorm = dormitories.find((d) => d.name === name);
+    setForm({
+      ...form,
+      type: name,
+      address: dorm?.location || form.address,
+      contactName: dorm?.manager1 || form.contactName,
+      contactName2: dorm?.manager2 || form.contactName2,
+    });
+  }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -170,7 +188,7 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
             </label>
             <label>
               宿舍名稱
-              <select value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <select value={form.type || ''} onChange={(e) => handleDormChange(e.target.value)}>
                 <option value="">請選擇</option>
                 {dormNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -200,11 +218,17 @@ function HousingFormModal({ initial, students, dormitories, onCancel, onSave }) 
             </label>
             <label>
               宿舍管理員1
-              <input value={form.contactName || ''} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+              <select value={form.contactName || ''} onChange={(e) => setForm({ ...form, contactName: e.target.value })}>
+                <option value="">（未設定）</option>
+                {managerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
             </label>
             <label>
               宿舍管理員2
-              <input value={form.contactName2 || ''} onChange={(e) => setForm({ ...form, contactName2: e.target.value })} />
+              <select value={form.contactName2 || ''} onChange={(e) => setForm({ ...form, contactName2: e.target.value })}>
+                <option value="">（未設定）</option>
+                {managerNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
             </label>
             <label>
               翻譯
