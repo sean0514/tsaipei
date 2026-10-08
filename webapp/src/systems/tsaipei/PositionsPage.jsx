@@ -10,10 +10,17 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 // 新增職缺後自動在「客戶費用建檔」帶入一筆空白費率（只填專案編號＋客戶），
 // 使用者再補上金額即可，不用手動按「從實習單位複製帶入」。同一個專案編號
-// 已經有費率設定就不重複帶入。
+// +客戶已經有費率設定就不重複帶入——原本只用專案編號查詢，同一個專案編號
+// 底下如果有好幾個不同客戶（例如同一家公司不同分店，專案編號相同、客戶
+// 名稱不同），只要其中一個客戶已經有費率設定，其他客戶就會被誤判為「已經
+// 有了」而漏掉，沒有自動帶入空白費率，必須改成同時比對專案編號+客戶。
 async function ensureClientFeeSetup(projectCode, client) {
   if (!projectCode || !client) return;
-  const snap = await getDocs(query(collection(db, 'tsaipei_clientFeeSetup'), where('projectCode', '==', projectCode)));
+  const snap = await getDocs(query(
+    collection(db, 'tsaipei_clientFeeSetup'),
+    where('projectCode', '==', projectCode),
+    where('client', '==', client),
+  ));
   if (!snap.empty) return;
   await addDoc(collection(db, 'tsaipei_clientFeeSetup'), { projectCode, client });
 }
