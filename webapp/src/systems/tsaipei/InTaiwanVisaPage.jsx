@@ -13,6 +13,27 @@ async function existsForStudent(collectionName, studentId) {
   return !snap.empty;
 }
 
+// 學生第一次入境後固定要收的三筆費用，自動帶入日常支出申請待審核清單，
+// 不用每次手動新增。依項目名稱比對是否已經存在來避免每次存檔都重複建立。
+const FIRST_ENTRY_EXPENSE_ITEMS = [
+  { item: '寢具費用', amount: 480 },
+  { item: '鑰匙費用', amount: 300 },
+  { item: '體檢費用', amount: 300 },
+];
+
+async function ensureFirstEntryExpenses(studentId, firstEntryDate) {
+  if (!studentId || !firstEntryDate) return;
+  const snap = await getDocs(query(collection(db, 'tsaipei_dailyExpenseApplications'), where('studentId', '==', studentId)));
+  const existingItems = new Set(snap.docs.map((d) => d.data().item));
+  for (const { item, amount } of FIRST_ENTRY_EXPENSE_ITEMS) {
+    if (existingItems.has(item)) continue;
+    // eslint-disable-next-line no-await-in-loop
+    await addDoc(collection(db, 'tsaipei_dailyExpenseApplications'), {
+      studentId, item, amount, type: '收入', status: '待審核', date: firstEntryDate, currency: '台幣',
+    });
+  }
+}
+
 // Ported from addInTaiwanVisa/updateInTaiwanVisa/syncStudentDatesFromVisa_ in
 // apps-script/Code.gs: every save also makes sure the student has an
 // InTaiwanCare and HousingRecords row, and pushes the entry/exit dates back
@@ -24,6 +45,9 @@ async function afterVisaSave(studentId, row) {
   }
   if (!(await hasActiveHousingRecord(studentId))) {
     await addDoc(collection(db, 'tsaipei_housingRecords'), { studentId });
+  }
+  if (row.firstEntryDate) {
+    await ensureFirstEntryExpenses(studentId, row.firstEntryDate);
   }
   await updateDoc(doc(db, 'tsaipei_students', studentId), {
     firstEntryDate: row.firstEntryDate || '',
@@ -135,7 +159,7 @@ export default function InTaiwanVisaPage() {
       <div className="page-header">
         <div>
           <h2>在台簽證追蹤</h2>
-          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次入台時間後會自動在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
