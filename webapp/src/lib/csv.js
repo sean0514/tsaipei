@@ -76,13 +76,38 @@ export async function decodeCsvFile(file, fields) {
   return utf8Text;
 }
 
+// 「下載完整資料」匯出的日期欄位是 YYYY-MM-DD 純文字，但使用者常常是拿去
+// Excel/試算表編輯過再存回 CSV——Excel 看到像日期的字串會自動重新格式化
+// 成 2026/6/15、6/15/2026 甚至儲存格格式=通用時的序列數字（從 1899-12-30
+// 起算的天數），這些值塞進 <input type="date"> 都會被當成無效值變成空白，
+// 在編輯視窗裡看起來就是「日期跑掉了」。這裡在匯入時把常見格式都正規化
+// 回 YYYY-MM-DD，認不出來的格式才原樣保留（維持匯入前的行為）。
+function normalizeDateCell(raw) {
+  const v = (raw || '').trim();
+  if (!v || /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  if (/^\d+$/.test(v)) {
+    const serial = Number(v);
+    if (serial > 20000 && serial < 60000) {
+      const epoch = Date.UTC(1899, 11, 30);
+      return new Date(epoch + serial * 86400000).toISOString().slice(0, 10);
+    }
+    return v;
+  }
+  let m = v.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  return v;
+}
+
 // Returns { imported, skipped } or { error }.
 export function parseImportRows(text, fields, requiredKeys = []) {
   const rows = parseCSV(text);
   if (rows.length < 2) return { error: '檔案沒有可匯入的資料列。' };
   const header = rows[0].map((h) => h.trim());
   const labelToKey = {};
-  fields.forEach((f) => { labelToKey[f.label] = f.key; });
+  const dateKeys = new Set();
+  fields.forEach((f) => { labelToKey[f.label] = f.key; if (f.type === 'date') dateKeys.add(f.key); });
   const imported = [];
   let skipped = 0;
   rows.slice(1).forEach((r) => {
@@ -90,7 +115,9 @@ export function parseImportRows(text, fields, requiredKeys = []) {
     const obj = {};
     header.forEach((h, idx) => {
       const key = labelToKey[h];
-      if (key) obj[key] = r[idx] !== undefined ? r[idx] : '';
+      if (!key) return;
+      const cell = r[idx] !== undefined ? r[idx] : '';
+      obj[key] = dateKeys.has(key) ? normalizeDateCell(cell) : cell;
     });
     const valid = requiredKeys.every((k) => (obj[k] || '').trim());
     if (!valid) { skipped++; return; }
