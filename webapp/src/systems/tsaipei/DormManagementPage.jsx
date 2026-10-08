@@ -58,6 +58,7 @@ export default function DormManagementPage() {
   const { rows: utilities, add: addUtility, update: updateUtility } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
+  const { rows: users } = useCollection('tsaipei_users');
   const [editing, setEditing] = useState(null);
   const [utilEditing, setUtilEditing] = useState(null);
   const [viewingDorm, setViewingDorm] = useState(null);
@@ -161,7 +162,7 @@ export default function DormManagementPage() {
           </table></div>
         )}
       </div>
-      {editing && <DormFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DormFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
       {utilEditing && (
         <OtherFeesFormModal
           month={month}
@@ -204,8 +205,13 @@ function ResidentsModal({ dorm, residents, studentName, onClose }) {
   );
 }
 
-function DormFormModal({ initial, onCancel, onSave }) {
+const MANAGER_FIELD_KEYS = ['manager1', 'manager2'];
+
+function DormFormModal({ initial, users, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  // 宿管1/宿管2下拉選單的選項，取自系統使用人員名單，避免手打造成名字
+  // 跟內部獎金計算對不起來。
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -218,6 +224,11 @@ function DormFormModal({ initial, onCancel, onSave }) {
                 {f.options ? (
                   <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
+                  </select>
+                ) : MANAGER_FIELD_KEYS.includes(f.key) ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    <option value="">（未設定）</option>
+                    {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : (
                   <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
