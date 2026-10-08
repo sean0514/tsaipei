@@ -42,7 +42,7 @@ const FIELDS = [
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'type', label: '類型' }, ...FIELDS, { key: 'dormId', label: '宿舍ID' },
-  { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' },
+  { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' },
 ];
 
 export default function DailyExpenseApplicationPage() {
@@ -71,6 +71,7 @@ export default function DailyExpenseApplicationPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows
+    .filter((r) => !r.confirmedClosed)
     .filter((r) => typeFilter === '全部' || (r.type || '支出') === typeFilter)
     .filter((r) => !searchQuery || `${r.applicant || ''} ${r.item || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
@@ -97,7 +98,7 @@ export default function DailyExpenseApplicationPage() {
       <div className="page-header">
         <div>
           <h2>日常支出申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准／已匯款的申請可以按「結案」歸檔，結案後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -141,7 +142,11 @@ export default function DailyExpenseApplicationPage() {
                             <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
                           ))}
                           {canModify(r) && <button onClick={() => setEditing(r)}>編輯</button>}
-                          <button onClick={() => handleDuplicate(r)}>複製</button>
+                          {LOCKED_STATUSES.includes(status) ? (
+                            canModify(r) && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                          ) : (
+                            <button onClick={() => handleDuplicate(r)}>複製</button>
+                          )}
                           {canModify(r) && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
                         </td>
                       )}
