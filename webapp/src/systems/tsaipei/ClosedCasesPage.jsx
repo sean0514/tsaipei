@@ -12,9 +12,10 @@ function studentFullLabel(s) {
 }
 
 // 彙整各分頁按下「結案」後被隱藏的紀錄，依來源分頁分類，並提供「復原」
-// 按鈕把 confirmedClosed 改回 false，讓那筆紀錄回到原本分頁的清單裡。只涵蓋
-// 目前還沒有自己一套結案/完成機制的分頁（實習單位/住宿安排/在台簽證追蹤/
-// 在台關懷紀錄/開戶進度追蹤都已經有各自的機制，不重複加這個按鈕）。
+// 按鈕把 confirmedClosed 改回 false，讓那筆紀錄回到原本分頁的清單裡（方便
+// 隨時救回按錯或需要改回來的結案紀錄）。只涵蓋目前還沒有自己一套結案/
+// 完成機制的分頁（實習單位/住宿安排/在台簽證追蹤/在台關懷紀錄/開戶進度
+// 追蹤都已經有各自的機制，不重複加這個按鈕）。
 export default function ClosedCasesPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'closedCases', role, overrides);
@@ -24,9 +25,10 @@ export default function ClosedCasesPage() {
   const { rows: admittedList, loading: l4 } = useCollection('tsaipei_admittedList');
   const { rows: applicationProgress, loading: l5 } = useCollection('tsaipei_applicationProgress');
   const { rows: dormitories, loading: l6 } = useCollection('tsaipei_dormitories');
+  const { rows: dailyExpenseApplications, loading: l7 } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [q, setQ] = useState('');
-  const loading = l1 || l2 || l3 || l4 || l5 || l6;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
 
   function studentName(id) {
     return studentFullLabel(students.find((x) => x.id === id));
@@ -61,6 +63,10 @@ export default function ClosedCasesPage() {
     })),
     ...dormitories.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'tsaipei_dormitories', sourceLabel: '宿舍管理', name: r.name || '(未設定)',
+    })),
+    ...dailyExpenseApplications.filter((r) => r.confirmedClosed).map((r) => ({
+      id: r.id, collectionName: 'tsaipei_dailyExpenseApplications', sourceLabel: '日常支出申請',
+      name: `${r.applicant || studentName(r.studentId) || '(未填申請人)'} · ${r.item || '(未填項目)'}${r.amount ? ` · ${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : ''}`,
     })),
   ];
 
