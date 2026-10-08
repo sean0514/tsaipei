@@ -280,13 +280,12 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     const dailyExpenseSupplier = dailyExpenseCharges[key]?.supplierTotal || 0;
     amounts.dailyExpenseChargeJunyu = dailyExpenseJunyu;
     amounts.dailyExpenseChargeSupplier = dailyExpenseSupplier;
-    // 辦件費是含稅金額，不用再加稅；服務費/宿舍費/宿管費是未稅金額，稅金算
-    // 這三項加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。
-    // 合計＝辦件費(含稅) + 服務費/宿舍費/宿管費/代墊費用(鈞羽未稅) + 稅金 +
-    // 代墊費用(供應商)。
-    const taxableAmount = amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dailyExpenseJunyu;
+    // 辦件費/服務費/宿舍費/宿管費都是未稅金額，稅金算這四項加上「代墊費用
+    // (鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。合計＝辦件費/服務費/
+    // 宿舍費/宿管費/代墊費用(鈞羽未稅) + 稅金 + 代墊費用(供應商)。
+    const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
-    const total = amounts.monthlyProcessingFee + taxableAmount + tax + dailyExpenseSupplier;
+    const total = taxableAmount + tax + dailyExpenseSupplier;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }

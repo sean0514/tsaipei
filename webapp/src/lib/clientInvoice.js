@@ -143,12 +143,12 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     dailyExpenseSupplier: expenseRows.filter((r) => !r.taxable).reduce((sum, r) => sum + r.total, 0),
   };
 
-  // 辦件費是含稅金額，不再加稅；服務費/宿管費/宿舍費、開鈞羽發票的代墊費用
-  // 是未稅金額，稅金只算這些的 5%。小計(subtotal)維持含辦件費的總額，請款
-  // 總額＝小計＋稅金。
+  // 辦件費/服務費/宿管費/宿舍費、開鈞羽發票的代墊費用都是未稅金額，稅金算
+  // 這些的 5%；代墊費用(供應商發票/無須發票)不計稅。小計(subtotal)是所有
+  // 項目的未稅總額，請款總額＝小計＋稅金。
   const rows = [...studentRows, ...expenseRows];
   const subtotal = rows.reduce((sum, r) => sum + r.total, 0);
-  const taxableSubtotal = categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dailyExpenseJunyu;
+  const taxableSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dailyExpenseJunyu;
   const tax = Math.round(taxableSubtotal * 0.05);
   const grandTotal = subtotal + tax;
 
