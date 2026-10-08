@@ -79,13 +79,23 @@ export default function HousingPage() {
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
   }
 
+  // 既有紀錄裡原本就沒有的欄位（例如舊資料沒有 contactName2），使用者沒
+  // 碰過那個欄位的話，表單狀態裡該欄位值會是 undefined——Firestore
+  // updateDoc()/addDoc() 不接受 undefined 欄位值會直接丟例外，所以存檔前
+  // 統一把 undefined 換成空字串。
+  function sanitize(data) {
+    const out = {};
+    Object.entries(data).forEach(([k, v]) => { out[k] = v === undefined ? '' : v; });
+    return out;
+  }
+
   async function handleSave(data) {
     try {
       if (data.id) {
         const { id, ...rest } = data;
-        await update(id, rest);
+        await update(id, sanitize(rest));
       } else {
-        await add(data);
+        await add(sanitize(data));
       }
       setEditing(null);
     } catch (err) {
