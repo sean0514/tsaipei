@@ -193,6 +193,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('studentBilling');
     }
+    // 客戶請款計算：確認封存的請款紀錄快照(每個客戶/專案/月份一筆)，封存
+    // 後畫面跟下載請款單都改用這份固定資料，不再即時重算。
+    match /tsaipei_clientBillingLocks/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('clientBilling');
+    }
     match /tsaipei_meetings/{docId} {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('meetings');
