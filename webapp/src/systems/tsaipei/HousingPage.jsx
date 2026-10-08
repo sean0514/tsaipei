@@ -80,13 +80,17 @@ export default function HousingPage() {
   }
 
   async function handleSave(data) {
-    if (data.id) {
-      const { id, ...rest } = data;
-      await update(id, rest);
-    } else {
-      await add(data);
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+      } else {
+        await add(data);
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
     }
-    setEditing(null);
   }
 
   function renderTable(list, label) {
