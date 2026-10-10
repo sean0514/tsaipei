@@ -8,17 +8,18 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
-// 學生尚未安排：純彙整頁面，不用手動維護——只要這個學生在「媒合紀錄」裡
-// 完全沒有任何一筆紀錄，就自動列進這裡；一旦業務在媒合紀錄頁面幫他配對
-// 職缺，就會自動從這個清單消失。已結案的學生不計入（跟其他分頁同一套
-// confirmedClosed 慣例）。
+// 學生尚未安排：純彙整頁面，不用手動維護——學生建檔存檔時系統會自動在
+// 「媒合紀錄」建立一筆 positionId 空白的佔位紀錄(狀態「媒合中」)，所以不能
+// 用「完全沒有媒合紀錄」判斷，要用「所有媒合紀錄都還沒填實際職缺(positionId)」
+// 才算尚未安排；一旦業務在媒合紀錄頁面幫他配對職缺，就會自動從這個清單消失。
+// 已結案的學生不計入（跟其他分頁同一套 confirmedClosed 慣例）。
 export default function UnmatchedStudentsPage() {
   useOutletContext();
   const { rows: students, loading } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const [q, setQ] = useState('');
 
-  const matchedStudentIds = new Set(matches.map((m) => m.studentId).filter(Boolean));
+  const matchedStudentIds = new Set(matches.filter((m) => m.positionId).map((m) => m.studentId));
   const unmatched = students.filter((s) => !s.confirmedClosed && !matchedStudentIds.has(s.id));
 
   const searchQuery = q.trim().toLowerCase();
@@ -42,7 +43,7 @@ export default function UnmatchedStudentsPage() {
       <div className="page-header">
         <div>
           <h2>學生尚未安排</h2>
-          <div className="page-desc">自動列出目前在「媒合紀錄」裡完全沒有任何一筆紀錄的學生；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護</div>
+          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護</div>
         </div>
         <div className="row-actions">
           <button onClick={handleDownload}>下載名單</button>
