@@ -27,6 +27,7 @@ import PositionBenefitsPage from './systems/tsaipei/PositionBenefitsPage';
 import MeetingsPage from './systems/tsaipei/MeetingsPage';
 import ClosedCasesPage from './systems/tsaipei/ClosedCasesPage';
 import DashboardPage from './systems/tsaipei/DashboardPage';
+import UnmatchedStudentsPage from './systems/tsaipei/UnmatchedStudentsPage';
 import BonusPage from './systems/tsaipei/BonusPage';
 import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
 import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
@@ -106,6 +107,7 @@ function RequireAuth({ children }) {
 const PAGES = {
   tsaipei: {
     dashboard: DashboardPage,
+    unmatchedStudents: UnmatchedStudentsPage,
     students: StudentsPage,
     positions: PositionsPage,
     matches: MatchesPage,

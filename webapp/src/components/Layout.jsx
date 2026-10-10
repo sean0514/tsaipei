@@ -10,7 +10,7 @@ import { companyKeyForSystem } from '../lib/companies';
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
 export const IMPLEMENTED_MODULES = {
   tsaipei: [
-    'dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
+    'dashboard', 'unmatchedStudents', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'housing',
     'dormManagement', 'customerServicePending', 'adminPending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling', 'studentBilling', 'dormProfitLoss',
     'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee',

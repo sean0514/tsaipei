@@ -5,6 +5,7 @@
 export const NAV_ICONS = {
   tsaipei: {
     dashboard: '◆',
+    unmatchedStudents: '⚑',
     students: '◇',
     positions: '⌘',
     matches: '⇄',

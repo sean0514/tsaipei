@@ -17,6 +17,7 @@ export const SYSTEMS = {
     // GROUP_SECTIONS（純視覺分組，見 Layout.jsx）顯示，不影響這裡的權限粒度。
     modules: {
       dashboard: '儀表板',
+      unmatchedStudents: '學生尚未安排',
       students: '學生資料',
       positions: '實習單位',
       matches: '媒合紀錄',
@@ -51,6 +52,7 @@ export const SYSTEMS = {
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'view', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },
+      unmatchedStudents: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'none', 國外供應: 'view', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       students: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'view', 行政人員: 'edit', 會計人員: 'view', 宿管人員: 'view' },
       positions: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'view', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       matches: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'view', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
