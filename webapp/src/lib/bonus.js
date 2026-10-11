@@ -143,7 +143,10 @@ export function computeDormManagerBonusForMonth(monthStr, ctx) {
       let manager2Amount = 0;
       let totalResidentDays = 0;
       (housingRecords || []).forEach((h) => {
-        if (h.type !== d.name || h.completed) return;
+        // h.completed 只是「住宿安排」頁面把已離宿的紀錄從作業清單隱藏掉的
+        // 歸檔標記，不代表這筆住宿財務上沒發生過，不能排除，否則舊紀錄一被
+        // 標記完成，宿管獎金就會從已經發生過的月份裡憑空消失。
+        if (h.type !== d.name) return;
         const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
         if (days <= 0) return;
         totalResidentDays += days;
@@ -352,7 +355,10 @@ export function computeDormProfitLossForYear(year, ctx) {
       let housingIncome = 0;
       let dormManageFeeIncome = 0;
       (housingRecords || []).forEach((h) => {
-        if (h.type !== d.name || h.completed) return;
+        // h.completed 只是「住宿安排」頁面把已離宿的紀錄從作業清單隱藏掉的
+        // 歸檔標記，不代表這筆住宿財務上沒發生過，不能排除，否則舊紀錄一被
+        // 標記完成，住宿費/宿管費收入就會從已經發生過的月份裡憑空消失。
+        if (h.type !== d.name) return;
         const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
         if (days <= 0) return;
         if (h.payer === '廠商代付') {
