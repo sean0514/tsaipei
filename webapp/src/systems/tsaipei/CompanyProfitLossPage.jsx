@@ -7,7 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth,
   computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
-  NOT_BILLABLE, currentYear,
+  currentYear,
 } from '../../lib/bonus';
 import { exportEntityCSV } from '../../lib/csv';
 
@@ -20,13 +20,16 @@ const DORM_EQUIPMENT_ITEM = '宿舍設備';
 const DEFAULT_EXPENSE_ITEM_LABELS = ['內部人員薪資', '內部人員保費'];
 
 const LINE_ITEMS = [
-  { key: 'serviceIncome', label: '服務費收入(辦件費+服務費+代墊費用鈞羽未稅)' },
+  { key: 'serviceIncome', label: '服務費收入(辦件費+服務費)' },
+  { key: 'dailyExpenseReimbursementIncome', label: '代墊費用收入(日常支出申請已請款客戶部分，鈞羽+供應商)' },
+  { key: 'taxIncome', label: '營業稅收入(5%，向客戶收取)' },
   { key: 'dormIncome', label: '宿舍收入(住宿費+宿管費+宿舍設備)' },
   { key: 'otherIncome', label: '其他收入(日常支出申請-收入類)' },
   { key: 'customIncomeTotal', label: '自訂收入項目合計(明細見下方)' },
   { key: 'income', label: '收入合計', bold: true },
+  { key: 'otherExpense', label: '其他支出(日常支出申請-支出類，含已請款客戶部分的實際花費)' },
   { key: 'dormCost', label: '宿舍成本(租金/房仲費/押金損失/水電瓦斯)' },
-  { key: 'otherExpense', label: '其他支出(日常支出申請-支出類)' },
+  { key: 'taxExpense', label: '營業稅支出(5%，繳納政府)' },
   { key: 'foreignPaymentExpense', label: '國外付款支出' },
   { key: 'projectBonusExpense', label: '內部獎金支出(專案角色)' },
   { key: 'dormManagerBonusExpense', label: '宿管獎金支出' },
@@ -134,15 +137,17 @@ function CustomItemsTable({ items, amounts, year, canEditPage, onChangeAmount, o
   );
 }
 
-// 日常支出申請裡已經併入「服務費收入」(須請款且已開立發票) 或「宿舍收入/
-// 成本」(項目=宿舍設備) 的紀錄，這裡不能再算一次，避免重複計算；只抓公司
-// 自行吸收（未請款客戶）、也不是宿舍設備的其他收入/支出項目。
+// 日常支出申請：項目=宿舍設備的已經併入「宿舍收入/成本」(沿用宿舍損益頁面
+// 算法)，這裡不再算一次。其餘的不分是否須請款客戶都算進來——「收入」類
+// 一律是公司自己收到的錢(須請款的客戶請款計算完全不會算到收入類)；「支出」
+// 類是公司實際花出去的錢，即使最後跟客戶請款收回來也是真的花了這筆錢，
+// 請款收回來的部分另外算進「代墊費用收入」，不能因為會收回來就不算支出，
+// 否則這筆錢會整個從損益表中消失。
 function otherDailyExpenseTotals(monthStr, dailyExpenseApplications) {
   let otherIncome = 0;
   let otherExpense = 0;
   (dailyExpenseApplications || []).forEach((app) => {
     if (app.item === DORM_EQUIPMENT_ITEM) return;
-    if (app.billToCompany && app.billToCompany !== NOT_BILLABLE) return;
     if (!DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status)) return;
     if ((app.date || '').slice(0, 7) !== monthStr) return;
     const amount = Number(app.amount) || 0;
@@ -190,13 +195,17 @@ function sumLineItems(monthly) {
   return total;
 }
 
-// 公司損益：收入＝服務費收入(辦件費/服務費/代墊費用鈞羽未稅，不含稅、不含
-// 代墊費用供應商部分，因為那只是代收代付沒有利潤)＋宿舍損益收入(沿用宿舍
-// 損益頁面同一套計算，含學生自付與廠商代付)＋日常支出申請其他收入＋自訂
-// 收入項目；支出＝宿舍損益成本＋日常支出申請其他支出＋國外付款支出＋內部
-// 獎金支出(專案角色＋宿管獎金)＋自訂支出項目(內部人員薪資/保費等，使用者
-// 自行填每月金額)；損益＝收入－支出。避免跟宿舍損益、客戶請款計算重複計算
-// 同一筆錢，只在其中一個地方認列。
+// 公司損益：收入＝服務費收入(辦件費/服務費)＋代墊費用收入(日常支出申請裡
+// 已請款客戶的鈞羽/供應商發票部分，公司向客戶收回來的錢)＋營業稅收入(5%，
+// 向客戶收取)＋宿舍損益收入(沿用宿舍損益頁面同一套計算，含學生自付與廠商
+// 代付)＋日常支出申請其他收入＋自訂收入項目；支出＝日常支出申請其他支出
+// (不分是否已請款客戶，公司實際花出去的錢都算，請款收回來的部分已經在
+// 代墊費用收入裡另外算了，不會互相抵銷到看不見)＋宿舍損益成本＋營業稈支出
+// (5%，繳納政府，跟營業稈收入金額一樣，對損益沒有淨影響但兩邊都列出來)
+// ＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%)
+// ＋自訂支出項目(內部人員薪資/保費等，使用者自行填每月金額)；損益＝收入－
+// 支出。避免跟宿舍損益、客戶請款計算重複計算同一筆錢，只在其中一個地方
+// 認列。
 export default function CompanyProfitLossPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'companyProfitLoss', role, overrides);
@@ -248,7 +257,13 @@ export default function CompanyProfitLossPage() {
     const m = i + 1;
     const monthStr = monthStrOf(year, m);
     const clientRows = computeClientBillingForMonth(monthStr, ctx);
-    const serviceIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyProcessingFee + r.amounts.monthlyServiceFee + r.amounts.dailyExpenseChargeJunyu, 0);
+    const serviceIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyProcessingFee + r.amounts.monthlyServiceFee, 0);
+    const dailyExpenseReimbursementIncome = clientRows.reduce((sum, r) => sum + r.amounts.dailyExpenseChargeJunyu + r.amounts.dailyExpenseChargeSupplier, 0);
+    // 客戶請款計算的 5% 稈金是算在辦件費/服務費/宿舍費/宿管費/代墊費用(鈞羽)
+    // 這整筆未稅金額上，不只是服務費部分，所以不能只拆服務費那一塊；這裡
+    // 把整筆稈金同時算成收入(跟客戶收到的錢)跟支出(要繳給政府的錢)，兩邊
+    // 金額一樣所以對損益沒有淨影響，但兩邊都要列出來才完整。
+    const taxTotal = clientRows.reduce((sum, r) => sum + r.tax, 0);
     const dormPnl = dormMonthly[i] || {};
     const dormIncome = dormPnl.income || 0;
     const dormCost = dormPnl.cost || 0;
@@ -259,11 +274,11 @@ export default function CompanyProfitLossPage() {
     const dormManagerBonusExpense = dormManagerBonusExpenseForMonth(monthStr, ctx);
     const customIncomeTotal = customItemTotalForMonth(customIncomeItems, customAmounts, monthStr);
     const customExpenseTotal = customItemTotalForMonth(customExpenseItems, customAmounts, monthStr);
-    const income = serviceIncome + dormIncome + otherIncome + customIncomeTotal;
-    const cost = dormCost + otherExpense + foreignPaymentExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
+    const income = serviceIncome + dailyExpenseReimbursementIncome + taxTotal + dormIncome + otherIncome + customIncomeTotal;
+    const cost = otherExpense + dormCost + taxTotal + foreignPaymentExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
     return {
-      month: m, serviceIncome, dormIncome, otherIncome, customIncomeTotal, income,
-      dormCost, otherExpense, foreignPaymentExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
+      month: m, serviceIncome, dailyExpenseReimbursementIncome, taxIncome: taxTotal, dormIncome, otherIncome, customIncomeTotal, income,
+      otherExpense, dormCost, taxExpense: taxTotal, foreignPaymentExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
       profit: income - cost,
     };
   });
@@ -316,7 +331,7 @@ export default function CompanyProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>公司損益</h2>
-          <div className="page-desc">收入＝服務費收入(辦件費/服務費/代墊費用鈞羽未稅)＋宿舍收入(沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類，未請款客戶的部分)＋自訂收入項目；支出＝宿舍成本(沿用宿舍損益頁面計算)＋其他支出(日常支出申請-支出類，未請款客戶的部分)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(沿用宿舍損益頁面的分紅＝利潤×20%)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算。</div>
+          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
