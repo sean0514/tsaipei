@@ -30,6 +30,7 @@ const LINE_ITEMS = [
   { key: 'foreignPaymentExpense', label: '國外付款支出' },
   { key: 'projectBonusExpense', label: '內部獎金支出(專案角色)' },
   { key: 'dormManagerBonusExpense', label: '宿管獎金支出' },
+  { key: 'dormProfitBonusExpense', label: '宿舍分紅(利潤×20%)' },
   { key: 'customExpenseTotal', label: '自訂支出項目合計(含內部人員薪資/保費，明細見下方)' },
   { key: 'cost', label: '支出合計', bold: true },
   { key: 'profit', label: '損益', bold: true, signed: true },
@@ -251,6 +252,7 @@ export default function CompanyProfitLossPage() {
     const dormPnl = dormMonthly[i] || {};
     const dormIncome = dormPnl.income || 0;
     const dormCost = dormPnl.cost || 0;
+    const dormProfitBonusExpense = dormPnl.bonus || 0;
     const { otherIncome, otherExpense } = otherDailyExpenseTotals(monthStr, dailyExpenseApplications);
     const foreignPaymentExpense = foreignPaymentExpenseForMonth(monthStr, foreignPayments);
     const projectBonusExpense = projectBonusExpenseForMonth(monthStr, ctx);
@@ -258,10 +260,10 @@ export default function CompanyProfitLossPage() {
     const customIncomeTotal = customItemTotalForMonth(customIncomeItems, customAmounts, monthStr);
     const customExpenseTotal = customItemTotalForMonth(customExpenseItems, customAmounts, monthStr);
     const income = serviceIncome + dormIncome + otherIncome + customIncomeTotal;
-    const cost = dormCost + otherExpense + foreignPaymentExpense + projectBonusExpense + dormManagerBonusExpense + customExpenseTotal;
+    const cost = dormCost + otherExpense + foreignPaymentExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
     return {
       month: m, serviceIncome, dormIncome, otherIncome, customIncomeTotal, income,
-      dormCost, otherExpense, foreignPaymentExpense, projectBonusExpense, dormManagerBonusExpense, customExpenseTotal, cost,
+      dormCost, otherExpense, foreignPaymentExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
       profit: income - cost,
     };
   });
@@ -314,7 +316,7 @@ export default function CompanyProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>公司損益</h2>
-          <div className="page-desc">收入＝服務費收入(辦件費/服務費/代墊費用鈞羽未稅)＋宿舍收入(沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類，未請款客戶的部分)＋自訂收入項目；支出＝宿舍成本(沿用宿舍損益頁面計算)＋其他支出(日常支出申請-支出類，未請款客戶的部分)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算。</div>
+          <div className="page-desc">收入＝服務費收入(辦件費/服務費/代墊費用鈞羽未稅)＋宿舍收入(沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類，未請款客戶的部分)＋自訂收入項目；支出＝宿舍成本(沿用宿舍損益頁面計算)＋其他支出(日常支出申請-支出類，未請款客戶的部分)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(沿用宿舍損益頁面的分紅＝利潤×20%)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算。</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
