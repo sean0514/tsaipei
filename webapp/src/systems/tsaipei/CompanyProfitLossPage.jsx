@@ -7,7 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth,
   computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
-  currentYear,
+  monthRange, dateOverlapDays, currentYear,
 } from '../../lib/bonus';
 import { exportEntityCSV } from '../../lib/csv';
 
@@ -23,7 +23,7 @@ const LINE_ITEMS = [
   { key: 'serviceIncome', label: '服務費收入(辦件費+服務費)' },
   { key: 'dailyExpenseReimbursementIncome', label: '代墊費用收入(日常支出申請已請款客戶部分，鈞羽+供應商)' },
   { key: 'taxIncome', label: '營業稅收入(5%，向客戶收取)' },
-  { key: 'dormIncome', label: '宿舍收入(住宿費+宿管費+宿舍設備)' },
+  { key: 'dormIncome', label: '宿舍收入(廠商代付宿舍費/宿管費+學生自付房租+宿舍設備)' },
   { key: 'otherIncome', label: '其他收入(日常支出申請-收入類)' },
   { key: 'customIncomeTotal', label: '自訂收入項目合計(明細見下方)' },
   { key: 'income', label: '收入合計', bold: true },
@@ -182,6 +182,21 @@ function dormManagerBonusExpenseForMonth(monthStr, ctx) {
     .reduce((sum, r) => sum + (r.manager1Amount || 0) + (r.manager2Amount || 0), 0);
 }
 
+// 學生自付房租：客戶請款計算完全不會算到這筆錢(不是跟客戶收的)，只能從
+// 住宿紀錄抓。這裡不比對特定宿舍(不像宿舍損益要歸屬到某一間宿舍算宿管
+// 分紅)，只要是「學生自付」的住宿紀錄、這個月有住，金額就算進公司收入。
+function selfPayDormIncomeForMonth(monthStr, housingRecords) {
+  const range = monthRange(monthStr);
+  let income = 0;
+  (housingRecords || []).forEach((h) => {
+    if (h.payer === '廠商代付') return;
+    const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
+    if (days <= 0) return;
+    income += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+  });
+  return income;
+}
+
 function customItemTotalForMonth(items, amounts, monthStr) {
   return items.reduce((sum, item) => {
     const amt = Number(amounts.find((a) => a.itemId === item.id && a.month === monthStr)?.amount) || 0;
@@ -197,15 +212,18 @@ function sumLineItems(monthly) {
 
 // 公司損益：收入＝服務費收入(辦件費/服務費)＋代墊費用收入(日常支出申請裡
 // 已請款客戶的鈞羽/供應商發票部分，公司向客戶收回來的錢)＋營業稅收入(5%，
-// 向客戶收取)＋宿舍損益收入(沿用宿舍損益頁面同一套計算，含學生自付與廠商
-// 代付)＋日常支出申請其他收入＋自訂收入項目；支出＝日常支出申請其他支出
-// (不分是否已請款客戶，公司實際花出去的錢都算，請款收回來的部分已經在
-// 代墊費用收入裡另外算了，不會互相抵銷到看不見)＋宿舍損益成本＋營業稈支出
-// (5%，繳納政府，跟營業稈收入金額一樣，對損益沒有淨影響但兩邊都列出來)
-// ＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%)
-// ＋自訂支出項目(內部人員薪資/保費等，使用者自行填每月金額)；損益＝收入－
-// 支出。避免跟宿舍損益、客戶請款計算重複計算同一筆錢，只在其中一個地方
-// 認列。
+// 向客戶收取)＋宿舍收入(廠商代付的宿舍費/宿管費直接拿客戶請款計算的金額，
+// 不透過住宿紀錄比對，避免住宿安排還沒建檔就漏算；學生自付的部分從住宿
+// 紀錄抓；宿舍設備收入沿用宿舍損益頁面計算)＋日常支出申請其他收入＋自訂
+// 收入項目；支出＝日常支出申請其他支出(不分是否已請款客戶，公司實際花
+// 出去的錢都算，請款收回來的部分已經在代墊費用收入裡另外算了，不會互相
+// 抵銷到看不見)＋宿舍成本(沿用宿舍損益頁面計算，租金/房仲費/押金損失/
+// 水電瓦斯/宿舍設備支出，都跟住宿紀錄比對無關)＋營業稅支出(5%，繳納政府，
+// 跟營業稅收入金額一樣，對損益沒有淨影響但兩邊都列出來)＋國外付款支出
+// ＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(沿用宿舍損益頁面的分紅＝
+// 利潤×20%，歸屬給特定宿舍管理員，所以繼續用住宿紀錄比對)＋自訂支出項目
+// (內部人員薪資/保費等，使用者自行填每月金額)；損益＝收入－支出。避免跟
+// 宿舍損益、客戶請款計算重複計算同一筆錢，只在其中一個地方認列。
 export default function CompanyProfitLossPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'companyProfitLoss', role, overrides);
@@ -264,8 +282,17 @@ export default function CompanyProfitLossPage() {
     // 把整筆稈金同時算成收入(跟客戶收到的錢)跟支出(要繳給政府的錢)，兩邊
     // 金額一樣所以對損益沒有淨影響，但兩邊都要列出來才完整。
     const taxTotal = clientRows.reduce((sum, r) => sum + r.tax, 0);
+    // 廠商代付的宿舍費/宿管費直接拿客戶請款計算算出來的金額(跟請款單保證
+    // 一致)，不透過「宿舍損益」那套要先比對住宿紀錄歸屬到特定宿舍的邏輯——
+    // 那套比對是宿舍損益為了算宿管分紅才需要的，如果學生已經開始計費但
+    // 住宿安排還沒建檔(或宿舍名稱/付款方式填錯)，會導致這筆已經跟客戶收的
+    // 錢完全沒算進公司損益的宿舍收入。宿舍設備收入/成本、宿舍成本(租金等)
+    // 都跟住宿紀錄比對無關，繼續沿用宿舍損益的計算沒問題；宿舍分紅本來就
+    // 是算給特定宿舍管理員的，也繼續用宿舍損益自己的住宿紀錄比對。
+    const employerDormFeeIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyDormFee + r.amounts.monthlyDormManageFee, 0);
+    const selfPayDormIncome = selfPayDormIncomeForMonth(monthStr, housingRecords);
     const dormPnl = dormMonthly[i] || {};
-    const dormIncome = dormPnl.income || 0;
+    const dormIncome = employerDormFeeIncome + selfPayDormIncome + (dormPnl.dormItemIncome || 0);
     const dormCost = dormPnl.cost || 0;
     const dormProfitBonusExpense = dormPnl.bonus || 0;
     const { otherIncome, otherExpense } = otherDailyExpenseTotals(monthStr, dailyExpenseApplications);
@@ -331,7 +358,7 @@ export default function CompanyProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>公司損益</h2>
-          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
+          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(廠商代付部分直接拿客戶請款計算的金額，不須等住宿安排建檔；學生自付部分從住宿紀錄抓；宿舍設備沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%，沿用宿舍損益頁面計算)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
