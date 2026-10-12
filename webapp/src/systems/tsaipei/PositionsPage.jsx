@@ -322,13 +322,23 @@ function BenefitsEditor({ benefits, onChange }) {
   );
 }
 
+const ROLE_CUSTOM = '__custom__';
+
 function PositionFormModal({ initial, onCancel, onSave, users }) {
   const [form, setForm] = useState(initial);
   const groups = parseLocationGroups(form.locationGroups);
   const benefits = parseBenefits(form.otherBenefits);
   // 角色指派下拉選單的選項，取自系統使用人員名單，避免手打造成名字跟
-  // 內部費用建檔對不起來。
+  // 內部費用建檔對不起來；但有些負責人不是系統使用人員(例如外部配合的
+  // 人員)，所以保留「自行輸入…」選項可以手動打名字。
   const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
+  // 既有資料如果存的名字不在使用人員清單裡(本來就是手動輸入的舊資料)，
+  // 開啟編輯時自動切成輸入框模式，不會讓使用者誤以為這個欄位是空的。
+  const [customRoleFields, setCustomRoleFields] = useState(() => {
+    const s = new Set();
+    ROLE_FIELDS.forEach((f) => { if (form[f.key] && !staffOptions.includes(form[f.key])) s.add(f.key); });
+    return s;
+  });
 
   // 只更新原始內容，不要在這裡就把空白列濾掉——濾掉的話「新增地點」剛加的
   // 空白列會在下一次 render 就消失，使用者根本來不及輸入（回報的「功能無法
@@ -368,15 +378,48 @@ function PositionFormModal({ initial, onCancel, onSave, users }) {
           <BenefitsEditor benefits={benefits} onChange={setBenefits} />
           <h4>角色指派（內部獎金計算對照用）</h4>
           <div className="form-grid">
-            {ROLE_FIELDS.map((f) => (
-              <label key={f.key}>
-                {f.label}
-                <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                  <option value="">（未設定）</option>
-                  {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </label>
-            ))}
+            {ROLE_FIELDS.map((f) => {
+              const isCustom = customRoleFields.has(f.key);
+              return (
+                <label key={f.key}>
+                  {f.label}
+                  {isCustom ? (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        value={form[f.key] || ''}
+                        placeholder="自行輸入姓名"
+                        onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomRoleFields((prev) => { const next = new Set(prev); next.delete(f.key); return next; });
+                          setForm({ ...form, [f.key]: '' });
+                        }}
+                      >
+                        改選清單
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={form[f.key] || ''}
+                      onChange={(e) => {
+                        if (e.target.value === ROLE_CUSTOM) {
+                          setCustomRoleFields((prev) => new Set(prev).add(f.key));
+                          setForm({ ...form, [f.key]: '' });
+                        } else {
+                          setForm({ ...form, [f.key]: e.target.value });
+                        }
+                      }}
+                    >
+                      <option value="">（未設定）</option>
+                      {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                      <option value={ROLE_CUSTOM}>自行輸入…</option>
+                    </select>
+                  )}
+                </label>
+              );
+            })}
           </div>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
