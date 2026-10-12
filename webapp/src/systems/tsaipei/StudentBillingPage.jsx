@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { useSystemProfile } from '../../auth/useSystemAccess';
 import { studentProjectClientPair, currentYear } from '../../lib/bonus';
 
 function currentMonthStr() {
@@ -131,6 +132,8 @@ function PartialPaymentsEditor({ payment, canEditPage, onAdd, onUpdate, onRemove
 export default function StudentBillingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'studentBilling', role, overrides);
+  const profile = useSystemProfile(system);
+  const operatorName = profile?.displayName || profile?.email || '';
   const { rows: housingRecords, loading: loadingHousing } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: dormitories } = useCollection('tsaipei_dormitories');
@@ -153,13 +156,15 @@ export default function StudentBillingPage() {
   }
 
   // 收款狀態/金額/日期：每個學生每個月各一筆，upsert（找得到當月既有紀錄
-  // 就更新，找不到就新增）。
+  // 就更新，找不到就新增）。每次異動都蓋上目前登入者的名字，方便事後追查
+  // 這筆收款紀錄是誰標記/修改的。
   async function upsertPayment(studentId, monthStr, patch) {
     if (!studentId) return;
     try {
+      const stamped = { ...patch, updatedBy: operatorName, updatedAt: new Date().toISOString() };
       const existing = payments.find((p) => p.studentId === studentId && p.month === monthStr);
-      if (existing) await updatePayment(existing.id, patch);
-      else await addPayment({ studentId, month: monthStr, status: '未收款', fullPaidDate: '', partialPayments: '[]', ...patch });
+      if (existing) await updatePayment(existing.id, stamped);
+      else await addPayment({ studentId, month: monthStr, status: '未收款', fullPaidDate: '', partialPayments: '[]', ...stamped });
     } catch (err) {
       alert(`儲存失敗：${err.message || err}`);
     }
@@ -383,8 +388,11 @@ export default function StudentBillingPage() {
         studentName: studentFullLabel(students.find((s) => s.id === studentId)),
         internship: internshipLabel(studentId),
         months: {},
+        operators: new Set(),
       });
       entry.months[m] = ledgerEntry.remaining;
+      const p = paymentFor(studentId, monthStr);
+      if (p.updatedBy) entry.operators.add(p.updatedBy);
     }
   });
   const unpaidQuery = q.trim().toLowerCase();
@@ -396,13 +404,25 @@ export default function StudentBillingPage() {
 
   function handleDownloadUnpaid() {
     const rows = filteredUnpaid.map((r) => {
-      const row = { studentName: r.studentName, internship: r.internship };
-      MONTH_NUMS.forEach((m) => { row[`m${m}`] = r.months[m] || ''; });
+      const row = { studentName: r.studentName, internship: r.internship, operators: [...r.operators].join('、') };
+      let rowTotal = 0;
+      MONTH_NUMS.forEach((m) => {
+        const amt = r.months[m] || 0;
+        row[`m${m}`] = amt || '';
+        rowTotal += amt;
+      });
+      row.total = rowTotal;
       return row;
     });
-    exportEntityCSV(rows, [
-      { key: 'studentName', label: '學生' }, { key: 'internship', label: '實習單位' },
+    // 下載時的總計：最後補一列每月加總+總計欄位的大計，跟畫面上表格底部
+    // 一致，不用另外再手動加總。
+    const grandTotalRow = { studentName: '總計', internship: '', operators: '' };
+    MONTH_NUMS.forEach((m) => { grandTotalRow[`m${m}`] = filteredUnpaid.reduce((sum, r) => sum + (r.months[m] || 0), 0) || ''; });
+    grandTotalRow.total = unpaidGrandTotal;
+    exportEntityCSV([...rows, grandTotalRow], [
+      { key: 'studentName', label: '學生' }, { key: 'internship', label: '實習單位' }, { key: 'operators', label: '核准人(標記收款的人)' },
       ...MONTH_NUMS.map((m) => ({ key: `m${m}`, label: `${m}月` })),
+      { key: 'total', label: '總計' },
     ], `學生請款未繳總表_${year}`);
   }
 
@@ -416,7 +436,7 @@ export default function StudentBillingPage() {
           <div className="page-desc">
             {view === 'monthly'
               ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
-              : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失'}
+              : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
           </div>
         </div>
         <div className="row-actions">
@@ -513,7 +533,7 @@ export default function StudentBillingPage() {
             <div className="card" style={{ overflowX: 'auto' }}>
               <h3 style={{ marginTop: 0 }}>{year}年未繳總表 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filteredUnpaid.length} 位學生，合計 {unpaidGrandTotal.toLocaleString()} 元{canEditPage && '（點金額可直接標記該月全額付清；先繳部分的差額要到分月明細填寫）'}</span></h3>
               <div className="table-wrap"><table>
-                <thead><tr><th>學生</th><th>實習單位</th>{MONTH_NUMS.map((m) => <th key={m}>{m}月</th>)}<th>總計</th></tr></thead>
+                <thead><tr><th>學生</th><th>實習單位</th><th>核准人</th>{MONTH_NUMS.map((m) => <th key={m}>{m}月</th>)}<th>總計</th></tr></thead>
                 <tbody>
                   {filteredUnpaid.map((r) => {
                     const rowTotal = MONTH_NUMS.reduce((s, m) => s + (r.months[m] || 0), 0);
@@ -521,6 +541,7 @@ export default function StudentBillingPage() {
                       <tr key={r.studentId}>
                         <td style={{ fontWeight: 600 }}>{r.studentName}</td>
                         <td>{r.internship}</td>
+                        <td>{[...r.operators].join('、') || '—'}</td>
                         {MONTH_NUMS.map((m) => {
                           const amt = r.months[m] || 0;
                           if (!amt) return <td key={m}>—</td>;
@@ -542,7 +563,18 @@ export default function StudentBillingPage() {
                       </tr>
                     );
                   })}
-                  {filteredUnpaid.length === 0 && <tr><td colSpan={15} className="muted">{unpaidQuery ? '沒有符合搜尋條件的未繳紀錄。' : '目前沒有未繳紀錄。'}</td></tr>}
+                  {filteredUnpaid.length === 0 && <tr><td colSpan={16} className="muted">{unpaidQuery ? '沒有符合搜尋條件的未繳紀錄。' : '目前沒有未繳紀錄。'}</td></tr>}
+                  {filteredUnpaid.length > 0 && (
+                    <tr>
+                      <td style={{ fontWeight: 700 }}>總計</td>
+                      <td></td>
+                      <td></td>
+                      {MONTH_NUMS.map((m) => (
+                        <td key={m} style={{ fontWeight: 700 }}>{filteredUnpaid.reduce((sum, r) => sum + (r.months[m] || 0), 0).toLocaleString()}</td>
+                      ))}
+                      <td style={{ fontWeight: 700 }}>{unpaidGrandTotal.toLocaleString()}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table></div>
             </div>
