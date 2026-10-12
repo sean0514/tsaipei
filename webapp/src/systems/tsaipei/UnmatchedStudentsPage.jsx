@@ -31,6 +31,14 @@ export default function UnmatchedStudentsPage() {
     .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${studentDepartments(s)} ${s.nationality || ''} ${s.sourceSupplier || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => studentFullLabel(a).localeCompare(studentFullLabel(b)));
 
+  // 用國籍分類顯示，方便業務一眼看出哪個國籍還有多少學生沒安排。
+  const groups = {};
+  filtered.forEach((s) => {
+    const key = s.nationality || '未填國籍';
+    (groups[key] ||= []).push(s);
+  });
+  const groupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
   function handleDownload() {
     const rows = filtered.map((s) => ({
       name: studentFullLabel(s), nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '', school: s.school || '', department: studentDepartments(s),
@@ -48,7 +56,7 @@ export default function UnmatchedStudentsPage() {
       <div className="page-header">
         <div>
           <h2>學生尚未安排</h2>
-          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護</div>
+          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生，依國籍分類顯示；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護</div>
         </div>
         <div className="row-actions">
           <button onClick={handleDownload}>下載名單</button>
@@ -56,27 +64,34 @@ export default function UnmatchedStudentsPage() {
       </div>
       <input placeholder="搜尋學生、學校、科系、國籍或國外供應商" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>尚未安排名單 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filtered.length} 位學生</span></h3>
-          <div className="table-wrap"><table>
-            <thead><tr><th>學生姓名</th><th>國籍</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>狀態</th><th>實習開始日</th><th>電話</th></tr></thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr key={s.id}>
-                  <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
-                  <td>{s.nationality || '—'}</td>
-                  <td>{s.sourceSupplier || '—'}</td>
-                  <td>{s.school || '—'}</td>
-                  <td>{studentDepartments(s) || '—'}</td>
-                  <td>{s.status || '—'}</td>
-                  <td>{s.startDate || '—'}</td>
-                  <td>{s.phone || '—'}</td>
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={8} className="muted">{searchQuery ? '沒有符合搜尋條件的學生。' : '目前所有學生都已經安排媒合了。'}</td></tr>}
-            </tbody>
-          </table></div>
-        </div>
+        groupKeys.length === 0 ? (
+          <p className="muted">{searchQuery ? '沒有符合搜尋條件的學生。' : '目前所有學生都已經安排媒合了。'}</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <p className="muted" style={{ margin: 0 }}>共 {filtered.length} 位學生尚未安排，依國籍分類如下</p>
+            {groupKeys.map((key) => (
+              <div className="card" key={key}>
+                <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
+                <div className="table-wrap"><table>
+                  <thead><tr><th>學生姓名</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>狀態</th><th>實習開始日</th><th>電話</th></tr></thead>
+                  <tbody>
+                    {groups[key].map((s) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
+                        <td>{s.sourceSupplier || '—'}</td>
+                        <td>{s.school || '—'}</td>
+                        <td>{studentDepartments(s) || '—'}</td>
+                        <td>{s.status || '—'}</td>
+                        <td>{s.startDate || '—'}</td>
+                        <td>{s.phone || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );
