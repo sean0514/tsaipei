@@ -79,13 +79,17 @@ export default function DailyExpenseApplicationPage() {
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
 
   async function handleSave(data) {
-    if (data.id) {
-      const { id, ...rest } = data;
-      await update(id, rest);
-    } else {
-      await add({ status: '待審核', currency: '台幣', type: '支出', ...data });
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+      } else {
+        await add({ status: '待審核', currency: '台幣', type: '支出', ...data });
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`存檔失敗：${err.message || err}`);
     }
-    setEditing(null);
   }
 
   function handleDuplicate(r) {
