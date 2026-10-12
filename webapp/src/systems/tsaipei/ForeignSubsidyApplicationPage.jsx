@@ -26,6 +26,7 @@ async function syncApprovedPayment(app) {
     studentId: app.studentId || '',
     amount: app.amount || '',
     currency: app.currency || '台幣',
+    twdAmount: app.currency === '美金' ? (app.twdAmount || '') : '',
     paymentDate: app.remittanceDate || '',
     notes: app.purpose || '',
   };

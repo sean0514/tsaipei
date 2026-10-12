@@ -160,16 +160,23 @@ function otherDailyExpenseTotals(monthStr, dailyExpenseApplications) {
 }
 
 // 國外付款：付款當月記一筆支出，收到國外回款的月份則用回款金額沖減支出
-// (跟宿舍損益的押金損失同樣邏輯：損益認列在實際金流發生的月份)；只計台幣
-// 付款，美金付款幣別不同不列入同一張損益表。
+// (跟宿舍損益的押金損失同樣邏輯：損益認列在實際金流發生的月份)；台幣付款
+// 直接算金額；美金付款要有填「台幣金額」換算欄位才算得進來(用換算後的
+// 台幣金額認列，國外補助申請核准後自動同步過來的美金紀錄也會一併帶這個
+// 欄位)，沒有換算金額的美金付款沒有台幣基準，不列入這張損益表；國外回款
+// 只有台幣付款才沖減，美金付款的回款沒有對應的台幣換算金額可以沖銷。
 function foreignPaymentExpenseForMonth(monthStr, foreignPayments) {
   let expense = 0;
   (foreignPayments || []).forEach((p) => {
-    if ((p.currency || '台幣') !== '台幣') return;
-    if ((p.paymentDate || '').slice(0, 7) === monthStr) expense += Number(p.amount) || 0;
-    [1, 2, 3].forEach((n) => {
-      if ((p[`foreignRefund${n}Date`] || '').slice(0, 7) === monthStr) expense -= Number(p[`foreignRefund${n}`]) || 0;
-    });
+    const currency = p.currency || '台幣';
+    if (currency === '台幣') {
+      if ((p.paymentDate || '').slice(0, 7) === monthStr) expense += Number(p.amount) || 0;
+      [1, 2, 3].forEach((n) => {
+        if ((p[`foreignRefund${n}Date`] || '').slice(0, 7) === monthStr) expense -= Number(p[`foreignRefund${n}`]) || 0;
+      });
+    } else if (p.twdAmount && (p.paymentDate || '').slice(0, 7) === monthStr) {
+      expense += Number(p.twdAmount) || 0;
+    }
   });
   return expense;
 }
@@ -380,7 +387,7 @@ export default function CompanyProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>公司損益</h2>
-          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(廠商代付部分直接拿客戶請款計算的金額，不須等住宿安排建檔；學生自付部分從住宿紀錄抓；宿舍設備沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出(含國外補助申請已核准後自動同步的款項，不會重複計算)＋郵資費用支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%，沿用宿舍損益頁面計算)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
+          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(廠商代付部分直接拿客戶請款計算的金額，不須等住宿安排建檔；學生自付部分從住宿紀錄抓；宿舍設備沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出(含國外補助申請已核准後自動同步的款項，不會重複計算；美金付款要有填台幣金額換算欄位才會算進來)＋郵資費用支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%，沿用宿舍損益頁面計算)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
