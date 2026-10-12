@@ -31,6 +31,7 @@ const LINE_ITEMS = [
   { key: 'dormCost', label: '宿舍成本(租金/房仲費/押金損失/水電瓦斯)' },
   { key: 'taxExpense', label: '營業稅支出(5%，繳納政府)' },
   { key: 'foreignPaymentExpense', label: '國外付款支出' },
+  { key: 'postageFeeExpense', label: '郵資費用支出' },
   { key: 'projectBonusExpense', label: '內部獎金支出(專案角色)' },
   { key: 'dormManagerBonusExpense', label: '宿管獎金支出' },
   { key: 'dormProfitBonusExpense', label: '宿舍分紅(利潤×20%)' },
@@ -60,6 +61,7 @@ function availableYears(ctx) {
   });
   (ctx.housingRecords || []).forEach((h) => { addYearFromDate(h.checkIn); addYearFromDate(h.checkOut); });
   (ctx.dormitories || []).forEach((d) => { addYearFromDate(d.leaseStart); addYearFromDate(d.depositRefundDate); });
+  (ctx.postageFeeRecords || []).forEach((r) => addYearFromDate(r.shipDate));
   return Array.from(years).sort((a, b) => b - a);
 }
 
@@ -172,6 +174,17 @@ function foreignPaymentExpenseForMonth(monthStr, foreignPayments) {
   return expense;
 }
 
+// 郵資費用：依寄件日期認列，排除「退回」狀態(沒有真的寄出/花這筆錢)；
+// 「未匯款」也算進去，因為錢是寄件當下就花掉了，未匯款只是還沒報銷給
+// 墊付的人，不是這筆支出沒發生過。
+function postageFeeExpenseForMonth(monthStr, postageFeeRecords) {
+  return (postageFeeRecords || []).reduce((sum, r) => {
+    if (r.status === '退回') return sum;
+    if ((r.shipDate || '').slice(0, 7) !== monthStr) return sum;
+    return sum + (Number(r.amount) || 0);
+  }, 0);
+}
+
 function projectBonusExpenseForMonth(monthStr, ctx) {
   return computeInternalBonusForMonth(monthStr, ctx)
     .reduce((sum, r) => sum + PROJECT_CLIENT_BONUS_ROLE_KEYS.reduce((s, k) => s + (r.amounts[k] || 0), 0), 0);
@@ -220,10 +233,17 @@ function sumLineItems(monthly) {
 // 抵銷到看不見)＋宿舍成本(沿用宿舍損益頁面計算，租金/房仲費/押金損失/
 // 水電瓦斯/宿舍設備支出，都跟住宿紀錄比對無關)＋營業稅支出(5%，繳納政府，
 // 跟營業稅收入金額一樣，對損益沒有淨影響但兩邊都列出來)＋國外付款支出
+// (含國外補助申請已核准後自動同步過來的款項，見下方說明)＋郵資費用支出
 // ＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(沿用宿舍損益頁面的分紅＝
 // 利潤×20%，歸屬給特定宿舍管理員，所以繼續用住宿紀錄比對)＋自訂支出項目
 // (內部人員薪資/保費等，使用者自行填每月金額)；損益＝收入－支出。避免跟
 // 宿舍損益、客戶請款計算重複計算同一筆錢，只在其中一個地方認列。
+//
+// 國外補助申請沒有獨立算一條支出線：ForeignSubsidyApplicationPage 核准
+// (或後續編輯)時，會自動在 tsaipei_foreignPayments 同步/更新一筆對應的
+// 付款紀錄(金額/匯款日期/幣別都跟申請單一致)，這裡已經透過「國外付款
+// 支出」算到了；如果再額外加一條「國外補助申請支出」，同一筆錢就會被
+// 算兩次。
 export default function CompanyProfitLossPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'companyProfitLoss', role, overrides);
@@ -239,7 +259,8 @@ export default function CompanyProfitLossPage() {
   const { rows: housingRecords, loading: l10 } = useCollection('tsaipei_housingRecords');
   const { rows: dormitoryUtilities, loading: l11 } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: foreignPayments, loading: l12 } = useCollection('tsaipei_foreignPayments');
-  const { rows: customItems, loading: l13, add: addItem } = useCollection('tsaipei_companyPnlCustomItems');
+  const { rows: postageFeeRecords, loading: l13 } = useCollection('tsaipei_postageFeeRecords');
+  const { rows: customItems, loading: l14, add: addItem } = useCollection('tsaipei_companyPnlCustomItems');
   const { rows: customAmounts, add: addAmount, update: updateAmount } = useCollection('tsaipei_companyPnlCustomAmounts');
   const [year, setYear] = useState(currentYear());
   const [newIncomeLabel, setNewIncomeLabel] = useState('');
@@ -247,16 +268,16 @@ export default function CompanyProfitLossPage() {
 
   const ctx = {
     students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords,
-    dailyExpenseApplications, internalFeeSetupRecords, dormitories, housingRecords, dormitoryUtilities, foreignPayments,
+    dailyExpenseApplications, internalFeeSetupRecords, dormitories, housingRecords, dormitoryUtilities, foreignPayments, postageFeeRecords,
   };
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10 || l11 || l12 || l13;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10 || l11 || l12 || l13 || l14;
   const years = availableYears(ctx);
 
   // 第一次開這個頁面時自動把「內部人員薪資」「內部人員保費」這兩個常見支出
   // 項目建好，使用者不用自己手動新增，只要填每個月的金額。
   const didEnsureDefaults = useRef(false);
   useEffect(() => {
-    if (!canEditPage || l13 || didEnsureDefaults.current) return;
+    if (!canEditPage || l14 || didEnsureDefaults.current) return;
     didEnsureDefaults.current = true;
     DEFAULT_EXPENSE_ITEM_LABELS.forEach((label) => {
       if (!customItems.some((i) => i.type === '支出' && i.label === label)) {
@@ -264,7 +285,7 @@ export default function CompanyProfitLossPage() {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canEditPage, l13]);
+  }, [canEditPage, l14]);
 
   const customIncomeItems = customItems.filter((i) => i.type === '收入');
   const customExpenseItems = customItems.filter((i) => i.type === '支出');
@@ -297,15 +318,16 @@ export default function CompanyProfitLossPage() {
     const dormProfitBonusExpense = dormPnl.bonus || 0;
     const { otherIncome, otherExpense } = otherDailyExpenseTotals(monthStr, dailyExpenseApplications);
     const foreignPaymentExpense = foreignPaymentExpenseForMonth(monthStr, foreignPayments);
+    const postageFeeExpense = postageFeeExpenseForMonth(monthStr, postageFeeRecords);
     const projectBonusExpense = projectBonusExpenseForMonth(monthStr, ctx);
     const dormManagerBonusExpense = dormManagerBonusExpenseForMonth(monthStr, ctx);
     const customIncomeTotal = customItemTotalForMonth(customIncomeItems, customAmounts, monthStr);
     const customExpenseTotal = customItemTotalForMonth(customExpenseItems, customAmounts, monthStr);
     const income = serviceIncome + dailyExpenseReimbursementIncome + taxTotal + dormIncome + otherIncome + customIncomeTotal;
-    const cost = otherExpense + dormCost + taxTotal + foreignPaymentExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
+    const cost = otherExpense + dormCost + taxTotal + foreignPaymentExpense + postageFeeExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
     return {
       month: m, serviceIncome, dailyExpenseReimbursementIncome, taxIncome: taxTotal, dormIncome, otherIncome, customIncomeTotal, income,
-      otherExpense, dormCost, taxExpense: taxTotal, foreignPaymentExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
+      otherExpense, dormCost, taxExpense: taxTotal, foreignPaymentExpense, postageFeeExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
       profit: income - cost,
     };
   });
@@ -358,7 +380,7 @@ export default function CompanyProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>公司損益</h2>
-          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(廠商代付部分直接拿客戶請款計算的金額，不須等住宿安排建檔；學生自付部分從住宿紀錄抓；宿舍設備沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%，沿用宿舍損益頁面計算)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
+          <div className="page-desc">收入＝服務費收入(辦件費+服務費)＋代墊費用收入(日常支出申請已請款客戶的部分，向客戶收回來的錢)＋營業稅收入(5%，向客戶收取)＋宿舍收入(廠商代付部分直接拿客戶請款計算的金額，不須等住宿安排建檔；學生自付部分從住宿紀錄抓；宿舍設備沿用宿舍損益頁面計算)＋其他收入(日常支出申請-收入類)＋自訂收入項目；支出＝其他支出(日常支出申請-支出類，不分是否已請款客戶，公司實際花費都算)＋宿舍成本(沿用宿舍損益頁面計算)＋營業稅支出(5%，繳納政府)＋國外付款支出(含國外補助申請已核准後自動同步的款項，不會重複計算)＋郵資費用支出＋內部獎金支出(專案角色＋宿管獎金)＋宿舍分紅(利潤×20%，沿用宿舍損益頁面計算)＋自訂支出項目(內部人員薪資/保費等，每個月金額自己填)；損益＝收入－支出。已計入宿舍損益或客戶請款的金額不會在這裡重複計算，但也不會因為最後有請款收回來就漏算實際花費。</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
