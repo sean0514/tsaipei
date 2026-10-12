@@ -12,13 +12,17 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
-// 核准後自動在「國外付款紀錄」帶入/同步一筆待付款紀錄，單位名稱直接用學生
-// 來源(國外供應商)，方便該頁依供應商分類、對帳。用 sourceApplicationId 找
-// 對應的付款紀錄：還沒有就新增（預設未付款），已經有就更新欄位內容——這樣
-// 已核准後才修改申請內容（金額、學生來源…）也會同步過去，但不會動使用者
-// 自己在國外付款紀錄那邊維護的「是否已付款」狀態。
+// 已核准／已匯款自動在「國外付款紀錄」帶入/同步一筆待付款紀錄，單位名稱
+// 直接用學生來源(國外供應商)，方便該頁依供應商分類、對帳。用
+// sourceApplicationId 找對應的付款紀錄：還沒有就新增（預設未付款），已經
+// 有就更新欄位內容——這樣已核准後才修改申請內容（金額、學生來源…）也會
+// 同步過去，但不會動使用者自己在國外付款紀錄那邊維護的「是否已付款」狀態。
+// 已核准、已匯款都要同步(不是只有「剛好等於已核准」那個瞬間)，因為申請
+// 核准後很快就會進一步轉成已匯款，只同步已核准會讓已經撥款的申請完全沒
+// 同步到國外付款紀錄，公司損益的國外付款支出也會跟著漏算。
+const SYNCED_STATUSES = ['已核准', '已匯款'];
 async function syncApprovedPayment(app) {
-  if (app.status !== '已核准') return;
+  if (!SYNCED_STATUSES.includes(app.status)) return;
   const snap = await getDocs(query(collection(db, 'tsaipei_foreignPayments'), where('sourceApplicationId', '==', app.id)));
   const payload = {
     sourceApplicationId: app.id,
@@ -59,7 +63,27 @@ export default function ForeignSubsidyApplicationPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
+  const [backfilling, setBackfilling] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_foreignSubsidyApplications', CSV_FIELDS, { entityLabel: '國外補助申請', requiredKeys: ['purpose'], canEdit: canEditPage });
+
+  // 補同步：這次修正之前，只有狀態「剛好轉成已核准」那個瞬間才會同步到
+  // 國外付款紀錄，已核准後很快又轉成已匯款的申請都沒同步到。掃一次所有
+  // 已核准／已匯款的申請，全部重新同步一次(syncApprovedPayment 本身是
+  // upsert，同步過的紀錄不會重複建立)。
+  async function handleBackfillSync() {
+    const targets = rows.filter((r) => SYNCED_STATUSES.includes(r.status));
+    if (!targets.length) { alert('沒有已核准或已匯款的申請需要同步。'); return; }
+    if (!window.confirm(`確定要重新同步 ${targets.length} 筆已核准/已匯款的申請到國外付款紀錄嗎？`)) return;
+    setBackfilling(true);
+    try {
+      for (const r of targets) await syncApprovedPayment(r);
+      alert(`已同步 ${targets.length} 筆申請。`);
+    } catch (err) {
+      alert(`同步失敗：${err.message || err}`);
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
   const schoolName = (r) => r.school || students.find((x) => x.id === r.studentId)?.school || '';
@@ -102,10 +126,11 @@ export default function ForeignSubsidyApplicationPage() {
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           <button onClick={handleDownloadMonth}>下載此月份資料</button>
+          {canEditPage && <button onClick={handleBackfillSync} disabled={backfilling}>{backfilling ? '同步中…' : '補同步國外付款紀錄'}</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外補助申請紀錄，請先下載備份再匯入。「下載此月份資料」依「匯款日期」篩選。</p>}
+      {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外補助申請紀錄，請先下載備份再匯入。「下載此月份資料」依「匯款日期」篩選。「補同步國外付款紀錄」會把所有已核准/已匯款的申請重新同步一次到國外付款紀錄(修正舊版只在剛核准那一刻同步、之後轉已匯款就不再同步的問題)。</p>}
       <input placeholder="搜尋申請人、學生、學生來源或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
