@@ -8,6 +8,10 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
+function studentDepartments(s) {
+  return [s.department1, s.department2].filter(Boolean).join(' / ');
+}
+
 // 學生尚未安排：純彙整頁面，不用手動維護——學生建檔存檔時系統會自動在
 // 「媒合紀錄」建立一筆 positionId 空白的佔位紀錄(狀態「媒合中」)，所以不能
 // 用「完全沒有媒合紀錄」判斷，要用「所有媒合紀錄都還沒填實際職缺(positionId)」
@@ -24,16 +28,16 @@ export default function UnmatchedStudentsPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
-    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${s.nationality || ''}`.toLowerCase().includes(searchQuery))
+    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${studentDepartments(s)} ${s.nationality || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => studentFullLabel(a).localeCompare(studentFullLabel(b)));
 
   function handleDownload() {
     const rows = filtered.map((s) => ({
-      name: studentFullLabel(s), nationality: s.nationality || '', school: s.school || '',
+      name: studentFullLabel(s), nationality: s.nationality || '', school: s.school || '', department: studentDepartments(s),
       status: s.status || '', startDate: s.startDate || '', phone: s.phone || '',
     }));
     exportEntityCSV(rows, [
-      { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'school', label: '就讀學校' },
+      { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' },
       { key: 'status', label: '狀態' }, { key: 'startDate', label: '實習開始日' }, { key: 'phone', label: '電話' },
     ], '學生尚未安排');
   }
@@ -49,24 +53,25 @@ export default function UnmatchedStudentsPage() {
           <button onClick={handleDownload}>下載名單</button>
         </div>
       </div>
-      <input placeholder="搜尋學生、學校或國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <input placeholder="搜尋學生、學校、科系或國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card">
           <h3 style={{ marginTop: 0 }}>尚未安排名單 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filtered.length} 位學生</span></h3>
           <div className="table-wrap"><table>
-            <thead><tr><th>學生姓名</th><th>國籍</th><th>就讀學校</th><th>狀態</th><th>實習開始日</th><th>電話</th></tr></thead>
+            <thead><tr><th>學生姓名</th><th>國籍</th><th>就讀學校</th><th>科系</th><th>狀態</th><th>實習開始日</th><th>電話</th></tr></thead>
             <tbody>
               {filtered.map((s) => (
                 <tr key={s.id}>
                   <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
                   <td>{s.nationality || '—'}</td>
                   <td>{s.school || '—'}</td>
+                  <td>{studentDepartments(s) || '—'}</td>
                   <td>{s.status || '—'}</td>
                   <td>{s.startDate || '—'}</td>
                   <td>{s.phone || '—'}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={6} className="muted">{searchQuery ? '沒有符合搜尋條件的學生。' : '目前所有學生都已經安排媒合了。'}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{searchQuery ? '沒有符合搜尋條件的學生。' : '目前所有學生都已經安排媒合了。'}</td></tr>}
             </tbody>
           </table></div>
         </div>
