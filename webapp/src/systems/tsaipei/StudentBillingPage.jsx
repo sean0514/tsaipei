@@ -49,6 +49,25 @@ function residentOverlapDays(h, range) {
   return dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
 }
 
+const PAYMENT_STATUSES = ['未收款', '先繳部分', '全額付清'];
+
+// 舊資料相容：改版前只有 received(布林)/receivedDate 兩個欄位，沒有
+// status。沒有 status 欄位的舊紀錄依 received 換算成新狀態，才不會改版
+// 後舊資料全部看起來變成「未收款」。
+function effectivePayment(p) {
+  if (!p) return { status: '未收款' };
+  if (p.status) return p;
+  return p.received ? { ...p, status: '全額付清', fullPaidDate: p.receivedDate || '' } : { ...p, status: '未收款' };
+}
+
+// 已收款金額：全額付清算整筆應繳金額(total)；先繳部分算使用者填的金額；
+// 未收款算 0。未繳總表用「應繳金額－已收款金額」算剩餘未繳。
+function paidAmountOf(p, total) {
+  if (p.status === '全額付清') return total;
+  if (p.status === '先繳部分') return Number(p.partialAmount) || 0;
+  return 0;
+}
+
 // 學生請款計算：只要當月有住宿舍（不論廠商代付或學生自付）都列進來計算；
 // 自付宿舍費只有「學生自付」才試算（廠商代付的宿舍費不跟學生收），水費/
 // 電費/瓦斯費/其他費用則不分付款方式，取自 宿舍管理「填寫其他費用」當月
@@ -77,32 +96,47 @@ export default function StudentBillingPage() {
 
   function paymentFor(studentId, monthStr) {
     if (!studentId) return null;
-    return payments.find((p) => p.studentId === studentId && p.month === monthStr) || null;
+    return effectivePayment(payments.find((p) => p.studentId === studentId && p.month === monthStr) || null);
   }
 
-  // 已收款/收款日期：每個學生每個月各一筆，upsert（找得到當月既有紀錄就
-  // 更新，找不到就新增）。
-  async function handleTogglePaid(studentId, monthStr, checked) {
+  // 收款狀態/金額/日期：每個學生每個月各一筆，upsert（找得到當月既有紀錄
+  // 就更新，找不到就新增）。
+  async function upsertPayment(studentId, monthStr, patch) {
     if (!studentId) return;
     try {
-      const existing = paymentFor(studentId, monthStr);
-      const receivedDate = checked ? (existing?.receivedDate || new Date().toISOString().slice(0, 10)) : '';
-      if (existing) await updatePayment(existing.id, { received: checked, receivedDate });
-      else await addPayment({ studentId, month: monthStr, received: checked, receivedDate });
+      const existing = payments.find((p) => p.studentId === studentId && p.month === monthStr);
+      if (existing) await updatePayment(existing.id, patch);
+      else await addPayment({ studentId, month: monthStr, status: '未收款', fullPaidDate: '', partialAmount: '', partialDate: '', ...patch });
     } catch (err) {
       alert(`儲存失敗：${err.message || err}`);
     }
   }
 
-  async function handlePaidDateChange(studentId, monthStr, receivedDate) {
-    if (!studentId) return;
-    try {
+  function handleStatusChange(studentId, monthStr, status) {
+    if (status === '全額付清') {
       const existing = paymentFor(studentId, monthStr);
-      if (existing) await updatePayment(existing.id, { receivedDate });
-      else await addPayment({ studentId, month: monthStr, received: !!receivedDate, receivedDate });
-    } catch (err) {
-      alert(`儲存失敗：${err.message || err}`);
+      upsertPayment(studentId, monthStr, { status, fullPaidDate: existing.fullPaidDate || new Date().toISOString().slice(0, 10) });
+    } else {
+      upsertPayment(studentId, monthStr, { status });
     }
+  }
+
+  function handleFullPaidDateChange(studentId, monthStr, fullPaidDate) {
+    upsertPayment(studentId, monthStr, { status: '全額付清', fullPaidDate });
+  }
+
+  function handlePartialAmountChange(studentId, monthStr, partialAmount) {
+    upsertPayment(studentId, monthStr, { status: '先繳部分', partialAmount });
+  }
+
+  function handlePartialDateChange(studentId, monthStr, partialDate) {
+    upsertPayment(studentId, monthStr, { status: '先繳部分', partialDate });
+  }
+
+  // 未繳總表「點金額標記」的快速動作：直接標記全額付清，收款日期預設今天。
+  function markFullyPaid(studentId, monthStr) {
+    const existing = paymentFor(studentId, monthStr);
+    upsertPayment(studentId, monthStr, { status: '全額付清', fullPaidDate: existing.fullPaidDate || new Date().toISOString().slice(0, 10) });
   }
 
   // 其他費用除了宿舍共用的分攤之外，還要加上這個學生自己名下、日常支出
@@ -183,22 +217,26 @@ export default function StudentBillingPage() {
         gasFee: b.gasFee,
         otherFees: b.otherFees,
         total: b.total,
-        received: p?.received ? '是' : '否',
-        receivedDate: p?.receivedDate || '',
+        status: p.status,
+        partialAmount: p.status === '先繳部分' ? (p.partialAmount || '') : '',
+        partialDate: p.status === '先繳部分' ? (p.partialDate || '') : '',
+        fullPaidDate: p.status === '全額付清' ? (p.fullPaidDate || '') : '',
       };
     });
     exportEntityCSV(rows, [
       { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'payer', label: '付款方式' }, { key: 'days', label: '當月天數' },
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
-      { key: 'received', label: '已收款' }, { key: 'receivedDate', label: '收款日期' },
+      { key: 'status', label: '收款狀態' }, { key: 'partialAmount', label: '已繳金額(先繳部分)' }, { key: 'partialDate', label: '繳款日期(先繳部分)' },
+      { key: 'fullPaidDate', label: '全額付清日期' },
     ], `學生請款計算_${month}`);
   }
 
   // 未繳總表：一個學生一列，橫向 1-12 月各一欄，掃過選定年度每個月重算
-  // 每筆住宿紀錄的應繳金額，只填「有金額但沒有已收款紀錄」的月份——一旦
-  // 在分月明細勾選已收款，那個月的欄位就會變空白，不需要另外維護一份
-  // 「未繳」資料。
+  // 每筆住宿紀錄的應繳金額減掉已收款金額(先繳部分扣已繳的金額，全額付清
+  // 整筆扣掉變 0)，只填還有剩餘未繳金額的月份——一旦在分月明細標記全額
+  // 付清，那個月的欄位就會變空白；先繳部分則顯示還沒繳的差額，不需要另外
+  // 維護一份「未繳」資料。
   const unpaidByStudent = {};
   for (let m = 1; m <= 12; m++) {
     const monthStr = `${year}-${String(m).padStart(2, '0')}`;
@@ -208,14 +246,15 @@ export default function StudentBillingPage() {
       const b = billingFor(h, monthStr, mRange);
       if (!b.total) return;
       const p = paymentFor(h.studentId, monthStr);
-      if (p?.received) return;
+      const remaining = Math.max(0, b.total - paidAmountOf(p, b.total));
+      if (!remaining) return;
       const entry = (unpaidByStudent[h.studentId] ||= {
         studentId: h.studentId,
         studentName: studentFullLabel(students.find((s) => s.id === h.studentId)),
         internship: internshipLabel(h.studentId),
         months: {},
       });
-      entry.months[m] = (entry.months[m] || 0) + b.total;
+      entry.months[m] = (entry.months[m] || 0) + remaining;
     });
   }
   const unpaidQuery = q.trim().toLowerCase();
@@ -246,8 +285,8 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額'
-              : '彙整選定年度每個月未勾選「已收款」的應繳金額；只要在分月明細勾選已收款，這筆就會從這份總表消失'}
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(填已繳金額+日期)」「全額付清(填日期)」三種'
+              : '彙整選定年度每個月還有剩餘未繳金額的月份；全額付清的月份會從總表消失，先繳部分的月份顯示還沒繳的差額'}
           </div>
         </div>
         <div className="row-actions">
@@ -270,7 +309,7 @@ export default function StudentBillingPage() {
                   <div className="card" key={key}>
                     <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                     <div className="table-wrap"><table>
-                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>已收款</th><th>收款日期</th></tr></thead>
+                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>收款狀態</th><th>金額</th><th>日期</th></tr></thead>
                       <tbody>
                         {groups[key].map((h) => {
                           const b = billingFor(h, month, range);
@@ -287,21 +326,43 @@ export default function StudentBillingPage() {
                               <td>{b.otherFees.toLocaleString()}</td>
                               <td style={{ fontWeight: 600 }}>{b.total.toLocaleString()}</td>
                               <td>
-                                <input
-                                  type="checkbox"
-                                  checked={!!p?.received}
+                                <select
+                                  value={p.status}
                                   disabled={!canEditPage}
-                                  onChange={(e) => handleTogglePaid(h.studentId, month, e.target.checked)}
-                                />
+                                  onChange={(e) => handleStatusChange(h.studentId, month, e.target.value)}
+                                >
+                                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
                               </td>
                               <td>
-                                <input
-                                  type="date"
-                                  value={p?.receivedDate || ''}
-                                  disabled={!canEditPage}
-                                  onChange={(e) => handlePaidDateChange(h.studentId, month, e.target.value)}
-                                  style={{ width: 140 }}
-                                />
+                                {p.status === '先繳部分' ? (
+                                  <input
+                                    type="number"
+                                    value={p.partialAmount || ''}
+                                    disabled={!canEditPage}
+                                    onChange={(e) => handlePartialAmountChange(h.studentId, month, e.target.value)}
+                                    style={{ width: 90 }}
+                                  />
+                                ) : '—'}
+                              </td>
+                              <td>
+                                {p.status === '全額付清' ? (
+                                  <input
+                                    type="date"
+                                    value={p.fullPaidDate || ''}
+                                    disabled={!canEditPage}
+                                    onChange={(e) => handleFullPaidDateChange(h.studentId, month, e.target.value)}
+                                    style={{ width: 140 }}
+                                  />
+                                ) : p.status === '先繳部分' ? (
+                                  <input
+                                    type="date"
+                                    value={p.partialDate || ''}
+                                    disabled={!canEditPage}
+                                    onChange={(e) => handlePartialDateChange(h.studentId, month, e.target.value)}
+                                    style={{ width: 140 }}
+                                  />
+                                ) : '—'}
                               </td>
                             </tr>
                           );
@@ -323,7 +384,7 @@ export default function StudentBillingPage() {
           <input placeholder="搜尋學生或實習單位" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
           {loading ? <p className="muted">載入中…</p> : (
             <div className="card" style={{ overflowX: 'auto' }}>
-              <h3 style={{ marginTop: 0 }}>{year}年未繳總表 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filteredUnpaid.length} 位學生，合計 {unpaidGrandTotal.toLocaleString()} 元{canEditPage && '（點金額可直接標記該月已收款）'}</span></h3>
+              <h3 style={{ marginTop: 0 }}>{year}年未繳總表 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filteredUnpaid.length} 位學生，合計 {unpaidGrandTotal.toLocaleString()} 元{canEditPage && '（點金額可直接標記該月全額付清；先繳部分的差額要到分月明細填寫）'}</span></h3>
               <div className="table-wrap"><table>
                 <thead><tr><th>學生</th><th>實習單位</th>{MONTH_NUMS.map((m) => <th key={m}>{m}月</th>)}<th>總計</th></tr></thead>
                 <tbody>
@@ -341,8 +402,8 @@ export default function StudentBillingPage() {
                               {canEditPage ? (
                                 <button
                                   className="link-button"
-                                  title="點選標記這個月已收款"
-                                  onClick={() => handleTogglePaid(r.studentId, `${year}-${String(m).padStart(2, '0')}`, true)}
+                                  title="點選標記這個月全額付清"
+                                  onClick={() => markFullyPaid(r.studentId, `${year}-${String(m).padStart(2, '0')}`)}
                                 >
                                   {amt.toLocaleString()}
                                 </button>
