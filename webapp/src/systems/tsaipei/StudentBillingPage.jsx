@@ -79,12 +79,10 @@ function effectivePayment(p) {
   return result;
 }
 
-// 已收款金額：全額付清算整筆應繳金額(total)；先繳部分加總所有已填的部分
-// 付款筆數；未收款算 0。未繳總表用「應繳金額－已收款金額」算剩餘未繳。
-function paidAmountOf(p, total) {
-  if (p.status === '全額付清') return total;
-  if (p.status === '先繳部分') return parsePartialPayments(p.partialPayments).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  return 0;
+function nextMonthStr(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 // 學生請款計算：只要當月有住宿舍（不論廠商代付或學生自付）都列進來計算；
@@ -250,6 +248,67 @@ export default function StudentBillingPage() {
     return { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };
   }
 
+  // 這個學生從最早入住到最近退宿(或現在)橫跨哪些月份，逐月建總帳才需要
+  // 知道範圍要算到哪裡。
+  function studentMonthBounds(studentId) {
+    const today = new Date().toISOString().slice(0, 10);
+    let minMonth = null;
+    let maxMonth = null;
+    housingRecords.forEach((h) => {
+      if (h.studentId !== studentId || !h.checkIn) return;
+      const startM = h.checkIn.slice(0, 7);
+      const endM = (h.checkOut || today).slice(0, 7);
+      if (!minMonth || startM < minMonth) minMonth = startM;
+      if (!maxMonth || endM > maxMonth) maxMonth = endM;
+    });
+    return { minMonth, maxMonth };
+  }
+
+  // 學生收款總帳：某個月多繳的金額(溢繳)自動抵掉下一個月的應繳金額，一路
+  // 往後遞延直到抵完為止；欠款同理不會因為換月就消失，會一直累積到真的
+  // 補繳為止。從這個學生最早入住的月份算到最近退宿(或現在)的月份，逐月
+  // 計算：這個月應繳金額、加上前面月份結餘的溢繳額度跟這個月實際收到的
+  // 錢，算出這個月還欠多少、結餘多少溢繳額度給下個月。標記「全額付清」
+  // 的月份視為已經用掉剛好足夠的錢結清，不產生新的溢繳，也不消耗既有
+  // 溢繳額度(沒有記錄實際付了多少錢，無法算出多付了多少)。
+  function buildStudentLedger(studentId) {
+    const { minMonth, maxMonth } = studentMonthBounds(studentId);
+    const ledger = {};
+    if (!minMonth) return ledger;
+    let credit = 0;
+    let m = minMonth;
+    let guard = 0;
+    while (m <= maxMonth && guard < 1200) {
+      guard += 1;
+      const mRange = monthRange(m);
+      const owed = housingRecords
+        .filter((h) => h.studentId === studentId && residentOverlapDays(h, mRange) > 0)
+        .reduce((sum, h) => sum + billingFor(h, m, mRange).total, 0);
+      const p = paymentFor(studentId, m);
+      let remaining;
+      let creditAfter;
+      if (p.status === '全額付清') {
+        remaining = 0;
+        creditAfter = credit;
+      } else {
+        const paid = p.status === '先繳部分'
+          ? parsePartialPayments(p.partialPayments).reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+          : 0;
+        const available = credit + paid;
+        if (available >= owed) { remaining = 0; creditAfter = available - owed; } else { remaining = owed - available; creditAfter = 0; }
+      }
+      ledger[m] = { owed, remaining, creditAfter };
+      credit = creditAfter;
+      m = nextMonthStr(m);
+    }
+    return ledger;
+  }
+
+  const ledgerCache = {};
+  function ledgerFor(studentId) {
+    return (ledgerCache[studentId] ||= buildStudentLedger(studentId));
+  }
+
   function internshipLabel(studentId) {
     const pair = studentProjectClientPair(studentId, pairCtx);
     if (!pair) return '—';
@@ -276,7 +335,7 @@ export default function StudentBillingPage() {
     const rows = filtered.map((h) => {
       const b = billingFor(h, month, range);
       const p = paymentFor(h.studentId, month);
-      const remaining = Math.max(0, b.total - paidAmountOf(p, b.total));
+      const ledgerEntry = ledgerFor(h.studentId)[month] || { remaining: b.total, creditAfter: 0 };
       const partialDetail = p.status === '先繳部分'
         ? parsePartialPayments(p.partialPayments).map((e) => `${e.amount || 0}元(${e.date || '未填日期'})`).join('；')
         : '';
@@ -294,7 +353,8 @@ export default function StudentBillingPage() {
         status: p.status,
         partialDetail,
         fullPaidDate: p.status === '全額付清' ? (p.fullPaidDate || '') : '',
-        remaining,
+        remaining: ledgerEntry.remaining,
+        overpaidCredit: ledgerEntry.creditAfter,
       };
     });
     exportEntityCSV(rows, [
@@ -302,35 +362,31 @@ export default function StudentBillingPage() {
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
-      { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'remaining', label: '剩餘餘額' },
+      { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
     ], `學生請款計算_${month}`);
   }
 
-  // 未繳總表：一個學生一列，橫向 1-12 月各一欄，掃過選定年度每個月重算
-  // 每筆住宿紀錄的應繳金額減掉已收款金額(先繳部分扣已繳的金額，全額付清
-  // 整筆扣掉變 0)，只填還有剩餘未繳金額的月份——一旦在分月明細標記全額
-  // 付清，那個月的欄位就會變空白；先繳部分則顯示還沒繳的差額，不需要另外
-  // 維護一份「未繳」資料。
+  // 未繳總表：一個學生一列，橫向 1-12 月各一欄，依學生收款總帳(buildStudentLedger)
+  // 顯示選定年度每個月的剩餘未繳金額——總帳本身已經把前面月份的溢繳額度
+  // 往後抵充、欠款往後累積都算進去了，這裡只要照抄每個月的 remaining，
+  // 不需要另外維護一份「未繳」資料。
   const unpaidByStudent = {};
-  for (let m = 1; m <= 12; m++) {
-    const monthStr = `${year}-${String(m).padStart(2, '0')}`;
-    const mRange = monthRange(monthStr);
-    housingRecords.forEach((h) => {
-      if (residentOverlapDays(h, mRange) <= 0) return;
-      const b = billingFor(h, monthStr, mRange);
-      if (!b.total) return;
-      const p = paymentFor(h.studentId, monthStr);
-      const remaining = Math.max(0, b.total - paidAmountOf(p, b.total));
-      if (!remaining) return;
-      const entry = (unpaidByStudent[h.studentId] ||= {
-        studentId: h.studentId,
-        studentName: studentFullLabel(students.find((s) => s.id === h.studentId)),
-        internship: internshipLabel(h.studentId),
+  const unpaidStudentIds = [...new Set(housingRecords.filter((h) => h.studentId).map((h) => h.studentId))];
+  unpaidStudentIds.forEach((studentId) => {
+    const ledger = ledgerFor(studentId);
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+      const ledgerEntry = ledger[monthStr];
+      if (!ledgerEntry || !ledgerEntry.remaining) continue;
+      const entry = (unpaidByStudent[studentId] ||= {
+        studentId,
+        studentName: studentFullLabel(students.find((s) => s.id === studentId)),
+        internship: internshipLabel(studentId),
         months: {},
       });
-      entry.months[m] = (entry.months[m] || 0) + remaining;
-    });
-  }
+      entry.months[m] = ledgerEntry.remaining;
+    }
+  });
   const unpaidQuery = q.trim().toLowerCase();
   const filteredUnpaid = Object.values(unpaidByStudent)
     .filter((r) => !unpaidQuery || `${r.studentName} ${r.internship}`.toLowerCase().includes(unpaidQuery))
@@ -359,8 +415,8 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種，剩餘餘額=合計－已收款金額'
-              : '彙整選定年度每個月還有剩餘未繳金額的月份；全額付清的月份會從總表消失，先繳部分的月份顯示還沒繳的差額'}
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
+              : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失'}
           </div>
         </div>
         <div className="row-actions">
@@ -388,7 +444,8 @@ export default function StudentBillingPage() {
                         {groups[key].map((h) => {
                           const b = billingFor(h, month, range);
                           const p = paymentFor(h.studentId, month);
-                          const remaining = Math.max(0, b.total - paidAmountOf(p, b.total));
+                          const ledgerEntry = ledgerFor(h.studentId)[month] || { remaining: b.total, creditAfter: 0 };
+                          const { remaining, creditAfter: overpaidCredit } = ledgerEntry;
                           return (
                             <tr key={h.id}>
                               <td style={{ fontWeight: 600 }}>{studentFullLabel(students.find((s) => s.id === h.studentId))}</td>
@@ -428,7 +485,12 @@ export default function StudentBillingPage() {
                                   />
                                 ) : '—'}
                               </td>
-                              <td style={{ fontWeight: 600, color: remaining > 0 ? 'var(--danger)' : undefined }}>{remaining.toLocaleString()}</td>
+                              <td style={{ fontWeight: 600, color: remaining > 0 ? 'var(--danger)' : undefined }}>
+                                {remaining.toLocaleString()}
+                                {remaining === 0 && overpaidCredit > 0 && (
+                                  <div className="muted" style={{ fontWeight: 400, fontSize: 12 }}>溢繳 {overpaidCredit.toLocaleString()}（可抵次月）</div>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
