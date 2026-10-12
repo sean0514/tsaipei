@@ -13,6 +13,7 @@ const FIELDS = [
   { key: 'studentId', label: '學生', type: 'student' },
   { key: 'currency', label: '幣別', type: 'currency' },
   { key: 'amount', label: '金額', type: 'number' },
+  { key: 'twdAmount', label: '台幣金額(美金時填，公司損益需要台幣金額才能算進去)', type: 'number' },
   { key: 'foreignRefund1', label: '國外回款1', type: 'number' },
   { key: 'foreignRefund1Date', label: '國外回款1日期', type: 'date' },
   { key: 'foreignRefund2', label: '國外回款2', type: 'number' },
@@ -87,7 +88,10 @@ export default function ForeignPaymentPage() {
                       <tr key={r.id}>
                         <td>{r.paymentDate || '—'}</td>
                         <td>{studentName(r.studentId) || '—'}</td>
-                        <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
+                        <td>
+                          {r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}
+                          {r.currency === '美金' && r.twdAmount ? `（台幣 ${Number(r.twdAmount).toLocaleString()}）` : ''}
+                        </td>
                         <td>{r.paid === '是' ? '已付款' : '未付款'}</td>
                         <td>{r.foreignRefund1 ? `${Number(r.foreignRefund1).toLocaleString()}${r.foreignRefund1Date ? `（${r.foreignRefund1Date}）` : ''}` : '—'}</td>
                         <td>{r.foreignRefund2 ? `${Number(r.foreignRefund2).toLocaleString()}${r.foreignRefund2Date ? `（${r.foreignRefund2Date}）` : ''}` : '—'}</td>
@@ -124,6 +128,7 @@ function ForeignPaymentFormModal({ initial, students, onCancel, onSave }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             {FIELDS.map((f) => {
+              if (f.key === 'twdAmount' && form.currency !== '美金') return null;
               if (f.key === 'studentId') {
                 return (
                   <label key={f.key}>
