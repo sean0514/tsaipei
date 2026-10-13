@@ -770,4 +770,6 @@ const VI = {
   '護照照片': 'Ảnh hộ chiếu',
   '證照核發日期': 'Ngày cấp chứng chỉ',
   '預計考試日期': 'Ngày dự kiến thi',
+  '已考試未領取證照': 'Đã thi nhưng chưa nhận chứng chỉ',
+  '證照領取日期': 'Ngày nhận chứng chỉ',
 };
