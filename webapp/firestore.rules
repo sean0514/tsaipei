@@ -48,6 +48,7 @@ service cloud.firestore {
         'inTaiwanCare': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'expectedArrival': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'bankAccountProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'vehiclePickup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'internshipDocs': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
         'housing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'dormManagement': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
@@ -169,6 +170,13 @@ service cloud.firestore {
       allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanVisa');
       allow update: if tsCanEdit('housing');
       allow delete: if tsCanEdit('housing') || tsCanEdit('students');
+    }
+    // 接送車輛安排：獨立集合，跟在台簽證追蹤只靠 visaId/visaLabel 做「待安排」
+    // 清單去重，不是寫回同一筆紀錄，所以送工/送宿舍這種沒有對應入境/離境
+    // 日期的安排也可以直接手動新增。
+    match /tsaipei_vehicleArrangements/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('vehiclePickup');
     }
     // 開戶進度追蹤：一位學生一筆，勾選框第一次操作時才建立，所以 create/update 都放行。
     match /tsaipei_bankAccountProgress/{docId} {

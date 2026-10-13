@@ -19,6 +19,7 @@ import InTaiwanVisaPage from './systems/tsaipei/InTaiwanVisaPage';
 import InTaiwanCarePage from './systems/tsaipei/InTaiwanCarePage';
 import ExpectedArrivalPage from './systems/tsaipei/ExpectedArrivalPage';
 import BankAccountProgressPage from './systems/tsaipei/BankAccountProgressPage';
+import VehiclePickupPage from './systems/tsaipei/VehiclePickupPage';
 import HousingPage from './systems/tsaipei/HousingPage';
 import DormManagementPage from './systems/tsaipei/DormManagementPage';
 import CustomerServicePendingPage from './systems/tsaipei/CustomerServicePendingPage';
@@ -122,6 +123,7 @@ const PAGES = {
     inTaiwanCare: InTaiwanCarePage,
     expectedArrival: ExpectedArrivalPage,
     bankAccountProgress: BankAccountProgressPage,
+    vehiclePickup: VehiclePickupPage,
     housing: HousingPage,
     dormManagement: DormManagementPage,
     customerServicePending: CustomerServicePendingPage,
