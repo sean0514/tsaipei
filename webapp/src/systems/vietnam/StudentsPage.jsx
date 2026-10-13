@@ -14,7 +14,20 @@ import { t } from '../../lib/i18n';
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
 const CERT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const DESIRED_INDUSTRY_PRESETS = ['餐飲業', '旅館業', '製造業', '服務業', '物流業'];
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
+
+// 期望產業別存成 JSON 字串陣列（跟 PositionsPage.jsx 的 otherBenefits 同一套
+// 存法），可複選預設的五個產業，也可以自行新增項目；不是合法 JSON（例如
+// 舊資料是單一文字）就當成一個項目處理。
+function parseList(json) {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (Array.isArray(arr)) return arr;
+  } catch { /* 不是 JSON，當作舊版單一文字欄位處理 */ }
+  return [json];
+}
 
 // 欄位跟公開線上履歷填寫頁面（pages/VietnamResumeApplyPage.jsx，依「外國籍
 // 學生基本資料表」製作）一模一樣，這樣履歷轉入學生資料時欄位能直接對應。
@@ -51,6 +64,7 @@ const FIELDS = [
   { key: 'certPickupDate', label: '證照領取日期', type: 'date', visibleIf: (f) => f.hasCert === '已考試未領取證照' },
   { key: 'expectedExamDate', label: '預計考試日期', type: 'date', visibleIf: (f) => f.hasCert === '無' },
   { key: 'workExperience', label: '工作經驗', type: 'textarea' },
+  { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
   { key: 'status', label: '狀態' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
@@ -142,7 +156,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('狀態', lang)}</th>
+                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -159,6 +173,7 @@ export default function StudentsPage() {
                   </td>
                   <td>{r.gender || '—'}</td>
                   <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
+                  <td>{parseList(r.desiredIndustries).join('、') || '—'}</td>
                   <td><Tag value={r.status} map={STUDENT_TAG} /></td>
                   {canEditPage && (
                     <td>
@@ -171,7 +186,7 @@ export default function StudentsPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={6} className="muted">{t('沒有資料', lang)}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{t('沒有資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -188,6 +203,54 @@ async function uploadStudentPhoto(file, prefix) {
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file, { contentType: file.type });
   return getDownloadURL(storageRef);
+}
+
+// 複選預設選項＋自行新增項目：checkbox 勾選預設選項，額外加過的自訂項目
+// 也會各自顯示成一個可勾選/移除的項目，整組存回 JSON 陣列字串。
+function MultiSelectEditor({ value, options, onChange, lang }) {
+  const [newItem, setNewItem] = useState('');
+  const selected = parseList(value);
+  const extraItems = selected.filter((v) => !options.includes(v));
+
+  function toggle(item) {
+    if (selected.includes(item)) onChange(selected.filter((v) => v !== item));
+    else onChange([...selected, item]);
+  }
+  function addCustom() {
+    const text = newItem.trim();
+    if (!text || selected.includes(text)) return;
+    onChange([...selected, text]);
+    setNewItem('');
+  }
+  function removeCustom(item) {
+    onChange(selected.filter((v) => v !== item));
+  }
+
+  return (
+    <div>
+      <div className="row-actions" style={{ flexWrap: 'wrap' }}>
+        {[...options, ...extraItems].map((item) => (
+          <label key={item} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+            <input type="checkbox" checked={selected.includes(item)} onChange={() => toggle(item)} />
+            {item}
+            {!options.includes(item) && (
+              <button type="button" className="danger small" onClick={() => removeCustom(item)}>×</button>
+            )}
+          </label>
+        ))}
+      </div>
+      <div className="row-actions" style={{ marginTop: 8 }}>
+        <input
+          placeholder={t('輸入自訂項目', lang)}
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          style={{ flex: 1 }}
+        />
+        <button type="button" onClick={addCustom}>+ {t('新增項目', lang)}</button>
+      </div>
+    </div>
+  );
 }
 
 function StudentFormModal({ initial, onCancel, onSave, lang }) {
@@ -237,6 +300,13 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
                   </div>
                 ) : f.type === 'textarea' ? (
                   <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                ) : f.type === 'multiselect' ? (
+                  <MultiSelectEditor
+                    value={form[f.key]}
+                    options={f.options}
+                    onChange={(next) => setForm({ ...form, [f.key]: JSON.stringify(next) })}
+                    lang={lang}
+                  />
                 ) : f.options ? (
                   <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     {f.options.map((o) => <option key={o} value={o}>{o || t('請選擇', lang)}</option>)}
