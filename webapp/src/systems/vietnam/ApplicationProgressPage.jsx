@@ -1,14 +1,14 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { ProgressPipeline } from '../tsaipei/ApplicationProgressPage';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_applicationProgress）的資料，
 // 只篩選學生來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS 這幾個的紀錄；
 // 這個分頁在元凱系統不能新增/編輯/刪除，實際編輯請到境外生實習系統的
 // 「申辦進度追蹤」頁面。進度圖示沿用 tsaipei 自己的 ProgressPipeline
-// 元件，兩邊顯示邏輯完全一致。
+// 元件，兩邊顯示邏輯完全一致。依客戶（學生所媒合的實習單位）分組顯示。
 export default function ApplicationProgressPage() {
   const { lang } = useOutletContext();
   const { rows: progress, loading: loadingProgress } = useCollection('tsaipei_applicationProgress');
@@ -25,6 +25,8 @@ export default function ApplicationProgressPage() {
     .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier))
     .sort((a, b) => studentFullLabel(a.student).localeCompare(studentFullLabel(b.student)));
 
+  const groups = groupByLabel(rows, (r) => studentCompanyLabel(r.studentId, ctx));
+
   return (
     <div className="content">
       <div className="page-header">
@@ -34,13 +36,19 @@ export default function ApplicationProgressPage() {
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        rows.length === 0 ? <p className="muted">{t('沒有資料', lang)}</p> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rows.map((r) => (
-              <div className="card" key={r.id}>
-                <div style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</div>
-                <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{studentCompanyLabel(r.studentId, ctx)}</div>
-                <ProgressPipeline p={r} />
+        groups.length === 0 ? <p className="muted">{t('沒有資料', lang)}</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {groups.map((g) => (
+              <div className="card" key={g.label}>
+                <h3 style={{ marginTop: 0 }}>{g.label} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{g.rows.length} {t('位學生', lang)}</span></h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {g.rows.map((r) => (
+                    <div key={r.id}>
+                      <div style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</div>
+                      <ProgressPipeline p={r} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
