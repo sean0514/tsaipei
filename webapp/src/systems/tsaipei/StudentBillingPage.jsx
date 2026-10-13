@@ -16,6 +16,12 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
+function operatorsLabel(r) {
+  if (r.operators.size) return [...r.operators].join('、');
+  if (r.hasUnattributedActivity) return '（舊資料無記錄）';
+  return '—';
+}
+
 // 跟 客戶請款計算/學生自付宿舍 同一套「當月天數」規則。
 function monthRange(monthStr) {
   const [y, m] = monthStr.split('-').map(Number);
@@ -389,10 +395,15 @@ export default function StudentBillingPage() {
         internship: internshipLabel(studentId),
         months: {},
         operators: new Set(),
+        hasUnattributedActivity: false,
       });
       entry.months[m] = ledgerEntry.remaining;
       const p = paymentFor(studentId, monthStr);
       if (p.updatedBy) entry.operators.add(p.updatedBy);
+      // 這筆收款紀錄確實有人動過(先繳部分)，但沒有 updatedBy——代表是
+      // 「新增核准人紀錄」這個功能上線前就已經標記過的舊資料，當時系統
+      // 還沒有這個欄位，沒辦法回溯知道是誰標記的，不是程式有問題。
+      else if (p.status && p.status !== '未收款') entry.hasUnattributedActivity = true;
     }
   });
   const unpaidQuery = q.trim().toLowerCase();
@@ -404,7 +415,7 @@ export default function StudentBillingPage() {
 
   function handleDownloadUnpaid() {
     const rows = filteredUnpaid.map((r) => {
-      const row = { studentName: r.studentName, internship: r.internship, operators: [...r.operators].join('、') };
+      const row = { studentName: r.studentName, internship: r.internship, operators: operatorsLabel(r) };
       let rowTotal = 0;
       MONTH_NUMS.forEach((m) => {
         const amt = r.months[m] || 0;
@@ -541,7 +552,7 @@ export default function StudentBillingPage() {
                       <tr key={r.studentId}>
                         <td style={{ fontWeight: 600 }}>{r.studentName}</td>
                         <td>{r.internship}</td>
-                        <td>{[...r.operators].join('、') || '—'}</td>
+                        <td>{operatorsLabel(r)}</td>
                         {MONTH_NUMS.map((m) => {
                           const amt = r.months[m] || 0;
                           if (!amt) return <td key={m}>—</td>;
