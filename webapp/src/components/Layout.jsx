@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
 import { SYSTEMS } from '../lib/permissions';
 import { useAuth } from '../auth/AuthContext';
@@ -5,6 +6,29 @@ import { useRolePermissions, useSystemProfile } from '../auth/useSystemAccess';
 import { canView } from '../lib/permissions';
 import { NAV_ICONS } from '../lib/navIcons';
 import { companyKeyForSystem } from '../lib/companies';
+
+const ADMIN_ROLE = '系統管理員';
+
+// 權限預覽：只有真正的系統管理員能切換，用 localStorage 記住選的角色
+// (重新整理後還在，方便連續測試)，不會寫回 Firestore、也不影響實際登入
+// 身分——側邊欄/頁面看到的畫面會照模擬的角色顯示，但 Firestore 寫入規則
+// 還是看真實登入的 uid，系統管理員本來就一定能寫，所以這只是「畫面預覽」
+// 工具，不是真的切換帳號權限，寫入端的權限還是要另外用該角色的帳號登入
+// 測試才準。
+function useViewAsRole(system, realRole) {
+  const storageKey = `viewAsRole_${system}`;
+  const [viewAsRole, setViewAsRole] = useState(() => {
+    try { return localStorage.getItem(storageKey) || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    try {
+      if (viewAsRole) localStorage.setItem(storageKey, viewAsRole);
+      else localStorage.removeItem(storageKey);
+    } catch { /* 無痕視窗等情境拿不到 localStorage，純預覽功能不影響權限本身，忽略即可 */ }
+  }, [storageKey, viewAsRole]);
+  const effectiveRole = (realRole === ADMIN_ROLE && viewAsRole) ? viewAsRole : realRole;
+  return { viewAsRole, setViewAsRole, effectiveRole };
+}
 
 // Pages that actually exist as routes so far; every other module shows in
 // the nav (if the role can view it) but links to a "尚未建置" placeholder.
@@ -128,6 +152,7 @@ export default function Layout() {
   const overrides = useRolePermissions(system);
   const companyKey = companyKeyForSystem(system);
   const backTo = companyKey ? `/company/${companyKey}` : '/';
+  const { viewAsRole, setViewAsRole, effectiveRole } = useViewAsRole(system, profile?.role);
 
   if (!sys) return <div className="content">找不到這個系統</div>;
   if (profile === undefined) return <div className="content">載入中…</div>;
@@ -140,7 +165,7 @@ export default function Layout() {
     );
   }
 
-  const role = profile.role;
+  const role = effectiveRole;
 
   return (
     <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}`}>
@@ -155,6 +180,15 @@ export default function Layout() {
           <h1>{sys.label}</h1>
         )}
         <div className="back"><Link to={backTo}>← 切換系統</Link></div>
+        {profile.role === ADMIN_ROLE && (
+          <div style={{ padding: '8px 16px 12px' }}>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>預覽身分（僅畫面顯示，測試用）</label>
+            <select value={viewAsRole} onChange={(e) => setViewAsRole(e.target.value)} style={{ width: '100%' }}>
+              <option value="">真實身分（{ADMIN_ROLE}）</option>
+              {sys.roles.filter((r) => r !== ADMIN_ROLE).map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        )}
         <nav>
           {(() => {
             const renderedSections = new Set();
@@ -211,8 +245,14 @@ export default function Layout() {
         </nav>
       </aside>
       <div className="main">
+        {viewAsRole && (
+          <div style={{ background: '#fff3cd', color: '#7a5c00', padding: '8px 16px', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>目前以「{viewAsRole}」身分預覽畫面——只影響畫面看得到什麼，Firestore 寫入規則仍以你的真實登入身分（{ADMIN_ROLE}）執行，不能用來測試實際寫入權限是否被擋下來。</span>
+            <button onClick={() => setViewAsRole('')}>恢復管理員檢視</button>
+          </div>
+        )}
         <div className="topbar">
-          <span className="muted">{profile.displayName || profile.email} · {role}</span>
+          <span className="muted">{profile.displayName || profile.email} · {profile.role}{viewAsRole && `（預覽：${viewAsRole}）`}</span>
           <button onClick={logout}>登出</button>
         </div>
         <Outlet context={{ system, role, overrides }} />
