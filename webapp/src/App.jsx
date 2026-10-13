@@ -97,6 +97,7 @@ import VietnamDormManagementPage from './systems/vietnam/DormManagementPage';
 import VietnamCustomerServicePendingPage from './systems/vietnam/CustomerServicePendingPage';
 import VietnamAdminPendingPage from './systems/vietnam/AdminPendingPage';
 import VietnamPositionBenefitsPage from './systems/vietnam/PositionBenefitsPage';
+import VietnamCompanyNameTranslationsPage from './systems/vietnam/CompanyNameTranslationsPage';
 import VietnamMeetingsPage from './systems/vietnam/MeetingsPage';
 import VietnamClosedCasesPage from './systems/vietnam/ClosedCasesPage';
 import VietnamManagerReportPage from './systems/vietnam/ManagerReportPage';
@@ -255,6 +256,7 @@ const PAGES = {
     customerServicePending: VietnamCustomerServicePendingPage,
     adminPending: VietnamAdminPendingPage,
     benefits: VietnamPositionBenefitsPage,
+    companyNameTranslations: VietnamCompanyNameTranslationsPage,
     meetings: VietnamMeetingsPage,
     closedCases: VietnamClosedCasesPage,
     managerReport: VietnamManagerReportPage,

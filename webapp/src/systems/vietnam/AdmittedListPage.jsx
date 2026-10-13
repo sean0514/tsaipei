@@ -2,7 +2,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import Tag from '../../components/Tag';
 import { ADMITTED_TAG } from '../../lib/tags';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, groupByLabel } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, groupByLabel, translateCompanyName, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_admittedList）的資料，只篩選學生
@@ -15,7 +15,9 @@ export default function AdmittedListPage() {
   const { rows: matches, loading: loadingMatches } = useCollection('tsaipei_matches');
   const { rows: students, loading: loadingStudents } = useCollection('tsaipei_students');
   const { rows: positions, loading: loadingPositions } = useCollection('tsaipei_positions');
+  const { rows: companyTranslations } = useCollection('vietnam_companyNameTranslations');
   const loading = loadingAdmitted || loadingMatches || loadingStudents || loadingPositions;
+  const translations = buildTranslationMap(companyTranslations);
 
   const rows = admittedList
     .filter((r) => !r.confirmedClosed)
@@ -28,7 +30,7 @@ export default function AdmittedListPage() {
     .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier))
     .sort((a, b) => studentFullLabel(a.student).localeCompare(studentFullLabel(b.student)));
 
-  const groups = groupByLabel(rows, (r) => (r.position ? [r.position.projectCode, r.position.company].filter(Boolean).join(' ') : null));
+  const groups = groupByLabel(rows, (r) => (r.position ? [r.position.projectCode, translateCompanyName(r.position.company, translations, lang)].filter(Boolean).join(' ') : null));
 
   return (
     <div className="content">

@@ -1,7 +1,7 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { ProgressPipeline } from '../tsaipei/ApplicationProgressPage';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_applicationProgress）的資料，
@@ -16,8 +16,10 @@ export default function ApplicationProgressPage() {
   const { rows: matches, loading: loadingMatches } = useCollection('tsaipei_matches');
   const { rows: admittedList, loading: loadingAdmitted } = useCollection('tsaipei_admittedList');
   const { rows: positions, loading: loadingPositions } = useCollection('tsaipei_positions');
+  const { rows: companyTranslations } = useCollection('vietnam_companyNameTranslations');
   const loading = loadingProgress || loadingStudents || loadingMatches || loadingAdmitted || loadingPositions;
   const ctx = { matches, admittedList, positions };
+  const translations = buildTranslationMap(companyTranslations);
 
   const rows = progress
     .filter((r) => !r.confirmedClosed)
@@ -25,7 +27,7 @@ export default function ApplicationProgressPage() {
     .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier))
     .sort((a, b) => studentFullLabel(a.student).localeCompare(studentFullLabel(b.student)));
 
-  const groups = groupByLabel(rows, (r) => studentCompanyLabel(r.studentId, ctx));
+  const groups = groupByLabel(rows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
 
   return (
     <div className="content">
