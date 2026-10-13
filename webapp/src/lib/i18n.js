@@ -786,4 +786,6 @@ const VI = {
   '管理來台實習之國際學生基本資料與狀態，欄位比照外國籍學生基本資料表': 'Quản lý thông tin cơ bản và trạng thái của sinh viên quốc tế thực tập tại Đài Loan, các trường theo mẫu "Thông tin cơ bản dành cho sinh viên nước ngoài"',
   '是否有華語證照': 'Có chứng chỉ tiếng Trung không',
   '搜尋學生、學校、科系或國籍': 'Tìm theo học viên, trường học, khoa hoặc quốc tịch',
+  '期望產業別': 'Ngành nghề mong muốn',
+  '輸入自訂項目': 'Nhập mục tự định nghĩa',
 };
