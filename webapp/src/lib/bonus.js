@@ -44,6 +44,19 @@ export function studentDaysInTaiwanForMonth(studentId, monthStr, inTaiwanVisaRec
     + dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate);
 }
 
+// 學生這個月「廠商代付」住宿紀錄的天數——客戶請款計算的宿舍費/宿管費只能
+// 跟學生實際住「廠商代付」宿舍的天數掛鉤。學生自己付宿舍費（payer 是
+// 「學生自付」）的期間，公司沒有實際付出宿舍成本，不應該再跟客戶收這筆
+// 錢，所以宿舍費/宿管費不能像辦件費/服務費一樣直接用在台天數算。同一個
+// 學生這個月如果有多筆廠商代付住宿紀錄（例如搬宿舍）天數直接加總。
+export function studentForeignPaidDormDaysForMonth(studentId, monthStr, housingRecords) {
+  const range = monthRange(monthStr);
+  if (!range) return 0;
+  return (housingRecords || [])
+    .filter((h) => h.studentId === studentId && h.payer === '廠商代付')
+    .reduce((sum, h) => sum + dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut), 0);
+}
+
 export function studentProjectClientPair(studentId, { admittedList, matches, positions }) {
   const admitted = admittedList.find((a) => {
     const m = matches.find((x) => x.id === a.matchId);
@@ -253,16 +266,34 @@ function buildFixedChargeTotals(monthStr, ctx) {
   return totals;
 }
 
+// 宿舍費/宿管費的請款天數跟辦件費/服務費的「在台天數」脫鉤——只計算學生
+// 這個月「廠商代付」住宿紀錄的天數（見 studentForeignPaidDormDaysForMonth），
+// 學生自己付宿舍費的期間不跟客戶收這筆錢。
+function buildMonthlyProjectClientDormDayTotals(monthStr, ctx) {
+  const { students, housingRecords } = ctx;
+  const groups = {};
+  (students || []).forEach((s) => {
+    const pair = studentProjectClientPair(s.id, ctx);
+    if (!pair) return;
+    const days = studentForeignPaidDormDaysForMonth(s.id, monthStr, housingRecords);
+    if (days <= 0) return;
+    const key = `${pair.projectCode}||${pair.client}`;
+    (groups[key] ||= { totalDays: 0 }).totalDays += days;
+  });
+  return groups;
+}
+
 export function computeClientBillingForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
   const { clientFeeSetupRecords } = ctx;
   const groups = buildMonthlyProjectClientDayTotals(monthStr, ctx);
+  const dormDayGroups = buildMonthlyProjectClientDormDayTotals(monthStr, ctx);
   const fixedCharges = buildFixedChargeTotals(monthStr, ctx);
   const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
-  // 固定制學生的固定收費、須請款的日常支出申請都可能落在沒有當月在台天數
-  // 的月份，這種情況也要補一個群組才能顯示這筆費用。
-  [fixedCharges, dailyExpenseCharges].forEach((charges) => {
+  // 固定制學生的固定收費、須請款的日常支出申請、廠商代付住宿天數都可能
+  // 落在沒有當月在台天數的月份，這種情況也要補一個群組才能顯示這筆費用。
+  [fixedCharges, dailyExpenseCharges, dormDayGroups].forEach((charges) => {
     Object.keys(charges).forEach((key) => {
       if (groups[key]) return;
       const [projectCode, client] = key.split('||');
@@ -274,12 +305,14 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     const rate = clientFeeSetupRecords.find((r) => (r.projectCode || '') === g.projectCode && r.client === g.client);
     const isFixed = rate?.billingType === '固定制';
     const billDorm = !rate || rate.billDormFee !== '否';
+    const dormDays = dormDayGroups[key]?.totalDays || 0;
     const amounts = {};
     CLIENT_FEE_KEYS.forEach((k) => {
       if (!billDorm && DORM_FEE_KEYS.includes(k)) { amounts[k] = 0; return; }
       if (k === 'monthlyProcessingFee' && isFixed) { amounts[k] = fixedCharges[key] || 0; return; }
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
-      amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
+      const days = DORM_FEE_KEYS.includes(k) ? dormDays : g.totalDays;
+      amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * days) : 0;
     });
     const dailyExpenseJunyu = dailyExpenseCharges[key]?.junyuTotal || 0;
     const dailyExpenseSupplier = dailyExpenseCharges[key]?.supplierTotal || 0;
