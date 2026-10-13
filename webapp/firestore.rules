@@ -154,10 +154,9 @@ service cloud.firestore {
     match /tsaipei_inTaiwanVisa/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('inTaiwanVisa') || tsCanEdit('applicationProgress');
-      // update 也放行 expectedArrival/vehiclePickup：「預計入台/離台」「接送
-      // 車輛安排」都可以直接在頁面上編輯體檢/送工/航班/付款/接送車輛等欄位，
-      // 寫回同一筆在台簽證追蹤紀錄。
-      allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival') || tsCanEdit('vehiclePickup');
+      // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
+      // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
+      allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival');
       allow delete: if tsCanEdit('inTaiwanVisa') || tsCanEdit('students');
     }
     match /tsaipei_inTaiwanCare/{docId} {
@@ -171,6 +170,13 @@ service cloud.firestore {
       allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanVisa');
       allow update: if tsCanEdit('housing');
       allow delete: if tsCanEdit('housing') || tsCanEdit('students');
+    }
+    // 接送車輛安排：獨立集合，跟在台簽證追蹤只靠 visaId/visaLabel 做「待安排」
+    // 清單去重，不是寫回同一筆紀錄，所以送工/送宿舍這種沒有對應入境/離境
+    // 日期的安排也可以直接手動新增。
+    match /tsaipei_vehicleArrangements/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('vehiclePickup');
     }
     // 開戶進度追蹤：一位學生一筆，勾選框第一次操作時才建立，所以 create/update 都放行。
     match /tsaipei_bankAccountProgress/{docId} {
