@@ -4,6 +4,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
+import { createSyncedTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 
 const CERT_TYPE_LABEL = { TOCFL: '華語文能力測驗 TOCFL', TOEIC: '英文多益測驗 TOEIC' };
 
@@ -25,7 +26,7 @@ export default function ResumeLinksPage() {
   const canEditStudents = computeCanEdit(system, 'students', role, overrides);
   const { rows: staff, loading: loadingStaff } = useCollection('vietnam_users');
   const { rows: submissions, loading: loadingSubmissions, update: updateSubmission, remove: removeSubmission } = useCollection('vietnam_resumeSubmissions');
-  const { add: addStudent } = useCollection('vietnam_students');
+  const { add: addStudent, update: updateStudent } = useCollection('vietnam_students');
   const [q, setQ] = useState('');
   const [viewing, setViewing] = useState(null);
 
@@ -35,11 +36,13 @@ export default function ResumeLinksPage() {
   }
 
   // 學生資料（StudentsPage.jsx）的欄位已經改成比照履歷表製作，這裡逐欄位
-  // 直接對應轉入，不用再塞進備註欄位。
+  // 直接對應轉入，不用再塞進備註欄位。轉入後同步建立一筆對應的境外生
+  // 實習系統學生資料，跟 StudentsPage.jsx 自己新增學生時的同步邏輯共用
+  // lib/vietnamTsaipeiStudentSync.js，避免兩個入口各自維護一份、漏改。
   async function handleConvertToStudent(sub) {
     if (sub.studentId) return;
     if (!window.confirm(t('確定要把這筆履歷轉入學生資料嗎？', lang))) return;
-    const studentDoc = await addStudent({
+    const studentData = {
       originalName: sub.originalName || '',
       chineseName: sub.chineseName || '',
       vietnameseName: sub.vietnameseName || '',
@@ -66,8 +69,11 @@ export default function ResumeLinksPage() {
       sourceSupplier: sub.assignedStaff || '',
       status: '媒合中',
       createdAt: serverTimestamp(),
-    });
+    };
+    const studentDoc = await addStudent(studentData);
+    const tsaipeiStudentId = await createSyncedTsaipeiStudent(studentDoc.id, studentData);
     await updateSubmission(sub.id, { studentId: studentDoc.id, processedAt: serverTimestamp() });
+    await updateStudent(studentDoc.id, { syncedTsaipeiStudentId: tsaipeiStudentId });
   }
 
   async function handleDeleteSubmission(sub) {
