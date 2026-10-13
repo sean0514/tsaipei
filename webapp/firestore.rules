@@ -426,11 +426,12 @@ service cloud.firestore {
     }
     // create/update 額外放行 foreignSubsidyApplication：國外補助申請核准
     // （或核准後又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人
-    // 不一定有 foreignPayment 權限；foreignPayment 分頁本身還沒複製過來，
-    // 先只開放這個連鎖寫入路徑。
+    // 不一定有 foreignPayment 權限。delete 仍只限 foreignPayment，避免誤刪
+    // 已維護的付款紀錄。
     match /vietnam_foreignPayments/{docId} {
       allow read: if vnIsMember();
-      allow create, update: if vnCanEdit('foreignSubsidyApplication');
+      allow create, update: if vnCanEdit('foreignPayment') || vnCanEdit('foreignSubsidyApplication');
+      allow delete: if vnCanEdit('foreignPayment');
     }
     match /vietnam_dormitories/{docId} {
       allow read: if vnIsMember();
@@ -451,10 +452,17 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('meetings');
     }
-    // 內部費用建檔/客戶費用建檔分頁還沒複製過來，主管報表的本月獎金/請款
-    // 試算需要讀取這兩個集合，先開唯讀。
-    match /vietnam_internalFeeSetup/{docId} { allow read: if vnIsMember(); }
-    match /vietnam_clientFeeSetup/{docId} { allow read: if vnIsMember(); }
+    match /vietnam_internalFeeSetup/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('internalFeeSetup');
+    }
+    // create 額外放行 positions：新增實習單位時會自動在這裡帶入一筆空白費率，
+    // 經辦人不一定有 clientFeeSetup 權限。
+    match /vietnam_clientFeeSetup/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('clientFeeSetup') || vnCanEdit('positions');
+      allow update, delete: if vnCanEdit('clientFeeSetup');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
