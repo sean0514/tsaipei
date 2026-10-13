@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
 import DispatchApplyPage from './pages/DispatchApplyPage';
+import VietnamResumeApplyPage from './pages/VietnamResumeApplyPage';
 import CompanyPicker from './pages/CompanyPicker';
 import CompanyHomePage from './pages/CompanyHomePage';
 import Layout, { IMPLEMENTED_MODULES, TodoModule } from './components/Layout';
@@ -75,6 +76,7 @@ import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressP
 import YujianExpectedArrivalPage from './systems/yujian/ExpectedArrivalPage';
 import VietnamDashboardPage from './systems/vietnam/DashboardPage';
 import VietnamStudentsPage from './systems/vietnam/StudentsPage';
+import VietnamResumeLinksPage from './systems/vietnam/ResumeLinksPage';
 import VietnamPositionsPage from './systems/vietnam/PositionsPage';
 import VietnamMatchesPage from './systems/vietnam/MatchesPage';
 import VietnamSecondInterviewsPage from './systems/vietnam/SecondInterviewsPage';
@@ -232,6 +234,7 @@ const PAGES = {
   vietnam: {
     dashboard: VietnamDashboardPage,
     students: VietnamStudentsPage,
+    resumeLinks: VietnamResumeLinksPage,
     positions: VietnamPositionsPage,
     matches: VietnamMatchesPage,
     secondInterview: VietnamSecondInterviewsPage,
@@ -306,6 +309,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
+        <Route path="/apply/vietnam" element={<VietnamResumeApplyPage />} />
         <Route path="/" element={<RequireAuth><CompanyPicker /></RequireAuth>} />
         <Route path="/company/:companyKey" element={<RequireAuth><CompanyHomePage /></RequireAuth>} />
         <Route path="/:system" element={<RequireAuth><Layout /></RequireAuth>}>

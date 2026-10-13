@@ -55,7 +55,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續加入
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
-  vietnam: ['dashboard', 'unmatchedStudents', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup', 'managerReport', 'housing', 'dormManagement', 'customerServicePending', 'adminPending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee', 'foreignPayment', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'dormProfitLoss', 'companyProfitLoss', 'users'],
+  vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup', 'managerReport', 'housing', 'dormManagement', 'customerServicePending', 'adminPending', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee', 'foreignPayment', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'dormProfitLoss', 'companyProfitLoss', 'users'],
 };
 
 // A permission module can cover several routes at once — each route under
@@ -127,6 +127,7 @@ const GROUP_SECTIONS = {
     { label: '申請表格', items: ['dailyExpenseApplication', 'postageFee'] },
   ],
   vietnam: [
+    { label: '學生資料', items: ['unmatchedStudents', 'students', 'resumeLinks'] },
     { label: '職缺媒合', items: ['positions', 'matches', 'secondInterview', 'admitted', 'visaReminder'] },
     { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup'] },
     { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'dormProfitLoss', 'companyProfitLoss'] },

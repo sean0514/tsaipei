@@ -312,6 +312,7 @@ service cloud.firestore {
         'managerReport': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','宿管人員':'none'},
         'adminPending': {'系統管理員':'edit','主管':'edit','業務人員':'view','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
         'studentBilling': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
+        'resumeLinks': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'view','行政人員':'edit','會計人員':'none','宿管人員':'none'},
       }[module][role];
     }
     function vnCanEdit(module) {
@@ -484,6 +485,26 @@ service cloud.firestore {
     match /vietnam_companyPnlCustomAmounts/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('companyProfitLoss');
+    }
+    // 公開線上履歷連結（/apply/vietnam?ref=...）不需要登入即可新增一筆履歷，
+    // 只允許這裡列出的個人資料欄位＋assignedStaff/status/createdAt，且
+    // status 一定要是「待處理」，studentId/processedAt（轉入學生資料後才會
+    // 有）不開放公開連結寫入，避免公開連結被用來改到已轉入的狀態。
+    function isPublicResumeSubmission() {
+      return request.resource.data.keys().hasOnly([
+        'originalName', 'chineseName', 'hasPassport', 'passportId', 'gender', 'birthDate', 'nationality',
+        'height', 'weight', 'school', 'enrollDate', 'programYears', 'department', 'expectedGraduation',
+        'certType', 'certLevel', 'examDate', 'personalExperience', 'photoUrl', 'assignedStaff', 'status', 'createdAt'
+      ]) && (request.resource.data.originalName is string && request.resource.data.originalName.size() > 0)
+        && request.resource.data.status == '待處理';
+    }
+    // 履歷表連結：學生透過公開連結送出的履歷，待內部人員審核後轉入
+    // vietnam_students；轉入後的 studentId/processedAt 只能由內部人員寫入。
+    match /vietnam_resumeSubmissions/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('resumeLinks') || isPublicResumeSubmission();
+      allow update: if vnCanEdit('resumeLinks') || vnCanEdit('students');
+      allow delete: if vnCanEdit('resumeLinks');
     }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------

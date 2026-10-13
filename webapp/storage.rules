@@ -7,6 +7,9 @@ service firebase.storage {
     function yjIsMember() {
       return signedIn() && firestore.exists(/databases/(default)/documents/yujian_users/$(request.auth.uid));
     }
+    function vnIsMember() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/vietnam_users/$(request.auth.uid));
+    }
 
     // 暫時診斷用：拿掉 yjIsMember() 的 firestore.exists() 跨服務檢查，只要
     // 登入就放行，用來確認使用者回報的 storage/unauthorized 是不是這個
@@ -17,6 +20,13 @@ service firebase.storage {
     match /yujian_attachments/{allPaths=**} {
       allow read: if signedIn();
       allow write: if signedIn() && request.resource.size <= 4 * 1024 * 1024;
+    }
+    // 越南實習生系統「履歷表連結」公開填寫頁面（/apply/vietnam，不需要
+    // 登入）上傳的學生大頭貼，單檔上限 3MB、只接受圖片；讀取限內部成員，
+    // 讓「履歷表連結」頁面審核履歷時能看到照片。
+    match /vietnam_resumePhotos/{allPaths=**} {
+      allow read: if vnIsMember();
+      allow write: if request.resource.size <= 3 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
     }
   }
 }
