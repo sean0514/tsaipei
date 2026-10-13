@@ -762,7 +762,7 @@ const VI = {
   '華語證照': 'Chứng chỉ tiếng Trung',
   '無': 'Không có',
   '考試時間': 'Thời gian thi',
-  '個人經驗': 'Kinh nghiệm cá nhân',
+  '工作經驗': 'Kinh nghiệm làm việc',
   '確定要把這筆履歷轉入學生資料嗎？': 'Xác nhận chuyển hồ sơ này vào hồ sơ học viên?',
   '確定要刪除這筆履歷嗎？': 'Xác nhận xóa hồ sơ này?',
   '有': 'Có',
@@ -772,4 +772,16 @@ const VI = {
   '預計考試日期': 'Ngày dự kiến thi',
   '已考試未領取證照': 'Đã thi nhưng chưa nhận chứng chỉ',
   '證照領取日期': 'Ngày nhận chứng chỉ',
+
+  // 學生資料欄位比照履歷表
+  '英文姓名（與護照相符）': 'Tên tiếng Anh (Hộ chiếu phù hợp)',
+  '大頭貼': 'Ảnh chân dung',
+  '身高(cm)': 'Chiều cao (cm)',
+  '體重(kg)': 'Cân nặng (kg)',
+  '證照類別': 'Loại chứng chỉ',
+  '等級': 'Trình độ',
+  '照片檔案太大（上限 3MB）': 'Ảnh quá lớn (tối đa 3MB)',
+  '上傳中…': 'Đang tải lên…',
+  '上傳失敗': 'Tải lên thất bại',
+  '管理來台實習之國際學生基本資料與狀態，欄位比照外國籍學生基本資料表': 'Quản lý thông tin cơ bản và trạng thái của sinh viên quốc tế thực tập tại Đài Loan, các trường theo mẫu "Thông tin cơ bản dành cho sinh viên nước ngoài"',
 };

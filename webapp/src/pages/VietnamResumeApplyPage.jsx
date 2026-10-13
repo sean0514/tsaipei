@@ -235,7 +235,7 @@ export default function VietnamResumeApplyPage() {
             </label>
           )}
           <label>
-            個人經驗 Kinh nghiệm cá nhân
+            工作經驗 Kinh nghiệm làm việc
             <textarea rows={4} value={form.personalExperience || ''} onChange={(e) => setField('personalExperience', e.target.value)} />
           </label>
         </div>

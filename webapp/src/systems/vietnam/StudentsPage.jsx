@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
@@ -12,55 +13,48 @@ import { t } from '../../lib/i18n';
 
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
+const CERT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
-// Full schema ported from apps-script/Code.gs SHEET_FIELDS.Students.
+// 欄位跟公開線上履歷填寫頁面（pages/VietnamResumeApplyPage.jsx，依「外國籍
+// 學生基本資料表」製作）一模一樣，這樣履歷轉入學生資料時欄位能直接對應。
+// 多保留 status/sourceSupplier 這兩個履歷表沒有的欄位——這兩個是系統運作
+// 必要的操作性欄位（status 給主管報表/儀表板算狀態統計、媒合流程用；
+// sourceSupplier 給國外補助申請篩選學生來源用），拿掉會讓其他頁面壞掉，
+// 不是履歷表「個人資料」的一部分，所以不跟著改。
+// 注意：InternshipDocsPage.jsx 原本會同步寫入 langProofStatus/passportCopy/
+// enrollProofStatus/extensionNeeded/extensionProof/nightInternshipDoc 這幾個
+// 舊欄位到學生資料，這裡拿掉後那幾個寫入動作還是會成功（Firestore 沒有
+// schema 限制），只是變成這個頁面看不到、也不會再用到的欄位，不影響
+// InternshipDocsPage 本身的文件追蹤功能。
 const FIELDS = [
+  { key: 'originalName', label: '英文姓名（與護照相符）', required: true },
   { key: 'chineseName', label: '中文姓名' },
-  { key: 'originalName', label: '原始姓名(護照名稱)' },
-  { key: 'school', label: '就讀學校' },
-  { key: 'department1', label: '系所1' },
-  { key: 'department2', label: '系所2' },
-  { key: 'nationality', label: '國籍', options: ['', '越南', '印尼', '泰國', '菲律賓', '台灣'] },
+  { key: 'vietnameseName', label: '越南姓名' },
+  { key: 'photoUrl', label: '大頭貼', type: 'photo' },
+  { key: 'hasPassport', label: '是否有護照', options: ['', 'Yes', 'No'] },
+  { key: 'passportNumber', label: '護照號碼', visibleIf: (f) => f.hasPassport === 'Yes' },
+  { key: 'passportPhotoUrl', label: '護照照片', type: 'photo', visibleIf: (f) => f.hasPassport === 'Yes' },
   { key: 'gender', label: '性別', options: ['', '男', '女'] },
-  { key: 'email', label: 'Email' },
-  { key: 'phone', label: '電話' },
-  { key: 'startDate', label: '實習開始日', type: 'date' },
-  { key: 'endDate', label: '實習結束日', type: 'date' },
-  { key: 'langProofType', label: '語言能力證明類別', options: ['', '華語', '多益', '雅思'] },
-  { key: 'langProofLevel', label: '語言能力證明等級', options: ['', 'A1', 'A2', 'B1'] },
-  { key: 'langProofStatus', label: '語言能力證明狀態', options: ['未收到', '已收到'] },
-  { key: 'enrollStart', label: '在學證明_入學年月' },
-  { key: 'enrollEnd', label: '在學證明_畢業年月' },
-  { key: 'enrollProofStatus', label: '在學證明狀態', options: ['未收到', '已收到'] },
-  { key: 'passportCopy', label: '護照影本', options: ['未收到', '已收到'] },
-  { key: 'passportNumber', label: '護照號碼' },
-  { key: 'otherDocs', label: '其他文件' },
-  { key: 'extensionNeeded', label: '是否延畢', options: ['無', '有'] },
-  { key: 'extensionProof', label: '延畢證明（須載明實習結束後返國辦理畢業手續）', options: ['未收到', '已收到'] },
-  { key: 'nightInternshipDoc', label: '夜間實習同意書', options: ['未收到', '已收到', '不適用'] },
-  { key: 'firstEntryDate', label: '第一次入境日期', type: 'date' },
-  { key: 'firstExitDate', label: '第一次離境日期', type: 'date' },
-  { key: 'secondEntryDate', label: '第二次入境日期', type: 'date' },
-  { key: 'secondExitDate', label: '第二次離境日期', type: 'date' },
+  { key: 'birthDate', label: '出生日期', type: 'date' },
+  { key: 'nationality', label: '國籍' },
+  { key: 'height', label: '身高(cm)', type: 'number' },
+  { key: 'weight', label: '體重(kg)', type: 'number' },
+  { key: 'school', label: '就讀學校' },
+  { key: 'enrollDate', label: '入學日期', type: 'date' },
+  { key: 'programYears', label: '學制（年）', type: 'number' },
+  { key: 'department', label: '科系' },
+  { key: 'expectedGraduation', label: '預計畢業時間', type: 'date' },
+  { key: 'hasCert', label: '是否有華語證照', options: ['', '有', '已考試未領取證照', '無'] },
+  { key: 'certType', label: '證照類別', options: ['', 'TOCFL', 'TOEIC'], visibleIf: (f) => f.hasCert === '有' || f.hasCert === '已考試未領取證照' },
+  { key: 'certLevel', label: '等級', options: ['', ...CERT_LEVELS], visibleIf: (f) => f.hasCert === '有' || f.hasCert === '已考試未領取證照' },
+  { key: 'certPickupDate', label: '證照領取日期', type: 'date', visibleIf: (f) => f.hasCert === '已考試未領取證照' },
+  { key: 'expectedExamDate', label: '預計考試日期', type: 'date', visibleIf: (f) => f.hasCert === '無' },
+  { key: 'workExperience', label: '工作經驗', type: 'textarea' },
   { key: 'status', label: '狀態' },
-  { key: 'notes', label: '備註' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
-
-// Ported from docChecklist/docSummary in apps-script/Index.html — 5-item
-// checklist of document fields stored directly on the student record.
-function docSummary(s) {
-  const list = [
-    s.langProofStatus === '已收到',
-    s.enrollProofStatus === '已收到',
-    s.passportCopy === '已收到',
-    s.extensionNeeded === '無' || s.extensionProof === '已收到',
-    s.nightInternshipDoc === '已收到' || s.nightInternshipDoc === '不適用',
-  ];
-  const done = list.filter(Boolean).length;
-  return { done, total: list.length, complete: done === list.length };
-}
 
 // 複製自 systems/tsaipei/StudentsPage.jsx，collection 字首改成 vietnam_，
 // 介面文字（標題/按鈕/欄位標籤/表格欄位）包上 t(...) 依語言切換顯示；下拉
@@ -80,7 +74,7 @@ export default function StudentsPage() {
   });
   const filtered = sorted
     .filter((r) => !r.confirmedClosed)
-    .filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
+    .filter((r) => !q || [r.chineseName, r.vietnameseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
 
   async function handleSave(data) {
@@ -134,7 +128,7 @@ export default function StudentsPage() {
       <div className="page-header">
         <div>
           <h2>{t('學生資料', lang)}</h2>
-          <div className="page-desc">{t('管理來台實習之國際學生基本資料與狀態', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('管理來台實習之國際學生基本資料與狀態，欄位比照外國籍學生基本資料表', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>+ {t('新增學生', lang)}</button>}
@@ -148,40 +142,36 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('學校', lang)} / {t('系所', lang)}</th><th>{t('電話', lang)}</th><th>{t('入境', lang)} / {t('離境', lang)}</th><th>{t('文件', lang)}</th><th>{t('狀態', lang)}</th>
+                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('狀態', lang)}</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
-                const doc = docSummary(r);
-                return (
-                  <tr key={r.id}>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{[r.vietnameseName, r.nationality].filter(Boolean).join(' · ') || '—'}</div>
+                  </td>
+                  <td>
+                    {r.school || '—'}
+                    <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}</div>
+                  </td>
+                  <td>{r.gender || '—'}</td>
+                  <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
+                  <td><Tag value={r.status} map={STUDENT_TAG} /></td>
+                  {canEditPage && (
                     <td>
-                      <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
-                      <div className="muted" style={{ fontSize: 12 }}>{r.nationality || '—'}</div>
+                      <div className="row-actions">
+                        <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                        <button className="danger" onClick={() => handleDelete(r.id)}>{t('刪除', lang)}</button>
+                        <button onClick={() => update(r.id, { confirmedClosed: true })}>{t('結案', lang)}</button>
+                      </div>
                     </td>
-                    <td>
-                      {r.school || '—'}
-                      <div className="muted" style={{ fontSize: 12 }}>{[r.department1, r.department2].filter(Boolean).join(' / ')}</div>
-                    </td>
-                    <td>{r.phone || '—'}</td>
-                    <td>{r.firstEntryDate || '—'} ~ {r.firstExitDate || '—'}</td>
-                    <td><span className={`tag ${doc.complete ? 'tag-green' : 'tag-amber'}`}>{doc.done}/{doc.total}</span></td>
-                    <td><Tag value={r.status} map={STUDENT_TAG} /></td>
-                    {canEditPage && (
-                      <td>
-                        <div className="row-actions">
-                          <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
-                          <button className="danger" onClick={() => handleDelete(r.id)}>{t('刪除', lang)}</button>
-                          <button onClick={() => update(r.id, { confirmedClosed: true })}>{t('結案', lang)}</button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{t('沒有資料', lang)}</td></tr>}
+                  )}
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan={6} className="muted">{t('沒有資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -193,21 +183,60 @@ export default function StudentsPage() {
   );
 }
 
+async function uploadStudentPhoto(file, prefix) {
+  const path = `vietnam_resumePhotos/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
 function StudentFormModal({ initial, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
+  const [uploadingKey, setUploadingKey] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+
+  async function handlePhotoChange(key, e) {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    setUploadError('');
+    if (file.size > MAX_PHOTO_SIZE) {
+      setUploadError(t('照片檔案太大（上限 3MB）', lang));
+      e.target.value = '';
+      return;
+    }
+    setUploadingKey(key);
+    try {
+      const url = await uploadStudentPhoto(file, key);
+      setForm((f) => ({ ...f, [key]: url }));
+    } catch (err) {
+      setUploadError(`${t('上傳失敗', lang)}：${err.message || err}`);
+    } finally {
+      setUploadingKey(null);
+      e.target.value = '';
+    }
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? t('編輯學生', lang) : t('新增學生', lang)}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
-            {FIELDS.map((f) => (
+            {FIELDS.filter((f) => !f.visibleIf || f.visibleIf(form)).map((f) => (
               <label key={f.key}>
                 {t(f.label, lang)}
                 {f.key === 'status' ? (
                   <select value={form.status || STUDENT_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                     {STUDENT_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
+                ) : f.type === 'photo' ? (
+                  <div>
+                    {form[f.key] && <img src={form[f.key]} alt="" style={{ width: 90, height: 90, objectFit: 'cover', display: 'block', marginBottom: 6 }} />}
+                    <input type="file" accept="image/*" onChange={(e) => handlePhotoChange(f.key, e)} disabled={uploadingKey === f.key} />
+                    {uploadingKey === f.key && <div className="muted">{t('上傳中…', lang)}</div>}
+                  </div>
+                ) : f.type === 'textarea' ? (
+                  <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 ) : f.options ? (
                   <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     {f.options.map((o) => <option key={o} value={o}>{o || t('請選擇', lang)}</option>)}
@@ -223,8 +252,9 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
               </label>
             ))}
           </div>
+          {uploadError && <div className="error-text">{uploadError}</div>}
           <div className="row-actions">
-            <button type="submit" className="primary">{t('儲存', lang)}</button>
+            <button type="submit" className="primary" disabled={!!uploadingKey}>{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
           </div>
         </form>

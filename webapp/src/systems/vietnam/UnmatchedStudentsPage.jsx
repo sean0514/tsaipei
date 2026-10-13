@@ -9,12 +9,10 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
-function studentDepartments(s) {
-  return [s.department1, s.department2].filter(Boolean).join(' / ');
-}
-
 // 複製自 systems/tsaipei/UnmatchedStudentsPage.jsx，collection 字首改成
-// vietnam_，介面文字包上 t(...)。
+// vietnam_，介面文字包上 t(...)。StudentsPage.jsx 的欄位改成比照「外國籍
+// 學生基本資料表」後，department1/department2/startDate/phone 已經不是
+// 學生資料的欄位了，改用現有的 department/predicted graduation。
 export default function UnmatchedStudentsPage() {
   const { lang } = useOutletContext();
   const { rows: students, loading } = useCollection('vietnam_students');
@@ -26,7 +24,7 @@ export default function UnmatchedStudentsPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
-    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${studentDepartments(s)} ${s.nationality || ''} ${s.sourceSupplier || ''}`.toLowerCase().includes(searchQuery))
+    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${s.department || ''} ${s.nationality || ''} ${s.sourceSupplier || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => studentFullLabel(a).localeCompare(studentFullLabel(b)));
 
   const groups = {};
@@ -38,13 +36,13 @@ export default function UnmatchedStudentsPage() {
 
   function handleDownload() {
     const rows = filtered.map((s) => ({
-      name: studentFullLabel(s), nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '', school: s.school || '', department: studentDepartments(s),
-      status: s.status || '', startDate: s.startDate || '', phone: s.phone || '',
+      name: studentFullLabel(s), nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '', school: s.school || '', department: s.department || '',
+      status: s.status || '', expectedGraduation: s.expectedGraduation || '',
     }));
     exportEntityCSV(rows, [
       { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
       { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' },
-      { key: 'status', label: '狀態' }, { key: 'startDate', label: '實習開始日' }, { key: 'phone', label: '電話' },
+      { key: 'status', label: '狀態' }, { key: 'expectedGraduation', label: '預計畢業時間' },
     ], '學生尚未安排');
   }
 
@@ -70,17 +68,16 @@ export default function UnmatchedStudentsPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} {t('位學生', lang)}</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('國外供應商', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('狀態', lang)}</th><th>{t('實習開始日', lang)}</th><th>{t('電話', lang)}</th></tr></thead>
+                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('國外供應商', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('狀態', lang)}</th><th>{t('預計畢業時間', lang)}</th></tr></thead>
                   <tbody>
                     {groups[key].map((s) => (
                       <tr key={s.id}>
                         <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
                         <td>{s.sourceSupplier || '—'}</td>
                         <td>{s.school || '—'}</td>
-                        <td>{studentDepartments(s) || '—'}</td>
+                        <td>{s.department || '—'}</td>
                         <td>{s.status || '—'}</td>
-                        <td>{s.startDate || '—'}</td>
-                        <td>{s.phone || '—'}</td>
+                        <td>{s.expectedGraduation || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
