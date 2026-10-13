@@ -22,11 +22,12 @@ export default function ClientBillingPage() {
   const { rows: inTaiwanVisaRecords } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
+  const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: locks, add: addLock, remove: removeLock } = useCollection('tsaipei_clientBillingLocks');
   const [month, setMonth] = useState(currentMonthStr());
   const [busyKey, setBusyKey] = useState(null);
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications, housingRecords };
   const liveRows = computeClientBillingForMonth(month, ctx);
 
   function lockFor(row) {

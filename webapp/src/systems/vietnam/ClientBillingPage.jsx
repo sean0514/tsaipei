@@ -26,11 +26,12 @@ export default function ClientBillingPage() {
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
   const { rows: clientFeeSetupRecords } = useCollection('vietnam_clientFeeSetup');
   const { rows: dailyExpenseApplications } = useCollection('vietnam_dailyExpenseApplications');
+  const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: locks, add: addLock, remove: removeLock } = useCollection('vietnam_clientBillingLocks');
   const [month, setMonth] = useState(currentMonthStr());
   const [busyKey, setBusyKey] = useState(null);
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications, housingRecords };
   const liveRows = computeClientBillingForMonth(month, ctx);
 
   function lockFor(row) {

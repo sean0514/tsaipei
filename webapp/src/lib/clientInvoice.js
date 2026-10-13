@@ -1,7 +1,7 @@
 // Ported from generateClientInvoice/buildInvoiceSummarySheet_/
 // buildInvoiceDetailSheet_ in apps-script/Code.gs.
 
-import { resolveFixedChargeMonth, studentAdmitDate, buildDailyExpenseChargeTotals } from './bonus';
+import { resolveFixedChargeMonth, studentAdmitDate, buildDailyExpenseChargeTotals, studentForeignPaidDormDaysForMonth } from './bonus';
 
 export const COMPANY_INFO = {
   name: '鈞羽有限公司',
@@ -64,7 +64,7 @@ function studentPositionFor(studentId, { matches, admittedList, positions }) {
 }
 
 export function computeClientInvoice(projectCode, client, monthStr, ctx) {
-  const { students, clientFeeSetupRecords, inTaiwanVisaRecords } = ctx;
+  const { students, clientFeeSetupRecords, inTaiwanVisaRecords, housingRecords } = ctx;
   const range = monthRangeYMD(monthStr);
   const feeSetup = clientFeeSetupRecords.find((r) => (r.projectCode || '') === (projectCode || '') && r.client === client);
 
@@ -97,9 +97,13 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     if (days <= 0 && !fixedCharge) return;
     const stint = days > 0 ? studentStintDates(inTaiwanVisaRecords, s.id, range) : { start: v?.firstEntryDate || '', end: v?.firstExitDate || '' };
 
+    // 宿舍費/宿管費只能跟學生實際住「廠商代付」宿舍的天數掛鉤，不是在台
+    // 天數——學生自己付宿舍費的期間，公司沒有實際付出宿舍成本，不應該再
+    // 跟客戶收這筆錢，跟 computeClientBillingForMonth 一致。
+    const dormDays = studentForeignPaidDormDaysForMonth(s.id, monthStr, housingRecords);
     const serviceFee = feeSetup?.monthlyServiceFee ? Math.round((Number(feeSetup.monthlyServiceFee) / range.daysInMonth) * days) : 0;
-    const dormManageFee = feeSetup?.monthlyDormManageFee ? Math.round((Number(feeSetup.monthlyDormManageFee) / range.daysInMonth) * days) : 0;
-    const dormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * days) : 0;
+    const dormManageFee = feeSetup?.monthlyDormManageFee ? Math.round((Number(feeSetup.monthlyDormManageFee) / range.daysInMonth) * dormDays) : 0;
+    const dormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * dormDays) : 0;
     const processingFee = isFixed ? fixedCharge : (feeSetup?.monthlyProcessingFee ? Math.round((Number(feeSetup.monthlyProcessingFee) / range.daysInMonth) * days) : 0);
 
     studentRows.push({
