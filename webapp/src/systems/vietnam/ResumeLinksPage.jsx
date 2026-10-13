@@ -53,7 +53,7 @@ export default function ResumeLinksPage() {
         sub.vietnameseName ? `越南姓名：${sub.vietnameseName}` : '',
         sub.hasCert === '無' && sub.expectedExamDate ? `預計考試日期：${sub.expectedExamDate}` : '',
         sub.hasCert === '已考試未領取證照' ? `已考試未領取證照${sub.certPickupDate ? `，證照領取日期：${sub.certPickupDate}` : ''}` : '',
-        sub.personalExperience ? `個人經驗：${sub.personalExperience}` : '',
+        sub.personalExperience ? `工作經驗：${sub.personalExperience}` : '',
       ].filter(Boolean).join('\n'),
       createdAt: serverTimestamp(),
     });
@@ -167,7 +167,7 @@ export default function ResumeLinksPage() {
               </div>
               {viewing.hasCert === '已考試未領取證照' && <div><strong>{t('證照領取日期', lang)}：</strong>{viewing.certPickupDate || '—'}</div>}
               {viewing.hasCert === '無' && <div><strong>{t('預計考試日期', lang)}：</strong>{viewing.expectedExamDate || '—'}</div>}
-              <div style={{ gridColumn: '1 / -1' }}><strong>{t('個人經驗', lang)}：</strong>{viewing.personalExperience || '—'}</div>
+              <div style={{ gridColumn: '1 / -1' }}><strong>{t('工作經驗', lang)}：</strong>{viewing.personalExperience || '—'}</div>
               <div><strong>{t('負責專員', lang)}：</strong>{viewing.assignedStaff || '—'}</div>
             </div>
             <div className="row-actions" style={{ marginTop: 16 }}>

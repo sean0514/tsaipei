@@ -762,7 +762,7 @@ const VI = {
   '華語證照': 'Chứng chỉ tiếng Trung',
   '無': 'Không có',
   '考試時間': 'Thời gian thi',
-  '個人經驗': 'Kinh nghiệm cá nhân',
+  '工作經驗': 'Kinh nghiệm làm việc',
   '確定要把這筆履歷轉入學生資料嗎？': 'Xác nhận chuyển hồ sơ này vào hồ sơ học viên?',
   '確定要刪除這筆履歷嗎？': 'Xác nhận xóa hồ sơ này?',
   '有': 'Có',
