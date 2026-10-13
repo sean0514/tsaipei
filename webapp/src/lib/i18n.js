@@ -444,4 +444,77 @@ const VI = {
     'Tổng hợp danh sách từ Dự kiến nhập/xuất cảnh (chưa tích khám sức khỏe/đến nơi làm việc), Theo dõi tiến độ mở tài khoản (chưa tích tài khoản ngân hàng), Sắp xếp chỗ ở (chưa sắp xếp), Quản lý ký túc xá (chưa điền chi phí khác tháng này); có thể điền trực tiếp khám sức khỏe/đến nơi làm việc và chi phí khác ở đây, các chỉnh sửa khác vui lòng vào trang gốc',
   '目前沒有未完成的項目。': 'Hiện không có mục nào chưa hoàn thành.',
   '間': 'phòng',
+
+  // 行政未完成事項
+  '一起把待辦事項完成吧！': 'Cùng nhau hoàn thành việc cần làm nhé!',
+  '代辦事項清單': 'Danh sách việc cần làm',
+  '一件一件完成，會越來越好的！♥': 'Hoàn thành từng việc một, sẽ ngày càng tốt hơn! ♥',
+  '加油！': 'Cố lên!',
+  '行政未完成事項': 'Việc hành chính chưa hoàn thành',
+  '自由新增/編輯代辦事項，勾選「完成」或直接切換狀態': 'Tự do thêm/sửa việc cần làm, tích "Hoàn thành" hoặc chuyển trạng thái trực tiếp',
+  '新增事項': 'Thêm việc',
+  '編輯事項': 'Chỉnh sửa việc',
+  '完成': 'Hoàn thành',
+  '事項': 'Việc',
+  '開始日期': 'Ngày bắt đầu',
+  '截止日期': 'Ngày hết hạn',
+  '目前沒有代辦事項。': 'Hiện không có việc cần làm.',
+  '慢慢做，都會完成的！♥': 'Từ từ làm, sẽ hoàn thành hết thôi! ♥',
+  '說明（顯示在事項下方的小字，選填）': 'Mô tả (hiển thị dưới dạng chữ nhỏ bên dưới việc, tùy chọn)',
+
+  // 實習單位福利
+  '實習單位福利': 'Phúc lợi đơn vị thực tập',
+  '彙整各實習單位（職缺）目前登記的其他福利項目，資料來自「實習單位」的新增職缺表單': 'Tổng hợp các mục phúc lợi khác đã đăng ký của từng đơn vị thực tập (vị trí), dữ liệu lấy từ biểu mẫu thêm vị trí của "Đơn vị thực tập"',
+  '搜尋專案編號、公司或福利項目': 'Tìm theo mã dự án, công ty hoặc mục phúc lợi',
+  '實習津貼金額': 'Số tiền trợ cấp thực tập',
+  '膳宿費扣款金額': 'Số tiền khấu trừ ăn ở',
+  '目前沒有登記其他福利的職缺。': 'Hiện không có vị trí nào đăng ký phúc lợi khác.',
+
+  // 會議記錄
+  '每週公司內部討論紀錄': 'Biên bản họp nội bộ công ty hàng tuần',
+  '新增會議記錄': 'Thêm biên bản họp',
+  '編輯會議記錄': 'Chỉnh sửa biên bản họp',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有會議記錄，請先下載備份再匯入。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ biên bản họp hiện tại, vui lòng tải bản sao lưu trước khi nhập.',
+  '搜尋主題/主持人/出席人員': 'Tìm theo chủ đề/người chủ trì/người tham dự',
+  '主題': 'Chủ đề',
+  '主持人': 'Người chủ trì',
+  '出席人員': 'Người tham dự',
+  '討論內容': 'Nội dung thảo luận',
+  '待辦事項': 'Việc cần làm',
+
+  // 已結案名單
+  '已結案名單': 'Danh sách đã kết thúc',
+  '彙整各分頁按下「結案」的紀錄，依來源分頁分類': 'Tổng hợp các bản ghi đã bấm "Kết thúc hồ sơ" từ các trang, phân loại theo trang nguồn',
+  '搜尋名稱或來源分頁': 'Tìm theo tên hoặc trang nguồn',
+  '目前沒有已結案的紀錄。': 'Hiện không có bản ghi đã kết thúc.',
+  '名稱': 'Tên',
+  '復原': 'Khôi phục',
+
+  // 主管報表
+  '主管報表': 'Báo cáo quản lý',
+  '跨模組彙整的整體營運數據總覽': 'Tổng quan dữ liệu vận hành tổng hợp đa mô-đun',
+  '本月內部獎金試算': 'Ước tính thưởng nội bộ tháng này',
+  '本月客戶請款試算': 'Ước tính thu tiền khách hàng tháng này',
+  '文件已齊全學生': 'Học viên đã đủ hồ sơ',
+  '文件待補件學生': 'Học viên cần bổ sung hồ sơ',
+  '學生狀態分佈': 'Phân bố trạng thái học viên',
+  '住宿狀態分佈': 'Phân bố trạng thái chỗ ở',
+  '國籍分佈': 'Phân bố quốc tịch',
+  '學生人數前 8 大客戶': '8 khách hàng có nhiều học viên nhất',
+  '尚無學生資料': 'Chưa có dữ liệu học viên',
+  '尚無媒合資料': 'Chưa có dữ liệu ghép đôi',
+
+  // 學生尚未安排
+  '學生尚未安排': 'Học viên chưa sắp xếp',
+  '自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生，依國籍分類顯示；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護':
+    'Tự động liệt kê học viên chưa có bất kỳ bản ghi nào trong "Lịch sử ghép đôi" được điền vị trí thực tế, hiển thị theo quốc tịch; khi học viên được ghép vị trí sẽ tự động biến mất khỏi đây, không cần duy trì thủ công',
+  '下載名單': 'Tải danh sách',
+  '搜尋學生、學校、科系、國籍或國外供應商': 'Tìm theo học viên, trường, ngành, quốc tịch hoặc nhà cung cấp nước ngoài',
+  '沒有符合搜尋條件的學生。': 'Không có học viên phù hợp điều kiện tìm kiếm.',
+  '目前所有學生都已經安排媒合了。': 'Hiện tất cả học viên đã được sắp xếp ghép đôi.',
+  '位學生尚未安排，依國籍分類如下': 'học viên chưa sắp xếp, phân loại theo quốc tịch như sau',
+  '學生姓名': 'Tên học viên',
+  '國外供應商': 'Nhà cung cấp nước ngoài',
+  '實習開始日': 'Ngày bắt đầu thực tập',
 };
