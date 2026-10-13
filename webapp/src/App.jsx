@@ -87,6 +87,9 @@ import VietnamInTaiwanCarePage from './systems/vietnam/InTaiwanCarePage';
 import VietnamExpectedArrivalPage from './systems/vietnam/ExpectedArrivalPage';
 import VietnamBankAccountProgressPage from './systems/vietnam/BankAccountProgressPage';
 import VietnamVehiclePickupPage from './systems/vietnam/VehiclePickupPage';
+import VietnamForeignSubsidyApplicationPage from './systems/vietnam/ForeignSubsidyApplicationPage';
+import VietnamDailyExpenseApplicationPage from './systems/vietnam/DailyExpenseApplicationPage';
+import VietnamPostageFeeRecordPage from './systems/vietnam/PostageFeeRecordPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -222,6 +225,9 @@ const PAGES = {
     expectedArrival: VietnamExpectedArrivalPage,
     bankAccountProgress: VietnamBankAccountProgressPage,
     vehiclePickup: VietnamVehiclePickupPage,
+    foreignSubsidyApplication: VietnamForeignSubsidyApplicationPage,
+    dailyExpenseApplication: VietnamDailyExpenseApplicationPage,
+    postageFee: VietnamPostageFeeRecordPage,
     users: UsersPage,
   },
   foodfactory: {

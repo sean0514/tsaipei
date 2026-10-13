@@ -55,7 +55,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續加入
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
-  vietnam: ['dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup', 'users'],
+  vietnam: ['dashboard', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee', 'users'],
 };
 
 // A permission module can cover several routes at once — each route under
