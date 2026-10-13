@@ -45,11 +45,16 @@ export default function ResumeLinksPage() {
       nationality: sub.nationality || '',
       gender: sub.gender || '',
       passportNumber: sub.hasPassport === 'Yes' ? (sub.passportId || '') : '',
-      langProofType: sub.certType === 'TOCFL' ? '華語' : sub.certType === 'TOEIC' ? '多益' : '',
-      langProofLevel: sub.certLevel || '',
+      langProofType: sub.hasCert === '有' ? (sub.certType === 'TOCFL' ? '華語' : sub.certType === 'TOEIC' ? '多益' : '') : '',
+      langProofLevel: sub.hasCert === '有' ? (sub.certLevel || '') : '',
       sourceSupplier: sub.assignedStaff || '',
       status: '媒合中',
-      notes: sub.personalExperience ? `個人經驗：${sub.personalExperience}` : '',
+      notes: [
+        sub.vietnameseName ? `越南姓名：${sub.vietnameseName}` : '',
+        sub.hasCert === '無' && sub.expectedExamDate ? `預計考試日期：${sub.expectedExamDate}` : '',
+        sub.hasCert === '有' && sub.certIssueDate ? `證照核發日期：${sub.certIssueDate}` : '',
+        sub.personalExperience ? `個人經驗：${sub.personalExperience}` : '',
+      ].filter(Boolean).join('\n'),
       createdAt: serverTimestamp(),
     });
     await updateSubmission(sub.id, { studentId: studentDoc.id, processedAt: serverTimestamp() });
@@ -62,7 +67,7 @@ export default function ResumeLinksPage() {
 
   const query = q.trim().toLowerCase();
   const filteredSubmissions = [...submissions]
-    .filter((s) => !query || `${s.chineseName || ''} ${s.originalName || ''} ${s.assignedStaff || ''}`.toLowerCase().includes(query))
+    .filter((s) => !query || `${s.chineseName || ''} ${s.vietnameseName || ''} ${s.originalName || ''} ${s.assignedStaff || ''}`.toLowerCase().includes(query))
     .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
 
   return (
@@ -103,7 +108,7 @@ export default function ResumeLinksPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('中文姓名', lang)}</th><th>{t('英文姓名', lang)}</th><th>{t('性別', lang)}</th><th>{t('國籍', lang)}</th>
+                <th>{t('中文姓名', lang)}</th><th>{t('越南姓名', lang)}</th><th>{t('英文姓名', lang)}</th><th>{t('性別', lang)}</th><th>{t('國籍', lang)}</th>
                 <th>{t('負責專員', lang)}</th><th>{t('提交時間', lang)}</th><th>{t('狀態', lang)}</th><th></th>
               </tr>
             </thead>
@@ -111,6 +116,7 @@ export default function ResumeLinksPage() {
               {filteredSubmissions.map((sub) => (
                 <tr key={sub.id}>
                   <td>{sub.chineseName || '—'}</td>
+                  <td>{sub.vietnameseName || '—'}</td>
                   <td>{sub.originalName || '—'}</td>
                   <td>{sub.gender || '—'}</td>
                   <td>{sub.nationality || '—'}</td>
@@ -126,7 +132,7 @@ export default function ResumeLinksPage() {
                   </td>
                 </tr>
               ))}
-              {filteredSubmissions.length === 0 && <tr><td colSpan={8} className="muted">{query ? t('沒有符合搜尋條件的紀錄。', lang) : t('目前沒有履歷。', lang)}</td></tr>}
+              {filteredSubmissions.length === 0 && <tr><td colSpan={9} className="muted">{query ? t('沒有符合搜尋條件的紀錄。', lang) : t('目前沒有履歷。', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -135,11 +141,15 @@ export default function ResumeLinksPage() {
       {viewing && (
         <div className="modal-backdrop" onClick={() => setViewing(null)}>
           <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 520, maxWidth: '100%' }}>
-            <h3 style={{ marginTop: 0 }}>{viewing.chineseName || viewing.originalName}</h3>
-            {viewing.photoUrl && <img src={viewing.photoUrl} alt="" style={{ width: 120, height: 120, objectFit: 'cover', marginBottom: 12 }} />}
+            <h3 style={{ marginTop: 0 }}>{viewing.chineseName || viewing.vietnameseName || viewing.originalName}</h3>
+            <div className="row-actions" style={{ marginBottom: 12 }}>
+              {viewing.photoUrl && <img src={viewing.photoUrl} alt="" style={{ width: 120, height: 120, objectFit: 'cover' }} />}
+              {viewing.passportPhotoUrl && <img src={viewing.passportPhotoUrl} alt="" style={{ width: 120, height: 120, objectFit: 'cover' }} />}
+            </div>
             <div className="form-grid">
               <div><strong>{t('英文姓名', lang)}：</strong>{viewing.originalName || '—'}</div>
               <div><strong>{t('中文姓名', lang)}：</strong>{viewing.chineseName || '—'}</div>
+              <div><strong>{t('越南姓名', lang)}：</strong>{viewing.vietnameseName || '—'}</div>
               <div><strong>{t('是否有護照', lang)}：</strong>{viewing.hasPassport || '—'}{viewing.hasPassport === 'Yes' && ` (ID: ${viewing.passportId || '—'})`}</div>
               <div><strong>{t('性別', lang)}：</strong>{viewing.gender || '—'}</div>
               <div><strong>{t('出生日期', lang)}：</strong>{viewing.birthDate || '—'}</div>
@@ -150,8 +160,13 @@ export default function ResumeLinksPage() {
               <div><strong>{t('學制（年）', lang)}：</strong>{viewing.programYears || '—'}</div>
               <div><strong>{t('科系', lang)}：</strong>{viewing.department || '—'}</div>
               <div><strong>{t('預計畢業時間', lang)}：</strong>{viewing.expectedGraduation || '—'}</div>
-              <div><strong>{t('華語證照', lang)}：</strong>{viewing.certType ? `${CERT_TYPE_LABEL[viewing.certType] || viewing.certType} ${viewing.certLevel || ''}` : t('無', lang)}</div>
-              {viewing.certType && <div><strong>{t('考試時間', lang)}：</strong>{viewing.examDate || '—'}</div>}
+              <div><strong>{t('華語證照', lang)}：</strong>
+                {viewing.hasCert === '有'
+                  ? `${CERT_TYPE_LABEL[viewing.certType] || viewing.certType || ''} ${viewing.certLevel || ''}`.trim() || '—'
+                  : t('無', lang)}
+              </div>
+              {viewing.hasCert === '有' && <div><strong>{t('證照核發日期', lang)}：</strong>{viewing.certIssueDate || '—'}</div>}
+              {viewing.hasCert === '無' && <div><strong>{t('預計考試日期', lang)}：</strong>{viewing.expectedExamDate || '—'}</div>}
               <div style={{ gridColumn: '1 / -1' }}><strong>{t('個人經驗', lang)}：</strong>{viewing.personalExperience || '—'}</div>
               <div><strong>{t('負責專員', lang)}：</strong>{viewing.assignedStaff || '—'}</div>
             </div>
