@@ -101,8 +101,11 @@ service cloud.firestore {
     }
     // 職缺媒合 group — 原本四個集合共用 'matching' 權限，依需求改成每個
     // 分頁各自独立（positions/matches/secondInterview/admitted/visaReminder）。
+    // read 額外放行 vnIsMember()：「實習單位福利」頁面兩個系統互相顯示合併
+    // 後的福利清單（境外生實習系統/越南實習生系統的使用者都要能讀到對方
+    // 系統的實習單位資料），write 仍只限各自系統的編輯權限。
     match /tsaipei_positions/{docId} {
-      allow read: if tsIsMember();
+      allow read: if tsIsMember() || vnIsMember();
       allow write: if tsCanEdit('positions');
     }
     match /tsaipei_matches/{docId} {
@@ -348,8 +351,9 @@ service cloud.firestore {
       allow update: if vnCanEdit('matches') || vnCanEdit('closedCases');
       allow delete: if vnCanEdit('matches') || vnCanEdit('students');
     }
+    // read 額外放行 tsIsMember()：理由同 tsaipei_positions 那邊的註解。
     match /vietnam_positions/{docId} {
-      allow read: if vnIsMember();
+      allow read: if vnIsMember() || tsIsMember();
       allow write: if vnCanEdit('positions');
     }
     match /vietnam_secondInterviews/{docId} {
