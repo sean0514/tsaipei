@@ -103,6 +103,10 @@ import VietnamClientFeeSetupPage from './systems/vietnam/ClientFeeSetupPage';
 import VietnamInternalFeeSetupPage from './systems/vietnam/InternalFeeSetupPage';
 import VietnamBonusPage from './systems/vietnam/BonusPage';
 import VietnamForeignPaymentPage from './systems/vietnam/ForeignPaymentPage';
+import VietnamClientBillingPage from './systems/vietnam/ClientBillingPage';
+import VietnamStudentSelfPayHousingPage from './systems/vietnam/StudentSelfPayHousingPage';
+import VietnamStudentMasterSheetPage from './systems/vietnam/StudentMasterSheetPage';
+import VietnamDormProfitLossPage from './systems/vietnam/DormProfitLossPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -254,6 +258,10 @@ const PAGES = {
     internalFeeSetup: VietnamInternalFeeSetupPage,
     bonus: VietnamBonusPage,
     foreignPayment: VietnamForeignPaymentPage,
+    clientBilling: VietnamClientBillingPage,
+    studentSelfPayHousing: VietnamStudentSelfPayHousingPage,
+    studentMasterSheet: VietnamStudentMasterSheetPage,
+    dormProfitLoss: VietnamDormProfitLossPage,
     users: UsersPage,
   },
   foodfactory: {
