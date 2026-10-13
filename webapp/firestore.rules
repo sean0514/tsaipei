@@ -343,15 +343,40 @@ service cloud.firestore {
       allow update: if vnCanEdit('matches');
       allow delete: if vnCanEdit('matches') || vnCanEdit('students');
     }
+    match /vietnam_positions/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('positions');
+    }
+    match /vietnam_secondInterviews/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('secondInterview');
+      allow update: if vnCanEdit('secondInterview');
+      allow delete: if vnCanEdit('secondInterview') || vnCanEdit('students');
+    }
+    match /vietnam_admittedList/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('admitted');
+      allow update: if vnCanEdit('admitted');
+      allow delete: if vnCanEdit('admitted') || vnCanEdit('students');
+    }
+    // AdmittedListPage 狀態改成「確認錄取」時會連鎖建立 internshipDocs/
+    // applicationProgress，所以這兩個集合的 create 也放行 admitted 編輯者，
+    // 跟 tsaipei_internshipDocs/tsaipei_applicationProgress 同樣的理由；其餘
+    // 編輯功能(InternshipDocsPage/ApplicationProgressPage)還沒複製過來前
+    // 先不開放 update。
+    match /vietnam_internshipDocs/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('internshipDocs') || vnCanEdit('admitted');
+      allow delete: if vnCanEdit('internshipDocs') || vnCanEdit('admitted') || vnCanEdit('students');
+    }
+    match /vietnam_applicationProgress/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('applicationProgress') || vnCanEdit('admitted');
+    }
     // 儀表板彙整讀取用，分頁還沒複製過來前先開唯讀，之後複製到對應分頁時
     // 再補上 vnCanEdit() 寫入規則（比照 tsaipei 同名集合）。
-    match /vietnam_positions/{docId} { allow read: if vnIsMember(); }
-    match /vietnam_admittedList/{docId} { allow read: if vnIsMember(); }
-    match /vietnam_applicationProgress/{docId} { allow read: if vnIsMember(); }
     match /vietnam_housingRecords/{docId} { allow read: if vnIsMember(); }
     match /vietnam_inTaiwanCare/{docId} { allow read: if vnIsMember(); }
-    match /vietnam_internshipDocs/{docId} { allow read: if vnIsMember(); }
-    match /vietnam_secondInterviews/{docId} { allow read: if vnIsMember(); }
     match /vietnam_inTaiwanVisa/{docId} { allow read: if vnIsMember(); }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
