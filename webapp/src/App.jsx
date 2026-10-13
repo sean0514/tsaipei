@@ -73,6 +73,8 @@ import YujianSecondInterviewsPage from './systems/yujian/SecondInterviewsPage';
 import YujianAdmittedListPage from './systems/yujian/AdmittedListPage';
 import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressPage';
 import YujianExpectedArrivalPage from './systems/yujian/ExpectedArrivalPage';
+import VietnamDashboardPage from './systems/vietnam/DashboardPage';
+import VietnamStudentsPage from './systems/vietnam/StudentsPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -189,6 +191,13 @@ const PAGES = {
     meetings: YujianMeetingsPage,
     dailyExpenseApplication: YujianDailyExpenseApplicationPage,
     postageFee: YujianPostageFeeRecordPage,
+    users: UsersPage,
+  },
+  // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續
+  // 加入這裡（對照 Layout.jsx 的 IMPLEMENTED_MODULES.vietnam）。
+  vietnam: {
+    dashboard: VietnamDashboardPage,
+    students: VietnamStudentsPage,
     users: UsersPage,
   },
   foodfactory: {

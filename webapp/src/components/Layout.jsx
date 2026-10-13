@@ -6,6 +6,7 @@ import { useRolePermissions, useSystemProfile } from '../auth/useSystemAccess';
 import { canView } from '../lib/permissions';
 import { NAV_ICONS } from '../lib/navIcons';
 import { companyKeyForSystem } from '../lib/companies';
+import { useLanguage, t } from '../lib/i18n';
 
 const ADMIN_ROLE = '系統管理員';
 
@@ -52,6 +53,9 @@ export const IMPLEMENTED_MODULES = {
     'dashboard', 'workers', 'employers', 'matches', 'secondInterview', 'admitted', 'placementList',
     'applicationProgress', 'expectedArrival', 'arrivedList', 'arrivedSummary', 'closedCases', 'meetings', 'dailyExpenseApplication', 'postageFee', 'users',
   ],
+  // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續加入
+  // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
+  vietnam: ['dashboard', 'students', 'users'],
 };
 
 // A permission module can cover several routes at once — each route under
@@ -122,9 +126,16 @@ const GROUP_SECTIONS = {
     { label: '媒合紀錄', items: ['matches', 'secondInterview', 'admitted', 'placementList'] },
     { label: '申請表格', items: ['dailyExpenseApplication', 'postageFee'] },
   ],
+  vietnam: [
+    { label: '職缺媒合', items: ['positions', 'matches', 'secondInterview', 'admitted', 'visaReminder'] },
+    { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup'] },
+    { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'dormProfitLoss', 'companyProfitLoss'] },
+    { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
+    { label: '申請表格', items: ['foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee'] },
+  ],
 };
 
-function NavItem({ system, route, label }) {
+function NavItem({ system, route, label, lang }) {
   const implemented = IMPLEMENTED_MODULES[system]?.includes(route);
   const icon = NAV_ICONS[system]?.[route];
   return (
@@ -133,7 +144,7 @@ function NavItem({ system, route, label }) {
       className={({ isActive }) => (isActive ? 'active' : '')}
       style={{ paddingLeft: 28 }}
     >
-      {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
+      {icon && <span className="nav-icon">{icon}</span>}{t(label, lang)}{!implemented && ' (建置中)'}
     </NavLink>
   );
 }
@@ -147,6 +158,8 @@ export default function Layout() {
   const companyKey = companyKeyForSystem(system);
   const backTo = companyKey ? `/company/${companyKey}` : '/';
   const { viewAsRole, setViewAsRole, effectiveRole } = useViewAsRole(system, profile?.role);
+  const [lang, setLang] = useLanguage(system);
+  const effectiveLang = sys?.bilingual ? lang : 'zh';
 
   if (!sys) return <div className="content">找不到這個系統</div>;
   if (profile === undefined) return <div className="content">載入中…</div>;
@@ -162,7 +175,7 @@ export default function Layout() {
   const role = effectiveRole;
 
   return (
-    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}`}>
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}${system === 'vietnam' ? ' theme-vietnam' : ''}`}>
       <aside className="sidebar">
         {system === 'tsaipei' ? (
           <h1 className="brand-mark">🌸 鈞羽有限公司<br />境外實習生管理系統<div className="brand-sub">International Internship Desk</div></h1>
@@ -170,15 +183,30 @@ export default function Layout() {
           <h1 className="brand-mark">🤝 聿見國際有限公司<br />外勞仲介管理系統<div className="brand-sub">Overseas Caregiver Placement</div></h1>
         ) : system === 'dispatch' ? (
           <h1 className="brand-mark">🩵 宸暐企業有限公司<br />派遣公司專用系統<div className="brand-sub">Staffing & Dispatch Desk</div></h1>
+        ) : system === 'vietnam' ? (
+          effectiveLang === 'vi' ? (
+            <h1 className="brand-mark">🇻🇳 CÔNG TY TNHH TM & NNL NGUYÊN KHẢI<br />Hệ thống Quản lý Thực tập sinh<div className="brand-sub">Vietnam Internship Desk</div></h1>
+          ) : (
+            <h1 className="brand-mark">🇻🇳 元凱貿易及人力資源有限公司<br />越南實習生管理系統<div className="brand-sub">Vietnam Internship Desk</div></h1>
+          )
         ) : (
           <h1>{sys.label}</h1>
         )}
-        <div className="back"><Link to={backTo}>← 切換系統</Link></div>
+        <div className="back"><Link to={backTo}>← {t('切換系統', effectiveLang)}</Link></div>
+        {sys?.bilingual && (
+          <div style={{ padding: '8px 16px 0' }}>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>語言 / Ngôn ngữ</label>
+            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: '100%' }}>
+              <option value="zh">中文</option>
+              <option value="vi">Tiếng Việt</option>
+            </select>
+          </div>
+        )}
         {profile.role === ADMIN_ROLE && (
           <div style={{ padding: '8px 16px 12px' }}>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>預覽身分（僅畫面顯示，測試用）</label>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>{t('預覽身分（僅畫面顯示，測試用）', effectiveLang)}</label>
             <select value={viewAsRole} onChange={(e) => setViewAsRole(e.target.value)} style={{ width: '100%' }}>
-              <option value="">真實身分（{ADMIN_ROLE}）</option>
+              <option value="">{t('真實身分', effectiveLang)}（{ADMIN_ROLE}）</option>
               {sys.roles.filter((r) => r !== ADMIN_ROLE).map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
@@ -195,8 +223,8 @@ export default function Layout() {
                 if (visibleItems.length === 0) return null;
                 return (
                   <div key={section.label}>
-                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{section.label}</div>
-                    {visibleItems.map((route) => <NavItem key={route} system={system} route={route} label={sys.modules[route]} />)}
+                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{t(section.label, effectiveLang)}</div>
+                    {visibleItems.map((route) => <NavItem key={route} system={system} route={route} label={sys.modules[route]} lang={effectiveLang} />)}
                   </div>
                 );
               }
@@ -208,8 +236,8 @@ export default function Layout() {
                   <div key={key}>
                     {group.subgroups.map((sub) => (
                       <div key={sub.label}>
-                        <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{sub.label}</div>
-                        {sub.items.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
+                        <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{t(sub.label, effectiveLang)}</div>
+                        {sub.items.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} lang={effectiveLang} />)}
                       </div>
                     ))}
                   </div>
@@ -218,8 +246,8 @@ export default function Layout() {
               if (group) {
                 return (
                   <div key={key}>
-                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{label}</div>
-                    {group.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} />)}
+                    <div style={{ padding: '9px 16px 2px', fontSize: 12, color: 'var(--sidebar-text-muted)' }}>{t(label, effectiveLang)}</div>
+                    {group.map(({ route, label: subLabel }) => <NavItem key={route} system={system} route={route} label={subLabel} lang={effectiveLang} />)}
                   </div>
                 );
               }
@@ -231,7 +259,7 @@ export default function Layout() {
                   to={`/${system}/${implemented ? key : `todo/${key}`}`}
                   className={({ isActive }) => (isActive ? 'active' : '')}
                 >
-                  {icon && <span className="nav-icon">{icon}</span>}{label}{!implemented && ' (建置中)'}
+                  {icon && <span className="nav-icon">{icon}</span>}{t(label, effectiveLang)}{!implemented && ' (建置中)'}
                 </NavLink>
               );
             });
@@ -247,9 +275,9 @@ export default function Layout() {
         )}
         <div className="topbar">
           <span className="muted">{profile.displayName || profile.email} · {profile.role}{viewAsRole && `（預覽：${viewAsRole}）`}</span>
-          <button onClick={logout}>登出</button>
+          <button onClick={logout}>{t('登出', effectiveLang)}</button>
         </div>
-        <Outlet context={{ system, role, overrides }} />
+        <Outlet context={{ system, role, overrides, lang: effectiveLang }} />
       </div>
     </div>
   );
