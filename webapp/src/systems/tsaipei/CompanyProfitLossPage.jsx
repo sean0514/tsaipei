@@ -194,7 +194,7 @@ function postageFeeExpenseForMonth(monthStr, postageFeeRecords) {
 
 function projectBonusExpenseForMonth(monthStr, ctx) {
   return computeInternalBonusForMonth(monthStr, ctx)
-    .reduce((sum, r) => sum + PROJECT_CLIENT_BONUS_ROLE_KEYS.reduce((s, k) => s + (r.amounts[k] || 0), 0), 0);
+    .reduce((sum, r) => sum + PROJECT_CLIENT_BONUS_ROLE_KEYS.reduce((s, k) => s + (r.roles[k] && r.amounts[k] ? r.amounts[k] : 0), 0), 0);
 }
 
 function dormManagerBonusExpenseForMonth(monthStr, ctx) {
