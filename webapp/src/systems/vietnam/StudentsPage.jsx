@@ -10,6 +10,7 @@ import { STUDENT_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
+import { tsaipeiStudentFields, createSyncedTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -70,31 +71,6 @@ const FIELDS = [
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
-// 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
-// 資料裡；之後在越南系統編輯/刪除這個學生，同步過去的 tsaipei 紀錄也會
-// 跟著更新/刪除（見 handleSave/handleDelete）。欄位對應到 tsaipei_students
-// 既有的欄位（systems/tsaipei/StudentsPage.jsx 的 FIELDS），兩邊欄位名稱
-// 不完全一樣的地方做轉換：department(單一科系) → department1；
-// hasCert/certType/certLevel → langProofType/langProofLevel（只有「有」或
-// 「已考試未領取證照」才算有語言能力證明）。firestore.rules 已放行
-// vnCanEdit('students') 寫入這裡提到的所有 tsaipei_* 集合。
-function tsaipeiStudentFields(vn) {
-  return {
-    chineseName: vn.chineseName || '',
-    originalName: vn.originalName || '',
-    school: vn.school || '',
-    department1: vn.department || '',
-    nationality: vn.nationality || '',
-    gender: vn.gender || '',
-    passportNumber: vn.hasPassport === 'Yes' ? (vn.passportNumber || '') : '',
-    langProofType: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照')
-      ? (vn.certType === 'TOCFL' ? '華語' : vn.certType === 'TOEIC' ? '多益' : '') : '',
-    langProofLevel: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照') ? (vn.certLevel || '') : '',
-    status: vn.status || '',
-    sourceSupplier: vn.sourceSupplier || '',
-  };
-}
-
 // 複製自 systems/tsaipei/StudentsPage.jsx，collection 字首改成 vietnam_，
 // 介面文字（標題/按鈕/欄位標籤/表格欄位）包上 t(...) 依語言切換顯示；下拉
 // 選單的選項值（國籍/性別等）維持中文儲存，不在這個分頁翻譯顯示文字。
@@ -129,17 +105,9 @@ export default function StudentsPage() {
         await addDoc(collection(db, 'vietnam_matches'), {
           studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）', createdAt: serverTimestamp(),
         });
-        // 同步建立一筆對應的境外生實習系統學生資料（見上方 tsaipeiStudentFields
-        // 的註解），並比照 tsaipei 自己新增學生的行為連鎖建一筆空白媒合紀錄。
-        const tsaipeiRef = await addDoc(collection(db, 'tsaipei_students'), {
-          ...tsaipeiStudentFields(data),
-          syncedFromVietnamId: ref.id,
-          createdAt: serverTimestamp(),
-        });
-        await addDoc(collection(db, 'tsaipei_matches'), {
-          studentId: tsaipeiRef.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依元凱系統學生建檔自動建立）', createdAt: serverTimestamp(),
-        });
-        await update(ref.id, { syncedTsaipeiStudentId: tsaipeiRef.id });
+        // 同步建立一筆對應的境外生實習系統學生資料，見 lib/vietnamTsaipeiStudentSync.js。
+        const tsaipeiStudentId = await createSyncedTsaipeiStudent(ref.id, data);
+        await update(ref.id, { syncedTsaipeiStudentId: tsaipeiStudentId });
       }
       setEditing(null);
     } catch (err) {
