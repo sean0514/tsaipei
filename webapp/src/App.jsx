@@ -90,6 +90,9 @@ import VietnamVehiclePickupPage from './systems/vietnam/VehiclePickupPage';
 import VietnamForeignSubsidyApplicationPage from './systems/vietnam/ForeignSubsidyApplicationPage';
 import VietnamDailyExpenseApplicationPage from './systems/vietnam/DailyExpenseApplicationPage';
 import VietnamPostageFeeRecordPage from './systems/vietnam/PostageFeeRecordPage';
+import VietnamHousingPage from './systems/vietnam/HousingPage';
+import VietnamDormManagementPage from './systems/vietnam/DormManagementPage';
+import VietnamCustomerServicePendingPage from './systems/vietnam/CustomerServicePendingPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -228,6 +231,9 @@ const PAGES = {
     foreignSubsidyApplication: VietnamForeignSubsidyApplicationPage,
     dailyExpenseApplication: VietnamDailyExpenseApplicationPage,
     postageFee: VietnamPostageFeeRecordPage,
+    housing: VietnamHousingPage,
+    dormManagement: VietnamDormManagementPage,
+    customerServicePending: VietnamCustomerServicePendingPage,
     users: UsersPage,
   },
   foodfactory: {

@@ -377,11 +377,11 @@ service cloud.firestore {
       allow update: if vnCanEdit('applicationProgress');
       allow delete: if vnCanEdit('applicationProgress') || vnCanEdit('students');
     }
-    // housing(住宿安排)分頁本身還沒複製過來，先只放行 applicationProgress/
-    // inTaiwanVisa 編輯者 create(連鎖建立用，比照 tsaipei_housingRecords)。
     match /vietnam_housingRecords/{docId} {
       allow read: if vnIsMember();
-      allow create: if vnCanEdit('applicationProgress') || vnCanEdit('inTaiwanVisa');
+      allow create: if vnCanEdit('housing') || vnCanEdit('applicationProgress') || vnCanEdit('inTaiwanVisa');
+      allow update: if vnCanEdit('housing');
+      allow delete: if vnCanEdit('housing') || vnCanEdit('students');
     }
     match /vietnam_inTaiwanCare/{docId} {
       allow read: if vnIsMember();
@@ -430,9 +430,15 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow create, update: if vnCanEdit('foreignSubsidyApplication');
     }
-    // 宿舍管理分頁還沒複製過來，日常支出申請選「宿舍設備」項目時需要讀取
-    // 宿舍清單，先開唯讀。
-    match /vietnam_dormitories/{docId} { allow read: if vnIsMember(); }
+    match /vietnam_dormitories/{docId} {
+      allow read: if vnIsMember();
+      allow create, delete: if vnCanEdit('dormManagement');
+      allow update: if vnCanEdit('dormManagement');
+    }
+    match /vietnam_dormitoryUtilities/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('dormManagement');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
