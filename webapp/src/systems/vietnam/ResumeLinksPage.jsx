@@ -34,27 +34,37 @@ export default function ResumeLinksPage() {
     copyLink(url);
   }
 
+  // 學生資料（StudentsPage.jsx）的欄位已經改成比照履歷表製作，這裡逐欄位
+  // 直接對應轉入，不用再塞進備註欄位。
   async function handleConvertToStudent(sub) {
     if (sub.studentId) return;
     if (!window.confirm(t('確定要把這筆履歷轉入學生資料嗎？', lang))) return;
     const studentDoc = await addStudent({
-      chineseName: sub.chineseName || '',
       originalName: sub.originalName || '',
-      school: sub.school || '',
-      department1: sub.department || '',
-      nationality: sub.nationality || '',
-      gender: sub.gender || '',
+      chineseName: sub.chineseName || '',
+      vietnameseName: sub.vietnameseName || '',
+      photoUrl: sub.photoUrl || '',
+      hasPassport: sub.hasPassport || '',
       passportNumber: sub.hasPassport === 'Yes' ? (sub.passportId || '') : '',
-      langProofType: (sub.hasCert === '有' || sub.hasCert === '已考試未領取證照') ? (sub.certType === 'TOCFL' ? '華語' : sub.certType === 'TOEIC' ? '多益' : '') : '',
-      langProofLevel: (sub.hasCert === '有' || sub.hasCert === '已考試未領取證照') ? (sub.certLevel || '') : '',
+      passportPhotoUrl: sub.passportPhotoUrl || '',
+      gender: sub.gender || '',
+      birthDate: sub.birthDate || '',
+      nationality: sub.nationality || '',
+      height: sub.height || '',
+      weight: sub.weight || '',
+      school: sub.school || '',
+      enrollDate: sub.enrollDate || '',
+      programYears: sub.programYears || '',
+      department: sub.department || '',
+      expectedGraduation: sub.expectedGraduation || '',
+      hasCert: sub.hasCert || '',
+      certType: sub.certType || '',
+      certLevel: sub.certLevel || '',
+      certPickupDate: sub.certPickupDate || '',
+      expectedExamDate: sub.expectedExamDate || '',
+      workExperience: sub.personalExperience || '',
       sourceSupplier: sub.assignedStaff || '',
       status: '媒合中',
-      notes: [
-        sub.vietnameseName ? `越南姓名：${sub.vietnameseName}` : '',
-        sub.hasCert === '無' && sub.expectedExamDate ? `預計考試日期：${sub.expectedExamDate}` : '',
-        sub.hasCert === '已考試未領取證照' ? `已考試未領取證照${sub.certPickupDate ? `，證照領取日期：${sub.certPickupDate}` : ''}` : '',
-        sub.personalExperience ? `工作經驗：${sub.personalExperience}` : '',
-      ].filter(Boolean).join('\n'),
       createdAt: serverTimestamp(),
     });
     await updateSubmission(sub.id, { studentId: studentDoc.id, processedAt: serverTimestamp() });
