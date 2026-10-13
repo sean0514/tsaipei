@@ -391,4 +391,57 @@ const VI = {
   '收件人': 'Người nhận',
   '地址': 'Địa chỉ',
   '文件內容': 'Nội dung hồ sơ',
+
+  // 住宿安排
+  '分店': 'Chi nhánh',
+  '宿舍名稱': 'Tên ký túc xá',
+  '付款方式': 'Phương thức thanh toán',
+  '每月租金': 'Tiền thuê hàng tháng',
+  '入住日': 'Ngày nhận phòng',
+  '退宿日': 'Ngày trả phòng',
+  '未安排': 'Chưa sắp xếp',
+  '住宿中': 'Đang ở',
+  '已離宿': 'Đã rời đi',
+  '未設定分店': 'Chưa thiết lập chi nhánh',
+  '人': 'người',
+  '新增住宿': 'Thêm chỗ ở',
+  '依未安排／住宿中／已離宿分類': 'Phân loại theo chưa sắp xếp/đang ở/đã rời đi',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有住宿紀錄，請先下載備份再匯入。填入「入住日」後會自動歸類到「住宿中」；「退宿日」到期後自動歸類到「已離宿」。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa (giữ cột "Mã học viên"); sau khi tải lên sẽ thay thế toàn bộ bản ghi chỗ ở hiện tại, vui lòng tải bản sao lưu trước khi nhập. Sau khi nhập "Ngày nhận phòng" sẽ tự động phân vào "Đang ở"; khi đến hạn "Ngày trả phòng" sẽ tự động phân vào "Đã rời đi".',
+  '搜尋學生、分店或宿舍名稱': 'Tìm theo học viên, chi nhánh hoặc tên ký túc xá',
+  '編輯住宿': 'Chỉnh sửa chỗ ở',
+  '宿舍管理員1': 'Quản lý ký túc xá 1',
+  '宿舍管理員2': 'Quản lý ký túc xá 2',
+  '翻譯': 'Phiên dịch',
+
+  // 宿舍管理
+  '管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的其他費用': 'Quản lý danh sách ký túc xá công ty thuê: thời hạn thuê, tiền đặt cọc, tiền thuê, phí môi giới, và các chi phí khác điền theo tháng',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。水費/電費/瓦斯費/其他費用請改用清單上的「填寫其他費用」依月份個別輸入。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ bản ghi ký túc xá hiện tại, vui lòng tải bản sao lưu trước khi nhập. Tiền nước/điện/gas/chi phí khác vui lòng dùng "Điền chi phí khác" trên danh sách để nhập theo từng tháng.',
+  '搜尋名稱/地點': 'Tìm theo tên/địa điểm',
+  '地點': 'Địa điểm',
+  '宿舍性別': 'Giới tính ký túc xá',
+  '房間數': 'Số phòng',
+  '起租日': 'Ngày bắt đầu thuê',
+  '退租日': 'Ngày kết thúc thuê',
+  '可住人數': 'Số người có thể ở',
+  '已住人數': 'Số người đang ở',
+  '水費': 'Tiền nước',
+  '電費': 'Tiền điện',
+  '瓦斯費': 'Tiền gas',
+  '其他費用': 'Chi phí khác',
+  '填寫其他費用': 'Điền chi phí khác',
+  '新增宿舍': 'Thêm ký túc xá',
+  '編輯宿舍': 'Chỉnh sửa ký túc xá',
+  '目前住宿人員': 'Người đang ở hiện tại',
+  '項目名稱': 'Tên hạng mục',
+  '新增其他費用': 'Thêm chi phí khác',
+  '其他費用（可自行新增）': 'Chi phí khác (có thể tự thêm)',
+
+  // 客服未完成事項
+  '客服未完成事項': 'Việc CSKH chưa hoàn thành',
+  '彙整預計入台/離台（未勾已體檢/已送工）、開戶進度追蹤（未勾銀行帳戶）、住宿安排（未安排）、宿舍管理（本月未填其他費用）的名單，入台/離台的已體檢/已送工、宿舍管理的其他費用可以直接在這裡填寫，其餘編輯請到原本的分頁操作':
+    'Tổng hợp danh sách từ Dự kiến nhập/xuất cảnh (chưa tích khám sức khỏe/đến nơi làm việc), Theo dõi tiến độ mở tài khoản (chưa tích tài khoản ngân hàng), Sắp xếp chỗ ở (chưa sắp xếp), Quản lý ký túc xá (chưa điền chi phí khác tháng này); có thể điền trực tiếp khám sức khỏe/đến nơi làm việc và chi phí khác ở đây, các chỉnh sửa khác vui lòng vào trang gốc',
+  '目前沒有未完成的項目。': 'Hiện không có mục nào chưa hoàn thành.',
+  '間': 'phòng',
 };
