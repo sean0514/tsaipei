@@ -7,9 +7,6 @@ service firebase.storage {
     function yjIsMember() {
       return signedIn() && firestore.exists(/databases/(default)/documents/yujian_users/$(request.auth.uid));
     }
-    function vnIsMember() {
-      return signedIn() && firestore.exists(/databases/(default)/documents/vietnam_users/$(request.auth.uid));
-    }
 
     // 暫時診斷用：拿掉 yjIsMember() 的 firestore.exists() 跨服務檢查，只要
     // 登入就放行，用來確認使用者回報的 storage/unauthorized 是不是這個
@@ -22,16 +19,21 @@ service firebase.storage {
       allow write: if signedIn() && request.resource.size <= 4 * 1024 * 1024;
     }
     // 越南實習生系統「履歷表連結」公開填寫頁面（/apply/vietnam，不需要
-    // 登入）上傳的學生大頭貼，單檔上限 3MB；讀取限內部成員，讓「履歷表
-    // 連結」頁面審核履歷時能看到照片。
+    // 登入）上傳的學生大頭貼，單檔上限 3MB。
     // 原本多檢查 contentType.matches('image/.*')，但手機瀏覽器（尤其是
     // LINE/Messenger 存下來的照片，例如 S__xxxxx.jpg）選檔時常常給空字串
     // 或非標準的 MIME type，導致這筆檢查判斷失敗、整筆寫入被 Storage 規則
-    // 擋下來，使用者只會看到語焉不詳的 storage/unauthorized 錯誤。前端
-    // <input type="file" accept="image/*"> 已經做過一層篩選，這裡拿掉
-    // contentType 檢查、只保留檔案大小限制，避免這個誤判。
+    // 擋下來。前端 <input type="file" accept="image/*"> 已經做過一層篩選，
+    // 這裡拿掉 contentType 檢查、只保留檔案大小限制。
+    // read 原本限 vnIsMember()，但公開填寫頁面本身（匿名/未登入）上傳完
+    // 照片後，馬上要呼叫 getDownloadURL() 把網址存進履歷資料，這一步也需要
+    // 讀取權限——匿名使用者沒有 vnIsMember()，導致上傳檔案本身雖然成功，
+    // getDownloadURL() 卻被這條規則擋下來、整個送出失敗（檔案其實已經留在
+    // Storage 裡，只是履歷資料沒有存到正確的照片網址）。檔名本身帶隨機亂碼、
+    // 難以枚舉猜中，改成公開可讀取，讓公開頁面能正常取得網址，内部「履歷表
+    // 連結」頁面也還是能看到照片。
     match /vietnam_resumePhotos/{allPaths=**} {
-      allow read: if vnIsMember();
+      allow read: if true;
       allow write: if request.resource.size <= 3 * 1024 * 1024;
     }
   }
