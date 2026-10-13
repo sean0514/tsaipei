@@ -335,15 +335,16 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow create, delete: if vnCanEdit('students');
       // update 也放行 internshipDocs 編輯者：InternshipDocsPage 會把文件
-      // 狀態同步回學生紀錄的對應欄位(syncStudentDocField)。
-      allow update: if vnCanEdit('students') || vnCanEdit('internshipDocs');
+      // 狀態同步回學生紀錄的對應欄位(syncStudentDocField)；closedCases 也
+      // 放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if vnCanEdit('students') || vnCanEdit('internshipDocs') || vnCanEdit('closedCases');
     }
     match /vietnam_matches/{docId} {
       allow read: if vnIsMember();
       // create 也放行 students 編輯者：新增學生存檔會自動建立一筆空白媒合
       // 紀錄（見 StudentsPage.jsx），跟 tsaipei_matches 同樣的理由。
       allow create: if vnCanEdit('matches') || vnCanEdit('students');
-      allow update: if vnCanEdit('matches');
+      allow update: if vnCanEdit('matches') || vnCanEdit('closedCases');
       allow delete: if vnCanEdit('matches') || vnCanEdit('students');
     }
     match /vietnam_positions/{docId} {
@@ -353,13 +354,14 @@ service cloud.firestore {
     match /vietnam_secondInterviews/{docId} {
       allow read: if vnIsMember();
       allow create: if vnCanEdit('secondInterview');
-      allow update: if vnCanEdit('secondInterview');
+      allow update: if vnCanEdit('secondInterview') || vnCanEdit('closedCases');
       allow delete: if vnCanEdit('secondInterview') || vnCanEdit('students');
     }
     match /vietnam_admittedList/{docId} {
       allow read: if vnIsMember();
       allow create: if vnCanEdit('admitted');
-      allow update: if vnCanEdit('admitted');
+      // closedCases 放行是為了「已結案名單」的復原按鈕。
+      allow update: if vnCanEdit('admitted') || vnCanEdit('applicationProgress') || vnCanEdit('closedCases');
       allow delete: if vnCanEdit('admitted') || vnCanEdit('students');
     }
     // AdmittedListPage 狀態改成「確認錄取」時會連鎖建立 internshipDocs/
@@ -374,7 +376,7 @@ service cloud.firestore {
     match /vietnam_applicationProgress/{docId} {
       allow read: if vnIsMember();
       allow create: if vnCanEdit('applicationProgress') || vnCanEdit('admitted');
-      allow update: if vnCanEdit('applicationProgress');
+      allow update: if vnCanEdit('applicationProgress') || vnCanEdit('closedCases');
       allow delete: if vnCanEdit('applicationProgress') || vnCanEdit('students');
     }
     match /vietnam_housingRecords/{docId} {
@@ -433,12 +435,26 @@ service cloud.firestore {
     match /vietnam_dormitories/{docId} {
       allow read: if vnIsMember();
       allow create, delete: if vnCanEdit('dormManagement');
-      allow update: if vnCanEdit('dormManagement');
+      // closedCases 也放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if vnCanEdit('dormManagement') || vnCanEdit('closedCases');
     }
     match /vietnam_dormitoryUtilities/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('dormManagement');
     }
+    // 行政未完成事項：自由新增的代辦事項清單，不綁定其他集合。
+    match /vietnam_adminTodos/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('adminPending');
+    }
+    match /vietnam_meetings/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('meetings');
+    }
+    // 內部費用建檔/客戶費用建檔分頁還沒複製過來，主管報表的本月獎金/請款
+    // 試算需要讀取這兩個集合，先開唯讀。
+    match /vietnam_internalFeeSetup/{docId} { allow read: if vnIsMember(); }
+    match /vietnam_clientFeeSetup/{docId} { allow read: if vnIsMember(); }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
