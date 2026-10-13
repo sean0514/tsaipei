@@ -48,6 +48,7 @@ service cloud.firestore {
         'inTaiwanCare': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'expectedArrival': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'bankAccountProgress': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
+        'vehiclePickup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'internshipDocs': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
         'housing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'edit'},
         'dormManagement': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
@@ -153,9 +154,10 @@ service cloud.firestore {
     match /tsaipei_inTaiwanVisa/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('inTaiwanVisa') || tsCanEdit('applicationProgress');
-      // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
-      // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
-      allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival');
+      // update 也放行 expectedArrival/vehiclePickup：「預計入台/離台」「接送
+      // 車輛安排」都可以直接在頁面上編輯體檢/送工/航班/付款/接送車輛等欄位，
+      // 寫回同一筆在台簽證追蹤紀錄。
+      allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival') || tsCanEdit('vehiclePickup');
       allow delete: if tsCanEdit('inTaiwanVisa') || tsCanEdit('students');
     }
     match /tsaipei_inTaiwanCare/{docId} {
