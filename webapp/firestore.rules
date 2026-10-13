@@ -377,20 +377,43 @@ service cloud.firestore {
       allow update: if vnCanEdit('applicationProgress');
       allow delete: if vnCanEdit('applicationProgress') || vnCanEdit('students');
     }
-    // 申辦進度到「辦理簽證/入台」時連鎖建立以下三個，寫入者是
-    // applicationProgress 編輯者；這三個分頁本身還沒複製過來前，先只開放
-    // 這個連鎖建立路徑（比照 tsaipei_housingRecords/inTaiwanCare/inTaiwanVisa）。
+    // housing(住宿安排)分頁本身還沒複製過來，先只放行 applicationProgress/
+    // inTaiwanVisa 編輯者 create(連鎖建立用，比照 tsaipei_housingRecords)。
     match /vietnam_housingRecords/{docId} {
       allow read: if vnIsMember();
-      allow create: if vnCanEdit('applicationProgress');
+      allow create: if vnCanEdit('applicationProgress') || vnCanEdit('inTaiwanVisa');
     }
     match /vietnam_inTaiwanCare/{docId} {
       allow read: if vnIsMember();
-      allow create: if vnCanEdit('applicationProgress');
+      allow create: if vnCanEdit('inTaiwanVisa') || vnCanEdit('applicationProgress');
+      allow update: if vnCanEdit('inTaiwanCare');
+      allow delete: if vnCanEdit('inTaiwanCare') || vnCanEdit('students');
     }
     match /vietnam_inTaiwanVisa/{docId} {
       allow read: if vnIsMember();
-      allow create: if vnCanEdit('applicationProgress');
+      allow create: if vnCanEdit('inTaiwanVisa') || vnCanEdit('applicationProgress');
+      // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
+      // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
+      allow update: if vnCanEdit('inTaiwanVisa') || vnCanEdit('expectedArrival');
+      allow delete: if vnCanEdit('inTaiwanVisa') || vnCanEdit('students');
+    }
+    match /vietnam_bankAccountProgress/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('bankAccountProgress');
+    }
+    match /vietnam_vehicleArrangements/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('vehiclePickup');
+    }
+    // 第一次入台時間存檔時會自動帶入寢具/鑰匙/體檢三筆費用到日常支出申請，
+    // 這個分頁本身還沒複製過來，先比照 tsaipei_dailyExpenseApplications 只
+    // 放行 dailyExpenseApplication 編輯者寫入(沒有這個權限的 inTaiwanVisa
+    // 編輯者存檔時，這筆自動帶入會失敗，跟 tsaipei 現有行為一致)。
+    match /vietnam_dailyExpenseApplications/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('dailyExpenseApplication');
+      allow update, delete: if vnCanEdit('dailyExpenseApplication') &&
+        (!(resource.data.status in ['已核准', '已匯款']) || vnRole() in ['系統管理員', '主管', '會計人員']);
     }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------

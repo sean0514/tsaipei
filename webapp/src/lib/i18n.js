@@ -259,4 +259,83 @@ const VI = {
   '依客戶分類，列出申辦進度追蹤裡目前進度顯示為「辦理簽證」的學生；進度離開辦理簽證即自動從清單移除（唯讀）':
     'Phân loại theo khách hàng, liệt kê học viên đang ở bước "Làm visa" trong tiến độ xin cấp phép; tự động rời khỏi danh sách khi tiến độ thay đổi (chỉ xem)',
   '目前沒有待辦理簽證的學生。': 'Hiện không có học viên đang chờ làm visa.',
+
+  // 在台簽證追蹤
+  '依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次入台時間後會自動在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）':
+    'Phân loại theo đang ở Đài Loan/đã xuất cảnh, học viên đang ở Đài Loan được nhóm theo khách hàng; "Đã xuất cảnh" tự động thêm khi đến hạn ngày xuất cảnh lần 2; khi nhập ngày nhập cảnh lần 1 sẽ tự động thêm vào danh sách chờ duyệt đơn xin chi phí: tiền chăn ga 480/tiền chìa khóa 300/tiền khám sức khỏe 300 (loại=thu nhập)',
+  '顯示已確認離台': 'Hiển thị đã xác nhận xuất cảnh',
+  '補建立中…': 'Đang bổ sung…',
+  '補建立入境費用': 'Bổ sung chi phí nhập cảnh',
+  '在台中': 'Đang ở Đài Loan',
+  '已離台': 'Đã xuất cảnh',
+  '目前沒有在台中的學生。': 'Hiện không có học viên đang ở Đài Loan.',
+  '編輯在台簽證追蹤': 'Chỉnh sửa theo dõi visa tại Đài Loan',
+  '第一次入台時間': 'Thời gian nhập cảnh lần 1',
+  '第一次離台時間': 'Thời gian xuất cảnh lần 1',
+  '在台期間換發簽證時間': 'Thời gian đổi visa trong thời gian ở Đài Loan',
+  '第二次入台時間': 'Thời gian nhập cảnh lần 2',
+  '第二次離台時間': 'Thời gian xuất cảnh lần 2',
+  '在台期間換發簽證時間2': 'Thời gian đổi visa trong thời gian ở Đài Loan 2',
+  '確認離台': 'Xác nhận xuất cảnh',
+
+  // 在台關懷紀錄
+  '依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）':
+    'Phân loại theo mã dự án + khách hàng, ghi nhận theo dõi quan tâm học viên trong thời gian ở Đài Loan (tự động thêm khi tạo theo dõi visa; tự động xóa khi xác nhận xuất cảnh)',
+  '尚無在台關懷紀錄。': 'Chưa có bản ghi quan tâm tại Đài Loan.',
+  '筆紀錄': 'bản ghi',
+  '關懷時間': 'Thời gian quan tâm',
+  '內容': 'Nội dung',
+  '編輯在台關懷紀錄': 'Chỉnh sửa ghi nhận quan tâm',
+
+  // 開戶進度追蹤
+  '在台簽證追蹤裡填了第一次入台時間的學生會自動列入此清單；基資表包含申請書、在職證明、護照正本、護照影本、簽證正本、簽證影本、核准函正本，全部收齊後自動標示為已收齊；已開戶的學生按「確認完成」後會從清單消失（下載完整資料仍會包含）':
+    'Học viên đã nhập thời gian nhập cảnh lần 1 trong theo dõi visa sẽ tự động vào danh sách này; hồ sơ cơ bản gồm đơn xin, giấy xác nhận công tác, hộ chiếu gốc, bản sao hộ chiếu, visa gốc, bản sao visa, công văn phê duyệt gốc, tự động đánh dấu đã đủ khi thu đủ tất cả; học viên đã mở tài khoản sau khi bấm "Xác nhận hoàn tất" sẽ rời khỏi danh sách (tải dữ liệu đầy đủ vẫn bao gồm)',
+  '下載完整資料': 'Tải toàn bộ dữ liệu',
+  '目前沒有需要追蹤的學生。': 'Hiện không có học viên cần theo dõi.',
+  '未開戶': 'Chưa mở tài khoản',
+  '已開戶': 'Đã mở tài khoản',
+  '入台日期': 'Ngày nhập cảnh',
+  '預約開戶日期': 'Ngày hẹn mở tài khoản',
+  '銀行+分行': 'Ngân hàng + chi nhánh',
+  '基資表': 'Hồ sơ cơ bản',
+  '銀行帳戶': 'Tài khoản ngân hàng',
+  '已收齊': 'Đã thu đủ',
+  '確認完成': 'Xác nhận hoàn tất',
+  '申請書': 'Đơn xin',
+  '在職證明': 'Giấy xác nhận công tác',
+  '護照正本': 'Hộ chiếu gốc',
+  '簽證正本': 'Visa gốc',
+  '簽證影本': 'Bản sao visa',
+  '核准函正本': 'Công văn phê duyệt gốc',
+
+  // 預計入台/離台
+  '在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後一個月內的學生，超過一個月自動從清單移除':
+    'Học viên đã nhập thời gian nhập cảnh hoặc xuất cảnh (lần 1 hoặc lần 2) trong theo dõi visa và nằm trong khoảng 1 tháng trước/sau hôm nay, tự động xóa khỏi danh sách khi quá 1 tháng',
+  '下載此月份報表': 'Tải báo cáo tháng này',
+  '離台': 'Xuất cảnh',
+  '已體檢': 'Đã khám sức khỏe',
+  '已送工': 'Đã đến nơi làm việc',
+  '體檢/送工資訊': 'Thông tin khám sức khỏe/đến nơi làm việc',
+  '航班/付款資訊': 'Thông tin chuyến bay/thanh toán',
+  '體檢日期': 'Ngày khám sức khỏe',
+  '體檢公司': 'Công ty khám sức khỏe',
+  '體檢公司送達地': 'Địa điểm công ty khám sức khỏe đưa đến',
+  '送工日期': 'Ngày đến nơi làm việc',
+  '送工地點': 'Địa điểm đến nơi làm việc',
+  '航空公司': 'Hãng hàng không',
+  '航班編號': 'Số hiệu chuyến bay',
+  '航廈': 'Nhà ga',
+  '機票費用': 'Chi phí vé máy bay',
+  '付款人': 'Người thanh toán',
+
+  // 接送車輛安排
+  '「待安排」清單同步「預計入台/離台」：在台簽證追蹤裡落在今天前後一個月內的入境/離境紀錄':
+    'Danh sách "Chờ sắp xếp" đồng bộ với "Dự kiến nhập/xuất cảnh": bản ghi nhập/xuất cảnh trong theo dõi visa nằm trong khoảng 1 tháng trước/sau hôm nay',
+  '新增安排車輛': 'Thêm sắp xếp xe',
+  '待安排': 'Chờ sắp xếp',
+  '建議類型': 'Loại đề xuất',
+  '新增安排': 'Thêm sắp xếp',
+  '已安排': 'Đã sắp xếp',
+  '類型': 'Loại',
+  '編輯安排': 'Chỉnh sửa sắp xếp',
 };
