@@ -494,7 +494,7 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'originalName', 'chineseName', 'vietnameseName', 'hasPassport', 'passportId', 'gender', 'birthDate', 'nationality',
         'height', 'weight', 'school', 'enrollDate', 'programYears', 'department', 'expectedGraduation',
-        'hasCert', 'certType', 'certLevel', 'certIssueDate', 'expectedExamDate', 'personalExperience',
+        'hasCert', 'certType', 'certLevel', 'certPickupDate', 'expectedExamDate', 'personalExperience',
         'photoUrl', 'passportPhotoUrl', 'assignedStaff', 'status', 'createdAt'
       ]) && (request.resource.data.originalName is string && request.resource.data.originalName.size() > 0)
         && request.resource.data.status == '待處理';

@@ -45,14 +45,14 @@ export default function ResumeLinksPage() {
       nationality: sub.nationality || '',
       gender: sub.gender || '',
       passportNumber: sub.hasPassport === 'Yes' ? (sub.passportId || '') : '',
-      langProofType: sub.hasCert === '有' ? (sub.certType === 'TOCFL' ? '華語' : sub.certType === 'TOEIC' ? '多益' : '') : '',
-      langProofLevel: sub.hasCert === '有' ? (sub.certLevel || '') : '',
+      langProofType: (sub.hasCert === '有' || sub.hasCert === '已考試未領取證照') ? (sub.certType === 'TOCFL' ? '華語' : sub.certType === 'TOEIC' ? '多益' : '') : '',
+      langProofLevel: (sub.hasCert === '有' || sub.hasCert === '已考試未領取證照') ? (sub.certLevel || '') : '',
       sourceSupplier: sub.assignedStaff || '',
       status: '媒合中',
       notes: [
         sub.vietnameseName ? `越南姓名：${sub.vietnameseName}` : '',
         sub.hasCert === '無' && sub.expectedExamDate ? `預計考試日期：${sub.expectedExamDate}` : '',
-        sub.hasCert === '有' && sub.certIssueDate ? `證照核發日期：${sub.certIssueDate}` : '',
+        sub.hasCert === '已考試未領取證照' ? `已考試未領取證照${sub.certPickupDate ? `，證照領取日期：${sub.certPickupDate}` : ''}` : '',
         sub.personalExperience ? `個人經驗：${sub.personalExperience}` : '',
       ].filter(Boolean).join('\n'),
       createdAt: serverTimestamp(),
@@ -161,11 +161,11 @@ export default function ResumeLinksPage() {
               <div><strong>{t('科系', lang)}：</strong>{viewing.department || '—'}</div>
               <div><strong>{t('預計畢業時間', lang)}：</strong>{viewing.expectedGraduation || '—'}</div>
               <div><strong>{t('華語證照', lang)}：</strong>
-                {viewing.hasCert === '有'
-                  ? `${CERT_TYPE_LABEL[viewing.certType] || viewing.certType || ''} ${viewing.certLevel || ''}`.trim() || '—'
+                {viewing.hasCert === '有' || viewing.hasCert === '已考試未領取證照'
+                  ? `${viewing.hasCert}${CERT_TYPE_LABEL[viewing.certType] ? `（${CERT_TYPE_LABEL[viewing.certType]} ${viewing.certLevel || ''}）` : ''}`.trim()
                   : t('無', lang)}
               </div>
-              {viewing.hasCert === '有' && <div><strong>{t('證照核發日期', lang)}：</strong>{viewing.certIssueDate || '—'}</div>}
+              {viewing.hasCert === '已考試未領取證照' && <div><strong>{t('證照領取日期', lang)}：</strong>{viewing.certPickupDate || '—'}</div>}
               {viewing.hasCert === '無' && <div><strong>{t('預計考試日期', lang)}：</strong>{viewing.expectedExamDate || '—'}</div>}
               <div style={{ gridColumn: '1 / -1' }}><strong>{t('個人經驗', lang)}：</strong>{viewing.personalExperience || '—'}</div>
               <div><strong>{t('負責專員', lang)}：</strong>{viewing.assignedStaff || '—'}</div>

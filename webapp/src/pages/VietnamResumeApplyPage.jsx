@@ -78,7 +78,7 @@ export default function VietnamResumeApplyPage() {
         hasCert: form.hasCert || '',
         certType: form.certType || '',
         certLevel: form.certLevel || '',
-        certIssueDate: form.certIssueDate || '',
+        certPickupDate: form.certPickupDate || '',
         expectedExamDate: form.expectedExamDate || '',
         personalExperience: form.personalExperience || '',
         photoUrl,
@@ -199,10 +199,11 @@ export default function VietnamResumeApplyPage() {
             <select required value={form.hasCert} onChange={(e) => setField('hasCert', e.target.value)}>
               <option value="">請選擇 Chọn</option>
               <option value="有">有 Có</option>
+              <option value="已考試未領取證照">已考試未領取證照 Đã thi nhưng chưa nhận chứng chỉ</option>
               <option value="無">無 Không có</option>
             </select>
           </label>
-          {form.hasCert === '有' && (
+          {(form.hasCert === '有' || form.hasCert === '已考試未領取證照') && (
             <label>
               證照類別 Loại chứng chỉ
               <select value={form.certType || ''} onChange={(e) => setField('certType', e.target.value)}>
@@ -212,7 +213,7 @@ export default function VietnamResumeApplyPage() {
               </select>
             </label>
           )}
-          {form.hasCert === '有' && (
+          {(form.hasCert === '有' || form.hasCert === '已考試未領取證照') && (
             <label>
               等級 Trình độ
               <select value={form.certLevel || ''} onChange={(e) => setField('certLevel', e.target.value)}>
@@ -221,10 +222,10 @@ export default function VietnamResumeApplyPage() {
               </select>
             </label>
           )}
-          {form.hasCert === '有' && (
+          {form.hasCert === '已考試未領取證照' && (
             <label>
-              證照核發日期 Ngày cấp chứng chỉ
-              <input type="date" value={form.certIssueDate || ''} onChange={(e) => setField('certIssueDate', e.target.value)} />
+              證照領取日期 Ngày nhận chứng chỉ
+              <input type="date" value={form.certPickupDate || ''} onChange={(e) => setField('certPickupDate', e.target.value)} />
             </label>
           )}
           {form.hasCert === '無' && (
