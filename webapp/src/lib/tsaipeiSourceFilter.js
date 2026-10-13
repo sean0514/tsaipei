@@ -31,3 +31,16 @@ export function studentCompanyLabel(studentId, { matches, admittedList, position
   const parts = [p.projectCode, p.company, m.venue].filter(Boolean);
   return parts.join(' ') || '未指定客戶';
 }
+
+// 這 7 個唯讀分頁都要「用客戶分類」：把 rows 依 labelFn(row) 算出的客戶
+// 標籤分組，組內維持原本的排序，組與組之間依標籤文字排序。
+export function groupByLabel(rows, labelFn) {
+  const groups = {};
+  rows.forEach((r) => {
+    const key = labelFn(r) || '未指定客戶';
+    (groups[key] ||= []).push(r);
+  });
+  return Object.keys(groups)
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => ({ label: key, rows: groups[key] }));
+}
