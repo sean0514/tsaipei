@@ -16,9 +16,25 @@ export function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
+// 客戶名稱越南文對照表（vietnam_companyNameTranslations，由管理者在
+// 「客戶名稱翻譯」頁面手動維護）：company 是境外生實習系統原始填的公司
+// 名稱（專有名詞，機器翻譯不可靠，所以只在有人工對照時才替換顯示），查
+// 不到對照就照樣顯示中文原文。
+export function buildTranslationMap(rows) {
+  const map = {};
+  rows.forEach((r) => { if (r.company) map[r.company] = r.viName || ''; });
+  return map;
+}
+
+export function translateCompanyName(company, translations, lang) {
+  if (lang === 'vi' && translations?.[company]) return translations[company];
+  return company;
+}
+
 // Ported from studentCompanyLabel in systems/tsaipei/ApplicationProgressPage.jsx
-// 等多個檔案（同一套邏輯各自複製一份）。
-export function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
+// 等多個檔案（同一套邏輯各自複製一份）。translations/lang 有帶的話，公司
+// 名稱部分會套用越南文對照（查不到對照則維持中文原文）。
+export function studentCompanyLabel(studentId, { matches, admittedList, positions }, translations, lang) {
   const admitted = admittedList.find((a) => {
     const m = matches.find((mm) => mm.id === a.matchId);
     return m && m.studentId === studentId;
@@ -28,7 +44,8 @@ export function studentCompanyLabel(studentId, { matches, admittedList, position
   if (!m) return '未指定客戶';
   const p = positions.find((pp) => pp.id === m.positionId);
   if (!p) return '未指定客戶';
-  const parts = [p.projectCode, p.company, m.venue].filter(Boolean);
+  const companyName = translateCompanyName(p.company, translations, lang);
+  const parts = [p.projectCode, companyName, m.venue].filter(Boolean);
   return parts.join(' ') || '未指定客戶';
 }
 

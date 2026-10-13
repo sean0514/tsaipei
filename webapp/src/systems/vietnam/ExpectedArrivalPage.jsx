@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 const ARRIVAL_EXTRA_FIELDS = [
@@ -41,10 +41,12 @@ export default function ExpectedArrivalPage() {
   const { rows: admittedList, loading: loadingAdmitted } = useCollection('tsaipei_admittedList');
   const { rows: positions, loading: loadingPositions } = useCollection('tsaipei_positions');
   const { rows: visaRecords, loading: loadingVisa } = useCollection('tsaipei_inTaiwanVisa');
+  const { rows: companyTranslations } = useCollection('vietnam_companyNameTranslations');
   const loading = loadingStudents || loadingMatches || loadingAdmitted || loadingPositions || loadingVisa;
   const [reportMonth, setReportMonth] = useState(currentMonthStr());
 
   const ctx = { matches, admittedList, positions };
+  const translations = buildTranslationMap(companyTranslations);
   const studentById = (id) => students.find((s) => s.id === id);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -61,8 +63,8 @@ export default function ExpectedArrivalPage() {
   arrivals.sort((a, b) => a.date.localeCompare(b.date));
   departures.sort((a, b) => a.date.localeCompare(b.date));
 
-  const arrivalGroups = groupByLabel(arrivals, (x) => studentCompanyLabel(x.v.studentId, ctx));
-  const departureGroups = groupByLabel(departures, (x) => studentCompanyLabel(x.v.studentId, ctx));
+  const arrivalGroups = groupByLabel(arrivals, (x) => studentCompanyLabel(x.v.studentId, ctx, translations, lang));
+  const departureGroups = groupByLabel(departures, (x) => studentCompanyLabel(x.v.studentId, ctx, translations, lang));
 
   function handleDownload() {
     const monthArrivals = [];

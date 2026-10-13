@@ -807,4 +807,15 @@ const VI = {
   '目前沒有需要辦理簽證的學生。': 'Hiện không có học viên cần làm visa.',
   '是': 'Có',
   '否': 'Không',
+
+  // 客戶名稱翻譯（人工維護境外生實習系統客戶名稱的越南文對照）
+  '客戶名稱翻譯': 'Dịch tên khách hàng',
+  '人工維護境外生實習系統客戶名稱(公司名稱)的越南文對照，套用在媒合紀錄等唯讀同步頁面的客戶分組標題上；查不到對照就照樣顯示中文原文':
+    'Quản lý thủ công bản dịch tiếng Việt cho tên khách hàng (tên công ty) của Hệ thống thực tập sinh nước ngoài, áp dụng cho tiêu đề nhóm khách hàng ở các trang đồng bộ chỉ xem như lịch sử ghép đôi; nếu không có bản dịch sẽ vẫn hiển thị nguyên văn tiếng Trung',
+  '新增翻譯': 'Thêm bản dịch',
+  '編輯翻譯': 'Chỉnh sửa bản dịch',
+  '搜尋客戶名稱/越南文翻譯': 'Tìm theo tên khách hàng/bản dịch tiếng Việt',
+  '客戶名稱（中文原文）': 'Tên khách hàng (nguyên văn tiếng Trung)',
+  '越南文翻譯': 'Bản dịch tiếng Việt',
+  '尚未翻譯的客戶': 'Khách hàng chưa có bản dịch',
 };

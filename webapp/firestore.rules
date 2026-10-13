@@ -465,6 +465,13 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('meetings');
     }
+    // 客戶名稱越南文對照表：元凱系統那幾個唯讀同步頁面的客戶分組標題要用，
+    // read 也放行 tsIsMember()，方便境外生實習系統那邊將來如果也要用同一套
+    // 對照表時不用再改規則。
+    match /vietnam_companyNameTranslations/{docId} {
+      allow read: if vnIsMember() || tsIsMember();
+      allow write: if vnCanEdit('companyNameTranslations');
+    }
     match /vietnam_internalFeeSetup/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('internalFeeSetup');
