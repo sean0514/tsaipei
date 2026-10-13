@@ -75,6 +75,10 @@ import YujianApplicationProgressPage from './systems/yujian/ApplicationProgressP
 import YujianExpectedArrivalPage from './systems/yujian/ExpectedArrivalPage';
 import VietnamDashboardPage from './systems/vietnam/DashboardPage';
 import VietnamStudentsPage from './systems/vietnam/StudentsPage';
+import VietnamPositionsPage from './systems/vietnam/PositionsPage';
+import VietnamMatchesPage from './systems/vietnam/MatchesPage';
+import VietnamSecondInterviewsPage from './systems/vietnam/SecondInterviewsPage';
+import VietnamAdmittedListPage from './systems/vietnam/AdmittedListPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -198,6 +202,10 @@ const PAGES = {
   vietnam: {
     dashboard: VietnamDashboardPage,
     students: VietnamStudentsPage,
+    positions: VietnamPositionsPage,
+    matches: VietnamMatchesPage,
+    secondInterview: VietnamSecondInterviewsPage,
+    admitted: VietnamAdmittedListPage,
     users: UsersPage,
   },
   foodfactory: {
