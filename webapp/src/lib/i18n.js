@@ -788,4 +788,9 @@ const VI = {
   '搜尋學生、學校、科系或國籍': 'Tìm theo học viên, trường học, khoa hoặc quốc tịch',
   '期望產業別': 'Ngành nghề mong muốn',
   '輸入自訂項目': 'Nhập mục tự định nghĩa',
+  '來源系統': 'Hệ thống nguồn',
+  '境外生實習': 'Thực tập sinh nước ngoài',
+  '越南實習生': 'Thực tập sinh Việt Nam',
+  '彙整境外生實習系統＋越南實習生系統各實習單位（職缺）目前登記的其他福利項目，資料來自雙方「實習單位」的新增職缺表單':
+    'Tổng hợp các mục phúc lợi khác hiện đang đăng ký của từng đơn vị thực tập (vị trí tuyển dụng) từ cả Hệ thống thực tập sinh nước ngoài và Hệ thống thực tập sinh Việt Nam, dữ liệu lấy từ biểu mẫu thêm vị trí tuyển dụng của "Đơn vị thực tập" ở cả hai bên',
 };
