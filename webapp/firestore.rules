@@ -88,16 +88,19 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsIsMember() && tsRole() == '系統管理員';
     }
+    // create/update/delete 都額外放行 vnCanEdit('students')：越南系統新增
+    // 學生時會自動同步建立一筆對應的 tsaipei_students 紀錄，之後在越南系統
+    // 編輯/刪除該學生也會同步更新/刪除這筆紀錄（見 vietnam/StudentsPage.jsx）。
     match /tsaipei_students/{docId} {
       allow read: if tsIsMember();
-      allow create, delete: if tsCanEdit('students');
+      allow create, delete: if tsCanEdit('students') || vnCanEdit('students');
       // update is also allowed to internshipDocs/inTaiwanVisa editors:
       // InternshipDocsPage syncs doc-status fields back onto the student
       // record, and InTaiwanVisaPage syncs entry/exit dates back the same
       // way the original apps-script backend's syncStudentDocField_/
       // syncStudentDatesFromVisa_ did. closedCases 也放行：「已結案名單」的
       // 復原按鈕要能把 confirmedClosed 改回 false。
-      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanVisa') || tsCanEdit('closedCases');
+      allow update: if tsCanEdit('students') || tsCanEdit('internshipDocs') || tsCanEdit('inTaiwanVisa') || tsCanEdit('closedCases') || vnCanEdit('students');
     }
     // 職缺媒合 group — 原本四個集合共用 'matching' 權限，依需求改成每個
     // 分頁各自独立（positions/matches/secondInterview/admitted/visaReminder）。
@@ -113,18 +116,19 @@ service cloud.firestore {
       // create is also allowed to anyone who can edit 'students': new-student
       // save auto-creates a blank match record (see StudentsPage.jsx), and
       // some roles (服務人員/行政人員) can edit students without editing matches.
-      allow create: if tsCanEdit('matches') || tsCanEdit('students');
+      allow create: if tsCanEdit('matches') || tsCanEdit('students') || vnCanEdit('students');
       allow update: if tsCanEdit('matches') || tsCanEdit('closedCases');
       // delete also allowed to 'students' editors: deleting a student
       // cascade-deletes their match records (see StudentsPage.jsx handleDelete,
-      // mirroring deleteStudent() in apps-script/Code.gs).
-      allow delete: if tsCanEdit('matches') || tsCanEdit('students');
+      // mirroring deleteStudent() in apps-script/Code.gs). vnCanEdit('students')
+      // 放行理由同上，越南系統同步刪除學生時也要能連鎖刪除這裡。
+      allow delete: if tsCanEdit('matches') || tsCanEdit('students') || vnCanEdit('students');
     }
     match /tsaipei_secondInterviews/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('secondInterview');
       allow update: if tsCanEdit('secondInterview') || tsCanEdit('closedCases');
-      allow delete: if tsCanEdit('secondInterview') || tsCanEdit('students');
+      allow delete: if tsCanEdit('secondInterview') || tsCanEdit('students') || vnCanEdit('students');
     }
     match /tsaipei_admittedList/{docId} {
       allow read: if tsIsMember();
@@ -133,7 +137,7 @@ service cloud.firestore {
       // 也放行 applicationProgress（見 ApplicationProgressPage.jsx 的 syncAdmittedDate）；
       // closedCases 放行是為了「已結案名單」的復原按鈕。
       allow update: if tsCanEdit('admitted') || tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
-      allow delete: if tsCanEdit('admitted') || tsCanEdit('students');
+      allow delete: if tsCanEdit('admitted') || tsCanEdit('students') || vnCanEdit('students');
     }
     // 確認錄取 cascades into these two, written by whoever can edit 'admitted'
     // even if they can't edit these modules directly (same reasoning as
@@ -142,13 +146,13 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('internshipDocs') || tsCanEdit('admitted');
       allow update: if tsCanEdit('internshipDocs');
-      allow delete: if tsCanEdit('internshipDocs') || tsCanEdit('admitted') || tsCanEdit('students');
+      allow delete: if tsCanEdit('internshipDocs') || tsCanEdit('admitted') || tsCanEdit('students') || vnCanEdit('students');
     }
     match /tsaipei_applicationProgress/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('applicationProgress') || tsCanEdit('admitted');
       allow update: if tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
-      allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students');
+      allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students') || vnCanEdit('students');
     }
     // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者；
     // inTaiwanVisa 存檔時也會連鎖補建 inTaiwanCare/housingRecords（見
@@ -160,19 +164,19 @@ service cloud.firestore {
       // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
       // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
       allow update: if tsCanEdit('inTaiwanVisa') || tsCanEdit('expectedArrival');
-      allow delete: if tsCanEdit('inTaiwanVisa') || tsCanEdit('students');
+      allow delete: if tsCanEdit('inTaiwanVisa') || tsCanEdit('students') || vnCanEdit('students');
     }
     match /tsaipei_inTaiwanCare/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('inTaiwanVisa') || tsCanEdit('applicationProgress');
       allow update: if tsCanEdit('inTaiwanCare');
-      allow delete: if tsCanEdit('inTaiwanCare') || tsCanEdit('students');
+      allow delete: if tsCanEdit('inTaiwanCare') || tsCanEdit('students') || vnCanEdit('students');
     }
     match /tsaipei_housingRecords/{docId} {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('housing') || tsCanEdit('applicationProgress') || tsCanEdit('inTaiwanVisa');
       allow update: if tsCanEdit('housing');
-      allow delete: if tsCanEdit('housing') || tsCanEdit('students');
+      allow delete: if tsCanEdit('housing') || tsCanEdit('students') || vnCanEdit('students');
     }
     // 接送車輛安排：獨立集合，跟在台簽證追蹤只靠 visaId/visaLabel 做「待安排」
     // 清單去重，不是寫回同一筆紀錄，所以送工/送宿舍這種沒有對應入境/離境

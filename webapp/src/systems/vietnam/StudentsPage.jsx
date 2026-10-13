@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
@@ -70,6 +70,31 @@ const FIELDS = [
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
+// 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
+// 資料裡；之後在越南系統編輯/刪除這個學生，同步過去的 tsaipei 紀錄也會
+// 跟著更新/刪除（見 handleSave/handleDelete）。欄位對應到 tsaipei_students
+// 既有的欄位（systems/tsaipei/StudentsPage.jsx 的 FIELDS），兩邊欄位名稱
+// 不完全一樣的地方做轉換：department(單一科系) → department1；
+// hasCert/certType/certLevel → langProofType/langProofLevel（只有「有」或
+// 「已考試未領取證照」才算有語言能力證明）。firestore.rules 已放行
+// vnCanEdit('students') 寫入這裡提到的所有 tsaipei_* 集合。
+function tsaipeiStudentFields(vn) {
+  return {
+    chineseName: vn.chineseName || '',
+    originalName: vn.originalName || '',
+    school: vn.school || '',
+    department1: vn.department || '',
+    nationality: vn.nationality || '',
+    gender: vn.gender || '',
+    passportNumber: vn.hasPassport === 'Yes' ? (vn.passportNumber || '') : '',
+    langProofType: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照')
+      ? (vn.certType === 'TOCFL' ? '華語' : vn.certType === 'TOEIC' ? '多益' : '') : '',
+    langProofLevel: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照') ? (vn.certLevel || '') : '',
+    status: vn.status || '',
+    sourceSupplier: vn.sourceSupplier || '',
+  };
+}
+
 // 複製自 systems/tsaipei/StudentsPage.jsx，collection 字首改成 vietnam_，
 // 介面文字（標題/按鈕/欄位標籤/表格欄位）包上 t(...) 依語言切換顯示；下拉
 // 選單的選項值（國籍/性別等）維持中文儲存，不在這個分頁翻譯顯示文字。
@@ -96,11 +121,25 @@ export default function StudentsPage() {
       if (data.id) {
         const { id, ...rest } = data;
         await update(id, rest);
+        if (rest.syncedTsaipeiStudentId) {
+          await updateDoc(doc(db, 'tsaipei_students', rest.syncedTsaipeiStudentId), tsaipeiStudentFields(rest));
+        }
       } else {
         const ref = await add({ ...data, createdAt: serverTimestamp() });
         await addDoc(collection(db, 'vietnam_matches'), {
           studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）', createdAt: serverTimestamp(),
         });
+        // 同步建立一筆對應的境外生實習系統學生資料（見上方 tsaipeiStudentFields
+        // 的註解），並比照 tsaipei 自己新增學生的行為連鎖建一筆空白媒合紀錄。
+        const tsaipeiRef = await addDoc(collection(db, 'tsaipei_students'), {
+          ...tsaipeiStudentFields(data),
+          syncedFromVietnamId: ref.id,
+          createdAt: serverTimestamp(),
+        });
+        await addDoc(collection(db, 'tsaipei_matches'), {
+          studentId: tsaipeiRef.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依元凱系統學生建檔自動建立）', createdAt: serverTimestamp(),
+        });
+        await update(ref.id, { syncedTsaipeiStudentId: tsaipeiRef.id });
       }
       setEditing(null);
     } catch (err) {
@@ -108,9 +147,36 @@ export default function StudentsPage() {
     }
   }
 
+  // 同步刪除連動到境外生實習系統的那筆學生資料，連鎖刪除範圍完全比照
+  // tsaipei/StudentsPage.jsx 自己的 handleDelete（deleteStudent() 邏輯）。
+  async function deleteSyncedTsaipeiStudent(tsaipeiStudentId) {
+    const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', tsaipeiStudentId)));
+    const matchIds = matchesSnap.docs.map((d) => d.id);
+    const dependentSnaps = await Promise.all([
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', tsaipeiStudentId))),
+    ]);
+    const refs = [
+      ...matchesSnap.docs.map((d) => d.ref),
+      ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+    ];
+    for (let i = 0; i < refs.length; i += 450) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, 'tsaipei_students', tsaipeiStudentId));
+  }
+
   async function handleDelete(studentId) {
     if (!window.confirm('確定要刪除這位學生嗎？')) return;
     try {
+      const student = rows.find((r) => r.id === studentId);
       const matchesSnap = await getDocs(query(collection(db, 'vietnam_matches'), where('studentId', '==', studentId)));
       const matchIds = matchesSnap.docs.map((d) => d.id);
       const dependentSnaps = await Promise.all([
@@ -132,6 +198,9 @@ export default function StudentsPage() {
         await batch.commit();
       }
       await remove(studentId);
+      if (student?.syncedTsaipeiStudentId) {
+        await deleteSyncedTsaipeiStudent(student.syncedTsaipeiStudentId);
+      }
     } catch (err) {
       alert(`刪除失敗：${err.message || err}`);
     }
