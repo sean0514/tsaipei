@@ -765,4 +765,9 @@ const VI = {
   '個人經驗': 'Kinh nghiệm cá nhân',
   '確定要把這筆履歷轉入學生資料嗎？': 'Xác nhận chuyển hồ sơ này vào hồ sơ học viên?',
   '確定要刪除這筆履歷嗎？': 'Xác nhận xóa hồ sơ này?',
+  '有': 'Có',
+  '越南姓名': 'Tên tiếng Việt',
+  '護照照片': 'Ảnh hộ chiếu',
+  '證照核發日期': 'Ngày cấp chứng chỉ',
+  '預計考試日期': 'Ngày dự kiến thi',
 };

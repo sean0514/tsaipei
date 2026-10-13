@@ -492,9 +492,10 @@ service cloud.firestore {
     // 有）不開放公開連結寫入，避免公開連結被用來改到已轉入的狀態。
     function isPublicResumeSubmission() {
       return request.resource.data.keys().hasOnly([
-        'originalName', 'chineseName', 'hasPassport', 'passportId', 'gender', 'birthDate', 'nationality',
+        'originalName', 'chineseName', 'vietnameseName', 'hasPassport', 'passportId', 'gender', 'birthDate', 'nationality',
         'height', 'weight', 'school', 'enrollDate', 'programYears', 'department', 'expectedGraduation',
-        'certType', 'certLevel', 'examDate', 'personalExperience', 'photoUrl', 'assignedStaff', 'status', 'createdAt'
+        'hasCert', 'certType', 'certLevel', 'certIssueDate', 'expectedExamDate', 'personalExperience',
+        'photoUrl', 'passportPhotoUrl', 'assignedStaff', 'status', 'createdAt'
       ]) && (request.resource.data.originalName is string && request.resource.data.originalName.size() > 0)
         && request.resource.data.status == '待處理';
     }
