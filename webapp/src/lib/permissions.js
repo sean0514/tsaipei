@@ -12,8 +12,8 @@ export const SYSTEMS = {
     // group, internshipDocs, applicationProgress, 實習在台追蹤 group,
     // managerReport, housing, dormManagement, meetings, then the
     // 會計專用/資料建檔 group, then users.
-    // 職缺媒合/實習在台追蹤/會計專用/資料建檔這幾組原本共用一個權限模組，
-    // 依需求改成每個分頁各自独立設定權限；側邊欄的分組標題還是用
+    // 職缺媒合/實習在台追蹤/會計專用/資料建檔/申請表格這幾組原本共用一個
+    // 權限模組，依需求改成每個分頁各自独立設定權限；側邊欄的分組標題還是用
     // GROUP_SECTIONS（純視覺分組，見 Layout.jsx）顯示，不影響這裡的權限粒度。
     modules: {
       dashboard: '儀表板',
@@ -38,7 +38,9 @@ export const SYSTEMS = {
       benefits: '實習單位福利',
       meetings: '會議記錄',
       closedCases: '已結案名單',
-      applicationForms: '申請表格',
+      foreignSubsidyApplication: '國外補助申請',
+      dailyExpenseApplication: '日常支出申請',
+      postageFee: '郵資費用紀錄',
       clientBilling: '客戶請款計算',
       studentBilling: '學生請款計算',
       studentSelfPayHousing: '學生自付宿舍',
@@ -79,7 +81,9 @@ export const SYSTEMS = {
       benefits: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },
       closedCases: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
-      applicationForms: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'edit', 宿管人員: 'none' },
+      foreignSubsidyApplication: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'edit', 宿管人員: 'none' },
+      dailyExpenseApplication: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'edit', 宿管人員: 'none' },
+      postageFee: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'edit', 宿管人員: 'none' },
       clientBilling: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 宿管人員: 'none' },
       studentBilling: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 宿管人員: 'none' },
       studentSelfPayHousing: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 宿管人員: 'none' },

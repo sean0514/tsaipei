@@ -61,13 +61,6 @@ export const IMPLEMENTED_MODULES = {
 // permissions, so they're not listed here anymore — see GROUP_SECTIONS below
 // for their sidebar section headers, which are purely visual now.)
 const GROUP_ROUTES = {
-  tsaipei: {
-    applicationForms: [
-      { route: 'foreignSubsidyApplication', label: '國外補助申請' },
-      { route: 'dailyExpenseApplication', label: '日常支出申請' },
-      { route: 'postageFee', label: '郵資費用紀錄' },
-    ],
-  },
   foodfactory: {
     inventory: [
       { route: 'inventory', label: '原料主檔' },
@@ -123,6 +116,7 @@ const GROUP_SECTIONS = {
     { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress'] },
     { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'dormProfitLoss', 'companyProfitLoss'] },
     { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
+    { label: '申請表格', items: ['foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee'] },
   ],
   yujian: [
     { label: '媒合紀錄', items: ['matches', 'secondInterview', 'admitted', 'placementList'] },

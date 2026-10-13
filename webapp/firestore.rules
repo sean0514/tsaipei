@@ -53,7 +53,9 @@ service cloud.firestore {
         'dormManagement': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'view','翻譯人員':'none','國外供應':'none','行政人員':'edit','會計人員':'view','宿管人員':'edit'},
         'meetings': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'view','會計人員':'view','宿管人員':'view'},
         'closedCases': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'none','宿管人員':'none'},
-        'applicationForms': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
+        'foreignSubsidyApplication': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
+        'dailyExpenseApplication': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
+        'postageFee': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'edit','翻譯人員':'view','國外供應':'none','行政人員':'edit','會計人員':'edit','宿管人員':'none'},
         'clientBilling': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
         'studentSelfPayHousing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
         'studentMasterSheet': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','宿管人員':'none'},
@@ -214,22 +216,22 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('meetings');
     }
-    // 申請表格：國外補助申請/日常支出申請 share the 'applicationForms'
-    // permission module.
+    // 申請表格：國外補助申請/日常支出申請/郵資費用紀錄原本共用
+    // 'applicationForms' 權限，依需求改成每個分頁各自独立。
     match /tsaipei_foreignSubsidyApplications/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('applicationForms');
+      allow write: if tsCanEdit('foreignSubsidyApplication');
     }
     match /tsaipei_postageFeeRecords/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('applicationForms');
+      allow write: if tsCanEdit('postageFee');
     }
     // 已核准/已匯款之後，只有系統管理員/主管/會計人員能再改這筆申請（改狀態/
     // 編輯/刪除），避免核准過的紀錄被其他角色隨便改掉；新增紀錄不受此限制。
     match /tsaipei_dailyExpenseApplications/{docId} {
       allow read: if tsIsMember();
-      allow create: if tsCanEdit('applicationForms');
-      allow update, delete: if tsCanEdit('applicationForms') &&
+      allow create: if tsCanEdit('dailyExpenseApplication');
+      allow update, delete: if tsCanEdit('dailyExpenseApplication') &&
         (!(resource.data.status in ['已核准', '已匯款']) || tsRole() in ['系統管理員', '主管', '會計人員']);
     }
     // 內部獎金計算/客戶費用建檔/內部費用建檔原本共用 'bonus' 權限，依需求
@@ -245,12 +247,13 @@ service cloud.firestore {
       allow create: if tsCanEdit('clientFeeSetup') || tsCanEdit('positions');
       allow update, delete: if tsCanEdit('clientFeeSetup');
     }
-    // create/update 額外放行 applicationForms：國外補助申請核准（或核准後
-    // 又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人不一定有
-    // foreignPayment 權限。delete 仍只限 foreignPayment，避免誤刪已維護的付款紀錄。
+    // create/update 額外放行 foreignSubsidyApplication：國外補助申請核准
+    // （或核准後又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人
+    // 不一定有 foreignPayment 權限。delete 仍只限 foreignPayment，避免誤刪
+    // 已維護的付款紀錄。
     match /tsaipei_foreignPayments/{docId} {
       allow read: if tsIsMember();
-      allow create, update: if tsCanEdit('foreignPayment') || tsCanEdit('applicationForms');
+      allow create, update: if tsCanEdit('foreignPayment') || tsCanEdit('foreignSubsidyApplication');
       allow delete: if tsCanEdit('foreignPayment');
     }
 
