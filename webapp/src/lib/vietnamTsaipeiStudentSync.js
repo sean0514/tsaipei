@@ -8,8 +8,11 @@ import { db } from '../firebase';
 // StudentsPage.jsx 的 FIELDS），兩邊欄位名稱不完全一樣的地方做轉換：
 // department(單一科系) → department1；hasCert/certType/certLevel →
 // langProofType/langProofLevel（只有「有」或「已考試未領取證照」才算有
-// 語言能力證明）。firestore.rules 已放行 vnCanEdit('students') 寫入這裡
-// 提到的所有 tsaipei_* 集合。
+// 語言能力證明）。hasCert/certType/certLevel/desiredIndustries 這幾個
+// 履歷表特有的欄位也原樣同步過去（tsaipei_students 的 FIELDS 新增了這幾
+// 個欄位來顯示），方便 tsaipei 這邊的使用者直接看到元凱同步過來的學生是否
+// 有華語證照、期望產業別，不用另外切到越南系統查。firestore.rules 已放行
+// vnCanEdit('students') 寫入這裡提到的所有 tsaipei_* 集合。
 export function tsaipeiStudentFields(vn) {
   return {
     chineseName: vn.chineseName || '',
@@ -22,6 +25,10 @@ export function tsaipeiStudentFields(vn) {
     langProofType: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照')
       ? (vn.certType === 'TOCFL' ? '華語' : vn.certType === 'TOEIC' ? '多益' : '') : '',
     langProofLevel: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照') ? (vn.certLevel || '') : '',
+    hasCert: vn.hasCert || '',
+    certType: vn.certType || '',
+    certLevel: vn.certLevel || '',
+    desiredIndustries: vn.desiredIndustries || '',
     status: vn.status || '',
     sourceSupplier: vn.sourceSupplier || '',
   };

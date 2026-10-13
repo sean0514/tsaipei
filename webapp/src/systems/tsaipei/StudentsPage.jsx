@@ -12,6 +12,18 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
 
+// 期望產業別存成 JSON 字串陣列（跟越南系統 StudentsPage.jsx 同一套存法），
+// 這裡用逗號分隔的文字輸入框編輯，存檔時再轉回 JSON 陣列；不是合法 JSON
+// 就當成一個項目處理。
+function parseList(json) {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (Array.isArray(arr)) return arr;
+  } catch { /* 不是 JSON，當作舊版單一文字欄位處理 */ }
+  return [json];
+}
+
 // Full schema ported from apps-script/Code.gs SHEET_FIELDS.Students.
 const FIELDS = [
   { key: 'chineseName', label: '中文姓名' },
@@ -41,6 +53,11 @@ const FIELDS = [
   { key: 'firstExitDate', label: '第一次離境日期', type: 'date' },
   { key: 'secondEntryDate', label: '第二次入境日期', type: 'date' },
   { key: 'secondExitDate', label: '第二次離境日期', type: 'date' },
+  // 以下兩個欄位主要是元凱（越南系統）同步新增學生時帶過來的（見
+  // lib/vietnamTsaipeiStudentSync.js），tsaipei 自己新增的學生這兩欄預設
+  // 是空的，要填也可以直接在這裡編輯。
+  { key: 'hasCert', label: '是否有華語證照(元凱同步)', options: ['', '有', '已考試未領取證照', '無'] },
+  { key: 'desiredIndustries', label: '期望產業別(元凱同步)', type: 'tags' },
   { key: 'status', label: '狀態' },
   { key: 'notes', label: '備註' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
@@ -152,7 +169,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>狀態</th>
+                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -172,6 +189,8 @@ export default function StudentsPage() {
                     <td>{r.phone || '—'}</td>
                     <td>{r.firstEntryDate || '—'} ~ {r.firstExitDate || '—'}</td>
                     <td><span className={`tag ${doc.complete ? 'tag-green' : 'tag-amber'}`}>{doc.done}/{doc.total}</span></td>
+                    <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? '無' : '—')}</td>
+                    <td>{parseList(r.desiredIndustries).join('、') || '—'}</td>
                     <td><Tag value={r.status} map={STUDENT_TAG} /></td>
                     {canEditPage && (
                       <td>
@@ -185,7 +204,7 @@ export default function StudentsPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -216,6 +235,12 @@ function StudentFormModal({ initial, onCancel, onSave }) {
                   <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     {f.options.map((o) => <option key={o} value={o}>{o || '請選擇'}</option>)}
                   </select>
+                ) : f.type === 'tags' ? (
+                  <input
+                    placeholder="用逗號分隔多個項目"
+                    defaultValue={parseList(form[f.key]).join('、')}
+                    onBlur={(e) => setForm({ ...form, [f.key]: JSON.stringify(e.target.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean)) })}
+                  />
                 ) : (
                   <input
                     type={f.type || 'text'}
