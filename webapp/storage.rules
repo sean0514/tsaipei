@@ -22,11 +22,17 @@ service firebase.storage {
       allow write: if signedIn() && request.resource.size <= 4 * 1024 * 1024;
     }
     // 越南實習生系統「履歷表連結」公開填寫頁面（/apply/vietnam，不需要
-    // 登入）上傳的學生大頭貼，單檔上限 3MB、只接受圖片；讀取限內部成員，
-    // 讓「履歷表連結」頁面審核履歷時能看到照片。
+    // 登入）上傳的學生大頭貼，單檔上限 3MB；讀取限內部成員，讓「履歷表
+    // 連結」頁面審核履歷時能看到照片。
+    // 原本多檢查 contentType.matches('image/.*')，但手機瀏覽器（尤其是
+    // LINE/Messenger 存下來的照片，例如 S__xxxxx.jpg）選檔時常常給空字串
+    // 或非標準的 MIME type，導致這筆檢查判斷失敗、整筆寫入被 Storage 規則
+    // 擋下來，使用者只會看到語焉不詳的 storage/unauthorized 錯誤。前端
+    // <input type="file" accept="image/*"> 已經做過一層篩選，這裡拿掉
+    // contentType 檢查、只保留檔案大小限制，避免這個誤判。
     match /vietnam_resumePhotos/{allPaths=**} {
       allow read: if vnIsMember();
-      allow write: if request.resource.size <= 3 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+      allow write: if request.resource.size <= 3 * 1024 * 1024;
     }
   }
 }
