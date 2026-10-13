@@ -9,10 +9,19 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
+function certSummary(s, lang) {
+  if (s.hasCert === '有' || s.hasCert === '已考試未領取證照') {
+    return `${s.hasCert}${s.certType ? `（${s.certType} ${s.certLevel || ''}）` : ''}`.trim();
+  }
+  if (s.hasCert === '無') return t('無', lang);
+  return '—';
+}
+
 // 複製自 systems/tsaipei/UnmatchedStudentsPage.jsx，collection 字首改成
 // vietnam_，介面文字包上 t(...)。StudentsPage.jsx 的欄位改成比照「外國籍
 // 學生基本資料表」後，department1/department2/startDate/phone 已經不是
-// 學生資料的欄位了，改用現有的 department/predicted graduation。
+// 學生資料的欄位了，改用現有的 department/predicted graduation；「國外
+// 供應商」欄位拿掉，改顯示「是否有語文證照」。
 export default function UnmatchedStudentsPage() {
   const { lang } = useOutletContext();
   const { rows: students, loading } = useCollection('vietnam_students');
@@ -24,7 +33,7 @@ export default function UnmatchedStudentsPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
-    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${s.department || ''} ${s.nationality || ''} ${s.sourceSupplier || ''}`.toLowerCase().includes(searchQuery))
+    .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${s.department || ''} ${s.nationality || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => studentFullLabel(a).localeCompare(studentFullLabel(b)));
 
   const groups = {};
@@ -36,11 +45,11 @@ export default function UnmatchedStudentsPage() {
 
   function handleDownload() {
     const rows = filtered.map((s) => ({
-      name: studentFullLabel(s), nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '', school: s.school || '', department: s.department || '',
+      name: studentFullLabel(s), nationality: s.nationality || '', hasCert: certSummary(s, lang), school: s.school || '', department: s.department || '',
       status: s.status || '', expectedGraduation: s.expectedGraduation || '',
     }));
     exportEntityCSV(rows, [
-      { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
+      { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'hasCert', label: '是否有華語證照' },
       { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' },
       { key: 'status', label: '狀態' }, { key: 'expectedGraduation', label: '預計畢業時間' },
     ], '學生尚未安排');
@@ -57,7 +66,7 @@ export default function UnmatchedStudentsPage() {
           <button onClick={handleDownload}>{t('下載名單', lang)}</button>
         </div>
       </div>
-      <input placeholder={t('搜尋學生、學校、科系、國籍或國外供應商', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <input placeholder={t('搜尋學生、學校、科系或國籍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         groupKeys.length === 0 ? (
           <p className="muted">{searchQuery ? t('沒有符合搜尋條件的學生。', lang) : t('目前所有學生都已經安排媒合了。', lang)}</p>
@@ -68,12 +77,12 @@ export default function UnmatchedStudentsPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} {t('位學生', lang)}</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('國外供應商', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('狀態', lang)}</th><th>{t('預計畢業時間', lang)}</th></tr></thead>
+                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('狀態', lang)}</th><th>{t('預計畢業時間', lang)}</th></tr></thead>
                   <tbody>
                     {groups[key].map((s) => (
                       <tr key={s.id}>
                         <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
-                        <td>{s.sourceSupplier || '—'}</td>
+                        <td>{certSummary(s, lang)}</td>
                         <td>{s.school || '—'}</td>
                         <td>{s.department || '—'}</td>
                         <td>{s.status || '—'}</td>

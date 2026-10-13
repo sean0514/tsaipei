@@ -784,4 +784,6 @@ const VI = {
   '上傳中…': 'Đang tải lên…',
   '上傳失敗': 'Tải lên thất bại',
   '管理來台實習之國際學生基本資料與狀態，欄位比照外國籍學生基本資料表': 'Quản lý thông tin cơ bản và trạng thái của sinh viên quốc tế thực tập tại Đài Loan, các trường theo mẫu "Thông tin cơ bản dành cho sinh viên nước ngoài"',
+  '是否有華語證照': 'Có chứng chỉ tiếng Trung không',
+  '搜尋學生、學校、科系或國籍': 'Tìm theo học viên, trường học, khoa hoặc quốc tịch',
 };
