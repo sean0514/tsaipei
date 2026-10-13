@@ -405,16 +405,34 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('vehiclePickup');
     }
-    // 第一次入台時間存檔時會自動帶入寢具/鑰匙/體檢三筆費用到日常支出申請，
-    // 這個分頁本身還沒複製過來，先比照 tsaipei_dailyExpenseApplications 只
-    // 放行 dailyExpenseApplication 編輯者寫入(沒有這個權限的 inTaiwanVisa
-    // 編輯者存檔時，這筆自動帶入會失敗，跟 tsaipei 現有行為一致)。
+    // 申請表格：國外補助申請/日常支出申請/郵資費用紀錄每個分頁各自独立權限
+    // （比照 tsaipei）。已核准/已匯款之後，只有系統管理員/主管/會計人員能
+    // 再改日常支出申請的狀態/編輯/刪除。
     match /vietnam_dailyExpenseApplications/{docId} {
       allow read: if vnIsMember();
       allow create: if vnCanEdit('dailyExpenseApplication');
       allow update, delete: if vnCanEdit('dailyExpenseApplication') &&
         (!(resource.data.status in ['已核准', '已匯款']) || vnRole() in ['系統管理員', '主管', '會計人員']);
     }
+    match /vietnam_foreignSubsidyApplications/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('foreignSubsidyApplication');
+    }
+    match /vietnam_postageFeeRecords/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('postageFee');
+    }
+    // create/update 額外放行 foreignSubsidyApplication：國外補助申請核准
+    // （或核准後又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人
+    // 不一定有 foreignPayment 權限；foreignPayment 分頁本身還沒複製過來，
+    // 先只開放這個連鎖寫入路徑。
+    match /vietnam_foreignPayments/{docId} {
+      allow read: if vnIsMember();
+      allow create, update: if vnCanEdit('foreignSubsidyApplication');
+    }
+    // 宿舍管理分頁還沒複製過來，日常支出申請選「宿舍設備」項目時需要讀取
+    // 宿舍清單，先開唯讀。
+    match /vietnam_dormitories/{docId} { allow read: if vnIsMember(); }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {

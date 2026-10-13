@@ -338,4 +338,57 @@ const VI = {
   '已安排': 'Đã sắp xếp',
   '類型': 'Loại',
   '編輯安排': 'Chỉnh sửa sắp xếp',
+
+  // 日常支出申請
+  '依待審核／已核准／已匯款／退回分類；已核准／已匯款的申請可以按「結案」歸檔，結案後從列表隱藏（資料還在，下載完整資料時仍會包含）':
+    'Phân loại theo chờ duyệt/đã duyệt/đã chuyển khoản/trả lại; đơn đã duyệt/đã chuyển khoản có thể bấm "Kết thúc hồ sơ" để lưu trữ, sau đó ẩn khỏi danh sách (dữ liệu vẫn còn, tải dữ liệu đầy đủ vẫn bao gồm)',
+  '新增申請': 'Thêm đơn',
+  '編輯申請': 'Chỉnh sửa đơn',
+  '下載此月份資料': 'Tải dữ liệu tháng này',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有日常支出申請紀錄，請先下載備份再匯入。「下載此月份資料」依「日期」篩選。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ đơn xin chi phí hàng ngày hiện tại, vui lòng tải bản sao lưu trước khi nhập. "Tải dữ liệu tháng này" lọc theo "Ngày".',
+  '搜尋申請人、項目或用途說明': 'Tìm theo người xin, hạng mục hoặc mục đích sử dụng',
+  '全部類型': 'Tất cả loại',
+  '申請人': 'Người xin',
+  '須請款(實習單位)': 'Cần thu tiền (đơn vị thực tập)',
+  '學生姓名': 'Tên học viên',
+  '宿舍': 'Ký túc xá',
+  '是否開立發票': 'Có xuất hóa đơn không',
+  '填表人': 'Người điền đơn',
+  '請選擇宿舍': 'Vui lòng chọn ký túc xá',
+  '自行輸入項目名稱': 'Tự nhập tên hạng mục',
+  '（不限）': '(Không giới hạn)',
+  '審核狀態': 'Trạng thái duyệt',
+
+  // 國外補助申請
+  '依待審核／已核准／已匯款／退回分類': 'Phân loại theo chờ duyệt/đã duyệt/đã chuyển khoản/trả lại',
+  '同步中…': 'Đang đồng bộ…',
+  '補同步國外付款紀錄': 'Đồng bộ bổ sung ghi nhận thanh toán nước ngoài',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外補助申請紀錄，請先下載備份再匯入。「下載此月份資料」依「匯款日期」篩選。「補同步國外付款紀錄」會把所有已核准/已匯款的申請重新同步一次到國外付款紀錄(修正舊版只在剛核准那一刻同步、之後轉已匯款就不再同步的問題)。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ đơn xin trợ cấp nước ngoài hiện tại, vui lòng tải bản sao lưu trước khi nhập. "Tải dữ liệu tháng này" lọc theo "Ngày chuyển khoản". "Đồng bộ bổ sung" sẽ đồng bộ lại tất cả đơn đã duyệt/đã chuyển khoản vào ghi nhận thanh toán nước ngoài.',
+  '搜尋申請人、學生、學生來源或用途說明': 'Tìm theo người xin, học viên, nguồn học viên hoặc mục đích sử dụng',
+  '學生來源': 'Nguồn học viên',
+  '就讀學校': 'Trường đang học',
+  '匯款日期': 'Ngày chuyển khoản',
+  '學生來源(國外供應商)': 'Nguồn học viên (nhà cung cấp nước ngoài)',
+  '學生名字': 'Tên học viên',
+  '幣別': 'Loại tiền',
+  '台幣金額': 'Số tiền TWD',
+
+  // 郵資費用紀錄
+  '依未匯款／已匯款／退回分類': 'Phân loại theo chưa chuyển khoản/đã chuyển khoản/trả lại',
+  '新增紀錄': 'Thêm bản ghi',
+  '編輯郵資紀錄': 'Chỉnh sửa ghi nhận bưu phí',
+  '新增郵資紀錄': 'Thêm ghi nhận bưu phí',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有郵資費用紀錄，請先下載備份再匯入。「下載此月份資料」依「寄件日期」篩選。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ ghi nhận chi phí bưu phí hiện tại, vui lòng tải bản sao lưu trước khi nhập. "Tải dữ liệu tháng này" lọc theo "Ngày gửi".',
+  '搜尋寄件編號、寄件人、收件人或文件內容': 'Tìm theo mã gửi, người gửi, người nhận hoặc nội dung hồ sơ',
+  '編號': 'Số',
+  '寄件日期': 'Ngày gửi',
+  '寄件編號': 'Mã gửi',
+  '寄件人': 'Người gửi',
+  '電話': 'Điện thoại',
+  '收件人': 'Người nhận',
+  '地址': 'Địa chỉ',
+  '文件內容': 'Nội dung hồ sơ',
 };
