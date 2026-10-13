@@ -54,7 +54,7 @@ const CSV_FIELDS = [
 
 export default function ForeignSubsidyApplicationPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
+  const canEditPage = computeCanEdit(system, 'foreignSubsidyApplication', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_foreignSubsidyApplications');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: users } = useCollection('tsaipei_users');

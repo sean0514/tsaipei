@@ -47,7 +47,7 @@ const CSV_FIELDS = [
 
 export default function DailyExpenseApplicationPage() {
   const { system, role, overrides } = useOutletContext();
-  const canEditPage = computeCanEdit(system, 'applicationForms', role, overrides);
+  const canEditPage = computeCanEdit(system, 'dailyExpenseApplication', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: users } = useCollection('tsaipei_users');
   const { rows: positions } = useCollection('tsaipei_positions');
