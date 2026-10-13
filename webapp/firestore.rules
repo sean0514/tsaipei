@@ -469,6 +469,22 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('clientBilling');
     }
+    // 學生請款計算：每個學生每個月的已收款/收款日期記錄，其他金額欄位都是
+    // 即時計算、不落地儲存。
+    match /vietnam_studentBillingPayments/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('studentBilling');
+    }
+    // 公司損益：使用者自行新增的收入/支出項目(例如內部人員薪資、保費)，
+    // 項目本身不分年份，金額依項目+月份各存一筆。
+    match /vietnam_companyPnlCustomItems/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('companyProfitLoss');
+    }
+    match /vietnam_companyPnlCustomAmounts/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('companyProfitLoss');
+    }
 
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
