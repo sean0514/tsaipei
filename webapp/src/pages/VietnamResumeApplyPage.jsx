@@ -187,7 +187,7 @@ export default function VietnamResumeApplyPage() {
             <input type="number" value={form.programYears || ''} onChange={(e) => setField('programYears', e.target.value)} />
           </label>
           <label>
-            科系 Phòng
+            科系 Khoa
             <input value={form.department || ''} onChange={(e) => setField('department', e.target.value)} />
           </label>
           <label>

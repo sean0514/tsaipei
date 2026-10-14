@@ -122,7 +122,7 @@ const VI = {
   '性別': 'Giới tính',
   '國籍': 'Quốc tịch',
   '學校': 'Trường học',
-  '科系': 'Ngành học',
+  '科系': 'Khoa',
   '電話': 'Điện thoại',
   '護照號碼': 'Số hộ chiếu',
   '管理來台實習之國際學生基本資料與狀態': 'Quản lý thông tin cơ bản và trạng thái của học viên thực tập quốc tế tại Đài Loan',
