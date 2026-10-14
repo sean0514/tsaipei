@@ -125,7 +125,7 @@ export default function VietnamResumeApplyPage() {
             <input value={form.vietnameseName || ''} onChange={(e) => setField('vietnameseName', e.target.value)} />
           </label>
           <label>
-            大頭貼 Gian chụp ảnh
+            大頭貼 Ảnh chân dung
             <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setPhotoFile, setPhotoError)} />
             {photoError && <div className="error-text">{photoError}</div>}
           </label>
@@ -187,7 +187,7 @@ export default function VietnamResumeApplyPage() {
             <input type="number" value={form.programYears || ''} onChange={(e) => setField('programYears', e.target.value)} />
           </label>
           <label>
-            科系 Phòng
+            科系 Khoa
             <input value={form.department || ''} onChange={(e) => setField('department', e.target.value)} />
           </label>
           <label>

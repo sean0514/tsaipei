@@ -11,6 +11,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { tsaipeiStudentFields, createSyncedTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
+import { translateViToZh } from '../../lib/translate';
 
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -41,6 +42,11 @@ function parseList(json) {
 // 舊欄位到學生資料，這裡拿掉後那幾個寫入動作還是會成功（Firestore 沒有
 // schema 限制），只是變成這個頁面看不到、也不會再用到的欄位，不影響
 // InternshipDocsPage 本身的文件追蹤功能。
+// schoolZh/departmentZh/workExperienceZh 是額外加的中文翻譯欄位（履歷表
+// 沒有這三個），因為學生自己填的這幾個自由文字欄位是越南文，中文人員看
+// 不懂；FIELDS 裡用 translateFrom 指向越南文原始欄位，表單會在旁邊多一個
+// 「機器翻譯成中文」按鈕（見 lib/translate.js），翻譯結果可以手動微調，
+// 不會覆蓋越南文原文。
 const FIELDS = [
   { key: 'originalName', label: '英文姓名（與護照相符）', required: true },
   { key: 'chineseName', label: '中文姓名' },
@@ -55,9 +61,11 @@ const FIELDS = [
   { key: 'height', label: '身高(cm)', type: 'number' },
   { key: 'weight', label: '體重(kg)', type: 'number' },
   { key: 'school', label: '就讀學校' },
+  { key: 'schoolZh', label: '就讀學校（中文翻譯）', translateFrom: 'school' },
   { key: 'enrollDate', label: '入學日期', type: 'date' },
   { key: 'programYears', label: '學制（年）', type: 'number' },
   { key: 'department', label: '科系' },
+  { key: 'departmentZh', label: '科系（中文翻譯）', translateFrom: 'department' },
   { key: 'expectedGraduation', label: '預計畢業時間', type: 'date' },
   { key: 'hasCert', label: '是否有華語證照', options: ['', '有', '已考試未領取證照', '無'] },
   { key: 'certType', label: '證照類別', options: ['', 'TOCFL', 'TOEIC'], visibleIf: (f) => f.hasCert === '有' || f.hasCert === '已考試未領取證照' },
@@ -65,6 +73,7 @@ const FIELDS = [
   { key: 'certPickupDate', label: '證照領取日期', type: 'date', visibleIf: (f) => f.hasCert === '已考試未領取證照' },
   { key: 'expectedExamDate', label: '預計考試日期', type: 'date', visibleIf: (f) => f.hasCert === '無' },
   { key: 'workExperience', label: '工作經驗', type: 'textarea' },
+  { key: 'workExperienceZh', label: '工作經驗（中文翻譯）', type: 'textarea', translateFrom: 'workExperience' },
   { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
   { key: 'status', label: '狀態' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
@@ -205,8 +214,8 @@ export default function StudentsPage() {
                     <div className="muted" style={{ fontSize: 12 }}>{[r.vietnameseName, r.nationality].filter(Boolean).join(' · ') || '—'}</div>
                   </td>
                   <td>
-                    {r.school || '—'}
-                    <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}</div>
+                    {r.school || '—'}{r.schoolZh ? `（${r.schoolZh}）` : ''}
+                    <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}{r.departmentZh ? `（${r.departmentZh}）` : ''}</div>
                   </td>
                   <td>{r.gender || '—'}</td>
                   <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
@@ -294,6 +303,23 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
   const [uploadingKey, setUploadingKey] = useState(null);
   const [uploadError, setUploadError] = useState('');
+  const [translatingKey, setTranslatingKey] = useState(null);
+  const [translateError, setTranslateError] = useState('');
+
+  async function handleTranslate(key, fromKey) {
+    const source = form[fromKey];
+    if (!source || !source.trim()) return;
+    setTranslateError('');
+    setTranslatingKey(key);
+    try {
+      const result = await translateViToZh(source);
+      setForm((f) => ({ ...f, [key]: result }));
+    } catch (err) {
+      setTranslateError(`${t('機器翻譯失敗', lang)}：${err.message || err}`);
+    } finally {
+      setTranslatingKey(null);
+    }
+  }
 
   async function handlePhotoChange(key, e) {
     const file = e.target.files?.[0] || null;
@@ -323,7 +349,7 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             {FIELDS.filter((f) => !f.visibleIf || f.visibleIf(form)).map((f) => (
-              <label key={f.key}>
+              <label key={f.key} style={f.translateFrom && f.type === 'textarea' ? { gridColumn: 'span 2' } : undefined}>
                 {t(f.label, lang)}
                 {f.key === 'status' ? (
                   <select value={form.status || STUDENT_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
@@ -334,6 +360,22 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
                     {form[f.key] && <img src={form[f.key]} alt="" style={{ width: 90, height: 90, objectFit: 'cover', display: 'block', marginBottom: 6 }} />}
                     <input type="file" accept="image/*" onChange={(e) => handlePhotoChange(f.key, e)} disabled={uploadingKey === f.key} />
                     {uploadingKey === f.key && <div className="muted">{t('上傳中…', lang)}</div>}
+                  </div>
+                ) : f.translateFrom ? (
+                  <div>
+                    {f.type === 'textarea' ? (
+                      <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                    ) : (
+                      <input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleTranslate(f.key, f.translateFrom)}
+                      disabled={translatingKey === f.key || !form[f.translateFrom]}
+                      style={{ marginTop: 4 }}
+                    >
+                      {translatingKey === f.key ? t('翻譯中…', lang) : t('機器翻譯成中文', lang)}
+                    </button>
                   </div>
                 ) : f.type === 'textarea' ? (
                   <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
@@ -360,6 +402,7 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
             ))}
           </div>
           {uploadError && <div className="error-text">{uploadError}</div>}
+          {translateError && <div className="error-text">{translateError}</div>}
           <div className="row-actions">
             <button type="submit" className="primary" disabled={!!uploadingKey}>{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
