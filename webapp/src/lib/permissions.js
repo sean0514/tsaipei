@@ -112,6 +112,13 @@ export const SYSTEMS = {
   // Firestore collection 字首改成 vietnam_、多了 bilingual 旗標讓介面可以
   // 切換中文/越南文（只翻譯選單/按鈕/欄位標籤，使用者輸入的實際資料不翻譯，
   // 見 lib/i18n.js）。頁面元件依 tsaipei 的分批複製進度逐步補齊。
+  // 依需求從側邊欄移除：實習單位/在台關懷紀錄/開戶進度追蹤/接送車輛安排/
+  // 住宿安排/宿舍管理/客服未完成事項/行政未完成事項/學生請款計算/學生自付
+  // 宿舍/宿舍損益——只是從這裡的 modules 拿掉（側邊欄、使用人員權限表都
+  // 跟著這份清單），頁面元件、對應的 vietnam_* collection 與資料都還在，
+  // App.jsx 的路由也沒拿掉，日後要恢復只要把這些 key 加回來即可；其他保留
+  // 頁面（客戶請款計算/主管報表/已結案名單/儀表板等）仍會讀取 vietnam_positions/
+  // vietnam_housingRecords 既有資料，不受影響。
   vietnam: {
     label: '越南實習生管理系統',
     bilingual: true,
@@ -121,7 +128,6 @@ export const SYSTEMS = {
       unmatchedStudents: '學生尚未安排',
       students: '學生資料',
       resumeLinks: '履歷表連結',
-      positions: '實習單位',
       matches: '媒合紀錄',
       secondInterview: '二面進度',
       admitted: '錄取名單',
@@ -129,15 +135,8 @@ export const SYSTEMS = {
       internshipDocs: '實習文件追蹤',
       applicationProgress: '申辦進度追蹤',
       inTaiwanVisa: '在台簽證追蹤',
-      inTaiwanCare: '在台關懷紀錄',
       expectedArrival: '預計入台/離台',
-      bankAccountProgress: '開戶進度追蹤',
-      vehiclePickup: '接送車輛安排',
       managerReport: '主管報表',
-      housing: '住宿安排',
-      dormManagement: '宿舍管理',
-      customerServicePending: '客服未完成事項',
-      adminPending: '行政未完成事項',
       benefits: '實習單位福利',
       companyNameTranslations: '客戶名稱翻譯',
       meetings: '會議記錄',
@@ -146,11 +145,8 @@ export const SYSTEMS = {
       dailyExpenseApplication: '日常支出申請',
       postageFee: '郵資費用紀錄',
       clientBilling: '客戶請款計算',
-      studentBilling: '學生請款計算',
-      studentSelfPayHousing: '學生自付宿舍',
       studentMasterSheet: '學生資料總檔',
       foreignPayment: '國外付款紀錄',
-      dormProfitLoss: '宿舍損益',
       companyProfitLoss: '公司損益',
       clientFeeSetup: '客戶費用建檔',
       internalFeeSetup: '內部費用建檔',
