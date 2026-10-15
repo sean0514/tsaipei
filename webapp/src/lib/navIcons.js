@@ -24,6 +24,8 @@ export const NAV_ICONS = {
     dormManagement: '▤',
     customerServicePending: '☎',
     adminPending: '🗂',
+    translatorContacts: '🗣',
+    dormManagerContacts: '🔑',
     benefits: '🎁',
     meetings: '✎',
     closedCases: '📁',

@@ -209,6 +209,15 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('adminPending');
     }
+    // 聯絡資訊／各區翻譯資訊、各區宿管資訊：外部配合資源的聯絡清單。
+    match /tsaipei_translatorContacts/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('translatorContacts');
+    }
+    match /tsaipei_dormManagerContacts/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagerContacts');
+    }
     // 學生請款計算：每個學生每個月的已收款/收款日期記錄，其他金額欄位都是
     // 即時計算、不落地儲存。
     match /tsaipei_studentBillingPayments/{docId} {
