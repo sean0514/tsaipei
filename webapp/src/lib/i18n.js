@@ -772,7 +772,6 @@ const VI = {
   '就讀學校（中文翻譯）': 'Trường học (bản dịch tiếng Trung)',
   '科系（中文翻譯）': 'Khoa (bản dịch tiếng Trung)',
   '工作經驗（中文翻譯）': 'Kinh nghiệm làm việc (bản dịch tiếng Trung)',
-  '機器翻譯成中文': 'Dịch máy sang tiếng Trung',
   '翻譯中…': 'Đang dịch…',
   '機器翻譯失敗': 'Dịch máy thất bại',
   '確定要把這筆履歷轉入學生資料嗎？': 'Xác nhận chuyển hồ sơ này vào hồ sơ học viên?',

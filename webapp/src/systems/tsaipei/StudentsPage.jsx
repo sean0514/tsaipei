@@ -64,6 +64,15 @@ const FIELDS = [
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
+// 系統來源：純粹依 syncedFromVietnamId 這個既有欄位（元凱/越南系統同步
+// 新增學生時，見 lib/vietnamTsaipeiStudentSync.js 的 createSyncedTsaipeiStudent
+// 自動帶上）自動判別，不是另外存一個新欄位、也不能手動編輯——跟
+// PositionBenefitsPage.jsx 的「來源系統」概念一致，只是那邊是整頁資料
+// 分兩個 collection 來源，這裡是同一個 collection 裡依欄位判斷。
+function systemSourceLabel(student) {
+  return student.syncedFromVietnamId ? '越南實習生系統' : '境外生實習系統';
+}
+
 // Ported from docChecklist/docSummary in apps-script/Index.html — 5-item
 // checklist of document fields stored directly on the student record.
 function docSummary(s) {
@@ -169,7 +178,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th>
+                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -192,6 +201,7 @@ export default function StudentsPage() {
                     <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? '無' : '—')}</td>
                     <td>{parseList(r.desiredIndustries).join('、') || '—'}</td>
                     <td><Tag value={r.status} map={STUDENT_TAG} /></td>
+                    <td className="muted">{systemSourceLabel(r)}</td>
                     {canEditPage && (
                       <td>
                         <div className="row-actions">
@@ -204,7 +214,7 @@ export default function StudentsPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -222,6 +232,7 @@ function StudentFormModal({ initial, onCancel, onSave }) {
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{initial.id ? '編輯學生' : '新增學生'}</h3>
+        {initial.id && <p className="muted" style={{ marginTop: -8 }}>系統來源：{systemSourceLabel(initial)}</p>}
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             {FIELDS.map((f) => (
