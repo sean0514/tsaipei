@@ -1,7 +1,7 @@
 // 元凱（越南系統）的媒合紀錄/二面進度/錄取名單/辦理簽證提醒/實習文件追蹤/
-// 申辦進度追蹤/在台簽證追蹤這幾個模組改成唯讀顯示境外生實習系統
-// （tsaipei）的資料，只篩選學生來源(國外供應商)是這三個的紀錄。
-export const ALLOWED_SOURCE_SUPPLIERS = ['阮氏芳草', '阿草', '阿草（鳳仙）'];
+// 申辦進度追蹤/在台簽證追蹤/預計入台/離台這幾個模組改成唯讀顯示境外生
+// 實習系統（tsaipei）的資料，只篩選學生來源(國外供應商)是這幾個的紀錄。
+export const ALLOWED_SOURCE_SUPPLIERS = ['阮氏芳草', '阿草', '阿草（鳳仙）', 'SON LE', 'NGOC LINH'];
 
 export function isAllowedSourceStudent(student) {
   return !!student && ALLOWED_SOURCE_SUPPLIERS.includes(student.sourceSupplier);

@@ -808,8 +808,8 @@ const VI = {
 
   // 元凱系統唯讀同步顯示境外生實習系統資料（媒合紀錄/二面進度/錄取名單/
   // 辦理簽證提醒/實習文件追蹤/申辦進度追蹤/在台簽證追蹤）
-  '資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）的紀錄，唯讀顯示，編輯請到境外生實習系統操作':
-    'Nguồn dữ liệu: Hệ thống thực tập sinh nước ngoài, chỉ hiển thị hồ sơ của học viên có nguồn (nhà cung ứng nước ngoài) là Nguyễn Thị Phương Thảo, A Thảo, A Thảo (Phượng Tiên), chỉ xem, muốn chỉnh sửa vui lòng vào Hệ thống thực tập sinh nước ngoài',
+  '資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）、SON LE、NGOC LINH 的紀錄，唯讀顯示，編輯請到境外生實習系統操作':
+    'Nguồn dữ liệu: Hệ thống thực tập sinh nước ngoài, chỉ hiển thị hồ sơ của học viên có nguồn (nhà cung ứng nước ngoài) là Nguyễn Thị Phương Thảo, A Thảo, A Thảo (Phượng Tiên), SON LE, NGOC LINH, chỉ xem, muốn chỉnh sửa vui lòng vào Hệ thống thực tập sinh nước ngoài',
   '目前沒有需要辦理簽證的學生。': 'Hiện không có học viên cần làm visa.',
   '是': 'Có',
   '否': 'Không',
