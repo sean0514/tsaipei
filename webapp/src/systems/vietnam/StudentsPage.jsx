@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -44,8 +44,9 @@ function parseList(json) {
 // InternshipDocsPage 本身的文件追蹤功能。
 // schoolZh/departmentZh/workExperienceZh 是額外加的中文翻譯欄位（履歷表
 // 沒有這三個），因為學生自己填的這幾個自由文字欄位是越南文，中文人員看
-// 不懂；FIELDS 裡用 translateFrom 指向越南文原始欄位，表單會在旁邊多一個
-// 「機器翻譯成中文」按鈕（見 lib/translate.js），翻譯結果可以手動微調，
+// 不懂；FIELDS 裡用 translateFrom 指向越南文原始欄位，離開（blur）越南文
+// 原始欄位時會自動翻譯填入對應的中文欄位（見 lib/translate.js 與下面的
+// TRANSLATE_TARGET_BY_SOURCE），不需要手動按按鈕，翻譯結果也可以手動微調、
 // 不會覆蓋越南文原文。
 const FIELDS = [
   { key: 'originalName', label: '英文姓名（與護照相符）', required: true },
@@ -79,6 +80,12 @@ const FIELDS = [
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
+
+// key = 越南文原始欄位、value = 對應的中文翻譯欄位；自動翻譯不需要按鈕，
+// 離開（blur）越南文欄位時就自動翻成中文填入對應欄位，翻譯結果仍可手動
+// 微調（只要不再回去改越南文原文並離開欄位，微調後的內容就不會被覆蓋）。
+const TRANSLATE_TARGET_BY_SOURCE = {};
+FIELDS.forEach((f) => { if (f.translateFrom) TRANSLATE_TARGET_BY_SOURCE[f.translateFrom] = f.key; });
 
 // 複製自 systems/tsaipei/StudentsPage.jsx，collection 字首改成 vietnam_，
 // 介面文字（標題/按鈕/欄位標籤/表格欄位）包上 t(...) 依語言切換顯示；下拉
@@ -305,10 +312,13 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
   const [uploadError, setUploadError] = useState('');
   const [translatingKey, setTranslatingKey] = useState(null);
   const [translateError, setTranslateError] = useState('');
+  const lastTranslatedSource = useRef({});
 
-  async function handleTranslate(key, fromKey) {
-    const source = form[fromKey];
+  async function handleTranslate(key, fromKey, sourceValue) {
+    const source = sourceValue ?? form[fromKey];
     if (!source || !source.trim()) return;
+    if (lastTranslatedSource.current[key] === source) return;
+    lastTranslatedSource.current[key] = source;
     setTranslateError('');
     setTranslatingKey(key);
     try {
@@ -368,17 +378,15 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
                     ) : (
                       <input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleTranslate(f.key, f.translateFrom)}
-                      disabled={translatingKey === f.key || !form[f.translateFrom]}
-                      style={{ marginTop: 4 }}
-                    >
-                      {translatingKey === f.key ? t('翻譯中…', lang) : t('機器翻譯成中文', lang)}
-                    </button>
+                    {translatingKey === f.key && <div className="muted">{t('翻譯中…', lang)}</div>}
                   </div>
                 ) : f.type === 'textarea' ? (
-                  <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                  <textarea
+                    rows={4}
+                    value={form[f.key] || ''}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    onBlur={(e) => { if (TRANSLATE_TARGET_BY_SOURCE[f.key]) handleTranslate(TRANSLATE_TARGET_BY_SOURCE[f.key], f.key, e.target.value); }}
+                  />
                 ) : f.type === 'multiselect' ? (
                   <MultiSelectEditor
                     value={form[f.key]}
@@ -396,6 +404,7 @@ function StudentFormModal({ initial, onCancel, onSave, lang }) {
                     required={f.required}
                     value={form[f.key] || ''}
                     onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    onBlur={(e) => { if (TRANSLATE_TARGET_BY_SOURCE[f.key]) handleTranslate(TRANSLATE_TARGET_BY_SOURCE[f.key], f.key, e.target.value); }}
                   />
                 )}
               </label>
