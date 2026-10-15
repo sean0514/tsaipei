@@ -153,7 +153,7 @@ export default function ExpectedArrivalPage() {
           <h2>{t('預計入台/離台', lang)}</h2>
           <div className="page-desc">
             {t('在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後一個月內的學生，超過一個月自動從清單移除', lang)}
-            {t('資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）的紀錄，唯讀顯示，編輯請到境外生實習系統操作', lang)}
+            {t('資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）、SON LE、NGOC LINH 的紀錄，唯讀顯示，編輯請到境外生實習系統操作', lang)}
           </div>
         </div>
         <div className="row-actions">

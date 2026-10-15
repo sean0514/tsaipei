@@ -45,7 +45,7 @@ export default function InternshipDocsPage() {
       <div className="page-header">
         <div>
           <h2>{t('實習文件追蹤', lang)}</h2>
-          <div className="page-desc">{t('資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）的紀錄，唯讀顯示，編輯請到境外生實習系統操作', lang)}</div>
+          <div className="page-desc">{t('資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）、SON LE、NGOC LINH 的紀錄，唯讀顯示，編輯請到境外生實習系統操作', lang)}</div>
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
