@@ -36,6 +36,8 @@ export const SYSTEMS = {
       dormManagement: '宿舍管理',
       customerServicePending: '客服未完成事項',
       adminPending: '行政未完成事項',
+      translatorContacts: '各區翻譯資訊',
+      dormManagerContacts: '各區宿管資訊',
       benefits: '實習單位福利',
       meetings: '會議記錄',
       closedCases: '已結案名單',
@@ -80,6 +82,12 @@ export const SYSTEMS = {
       // 行政未完成事項：自由新增的代辦事項清單，不綁定其他集合，這裡的
       // 權限直接控制這份清單本身的新增/編輯/刪除。
       adminPending: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
+      // 聯絡資訊：各區翻譯資訊/各區宿管資訊是外部配合資源的聯絡清單（跟
+      // 「翻譯人員」「宿管人員」這兩個系統角色是不同的東西），業務/服務/
+      // 行政人員安排翻譯或住宿時查詢用，翻譯人員/宿管人員對自己對應的那份
+      // 清單有編輯權限。
+      translatorContacts: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'edit', 翻譯人員: 'edit', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'view' },
+      dormManagerContacts: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'edit' },
       benefits: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 服務人員: 'view', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'none', 宿管人員: 'none' },
       meetings: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'view', 會計人員: 'view', 宿管人員: 'view' },
       closedCases: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'edit', 翻譯人員: 'view', 國外供應: 'none', 行政人員: 'edit', 會計人員: 'none', 宿管人員: 'none' },
