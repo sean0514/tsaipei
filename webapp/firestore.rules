@@ -230,6 +230,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('clientBilling');
     }
+    // 內部獎金計算：確認封存的獎金快照(每個月份一筆，含客戶/宿管兩份明細)，
+    // 封存後畫面改用這份固定資料，不再即時重算。
+    match /tsaipei_bonusArchives/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('bonus');
+    }
     // 公司損益：使用者自行新增的收入/支出項目(例如內部人員薪資、保費)，
     // 項目本身不分年份，金額依項目+月份各存一筆。
     match /tsaipei_companyPnlCustomItems/{docId} {
