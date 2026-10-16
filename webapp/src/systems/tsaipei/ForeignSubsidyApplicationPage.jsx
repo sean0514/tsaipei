@@ -104,6 +104,14 @@ export default function ForeignSubsidyApplicationPage() {
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.remittanceDate || '').localeCompare(a.remittanceDate || '')));
 
+  // 複製成新的一筆待審核申請，不帶 id/status，其他欄位（申請人、學生、
+  // 匯款日期、金額…）都照抄，存檔時 handleSave 的 add() 會自動補上
+  // status: '待審核'，方便同一位學生每月申請時不用重新選一次。
+  function handleDuplicate(r) {
+    const { id, status, ...rest } = r;
+    setEditing({ ...rest });
+  }
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
@@ -160,6 +168,7 @@ export default function ForeignSubsidyApplicationPage() {
                             <button key={s} onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
+                          <button onClick={() => handleDuplicate(r)}>複製</button>
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         </td>
                       )}
