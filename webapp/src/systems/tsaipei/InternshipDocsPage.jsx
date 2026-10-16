@@ -99,13 +99,14 @@ function completionDate(docs) {
 export default function InternshipDocsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'internshipDocs', role, overrides);
-  const { rows, loading, update, remove } = useCollection('tsaipei_internshipDocs');
+  const { rows, loading, add, update, remove } = useCollection('tsaipei_internshipDocs');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [q, setQ] = useState('');
   const [managing, setManaging] = useState(null); // studentId being managed, or null
+  const [backfilling, setBackfilling] = useState(false);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
@@ -143,6 +144,25 @@ export default function InternshipDocsPage() {
     (inProgressByCompany[company] ||= []).push(sid);
   });
   const inProgressCompanies = Object.keys(inProgressByCompany).sort((a, b) => a.localeCompare(b));
+
+  // 補齊：DOC_TYPES 新增文件類型（例如「實習契約」）時，只有之後新確認錄取
+  // 的學生會自動帶出這筆待收項目（見 AdmittedListPage.jsx 的 existingDocs.empty
+  // 判斷），既有已經在追蹤中的學生不會回溯新增，所以才會「看不到」。這裡
+  // 讓管理者手動幫目前名單裡還沒有這筆文件的學生補上一筆「未提供」。
+  async function handleBackfillDocType(docType) {
+    const missing = studentIds.filter((sid) => !byStudent[sid].some((d) => d.docType === docType));
+    if (!missing.length) { alert(`目前名單裡的學生都已經有「${docType}」這筆文件了。`); return; }
+    if (!window.confirm(`確定要幫 ${missing.length} 位學生補上「${docType}」這筆待收文件嗎？`)) return;
+    setBackfilling(true);
+    try {
+      await Promise.all(missing.map((sid) => add({ studentId: sid, docType, status: '未提供' })));
+      alert(`已幫 ${missing.length} 位學生補上「${docType}」。`);
+    } catch (err) {
+      alert(`補齊失敗：${err.message || err}`);
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   async function handleUpdate(d, patch) {
     await update(d.id, patch);
@@ -186,7 +206,10 @@ export default function InternshipDocsPage() {
           <h2>實習文件追蹤</h2>
           <div className="page-desc">追蹤每位學生的實習相關文件收件狀況（學生確認錄取後會自動加入此清單）{!canEditPage && '（唯讀）'}</div>
         </div>
-        <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        <div className="row-actions">
+          {canEditPage && <button onClick={() => handleBackfillDocType('實習契約')} disabled={backfilling}>{backfilling ? '補齊中…' : '幫既有學生補上「實習契約」'}</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有文件追蹤資料，請先下載備份再匯入。</p>}
       <input placeholder="搜尋學生或客戶/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
