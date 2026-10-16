@@ -46,6 +46,7 @@ export default function HousingPage() {
 
   const ctx = { matches, admittedList, positions };
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
+  const studentGender = (id) => students.find((x) => x.id === id)?.gender || '—';
   const studentEntryDate = (id) => effectiveEntryDate(students.find((x) => x.id === id)) || '—';
   const studentExitDate = (id) => effectiveExitDate(students.find((x) => x.id === id)) || '—';
   const today = new Date().toISOString().slice(0, 10);
@@ -106,11 +107,12 @@ export default function HousingPage() {
   function renderTable(list, label) {
     return (
       <div className="table-wrap"><table>
-        <thead><tr><th>學生</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (
             <tr key={r.id}>
               <td>{studentName(r.studentId)}</td>
+              <td>{studentGender(r.studentId)}</td>
               <td>{studentVenueLabel(r.studentId, ctx)}</td>
               <td>{studentEntryDate(r.studentId)}</td>
               <td>{studentExitDate(r.studentId)}</td>
@@ -128,7 +130,7 @@ export default function HousingPage() {
               )}
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
+          {list.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
