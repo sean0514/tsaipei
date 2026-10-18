@@ -36,6 +36,11 @@ export default function ForeignPaymentPage() {
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
 
+  // 剩餘金額：金額扣掉已經收到的國外回款1/2/3，方便一眼看出這筆付款還有多少
+  // 沒收回來。
+  const remainingAmount = (r) =>
+    (Number(r.amount) || 0) - (Number(r.foreignRefund1) || 0) - (Number(r.foreignRefund2) || 0) - (Number(r.foreignRefund3) || 0);
+
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows
     .filter((r) => !r.confirmedClosed)
@@ -82,7 +87,7 @@ export default function ForeignPaymentPage() {
               <div className="card" key={company}>
                 <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>剩餘金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {byCompany[company].map((r) => (
                       <tr key={r.id}>
@@ -96,6 +101,7 @@ export default function ForeignPaymentPage() {
                         <td>{r.foreignRefund1 ? `${Number(r.foreignRefund1).toLocaleString()}${r.foreignRefund1Date ? `（${r.foreignRefund1Date}）` : ''}` : '—'}</td>
                         <td>{r.foreignRefund2 ? `${Number(r.foreignRefund2).toLocaleString()}${r.foreignRefund2Date ? `（${r.foreignRefund2Date}）` : ''}` : '—'}</td>
                         <td>{r.foreignRefund3 ? `${Number(r.foreignRefund3).toLocaleString()}${r.foreignRefund3Date ? `（${r.foreignRefund3Date}）` : ''}` : '—'}</td>
+                        <td>{r.amount ? remainingAmount(r).toLocaleString() : '—'}</td>
                         <td>{r.notes || '—'}</td>
                         {canEditPage && (
                           <td className="row-actions">
