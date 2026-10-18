@@ -12,6 +12,16 @@ function parseJson(json, fallback) {
   try { return json ? JSON.parse(json) : fallback; } catch { return fallback; }
 }
 
+// 可以直接手動修改的金額欄位（辦件費～代墊費用供應商），稅金/合計總額是
+// 算出來的，不開放直接改。
+const EDITABLE_AMOUNT_FIELDS = [
+  'monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee',
+  'dailyExpenseChargeJunyu', 'dailyExpenseChargeSupplier',
+];
+// 稅金只對這幾項(不含代墊費用供應商)課徵，跟 lib/bonus.js
+// computeClientBillingForMonth 的稅金公式一致。
+const TAXABLE_AMOUNT_FIELDS = EDITABLE_AMOUNT_FIELDS.filter((k) => k !== 'dailyExpenseChargeSupplier');
+
 export default function ClientBillingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'clientBilling', role, overrides);
@@ -23,9 +33,11 @@ export default function ClientBillingPage() {
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
-  const { rows: locks, add: addLock, remove: removeLock } = useCollection('tsaipei_clientBillingLocks');
+  const { rows: locks, add: addLock, update: updateLock, remove: removeLock } = useCollection('tsaipei_clientBillingLocks');
   const [month, setMonth] = useState(currentMonthStr());
   const [busyKey, setBusyKey] = useState(null);
+  const [editKey, setEditKey] = useState(null);
+  const [editValues, setEditValues] = useState(null);
 
   const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications, housingRecords };
   const liveRows = computeClientBillingForMonth(month, ctx);
@@ -99,6 +111,56 @@ export default function ClientBillingPage() {
     }
   }
 
+  function handleStartEdit(row) {
+    setEditKey(`${row.projectCode}||${row.client}`);
+    setEditValues({
+      totalDays: row.totalDays,
+      monthlyProcessingFee: row.amounts.monthlyProcessingFee || 0,
+      monthlyServiceFee: row.amounts.monthlyServiceFee || 0,
+      monthlyDormFee: row.amounts.monthlyDormFee || 0,
+      monthlyDormManageFee: row.amounts.monthlyDormManageFee || 0,
+      dailyExpenseChargeJunyu: row.amounts.dailyExpenseChargeJunyu || 0,
+      dailyExpenseChargeSupplier: row.amounts.dailyExpenseChargeSupplier || 0,
+    });
+  }
+
+  function handleCancelEdit() {
+    setEditKey(null);
+    setEditValues(null);
+  }
+
+  // 手動修改：把編輯後的數字存成跟「確認封存」一樣的封存快照（稅金/合計
+  // 總額照公式重算），之後原始資料再怎麼異動都維持人工修正過的數字，直到
+  // 按「取消確認」解除封存才會改回即時試算。這筆客戶/專案如果本來就已經
+  // 封存，直接更新同一筆封存紀錄；還沒封存的話，順便建立封存（請款單下載
+  // 用的 invoice 明細照目前即時資料算一份存起來）。
+  async function handleSaveEdit(row) {
+    const v = editValues;
+    const amounts = { ...row.amounts };
+    EDITABLE_AMOUNT_FIELDS.forEach((k) => { amounts[k] = Number(v[k]) || 0; });
+    const taxableAmount = TAXABLE_AMOUNT_FIELDS.reduce((s, k) => s + amounts[k], 0);
+    const tax = Math.round(taxableAmount * 0.05);
+    const total = taxableAmount + tax + amounts.dailyExpenseChargeSupplier;
+    const billingRow = { amounts, tax, total, totalDays: Number(v.totalDays) || 0 };
+    try {
+      const lock = lockFor(row);
+      if (lock) {
+        await updateLock(lock.id, { billingRow: JSON.stringify(billingRow) });
+      } else {
+        const invoice = computeClientInvoice(row.projectCode, row.client, month, ctx);
+        await addLock({
+          month, projectCode: row.projectCode, client: row.client,
+          billingRow: JSON.stringify(billingRow), invoice: invoice ? JSON.stringify(invoice) : null,
+          lockedAt: new Date().toISOString(),
+        });
+      }
+      setEditKey(null);
+      setEditValues(null);
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header"><div><h2>客戶請款計算</h2><div className="page-desc">依月份自動試算：客戶費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總</div></div></div>
@@ -111,6 +173,31 @@ export default function ClientBillingPage() {
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
+              const editing = editKey === key;
+              if (editing) {
+                const v = editValues;
+                const setField = (field) => (e) => setEditValues({ ...v, [field]: e.target.value });
+                return (
+                  <tr key={key}>
+                    <td>{r.client || '—'}</td>
+                    <td>{r.projectCode}</td>
+                    <td><input type="number" value={v.monthlyProcessingFee} onChange={setField('monthlyProcessingFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.monthlyServiceFee} onChange={setField('monthlyServiceFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.monthlyDormFee} onChange={setField('monthlyDormFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.monthlyDormManageFee} onChange={setField('monthlyDormManageFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.dailyExpenseChargeJunyu} onChange={setField('dailyExpenseChargeJunyu')} style={{ width: 90 }} /></td>
+                    <td className="muted">自動計算</td>
+                    <td><input type="number" value={v.dailyExpenseChargeSupplier} onChange={setField('dailyExpenseChargeSupplier')} style={{ width: 90 }} /></td>
+                    <td className="muted">自動計算</td>
+                    <td><input type="number" value={v.totalDays} onChange={setField('totalDays')} style={{ width: 60 }} /></td>
+                    <td><span className="muted">編輯中</span></td>
+                    <td className="row-actions">
+                      <button className="primary" onClick={() => handleSaveEdit(r)}>儲存</button>
+                      <button onClick={handleCancelEdit}>取消</button>
+                    </td>
+                  </tr>
+                );
+              }
               return (
                 <tr key={key}>
                   <td>{r.client || '—'}</td>
@@ -127,6 +214,7 @@ export default function ClientBillingPage() {
                   <td>{r.locked ? <span className="tag tag-green">已封存</span> : <span className="muted">即時試算</span>}</td>
                   <td className="row-actions">
                     <button disabled={busyKey === key} onClick={() => handleDownload(r)}>{busyKey === key ? '產生中…' : '下載請款單'}</button>
+                    {canEditPage && <button onClick={() => handleStartEdit(r)}>編輯</button>}
                     {canEditPage && (r.locked
                       ? <button onClick={() => handleUnlock(r)}>取消確認</button>
                       : <button className="primary" onClick={() => handleConfirm(r)}>確認封存</button>)}
