@@ -13,6 +13,22 @@ import { exportEntityCSV } from '../../lib/csv';
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
+
+function parseJson(json, fallback) {
+  try { return json ? JSON.parse(json) : fallback; } catch { return fallback; }
+}
+
+// 客戶請款計算有「確認封存」(含封存後的手動編輯)機制，封存的客戶/月份會
+// 固定住數字、不再隨原始資料異動即時重算；公司損益的服務費收入/代墊費用
+// 收入/稅金/宿舍費收入都是從同一份客戶請款資料算出來的，如果不套用封存
+// 快照，封存/手動修正過的數字就會跟「客戶請款計算」頁面顯示的對不上。
+function applyClientBillingLocks(monthStr, liveRows, locks) {
+  return liveRows.map((r) => {
+    const lock = (locks || []).find((l) => l.month === monthStr && l.projectCode === r.projectCode && l.client === r.client);
+    if (!lock) return r;
+    return { ...r, ...parseJson(lock.billingRow, {}) };
+  });
+}
 const DORM_EQUIPMENT_ITEM = '宿舍設備';
 // 支出常見但沒有對應集合可以自動帶出的項目，第一次開這個頁面就自動建立，
 // 使用者再自己填每個月的金額；跟使用者自行新增的項目存在同一個集合裡，
@@ -267,6 +283,7 @@ export default function CompanyProfitLossPage() {
   const { rows: dormitoryUtilities, loading: l11 } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: foreignPayments, loading: l12 } = useCollection('tsaipei_foreignPayments');
   const { rows: postageFeeRecords, loading: l13 } = useCollection('tsaipei_postageFeeRecords');
+  const { rows: clientBillingLocks, loading: l15 } = useCollection('tsaipei_clientBillingLocks');
   const { rows: customItems, loading: l14, add: addItem } = useCollection('tsaipei_companyPnlCustomItems');
   const { rows: customAmounts, add: addAmount, update: updateAmount } = useCollection('tsaipei_companyPnlCustomAmounts');
   const [year, setYear] = useState(currentYear());
@@ -277,7 +294,7 @@ export default function CompanyProfitLossPage() {
     students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords,
     dailyExpenseApplications, internalFeeSetupRecords, dormitories, housingRecords, dormitoryUtilities, foreignPayments, postageFeeRecords,
   };
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10 || l11 || l12 || l13 || l14;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10 || l11 || l12 || l13 || l14 || l15;
   const years = availableYears(ctx);
 
   // 第一次開這個頁面時自動把「內部人員薪資」「內部人員保費」這兩個常見支出
@@ -302,7 +319,7 @@ export default function CompanyProfitLossPage() {
   const monthly = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
     const monthStr = monthStrOf(year, m);
-    const clientRows = computeClientBillingForMonth(monthStr, ctx);
+    const clientRows = applyClientBillingLocks(monthStr, computeClientBillingForMonth(monthStr, ctx), clientBillingLocks);
     const serviceIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyProcessingFee + r.amounts.monthlyServiceFee, 0);
     const dailyExpenseReimbursementIncome = clientRows.reduce((sum, r) => sum + r.amounts.dailyExpenseChargeJunyu + r.amounts.dailyExpenseChargeSupplier, 0);
     // 客戶請款計算的 5% 稈金是算在辦件費/服務費/宿舍費/宿管費/代墊費用(鈞羽)
