@@ -271,9 +271,15 @@ export default function StudentBillingPage() {
       .filter((f) => f.payer !== '廠商代付')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     const perHead = (amount) => (residentCount > 0 ? Math.round((Number(amount) || 0) / residentCount) : 0);
-    const waterFee = perHead(u?.waterFee);
-    const electricityFee = perHead(u?.electricityFee);
-    const gasFee = perHead(u?.gasFee);
+    // 水電瓦斯費是整間宿舍共用的費用，每人應攤金額照樣是「總金額 ÷ 當月
+    // 住過這間宿舍的所有人數」(分母不分付款方式)；但這筆住宿紀錄如果在
+    // 「住宿安排」標「廠商代付」，這個學生自己這份就不跟他收，改計入客戶
+    // 請款計算的「代收代付」(見 lib/bonus.js
+    // buildMonthlyProjectClientVendorUtilityTotals，用同一套每人應攤金額)。
+    const utilityIsVendorPaid = h.payer === '廠商代付';
+    const waterFee = utilityIsVendorPaid ? 0 : perHead(u?.waterFee);
+    const electricityFee = utilityIsVendorPaid ? 0 : perHead(u?.electricityFee);
+    const gasFee = utilityIsVendorPaid ? 0 : perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees;
     const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };

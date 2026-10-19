@@ -319,6 +319,7 @@ function OtherFeesFormModal({ month, initial, onCancel, onSave }) {
               <input type="number" value={form.gasFee} onChange={(e) => setForm({ ...form, gasFee: e.target.value })} />
             </label>
           </div>
+          <p className="muted" style={{ marginTop: -8 }}>水電瓦斯費平分給這個月住在這間宿舍的所有學生：住宿安排標「學生自付」的部分出現在學生請款計算；標「廠商代付」的部分改計入客戶請款計算的「代收代付」，不計稅，不會再跟學生收。</p>
           <h4>其他費用（可自行新增）</h4>
           <OtherFeesListEditor fees={otherFees} onChange={setOtherFees} />
           <div className="row-actions" style={{ marginTop: 16 }}>
