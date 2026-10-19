@@ -36,10 +36,12 @@ function parseOtherFees(json) {
   } catch { return []; }
 }
 
+const OTHER_FEE_PAYERS = ['學生自付', '廠商代付'];
+
 function otherFeesSummary(json) {
   const fees = parseOtherFees(json);
   if (!fees.length) return '—';
-  return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}`).join('、');
+  return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}（${f.payer || '學生自付'}）`).join('、');
 }
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
@@ -254,7 +256,7 @@ function OtherFeesListEditor({ fees, onChange }) {
     onChange(fees.filter((_, idx) => idx !== i));
   }
   function addRow() {
-    onChange([...fees, { label: '', amount: '' }]);
+    onChange([...fees, { label: '', amount: '', payer: '學生自付' }]);
   }
 
   return (
@@ -269,10 +271,17 @@ function OtherFeesListEditor({ fees, onChange }) {
             金額
             <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
           </label>
+          <label>
+            付款方式
+            <select value={f.payer || '學生自付'} onChange={(e) => updateRow(i, { payer: e.target.value })}>
+              {OTHER_FEE_PAYERS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
           <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
         </div>
       ))}
       <button type="button" onClick={addRow}>+ 新增其他費用</button>
+      <p className="muted" style={{ marginTop: 8 }}>廠商代付的項目不會出現在學生請款計算，會改計入客戶請款計算的「宿舍其他費用」，平分給這個月住在這間宿舍、廠商代付的學生所屬客戶。</p>
     </div>
   );
 }

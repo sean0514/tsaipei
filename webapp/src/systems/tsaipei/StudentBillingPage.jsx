@@ -263,7 +263,13 @@ export default function StudentBillingPage() {
     const selfPayDormFee = h.payer === '學生自付' && h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
     const u = utilityFor(h.type, monthStr);
     const residentCount = residentCountOf(h.type, range);
-    const otherFeesTotal = parseOtherFees(u?.otherFees).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+    // 「廠商代付」的其他費用項目不跟學生收，公司會跟客戶請款計算收回來
+    // (見 lib/bonus.js buildMonthlyProjectClientVendorOtherFeeTotals)；只有
+    // 沒填付款方式(舊資料，視同學生自付，維持改版前的行為)或明確標「學生
+    // 自付」的項目才攤到住這間宿舍的學生身上。
+    const otherFeesTotal = parseOtherFees(u?.otherFees)
+      .filter((f) => f.payer !== '廠商代付')
+      .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     const perHead = (amount) => (residentCount > 0 ? Math.round((Number(amount) || 0) / residentCount) : 0);
     const waterFee = perHead(u?.waterFee);
     const electricityFee = perHead(u?.electricityFee);

@@ -334,7 +334,7 @@ export default function CompanyProfitLossPage() {
     // 錢完全沒算進公司損益的宿舍收入。宿舍設備收入/成本、宿舍成本(租金等)
     // 都跟住宿紀錄比對無關，繼續沿用宿舍損益的計算沒問題；宿舍分紅本來就
     // 是算給特定宿舍管理員的，也繼續用宿舍損益自己的住宿紀錄比對。
-    const employerDormFeeIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyDormFee + r.amounts.monthlyDormManageFee, 0);
+    const employerDormFeeIncome = clientRows.reduce((sum, r) => sum + r.amounts.monthlyDormFee + r.amounts.monthlyDormManageFee + (r.amounts.dormOtherFeeCharge || 0), 0);
     const selfPayDormIncome = selfPayDormIncomeForMonth(monthStr, housingRecords);
     const dormPnl = dormMonthly[i] || {};
     const dormIncome = employerDormFeeIncome + selfPayDormIncome + (dormPnl.dormItemIncome || 0);
