@@ -71,6 +71,15 @@ function residentOverlapDays(h, range) {
 
 const PAYMENT_STATUSES = ['未收款', '先繳部分', '全額付清'];
 
+// 確認繳款人：三個審核層級各自獨立按確認，不用照順序，系統管理員可以代
+// 任何層級確認。每個層級各自記錄確認人姓名(按下按鈕當下登入者的名字)跟
+// 確認時間，存在跟收款狀態同一筆 tsaipei_studentBillingPayments 紀錄裡。
+const CONFIRM_LEVELS = [
+  { key: 'accountant', label: '會計', role: '會計人員' },
+  { key: 'finance', label: '財務', role: '財務人員' },
+  { key: 'admin', label: '系統管理員', role: '系統管理員' },
+];
+
 // 舊資料相容：
 // 1. 改版前只有 received(布林)/receivedDate 兩個欄位，沒有 status——沒有
 //    status 欄位的舊紀錄依 received 換算成新狀態，才不會改版後舊資料全部
@@ -221,6 +230,24 @@ export default function StudentBillingPage() {
   function markFullyPaid(studentId, monthStr) {
     const existing = paymentFor(studentId, monthStr);
     upsertPayment(studentId, monthStr, { status: '全額付清', fullPaidDate: existing.fullPaidDate || new Date().toISOString().slice(0, 10) });
+  }
+
+  // 系統管理員可以代任何層級確認；其他角色只能確認跟自己角色對應的那個
+  // 層級，確保「會計確認」真的是會計人員按的，不是隨便哪個有編輯權限的人。
+  function canConfirmLevel(level) {
+    return canEditPage && (profile?.role === level.role || profile?.role === '系統管理員');
+  }
+
+  function handleToggleConfirm(studentId, monthStr, level) {
+    const existing = paymentFor(studentId, monthStr);
+    const byKey = `${level.key}ConfirmedBy`;
+    const atKey = `${level.key}ConfirmedAt`;
+    if (existing[byKey]) {
+      if (!window.confirm(`確定要取消「${level.label}」的確認嗎？`)) return;
+      upsertPayment(studentId, monthStr, { [byKey]: '', [atKey]: '' });
+    } else {
+      upsertPayment(studentId, monthStr, { [byKey]: operatorName, [atKey]: new Date().toISOString() });
+    }
   }
 
   // 其他費用除了宿舍共用的分攤之外，還要加上這個學生自己名下、日常支出
@@ -422,6 +449,9 @@ export default function StudentBillingPage() {
         fullPaidDate: p.status === '全額付清' ? (p.fullPaidDate || '') : '',
         remaining: ledgerEntry.remaining,
         overpaidCredit: ledgerEntry.creditAfter,
+        accountantConfirmedBy: p.accountantConfirmedBy || '',
+        financeConfirmedBy: p.financeConfirmedBy || '',
+        adminConfirmedBy: p.adminConfirmedBy || '',
       };
     });
     exportEntityCSV(rows, [
@@ -430,6 +460,7 @@ export default function StudentBillingPage() {
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
       { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
+      { key: 'accountantConfirmedBy', label: '會計確認人' }, { key: 'financeConfirmedBy', label: '財務確認人' }, { key: 'adminConfirmedBy', label: '系統管理員確認人' },
     ], `學生請款計算_${month}`);
   }
 
@@ -526,7 +557,7 @@ export default function StudentBillingPage() {
                   <div className="card" key={key}>
                     <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                     <div className="table-wrap"><table>
-                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th>{canEditPage && <th></th>}</tr></thead>
+                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th><th>確認繳款人</th>{canEditPage && <th></th>}</tr></thead>
                       <tbody>
                         {groups[key].map((h) => {
                           const b = billingFor(h, month, range);
@@ -578,6 +609,26 @@ export default function StudentBillingPage() {
                                 {remaining === 0 && overpaidCredit > 0 && (
                                   <div className="muted" style={{ fontWeight: 400, fontSize: 12 }}>溢繳 {overpaidCredit.toLocaleString()}（可抵次月）</div>
                                 )}
+                              </td>
+                              <td>
+                                {CONFIRM_LEVELS.map((level) => {
+                                  const confirmedBy = p[`${level.key}ConfirmedBy`];
+                                  const canAct = canConfirmLevel(level);
+                                  return (
+                                    <div key={level.key} style={{ fontSize: 12, marginBottom: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
+                                      {confirmedBy ? (
+                                        <>
+                                          <span className="tag tag-green">{level.label}：{confirmedBy}</span>
+                                          {canAct && <button onClick={() => handleToggleConfirm(h.studentId, month, level)}>取消</button>}
+                                        </>
+                                      ) : canAct ? (
+                                        <button onClick={() => handleToggleConfirm(h.studentId, month, level)}>{level.label}確認</button>
+                                      ) : (
+                                        <span className="muted">{level.label}：未確認</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </td>
                               {canEditPage && (
                                 <td>
