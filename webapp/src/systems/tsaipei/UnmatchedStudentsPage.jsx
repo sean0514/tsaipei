@@ -24,10 +24,13 @@ function parseList(json) {
 }
 
 // 學生尚未安排：純彙整頁面，不用手動維護——只列出在「媒合紀錄」裡有一筆
-// 狀態=媒合中的學生(學生建檔存檔時系統會自動建立這筆佔位紀錄)；業務在媒合
-// 紀錄頁面把狀態改成已媒合、或改成取消，這個學生就會自動從這個清單消失，
-// 不用在這裡手動維護。已結案的學生不計入（跟其他分頁同一套 confirmedClosed
-// 慣例）。
+// 狀態=媒合中的學生(學生建檔存檔時系統會自動建立這筆佔位紀錄)，且這個學生
+// 名下「所有」媒合紀錄都還沒填實際職缺(positionId)；學生如果申請過不只一個
+// 職缺，其中一筆已經填了職缺(代表已經進到二面/錄取等後續階段)，即使另一筆
+// 還掛著媒合中的佔位紀錄，也不算尚未安排，否則同一個學生會同時出現在這裡
+// 又出現在二面進度。業務在媒合紀錄頁面把狀態改成已媒合、或改成取消，這個
+// 學生就會自動從這個清單消失，不用在這裡手動維護。已結案的學生不計入
+// （跟其他分頁同一套 confirmedClosed 慣例）。
 export default function UnmatchedStudentsPage() {
   useOutletContext();
   const { rows: students, loading } = useCollection('tsaipei_students');
@@ -42,7 +45,11 @@ export default function UnmatchedStudentsPage() {
     return matches.find((m) => m.studentId === studentId && (m.status || '媒合中') === '媒合中') || null;
   }
 
-  const unmatched = students.filter((s) => !s.confirmedClosed && matchingRecordOf(s.id));
+  function hasAdvancedMatch(studentId) {
+    return matches.some((m) => m.studentId === studentId && m.positionId);
+  }
+
+  const unmatched = students.filter((s) => !s.confirmedClosed && matchingRecordOf(s.id) && !hasAdvancedMatch(s.id));
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
@@ -80,7 +87,7 @@ export default function UnmatchedStudentsPage() {
       <div className="page-header">
         <div>
           <h2>學生尚未安排</h2>
-          <div className="page-desc">自動列出目前在「媒合紀錄」裡狀態是「媒合中」的學生，依國籍分類顯示；實習場域/媒合日期/來台方案/媒合備註直接連動該學生「媒合中」那筆紀錄，業務在媒合紀錄頁面填的進度這裡會同步看到，不用兩邊分別維護；一旦狀態改成已媒合或取消，就會自動從這裡消失</div>
+          <div className="page-desc">自動列出目前在「媒合紀錄」裡狀態是「媒合中」、且名下所有媒合紀錄都還沒填實際職缺的學生，依國籍分類顯示；實習場域/媒合日期/來台方案/媒合備註直接連動該學生「媒合中」那筆紀錄，業務在媒合紀錄頁面填的進度這裡會同步看到，不用兩邊分別維護；一旦媒合中狀態改掉或填上職缺，就會自動從這裡消失</div>
         </div>
         <div className="row-actions">
           <button onClick={handleDownload}>下載名單</button>
