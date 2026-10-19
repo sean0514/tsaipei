@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -64,6 +64,20 @@ export default function SecondInterviewsPage() {
     setEditing(null);
   }
 
+  // 退回媒合紀錄：這筆二面進度本來就是媒合紀錄狀態改成「已媒合」時自動
+  // 建立的，退回就是把這個過程反過來——媒合狀態改回「媒合中」(回到媒合中
+  // 名單)，這筆二面進度紀錄直接刪除(不留在這裡，避免同一筆媒合同時出現在
+  // 媒合中名單又掛著一筆二面進度)。
+  async function handleReturnToMatch(r) {
+    if (!window.confirm('確定要把這筆退回媒合紀錄嗎？媒合狀態會改回「媒合中」，這筆二面進度會被刪除。')) return;
+    try {
+      await updateDoc(doc(db, 'tsaipei_matches', r.matchId), { status: '媒合中' });
+      await deleteDoc(doc(db, 'tsaipei_secondInterviews', r.id));
+    } catch (err) {
+      alert(`退回失敗：${err.message || err}`);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -91,6 +105,7 @@ export default function SecondInterviewsPage() {
               {canEditPage && (
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
+                  <button onClick={() => handleReturnToMatch(r)}>退回媒合紀錄</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                   <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                 </td>

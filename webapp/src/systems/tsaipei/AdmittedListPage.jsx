@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, deleteDoc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -78,6 +78,30 @@ export default function AdmittedListPage() {
     }
   }
 
+  // 退回二面紀錄：這筆錄取名單本來就是二面進度狀態改成「通過」時自動建立
+  // 的，退回就是把這個過程反過來——該媒合對應的二面進度狀態改回「已安排」，
+  // 這筆錄取名單直接刪除；如果已經到「確認錄取」，連動自動建立的實習文件
+  // 追蹤整組清單／申辦進度追蹤紀錄也要一併刪除，不然會留下一堆對不到錄取
+  // 名單的孤兒資料。
+  async function handleReturnToSecondInterview(r) {
+    if (!window.confirm('確定要把這筆退回二面紀錄嗎？二面進度狀態會改回「已安排」，這筆錄取名單會被刪除；如果已經是「確認錄取」，連動建立的實習文件追蹤/申辦進度追蹤也會一併刪除。')) return;
+    try {
+      const match = matches.find((m) => m.id === r.matchId);
+      const studentId = match?.studentId;
+      if (r.status === '確認錄取' && studentId) {
+        const docsSnap = await getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', studentId)));
+        await Promise.all(docsSnap.docs.map((d) => deleteDoc(d.ref)));
+        const progressSnap = await getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId)));
+        await Promise.all(progressSnap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      const siSnap = await getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', '==', r.matchId)));
+      await Promise.all(siSnap.docs.map((d) => updateDoc(d.ref, { status: '已安排' })));
+      await deleteDoc(doc(db, 'tsaipei_admittedList', r.id));
+    } catch (err) {
+      alert(`退回失敗：${err.message || err}`);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -103,6 +127,7 @@ export default function AdmittedListPage() {
               {canEditPage && (
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
+                  <button onClick={() => handleReturnToSecondInterview(r)}>退回二面紀錄</button>
                   <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                   <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                 </td>
