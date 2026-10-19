@@ -35,13 +35,16 @@ async function syncApprovedPayment(app) {
     notes: app.purpose || '',
   };
   if (snap.empty) {
-    await addDoc(collection(db, 'tsaipei_foreignPayments'), { ...payload, paid: '否' });
+    await addDoc(collection(db, 'tsaipei_foreignPayments'), { ...payload, status: '待審核' });
   } else {
     await updateDoc(snap.docs[0].ref, payload);
   }
 }
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
+// 已匯款之後的「封存」只開放財務人員（跟系統管理員）能按，跟日常支出
+// 申請同一套規則。
+const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
 
 const CURRENCIES = ['台幣', '美金'];
 
@@ -49,7 +52,7 @@ const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
   { key: 'school', label: '就讀學校' }, { key: 'internshipCompany', label: '實習單位' },
   { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' }, { key: 'twdAmount', label: '台幣金額' },
-  { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' },
+  { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' },
 ];
 
 export default function ForeignSubsidyApplicationPage() {
@@ -98,8 +101,12 @@ export default function ForeignSubsidyApplicationPage() {
     exportEntityCSV(monthRows, CSV_FIELDS, `國外補助申請_${month}`);
   }
 
+  const canArchive = () => canEditPage && ARCHIVE_ROLES.includes(role);
+
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.applicant || ''} ${studentName(r.studentId)} ${r.sourceSupplier || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed && !r.archived)
+    .filter((r) => !searchQuery || `${r.applicant || ''} ${studentName(r.studentId)} ${r.sourceSupplier || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.remittanceDate || '').localeCompare(a.remittanceDate || '')));
@@ -128,7 +135,7 @@ export default function ForeignSubsidyApplicationPage() {
       <div className="page-header">
         <div>
           <h2>國外補助申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -164,11 +171,29 @@ export default function ForeignSubsidyApplicationPage() {
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
-                          {STATUSES.filter((s) => s !== status).map((s) => (
+                          {status === '待審核' && (
+                            <>
+                              <button onClick={async () => { await update(r.id, { status: '已核准' }); await syncApprovedPayment({ ...r, status: '已核准' }); }}>已核准</button>
+                              <button onClick={async () => { await update(r.id, { status: '已匯款' }); await syncApprovedPayment({ ...r, status: '已匯款' }); }}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
+                            </>
+                          )}
+                          {status === '已核准' && (
+                            <>
+                              <button onClick={async () => { await update(r.id, { status: '已匯款' }); await syncApprovedPayment({ ...r, status: '已匯款' }); }}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '待審核' })}>退回(回到待審核)</button>
+                            </>
+                          )}
+                          {status === '已匯款' && (
+                            <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
+                          )}
+                          {status === '退回' && STATUSES.filter((s) => s !== status).map((s) => (
                             <button key={s} onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
-                          <button onClick={() => handleDuplicate(r)}>複製</button>
+                          {(status === '待審核' || status === '退回') && <button onClick={() => handleDuplicate(r)}>複製</button>}
+                          {status === '已核准' && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>}
+                          {status === '已匯款' && canArchive() && <button onClick={() => update(r.id, { archived: true })}>封存</button>}
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         </td>
                       )}

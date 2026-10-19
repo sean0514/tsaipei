@@ -10,7 +10,10 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
-const STATUSES = ['未匯款', '已匯款', '退回'];
+const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
+// 已匯款之後的「封存」只開放財務人員（跟系統管理員）能按，跟日常支出
+// 申請／國外補助申請同一套規則。
+const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
 
 const FIELDS = [
   { key: 'serialNumber', label: '編號' },
@@ -25,7 +28,7 @@ const FIELDS = [
   { key: 'amount', label: '金額', type: 'number' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', label: '狀態' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', label: '狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' }];
 
 export default function PostageFeeRecordPage() {
   const { system, role, overrides } = useOutletContext();
@@ -41,10 +44,14 @@ export default function PostageFeeRecordPage() {
     exportEntityCSV(monthRows, CSV_FIELDS, `郵資費用紀錄_${month}`);
   }
 
+  const canArchive = () => canEditPage && ARCHIVE_ROLES.includes(role);
+
   const searchQuery = q.trim().toLowerCase();
-  const filtered = rows.filter((r) => !searchQuery || `${r.trackingNumber || ''} ${r.senderName || ''} ${r.recipientName || ''} ${r.documentContent || ''}`.toLowerCase().includes(searchQuery));
-  const groups = { 未匯款: [], 已匯款: [], 退回: [] };
-  filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '未匯款'].push(r));
+  const filtered = rows
+    .filter((r) => !r.confirmedClosed && !r.archived)
+    .filter((r) => !searchQuery || `${r.trackingNumber || ''} ${r.senderName || ''} ${r.recipientName || ''} ${r.documentContent || ''}`.toLowerCase().includes(searchQuery));
+  const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
+  filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.shipDate || '').localeCompare(a.shipDate || '')));
 
   async function handleSave(data) {
@@ -52,7 +59,7 @@ export default function PostageFeeRecordPage() {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ status: '未匯款', ...data });
+      await add({ status: '待審核', ...data });
     }
     setEditing(null);
   }
@@ -62,7 +69,7 @@ export default function PostageFeeRecordPage() {
       <div className="page-header">
         <div>
           <h2>郵資費用紀錄</h2>
-          <div className="page-desc">依未匯款／已匯款／退回分類{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的紀錄可以按「結案」歸檔，已匯款的紀錄可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
@@ -98,10 +105,28 @@ export default function PostageFeeRecordPage() {
                       <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
-                          {STATUSES.filter((s) => s !== status).map((s) => (
+                          {status === '待審核' && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
+                            </>
+                          )}
+                          {status === '已核准' && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '待審核' })}>退回(回到待審核)</button>
+                            </>
+                          )}
+                          {status === '已匯款' && (
+                            <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
+                          )}
+                          {status === '退回' && STATUSES.filter((s) => s !== status).map((s) => (
                             <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
+                          {status === '已核准' && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>}
+                          {status === '已匯款' && canArchive() && <button onClick={() => update(r.id, { archived: true })}>封存</button>}
                           <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         </td>
                       )}
