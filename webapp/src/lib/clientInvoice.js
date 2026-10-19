@@ -3,7 +3,7 @@
 
 import {
   resolveFixedChargeMonth, studentAdmitDate, buildDailyExpenseChargeTotals, studentForeignPaidDormDaysForMonth,
-  buildMonthlyProjectClientVendorOtherFeeTotals,
+  buildMonthlyProjectClientVendorOtherFeeTotals, buildMonthlyProjectClientVendorUtilityTotals,
 } from './bonus';
 
 export const COMPANY_INFO = {
@@ -143,7 +143,17 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     total: dormOtherFeeAmount, item: '宿舍其他費用', invoiceType: '', taxable: true,
   }] : [];
 
-  if (!studentRows.length && !expenseRows.length && !dormOtherFeeRows.length) return null;
+  // 代收代付(廠商代付的水電瓦斯費)：純代墊、不計稅，邏輯跟
+  // computeClientBillingForMonth 一致。
+  const vendorUtilityCharges = buildMonthlyProjectClientVendorUtilityTotals(monthStr, ctx);
+  const dormUtilityAmount = vendorUtilityCharges[`${projectCode || ''}||${client}`] || 0;
+  const dormUtilityRows = dormUtilityAmount ? [{
+    no: no++, name: '代收代付(水電瓦斯)', passport: '',
+    startDate: '', endDate: '', days: '', serviceFee: 0, dormManageFee: 0, dormFee: 0, processingFee: 0,
+    total: dormUtilityAmount, item: '代收代付', invoiceType: '', taxable: false,
+  }] : [];
+
+  if (!studentRows.length && !expenseRows.length && !dormOtherFeeRows.length && !dormUtilityRows.length) return null;
 
   let periodNumber = 1;
   if (earliestDate) {
@@ -160,12 +170,14 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     dailyExpenseJunyu: expenseRows.filter((r) => r.taxable).reduce((sum, r) => sum + r.total, 0),
     dailyExpenseSupplier: expenseRows.filter((r) => !r.taxable).reduce((sum, r) => sum + r.total, 0),
     dormOtherFee: dormOtherFeeAmount,
+    dormUtility: dormUtilityAmount,
   };
 
   // 辦件費/服務費/宿管費/宿舍費/宿舍其他費用(廠商代付)、開鈞羽發票的代墊
-  // 費用都是未稅金額，稅金算這些的 5%；代墊費用(供應商發票/無須發票)不
-  // 計稅。小計(subtotal)是所有項目的未稅總額，請款總額＝小計＋稅金。
-  const rows = [...studentRows, ...expenseRows, ...dormOtherFeeRows];
+  // 費用都是未稅金額，稅金算這些的 5%；代墊費用(供應商發票/無須發票)、
+  // 代收代付(水電瓦斯)不計稅。小計(subtotal)是所有項目的未稅總額，請款
+  // 總額＝小計＋稅金。
+  const rows = [...studentRows, ...expenseRows, ...dormOtherFeeRows, ...dormUtilityRows];
   const subtotal = rows.reduce((sum, r) => sum + r.total, 0);
   const taxableSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dormOtherFee + categoryTotals.dailyExpenseJunyu;
   const tax = Math.round(taxableSubtotal * 0.05);

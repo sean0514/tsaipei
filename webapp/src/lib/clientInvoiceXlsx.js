@@ -26,7 +26,11 @@ function taxBreakdown(invoice) {
   const untaxedSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee
     + categoryTotals.dormManageFee + (categoryTotals.dormOtherFee || 0) + categoryTotals.dailyExpenseJunyu;
   const taxedTotal = untaxedSubtotal + tax;
-  return { untaxedSubtotal, taxedTotal, supplierExpense: categoryTotals.dailyExpenseSupplier, grandTotal };
+  return {
+    untaxedSubtotal, taxedTotal, grandTotal,
+    supplierExpense: categoryTotals.dailyExpenseSupplier,
+    utilityPassThrough: categoryTotals.dormUtility || 0,
+  };
 }
 
 // Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/宿舍其他費用廠商
@@ -35,7 +39,7 @@ function taxBreakdown(invoice) {
 // 核對含不含稅。
 function buildSummarySheet(workbook, client, invoice) {
   const { range, periodLabel, taxId, categoryTotals } = invoice;
-  const { untaxedSubtotal, taxedTotal, supplierExpense, grandTotal } = taxBreakdown(invoice);
+  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, grandTotal } = taxBreakdown(invoice);
   const yearRoc = range.year - 1911;
   const mm2 = String(range.month).padStart(2, '0');
 
@@ -87,6 +91,7 @@ function buildSummarySheet(workbook, client, invoice) {
     ['營業稅5%', invoice.tax],
     ['含稅金額', taxedTotal],
     ['代墊費用(供應商)', supplierExpense],
+    ['代收代付(水電瓦斯)', utilityPassThrough],
     ['請款總金額', grandTotal],
   ];
   summaryRows.forEach(([label, value], idx) => {
@@ -121,7 +126,7 @@ function buildSummarySheet(workbook, client, invoice) {
 // 小計)，不再混在同一張表裡用「備註」欄硬塞項目名稱。
 function buildDetailSheet(workbook, invoice) {
   const { studentRows, expenseRows } = invoice;
-  const { untaxedSubtotal, taxedTotal, supplierExpense, grandTotal } = taxBreakdown(invoice);
+  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, grandTotal } = taxBreakdown(invoice);
   const sheet = workbook.addWorksheet('明細');
   sheet.columns = Array.from({ length: 6 }, () => ({ width: 14 }));
   sheet.getColumn(14).width = 16;
@@ -141,6 +146,7 @@ function buildDetailSheet(workbook, invoice) {
     ['營業稅5%', invoice.tax],
     ['含稅金額', taxedTotal],
     ['代墊費用(供應商)', supplierExpense],
+    ['代收代付(水電瓦斯)', utilityPassThrough],
     ['請款總金額', grandTotal],
   ];
   summaryRows.forEach(([label, value], idx) => {

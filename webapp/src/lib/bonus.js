@@ -305,6 +305,37 @@ export function buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx) {
   return totals;
 }
 
+// 水電瓦斯費是整間宿舍共用的費用，用「這個月住過這間宿舍的所有人數」當
+// 分母算出每人每月應攤的金額(跟 StudentBillingPage 的 perHead 同一套算
+// 法)，再依每筆住宿紀錄自己的付款方式分流：「住宿安排」標「學生自付」的
+// 份額維持跟學生收(學生請款計算)；標「廠商代付」的份額不跟學生收(見
+// StudentBillingPage 排除)，改跟這個學生的實習單位(專案+客戶)請款，當
+// 「代收代付」——純代墊、不加公司服務的費用，不計稅，比照代墊費用(供應商)
+// 直接加進合計總額、不計入未稅金額(小計)。
+export function buildMonthlyProjectClientVendorUtilityTotals(monthStr, ctx) {
+  const { dormitories, housingRecords, dormitoryUtilities } = ctx;
+  const range = monthRange(monthStr);
+  if (!range) return {};
+  const totals = {};
+  (dormitories || []).forEach((d) => {
+    const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
+    if (!u) return;
+    const utilityTotal = (Number(u.waterFee) || 0) + (Number(u.electricityFee) || 0) + (Number(u.gasFee) || 0);
+    if (!utilityTotal) return;
+    const allResidents = (housingRecords || []).filter((h) =>
+      h.type === d.name && dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0);
+    if (!allResidents.length) return;
+    const perHead = Math.round(utilityTotal / allResidents.length);
+    allResidents.filter((h) => h.payer === '廠商代付').forEach((h) => {
+      const pair = studentProjectClientPair(h.studentId, ctx);
+      if (!pair) return;
+      const key = `${pair.projectCode}||${pair.client}`;
+      totals[key] = (totals[key] || 0) + perHead;
+    });
+  });
+  return totals;
+}
+
 // 宿舍費/宿管費的請款天數跟辦件費/服務費的「在台天數」脫鉤——只計算學生
 // 這個月「廠商代付」住宿紀錄的天數（見 studentForeignPaidDormDaysForMonth），
 // 學生自己付宿舍費的期間不跟客戶收這筆錢。
@@ -331,10 +362,11 @@ export function computeClientBillingForMonth(monthStr, ctx) {
   const fixedCharges = buildFixedChargeTotals(monthStr, ctx);
   const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
   const vendorOtherFeeCharges = buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx);
+  const vendorUtilityCharges = buildMonthlyProjectClientVendorUtilityTotals(monthStr, ctx);
   // 固定制學生的固定收費、須請款的日常支出申請、廠商代付住宿天數、宿舍
-  // 其他費用(廠商代付)都可能落在沒有當月在台天數的月份，這種情況也要補
-  // 一個群組才能顯示這筆費用。
-  [fixedCharges, dailyExpenseCharges, dormDayGroups, vendorOtherFeeCharges].forEach((charges) => {
+  // 其他費用/水電瓦斯費(廠商代付)都可能落在沒有當月在台天數的月份，這種
+  // 情況也要補一個群組才能顯示這筆費用。
+  [fixedCharges, dailyExpenseCharges, dormDayGroups, vendorOtherFeeCharges, vendorUtilityCharges].forEach((charges) => {
     Object.keys(charges).forEach((key) => {
       if (groups[key]) return;
       const [projectCode, client] = key.split('||');
@@ -364,12 +396,16 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     // 率」，不影響實際發生的廠商代付雜支代墊)。
     const dormOtherFeeCharge = vendorOtherFeeCharges[key] || 0;
     amounts.dormOtherFeeCharge = dormOtherFeeCharge;
+    // 代收代付(廠商代付的水電瓦斯費)：純粹代墊，沒有公司服務在裡面，
+    // 比照代墊費用(供應商)不計稅，直接算進合計總額。
+    const dormUtilityPassThrough = vendorUtilityCharges[key] || 0;
+    amounts.dormUtilityPassThrough = dormUtilityPassThrough;
     // 辦件費/服務費/宿舍費/宿管費/宿舍其他費用(廠商代付)都是未稅金額，稅金
-    // 算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。
-    // 合計＝以上未稅項目加總 + 稅金 + 代墊費用(供應商)。
+    // 算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」「代收代付」
+    // 不計稅。合計＝以上未稅項目加總 + 稅金 + 代墊費用(供應商) + 代收代付。
     const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dormOtherFeeCharge + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
-    const total = taxableAmount + tax + dailyExpenseSupplier;
+    const total = taxableAmount + tax + dailyExpenseSupplier + dormUtilityPassThrough;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }
