@@ -12,6 +12,17 @@ function studentDepartments(s) {
   return [s.department1, s.department2].filter(Boolean).join(' / ');
 }
 
+// 期望產業別存成 JSON 字串陣列(跟 StudentsPage.jsx 同一套存法)，舊資料如果
+// 不是合法 JSON 就當作單一文字欄位處理，不會整欄消失。
+function parseList(json) {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (Array.isArray(arr)) return arr;
+  } catch { /* 不是 JSON，當作舊版單一文字欄位處理 */ }
+  return [json];
+}
+
 // 學生尚未安排：純彙整頁面，不用手動維護——學生建檔存檔時系統會自動在
 // 「媒合紀錄」建立一筆 positionId 空白的佔位紀錄(狀態「媒合中」)，所以不能
 // 用「完全沒有媒合紀錄」判斷，要用「所有媒合紀錄都還沒填實際職缺(positionId)」
@@ -25,6 +36,14 @@ export default function UnmatchedStudentsPage() {
 
   const matchedStudentIds = new Set(matches.filter((m) => m.positionId).map((m) => m.studentId));
   const unmatched = students.filter((s) => !s.confirmedClosed && !matchedStudentIds.has(s.id));
+
+  // 這個學生目前在「媒合紀錄」裡狀態=媒合中的那一筆(通常是系統自動建立的
+  // 佔位紀錄，positionId 還空著)，把實習場域/媒合日期/來台方案/備註這些
+  // 媒合中的資訊一起帶出來顯示，而不是只看學生資料本身——業務在媒合紀錄
+  // 頁面填的進度，這裡要同步看得到，不用兩邊分別維護。
+  function matchingRecordOf(studentId) {
+    return matches.find((m) => m.studentId === studentId && (m.status || '媒合中') === '媒合中') || null;
+  }
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
@@ -40,14 +59,20 @@ export default function UnmatchedStudentsPage() {
   const groupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   function handleDownload() {
-    const rows = filtered.map((s) => ({
-      name: studentFullLabel(s), nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '', school: s.school || '', department: studentDepartments(s),
-      status: s.status || '', startDate: s.startDate || '', phone: s.phone || '',
-    }));
+    const rows = filtered.map((s) => {
+      const m = matchingRecordOf(s.id);
+      return {
+        name: studentFullLabel(s), gender: s.gender || '', nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '',
+        school: s.school || '', department: studentDepartments(s), desiredIndustries: parseList(s.desiredIndustries).join('、'),
+        status: s.status || '', startDate: s.startDate || '', phone: s.phone || '',
+        venue: m?.venue || '', matchDate: m?.matchDate || '', program: m?.program || '', matchNotes: m?.notes || '',
+      };
+    });
     exportEntityCSV(rows, [
-      { key: 'name', label: '學生姓名' }, { key: 'nationality', label: '國籍' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
-      { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' },
+      { key: 'name', label: '學生姓名' }, { key: 'gender', label: '性別' }, { key: 'nationality', label: '國籍' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
+      { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' }, { key: 'desiredIndustries', label: '期望產業別' },
       { key: 'status', label: '狀態' }, { key: 'startDate', label: '實習開始日' }, { key: 'phone', label: '電話' },
+      { key: 'venue', label: '實習場域(媒合中)' }, { key: 'matchDate', label: '媒合日期' }, { key: 'program', label: '來台方案' }, { key: 'matchNotes', label: '媒合備註' },
     ], '學生尚未安排');
   }
 
@@ -56,7 +81,7 @@ export default function UnmatchedStudentsPage() {
       <div className="page-header">
         <div>
           <h2>學生尚未安排</h2>
-          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生，依國籍分類顯示；一旦幫學生配對職缺，就會自動從這裡消失，不用手動維護</div>
+          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生，依國籍分類顯示；實習場域/媒合日期/來台方案/媒合備註直接連動媒合紀錄裡該學生「媒合中」那筆紀錄，業務在媒合紀錄頁面填的進度這裡會同步看到，不用兩邊分別維護；一旦幫學生配對職缺，就會自動從這裡消失</div>
         </div>
         <div className="row-actions">
           <button onClick={handleDownload}>下載名單</button>
@@ -73,19 +98,28 @@ export default function UnmatchedStudentsPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>學生姓名</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>狀態</th><th>實習開始日</th><th>電話</th></tr></thead>
+                  <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th></tr></thead>
                   <tbody>
-                    {groups[key].map((s) => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
-                        <td>{s.sourceSupplier || '—'}</td>
-                        <td>{s.school || '—'}</td>
-                        <td>{studentDepartments(s) || '—'}</td>
-                        <td>{s.status || '—'}</td>
-                        <td>{s.startDate || '—'}</td>
-                        <td>{s.phone || '—'}</td>
-                      </tr>
-                    ))}
+                    {groups[key].map((s) => {
+                      const m = matchingRecordOf(s.id);
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
+                          <td>{s.gender || '—'}</td>
+                          <td>{s.sourceSupplier || '—'}</td>
+                          <td>{s.school || '—'}</td>
+                          <td>{studentDepartments(s) || '—'}</td>
+                          <td>{parseList(s.desiredIndustries).join('、') || '—'}</td>
+                          <td>{s.status || '—'}</td>
+                          <td>{s.startDate || '—'}</td>
+                          <td>{s.phone || '—'}</td>
+                          <td>{m?.venue || '—'}</td>
+                          <td>{m?.matchDate || '—'}</td>
+                          <td>{m?.program || '—'}</td>
+                          <td>{m?.notes || '—'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table></div>
               </div>

@@ -7,6 +7,11 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 
 const CURRENCIES = ['台幣', '美金'];
 
+const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
+// 已匯款之後的「封存」只開放財務人員（跟系統管理員）能按，跟日常支出
+// 申請／國外補助申請／郵資費用紀錄同一套規則。
+const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
+
 const FIELDS = [
   { key: 'paymentDate', label: '付款時間', type: 'date' },
   { key: 'company', label: '單位名稱', required: true },
@@ -23,7 +28,7 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'paid', label: '是否已付款' }, { key: 'confirmedClosed', label: '結案' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' }];
 
 export default function ForeignPaymentPage() {
   const { system, role, overrides } = useOutletContext();
@@ -41,29 +46,31 @@ export default function ForeignPaymentPage() {
   const remainingAmount = (r) =>
     (Number(r.amount) || 0) - (Number(r.foreignRefund1) || 0) - (Number(r.foreignRefund2) || 0) - (Number(r.foreignRefund3) || 0);
 
+  const canArchive = () => canEditPage && ARCHIVE_ROLES.includes(role);
+
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows
-    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !r.confirmedClosed && !r.archived)
     .filter((r) => !searchQuery || `${r.company || ''} ${studentName(r.studentId)}`.toLowerCase().includes(searchQuery));
 
-  // 依供應商（單位名稱）分類，同一供應商內未付款排前面，方便對帳。
-  const byCompany = {};
-  filtered.forEach((r) => { (byCompany[r.company || '未指定單位'] ||= []).push(r); });
-  const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
-  companies.forEach((c) => byCompany[c].sort((a, b) => {
-    const aPaid = a.paid === '是' ? 1 : 0;
-    const bPaid = b.paid === '是' ? 1 : 0;
-    return aPaid !== bPaid ? aPaid - bPaid : (b.paymentDate || '').localeCompare(a.paymentDate || '');
-  }));
+  const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
+  filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
+  STATUSES.forEach((s) => groups[s].sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || '')));
 
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
     } else {
-      await add({ currency: '台幣', ...data });
+      await add({ currency: '台幣', status: '待審核', ...data });
     }
     setEditing(null);
+  }
+
+  // 複製成新的一筆待審核紀錄，不帶 id/status，其他欄位照抄。
+  function handleDuplicate(r) {
+    const { id, status, ...rest } = r;
+    setEditing({ ...rest });
   }
 
   return (
@@ -71,7 +78,7 @@ export default function ForeignPaymentPage() {
       <div className="page-header">
         <div>
           <h2>國外付款紀錄</h2>
-          <div className="page-desc">依供應商（單位名稱）分類；「國外補助申請」核准後會自動帶入一筆待付款紀錄{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；「國外補助申請」核准後會自動帶入一筆對應紀錄；已核准的紀錄可以按「結案」歸檔，已匯款的紀錄可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
@@ -81,44 +88,63 @@ export default function ForeignPaymentPage() {
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外付款紀錄，請先下載備份再匯入。</p>}
       <input placeholder="搜尋單位名稱或學生" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
       {loading ? <p className="muted">載入中…</p> : (
-        companies.length === 0 ? <p className="muted">{searchQuery ? '沒有符合搜尋條件的紀錄。' : '目前沒有國外付款紀錄。'}</p> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {companies.map((company) => (
-              <div className="card" key={company}>
-                <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆</span></h3>
-                <div className="table-wrap"><table>
-                  <thead><tr><th>付款時間</th><th>學生</th><th>金額</th><th>是否已付款</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>剩餘金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
-                  <tbody>
-                    {byCompany[company].map((r) => (
-                      <tr key={r.id}>
-                        <td>{r.paymentDate || '—'}</td>
-                        <td>{studentName(r.studentId) || '—'}</td>
-                        <td>
-                          {r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}
-                          {r.currency === '美金' && r.twdAmount ? `（台幣 ${Number(r.twdAmount).toLocaleString()}）` : ''}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {STATUSES.map((status) => (
+            <div className="card" key={status}>
+              <h3 style={{ marginTop: 0 }}>{status} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[status].length} 筆</span></h3>
+              <div className="table-wrap"><table>
+                <thead><tr><th>單位名稱</th><th>付款時間</th><th>學生</th><th>金額</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>剩餘金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <tbody>
+                  {groups[status].map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.company || '—'}</td>
+                      <td>{r.paymentDate || '—'}</td>
+                      <td>{studentName(r.studentId) || '—'}</td>
+                      <td>
+                        {r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}
+                        {r.currency === '美金' && r.twdAmount ? `（台幣 ${Number(r.twdAmount).toLocaleString()}）` : ''}
+                      </td>
+                      <td>{r.foreignRefund1 ? `${Number(r.foreignRefund1).toLocaleString()}${r.foreignRefund1Date ? `（${r.foreignRefund1Date}）` : ''}` : '—'}</td>
+                      <td>{r.foreignRefund2 ? `${Number(r.foreignRefund2).toLocaleString()}${r.foreignRefund2Date ? `（${r.foreignRefund2Date}）` : ''}` : '—'}</td>
+                      <td>{r.foreignRefund3 ? `${Number(r.foreignRefund3).toLocaleString()}${r.foreignRefund3Date ? `（${r.foreignRefund3Date}）` : ''}` : '—'}</td>
+                      <td>{r.amount ? remainingAmount(r).toLocaleString() : '—'}</td>
+                      <td>{r.notes || '—'}</td>
+                      {canEditPage && (
+                        <td className="row-actions">
+                          {status === '待審核' && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
+                            </>
+                          )}
+                          {status === '已核准' && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '待審核' })}>退回(回到待審核)</button>
+                            </>
+                          )}
+                          {status === '已匯款' && (
+                            <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
+                          )}
+                          {status === '退回' && STATUSES.filter((s) => s !== status).map((s) => (
+                            <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
+                          ))}
+                          <button onClick={() => setEditing(r)}>編輯</button>
+                          {(status === '待審核' || status === '退回') && <button onClick={() => handleDuplicate(r)}>複製</button>}
+                          {status === '已核准' && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>}
+                          {status === '已匯款' && canArchive() && <button onClick={() => update(r.id, { archived: true })}>封存</button>}
+                          <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         </td>
-                        <td>{r.paid === '是' ? '已付款' : '未付款'}</td>
-                        <td>{r.foreignRefund1 ? `${Number(r.foreignRefund1).toLocaleString()}${r.foreignRefund1Date ? `（${r.foreignRefund1Date}）` : ''}` : '—'}</td>
-                        <td>{r.foreignRefund2 ? `${Number(r.foreignRefund2).toLocaleString()}${r.foreignRefund2Date ? `（${r.foreignRefund2Date}）` : ''}` : '—'}</td>
-                        <td>{r.foreignRefund3 ? `${Number(r.foreignRefund3).toLocaleString()}${r.foreignRefund3Date ? `（${r.foreignRefund3Date}）` : ''}` : '—'}</td>
-                        <td>{r.amount ? remainingAmount(r).toLocaleString() : '—'}</td>
-                        <td>{r.notes || '—'}</td>
-                        {canEditPage && (
-                          <td className="row-actions">
-                            <button onClick={() => update(r.id, { paid: r.paid === '是' ? '否' : '是' })}>{r.paid === '是' ? '取消已付款' : '標記已付款'}</button>
-                            <button onClick={() => setEditing(r)}>編輯</button>
-                            <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
-                            <button className="danger" onClick={() => remove(r.id)}>刪除</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
-              </div>
-            ))}
-          </div>
-        )
+                      )}
+                    </tr>
+                  ))}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+                </tbody>
+              </table></div>
+            </div>
+          ))}
+        </div>
       )}
       {editing && <ForeignPaymentFormModal initial={editing} students={students} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
@@ -163,13 +189,14 @@ function ForeignPaymentFormModal({ initial, students, onCancel, onSave }) {
                 </label>
               );
             })}
-            <label>
-              是否已付款
-              <select value={form.paid === '是' ? '是' : '否'} onChange={(e) => setForm({ ...form, paid: e.target.value })}>
-                <option value="否">否</option>
-                <option value="是">是</option>
-              </select>
-            </label>
+            {initial.id && (
+              <label>
+                審核狀態
+                <select value={form.status || '待審核'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+            )}
           </div>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
