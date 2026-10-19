@@ -233,6 +233,8 @@ export default function VehiclePickupPage() {
         <VehicleFormModal
           initial={editing}
           students={students}
+          arrangements={arrangements}
+          ctx={ctx}
           onCancel={() => setEditing(null)}
           onSave={handleSave}
         />
@@ -241,9 +243,23 @@ export default function VehiclePickupPage() {
   );
 }
 
-function VehicleFormModal({ initial, students, onCancel, onSave }) {
+const VEHICLE_COMPANY_CUSTOM = '__custom__';
+
+function VehicleFormModal({ initial, students, arrangements, ctx, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const showAirportFields = AIRPORT_TYPES.includes(form.type);
+  // 實習廠商名稱：直接連動目前選的學生，跟「已安排」列表的「客戶」欄同一套
+  // studentCompanyLabel 算法(媒合紀錄/錄取名單/實習單位)，不是另外存一份、
+  // 换學生就手動改的欄位，換學生這裡就會自動跟著換，不會跟實際媒合資料對
+  // 不起來。
+  const internshipCompany = form.studentId ? studentCompanyLabel(form.studentId, ctx) : '—';
+  // 車輛公司改成下拉選單，選項取自之前填過的廠商名稱，避免同一間廠商每次
+  // 都要重新打字、打法不一致（「○○租車」跟「○○租車行」變成兩間不同公司）；
+  // 保留「自行輸入」讓使用者還是可以新增沒出現過的廠商。
+  const vehicleCompanyOptions = [...new Set(arrangements.map((a) => a.vehicleCompany).filter(Boolean))].sort();
+  const [vehicleCompanyCustom, setVehicleCompanyCustom] = useState(
+    !!initial.vehicleCompany && !vehicleCompanyOptions.includes(initial.vehicleCompany)
+  );
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -258,6 +274,10 @@ function VehicleFormModal({ initial, students, onCancel, onSave }) {
               </select>
             </label>
             <label>
+              實習廠商名稱
+              <input value={internshipCompany} disabled readOnly style={{ background: 'var(--bg-muted, #f3f4f6)' }} />
+            </label>
+            <label>
               類型
               <select value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                 {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -269,7 +289,25 @@ function VehicleFormModal({ initial, students, onCancel, onSave }) {
             </label>
             <label>
               車輛公司
-              <input value={form.vehicleCompany || ''} onChange={(e) => setForm({ ...form, vehicleCompany: e.target.value })} />
+              <select
+                value={vehicleCompanyCustom ? VEHICLE_COMPANY_CUSTOM : (form.vehicleCompany || '')}
+                onChange={(e) => {
+                  if (e.target.value === VEHICLE_COMPANY_CUSTOM) { setVehicleCompanyCustom(true); setForm({ ...form, vehicleCompany: '' }); }
+                  else { setVehicleCompanyCustom(false); setForm({ ...form, vehicleCompany: e.target.value }); }
+                }}
+              >
+                <option value="">請選擇</option>
+                {vehicleCompanyOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value={VEHICLE_COMPANY_CUSTOM}>自行輸入…</option>
+              </select>
+              {vehicleCompanyCustom && (
+                <input
+                  style={{ marginTop: 6 }}
+                  placeholder="自行輸入廠商名稱"
+                  value={form.vehicleCompany || ''}
+                  onChange={(e) => setForm({ ...form, vehicleCompany: e.target.value })}
+                />
+              )}
             </label>
             <label>
               車輛接送地點
