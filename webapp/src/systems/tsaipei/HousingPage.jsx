@@ -9,7 +9,7 @@ const PAYERS = ['學生自付', '廠商代付'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'type', label: '宿舍名稱' },
   { key: 'address', label: '地址' }, { key: 'contactName', label: '宿舍管理員1' }, { key: 'contactName2', label: '宿舍管理員2' },
-  { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' },
+  { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' }, { key: 'utilityPayer', label: '水電瓦斯付款方式' },
   { key: 'checkIn', label: '入住日', type: 'date' }, { key: 'checkOut', label: '退宿日', type: 'date' }, { key: 'monthlyRent', label: '每月租金' },
   { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
 ];
@@ -107,7 +107,7 @@ export default function HousingPage() {
   function renderTable(list, label) {
     return (
       <div className="table-wrap"><table>
-        <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>水電瓦斯付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (
             <tr key={r.id}>
@@ -118,6 +118,7 @@ export default function HousingPage() {
               <td>{studentExitDate(r.studentId)}</td>
               <td>{r.type || '—'}</td>
               <td>{r.payer || '—'}</td>
+              <td>{r.utilityPayer || r.payer || '—'}</td>
               <td>{r.monthlyRent ? Number(r.monthlyRent).toLocaleString() : '—'}</td>
               <td>{r.checkIn || '—'}</td>
               <td>{r.checkOut || '—'}</td>
@@ -130,7 +131,7 @@ export default function HousingPage() {
               )}
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
+          {list.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
@@ -216,9 +217,16 @@ function HousingFormModal({ initial, students, dormitories, users, onCancel, onS
               </select>
             </label>
             <label>
-              付款方式
+              付款方式（租金/宿舍費）
               <select value={form.payer || ''} onChange={(e) => setForm({ ...form, payer: e.target.value })}>
                 <option value="">請選擇</option>
+                {PAYERS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+            <label>
+              水電瓦斯付款方式
+              <select value={form.utilityPayer || ''} onChange={(e) => setForm({ ...form, utilityPayer: e.target.value })}>
+                <option value="">跟「付款方式」一樣</option>
                 {PAYERS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </label>
