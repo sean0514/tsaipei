@@ -27,6 +27,9 @@ const DORM_ITEM = '宿舍設備';
 // 狀態/編輯/刪除，避免已經核准過的申請被其他角色隨便改掉。
 const LOCKED_STATUSES = ['已核准', '已匯款'];
 const LOCKED_EDIT_ROLES = ['系統管理員', '主管', '會計人員'];
+// 已匯款之後的「封存」比結案更進一步、通常代表這筆錢真的已經對過帳，
+// 只開放財務人員（跟系統管理員）能按，比 LOCKED_EDIT_ROLES 更嚴格。
+const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
 
 const FIELDS = [
   { key: 'applicant', label: '申請人' },
@@ -42,7 +45,7 @@ const FIELDS = [
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'type', label: '類型' }, ...FIELDS, { key: 'dormId', label: '宿舍ID' },
-  { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' },
+  { key: 'currency', label: '幣別' }, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' },
 ];
 
 export default function DailyExpenseApplicationPage() {
@@ -63,6 +66,7 @@ export default function DailyExpenseApplicationPage() {
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
   const dormName = (id) => dormitories.find((d) => d.id === id)?.name || '';
   const canModify = (r) => canEditPage && (!LOCKED_STATUSES.includes(r.status) || LOCKED_EDIT_ROLES.includes(role));
+  const canArchive = () => canEditPage && ARCHIVE_ROLES.includes(role);
 
   function handleDownloadMonth() {
     const monthRows = rows.filter((r) => (r.date || '').slice(0, 7) === month);
@@ -71,7 +75,7 @@ export default function DailyExpenseApplicationPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = rows
-    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !r.confirmedClosed && !r.archived)
     .filter((r) => typeFilter === '全部' || (r.type || '支出') === typeFilter)
     .filter((r) => !searchQuery || `${r.applicant || ''} ${r.item || ''} ${r.purpose || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
@@ -102,7 +106,7 @@ export default function DailyExpenseApplicationPage() {
       <div className="page-header">
         <div>
           <h2>日常支出申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准／已匯款的申請可以按「結案」歸檔，結案後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -142,15 +146,30 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
-                          {canModify(r) && STATUSES.filter((s) => s !== status).map((s) => (
+                          {status === '待審核' && canModify(r) && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
+                            </>
+                          )}
+                          {status === '已核准' && canModify(r) && (
+                            <>
+                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button onClick={() => update(r.id, { status: '待審核' })}>退回(回到待審核)</button>
+                            </>
+                          )}
+                          {status === '已匯款' && canModify(r) && (
+                            <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
+                          )}
+                          {status === '退回' && canModify(r) && STATUSES.filter((s) => s !== status).map((s) => (
                             <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
                           ))}
                           {canModify(r) && <button onClick={() => setEditing(r)}>編輯</button>}
-                          {LOCKED_STATUSES.includes(status) ? (
-                            canModify(r) && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
-                          ) : (
-                            <button onClick={() => handleDuplicate(r)}>複製</button>
-                          )}
+                          {status === '待審核' && canModify(r) && <button onClick={() => handleDuplicate(r)}>複製</button>}
+                          {status === '退回' && canModify(r) && <button onClick={() => handleDuplicate(r)}>複製</button>}
+                          {status === '已核准' && canModify(r) && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>}
+                          {status === '已匯款' && canArchive() && <button onClick={() => update(r.id, { archived: true })}>封存</button>}
                           {canModify(r) && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
                         </td>
                       )}
