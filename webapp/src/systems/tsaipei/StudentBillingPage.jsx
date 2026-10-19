@@ -48,6 +48,10 @@ function parseOtherFees(json) {
   } catch { return []; }
 }
 
+function parseJson(json, fallback) {
+  try { return json ? JSON.parse(json) : fallback; } catch { return fallback; }
+}
+
 // 先繳部分：使用者要能分好幾筆填(每筆各自金額+日期)，存成 JSON 陣列字串，
 // 跟宿舍管理「填寫其他費用」同一套 JSON 陣列存法。
 function parsePartialPayments(json) {
@@ -146,6 +150,7 @@ export default function StudentBillingPage() {
   const { rows: utilities } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: payments, add: addPayment, update: updatePayment } = useCollection('tsaipei_studentBillingPayments');
+  const { rows: billingLocks, add: addBillingLock, remove: removeBillingLock } = useCollection('tsaipei_studentBillingLocks');
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
@@ -244,6 +249,15 @@ export default function StudentBillingPage() {
     return housingRecords.filter((h) => h.type === dormName && residentOverlapDays(h, range) > 0).length;
   }
 
+  function lockFor(housingRecordId, monthStr) {
+    return billingLocks.find((l) => l.housingRecordId === housingRecordId && l.month === monthStr) || null;
+  }
+
+  // 封存：把這個住宿紀錄當月算出來的請款明細固定下來，之後水電瓦斯紀錄、
+  // 住宿安排再怎麼異動，這個月的數字都維持封存當下的樣子，直到按「取消
+  // 封存」解除——跟客戶請款計算同一套機制。收款總帳(buildStudentLedger)
+  // 算「應繳」金額時也是呼叫這個函式，封存後總帳/未繳總表會自動跟著用
+  // 封存的數字，不會各自顯示不同金額。
   function billingFor(h, monthStr, range) {
     const days = residentOverlapDays(h, range);
     const selfPayDormFee = h.payer === '學生自付' && h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
@@ -256,7 +270,35 @@ export default function StudentBillingPage() {
     const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees;
-    return { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };
+    const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };
+    const lock = lockFor(h.id, monthStr);
+    if (!lock) return { ...live, locked: false };
+    return { ...live, ...parseJson(lock.billingRow, {}), locked: true, lockId: lock.id };
+  }
+
+  async function handleConfirmBillingLock(h) {
+    const live = billingFor(h, month, range);
+    const { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total } = live;
+    try {
+      await addBillingLock({
+        month, housingRecordId: h.id, studentId: h.studentId,
+        billingRow: JSON.stringify({ days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total }),
+        lockedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      alert(`封存失敗：${err.message || err}`);
+    }
+  }
+
+  async function handleUnlockBilling(h) {
+    const lock = lockFor(h.id, month);
+    if (!lock) return;
+    if (!window.confirm('確定要取消封存這個月的請款明細嗎？取消後會改回即時試算的數字。')) return;
+    try {
+      await removeBillingLock(lock.id);
+    } catch (err) {
+      alert(`取消封存失敗：${err.message || err}`);
+    }
   }
 
   // 這個學生從最早入住到最近退宿(或現在)橫跨哪些月份，逐月建總帳才需要
@@ -470,7 +512,7 @@ export default function StudentBillingPage() {
                   <div className="card" key={key}>
                     <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                     <div className="table-wrap"><table>
-                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th></tr></thead>
+                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th>{canEditPage && <th></th>}</tr></thead>
                       <tbody>
                         {groups[key].map((h) => {
                           const b = billingFor(h, month, range);
@@ -488,6 +530,7 @@ export default function StudentBillingPage() {
                               <td>{b.gasFee.toLocaleString()}</td>
                               <td>{b.otherFees.toLocaleString()}</td>
                               <td style={{ fontWeight: 600 }}>{b.total.toLocaleString()}</td>
+                              <td>{b.locked ? <span className="tag tag-green">已封存</span> : <span className="muted">即時試算</span>}</td>
                               <td>
                                 <select
                                   value={p.status}
@@ -522,6 +565,13 @@ export default function StudentBillingPage() {
                                   <div className="muted" style={{ fontWeight: 400, fontSize: 12 }}>溢繳 {overpaidCredit.toLocaleString()}（可抵次月）</div>
                                 )}
                               </td>
+                              {canEditPage && (
+                                <td>
+                                  {b.locked
+                                    ? <button onClick={() => handleUnlockBilling(h)}>取消封存</button>
+                                    : <button className="primary" onClick={() => handleConfirmBillingLock(h)}>確認封存</button>}
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
