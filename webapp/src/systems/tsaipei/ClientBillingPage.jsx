@@ -15,7 +15,7 @@ function parseJson(json, fallback) {
 // 可以直接手動修改的金額欄位（辦件費～代墊費用供應商），稅金/合計總額是
 // 算出來的，不開放直接改。
 const EDITABLE_AMOUNT_FIELDS = [
-  'monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee',
+  'monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee', 'dormOtherFeeCharge',
   'dailyExpenseChargeJunyu', 'dailyExpenseChargeSupplier',
 ];
 // 稅金只對這幾項(不含代墊費用供應商)課徵，跟 lib/bonus.js
@@ -33,13 +33,18 @@ export default function ClientBillingPage() {
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const { rows: dailyExpenseApplications } = useCollection('tsaipei_dailyExpenseApplications');
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
+  const { rows: dormitories } = useCollection('tsaipei_dormitories');
+  const { rows: dormitoryUtilities } = useCollection('tsaipei_dormitoryUtilities');
   const { rows: locks, add: addLock, update: updateLock, remove: removeLock } = useCollection('tsaipei_clientBillingLocks');
   const [month, setMonth] = useState(currentMonthStr());
   const [busyKey, setBusyKey] = useState(null);
   const [editKey, setEditKey] = useState(null);
   const [editValues, setEditValues] = useState(null);
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords, dailyExpenseApplications, housingRecords };
+  const ctx = {
+    students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords,
+    dailyExpenseApplications, housingRecords, dormitories, dormitoryUtilities,
+  };
   const liveRows = computeClientBillingForMonth(month, ctx);
 
   function lockFor(row) {
@@ -119,6 +124,7 @@ export default function ClientBillingPage() {
       monthlyServiceFee: row.amounts.monthlyServiceFee || 0,
       monthlyDormFee: row.amounts.monthlyDormFee || 0,
       monthlyDormManageFee: row.amounts.monthlyDormManageFee || 0,
+      dormOtherFeeCharge: row.amounts.dormOtherFeeCharge || 0,
       dailyExpenseChargeJunyu: row.amounts.dailyExpenseChargeJunyu || 0,
       dailyExpenseChargeSupplier: row.amounts.dailyExpenseChargeSupplier || 0,
     });
@@ -169,7 +175,7 @@ export default function ClientBillingPage() {
       <ClientBillingChart rows={rows} />
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap"><table>
-          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
@@ -185,6 +191,7 @@ export default function ClientBillingPage() {
                     <td><input type="number" value={v.monthlyServiceFee} onChange={setField('monthlyServiceFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.monthlyDormFee} onChange={setField('monthlyDormFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.monthlyDormManageFee} onChange={setField('monthlyDormManageFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.dormOtherFeeCharge} onChange={setField('dormOtherFeeCharge')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.dailyExpenseChargeJunyu} onChange={setField('dailyExpenseChargeJunyu')} style={{ width: 90 }} /></td>
                     <td className="muted">自動計算</td>
                     <td><input type="number" value={v.dailyExpenseChargeSupplier} onChange={setField('dailyExpenseChargeSupplier')} style={{ width: 90 }} /></td>
@@ -206,6 +213,7 @@ export default function ClientBillingPage() {
                   <td>{(r.amounts.monthlyServiceFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormManageFee || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.dormOtherFeeCharge || 0).toLocaleString()}</td>
                   <td>{(r.amounts.dailyExpenseChargeJunyu || 0).toLocaleString()}</td>
                   <td>{(r.tax || 0).toLocaleString()}</td>
                   <td>{(r.amounts.dailyExpenseChargeSupplier || 0).toLocaleString()}</td>
@@ -222,7 +230,7 @@ export default function ClientBillingPage() {
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={14} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
@@ -237,6 +245,7 @@ const CATEGORY_TOTALS = [
   { key: 'monthlyServiceFee', label: '服務費(未稅)', fromAmounts: true },
   { key: 'monthlyDormFee', label: '宿舍費(未稅)', fromAmounts: true },
   { key: 'monthlyDormManageFee', label: '宿管費(未稅)', fromAmounts: true },
+  { key: 'dormOtherFeeCharge', label: '宿舍其他費用(廠商代付未稅)', fromAmounts: true },
   { key: 'dailyExpenseChargeJunyu', label: '代墊費用(鈞羽未稅)', fromAmounts: true },
   { key: 'tax', label: '稅金5%', fromAmounts: false },
   { key: 'dailyExpenseChargeSupplier', label: '代墊費用(供應商)', fromAmounts: true },

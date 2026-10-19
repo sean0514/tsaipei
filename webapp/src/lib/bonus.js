@@ -266,6 +266,45 @@ function buildFixedChargeTotals(monthStr, ctx) {
   return totals;
 }
 
+function parseOtherFeesJson(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+// 宿舍管理「填寫其他費用」自訂項目可以各自標「廠商代付」或「學生自付」：
+// 廠商代付的項目公司要跟客戶收回來，併入客戶請款計算，不能再跟學生收
+// (見 StudentBillingPage 的 otherFeesTotal 排除同一批項目)；學生自付的
+// 項目維持原本行為，只從學生請款計算收取，不跟客戶收。這裡平分到這個月
+// 該宿舍所有「廠商代付」住戶身上(依人頭，跟學生請款計算水電瓦斯的分攤
+// 方式一致)，再依各自的實習單位(專案+客戶)加總。
+export function buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx) {
+  const { dormitories, housingRecords, dormitoryUtilities } = ctx;
+  const range = monthRange(monthStr);
+  if (!range) return {};
+  const totals = {};
+  (dormitories || []).forEach((d) => {
+    const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
+    if (!u) return;
+    const vendorPaidTotal = parseOtherFeesJson(u.otherFees)
+      .filter((f) => f.payer === '廠商代付')
+      .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+    if (!vendorPaidTotal) return;
+    const residents = (housingRecords || []).filter((h) =>
+      h.type === d.name && h.payer === '廠商代付' && dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0);
+    if (!residents.length) return;
+    const perHead = Math.round(vendorPaidTotal / residents.length);
+    residents.forEach((h) => {
+      const pair = studentProjectClientPair(h.studentId, ctx);
+      if (!pair) return;
+      const key = `${pair.projectCode}||${pair.client}`;
+      totals[key] = (totals[key] || 0) + perHead;
+    });
+  });
+  return totals;
+}
+
 // 宿舍費/宿管費的請款天數跟辦件費/服務費的「在台天數」脫鉤——只計算學生
 // 這個月「廠商代付」住宿紀錄的天數（見 studentForeignPaidDormDaysForMonth），
 // 學生自己付宿舍費的期間不跟客戶收這筆錢。
@@ -291,9 +330,11 @@ export function computeClientBillingForMonth(monthStr, ctx) {
   const dormDayGroups = buildMonthlyProjectClientDormDayTotals(monthStr, ctx);
   const fixedCharges = buildFixedChargeTotals(monthStr, ctx);
   const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);
-  // 固定制學生的固定收費、須請款的日常支出申請、廠商代付住宿天數都可能
-  // 落在沒有當月在台天數的月份，這種情況也要補一個群組才能顯示這筆費用。
-  [fixedCharges, dailyExpenseCharges, dormDayGroups].forEach((charges) => {
+  const vendorOtherFeeCharges = buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx);
+  // 固定制學生的固定收費、須請款的日常支出申請、廠商代付住宿天數、宿舍
+  // 其他費用(廠商代付)都可能落在沒有當月在台天數的月份，這種情況也要補
+  // 一個群組才能顯示這筆費用。
+  [fixedCharges, dailyExpenseCharges, dormDayGroups, vendorOtherFeeCharges].forEach((charges) => {
     Object.keys(charges).forEach((key) => {
       if (groups[key]) return;
       const [projectCode, client] = key.split('||');
@@ -318,10 +359,15 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     const dailyExpenseSupplier = dailyExpenseCharges[key]?.supplierTotal || 0;
     amounts.dailyExpenseChargeJunyu = dailyExpenseJunyu;
     amounts.dailyExpenseChargeSupplier = dailyExpenseSupplier;
-    // 辦件費/服務費/宿舍費/宿管費都是未稅金額，稅金算這四項加上「代墊費用
-    // (鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。合計＝辦件費/服務費/
-    // 宿舍費/宿管費/代墊費用(鈞羽未稅) + 稅金 + 代墊費用(供應商)。
-    const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dailyExpenseJunyu;
+    // 宿舍其他費用(廠商代付)：跟宿舍費/宿管費一樣未稅、要計稅，不受
+    // billDorm='否' 影響(那個設定只管「不跟這個客戶收宿舍費/宿管費月費
+    // 率」，不影響實際發生的廠商代付雜支代墊)。
+    const dormOtherFeeCharge = vendorOtherFeeCharges[key] || 0;
+    amounts.dormOtherFeeCharge = dormOtherFeeCharge;
+    // 辦件費/服務費/宿舍費/宿管費/宿舍其他費用(廠商代付)都是未稅金額，稅金
+    // 算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」不計稅。
+    // 合計＝以上未稅項目加總 + 稅金 + 代墊費用(供應商)。
+    const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dormOtherFeeCharge + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
     const total = taxableAmount + tax + dailyExpenseSupplier;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
@@ -334,13 +380,6 @@ export function currentMonthStr() {
 
 export function currentYear() {
   return new Date().getFullYear();
-}
-
-function parseOtherFeesJson(json) {
-  try {
-    const arr = json ? JSON.parse(json) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
 }
 
 const DORM_EQUIPMENT_ITEM = '宿舍設備';

@@ -15,22 +15,24 @@ function headerRowCells(row, values, startCol = 2) {
   });
 }
 
-// 未稅金額(小計)＝辦件費/服務費/宿舍費/宿管費/代墊費用(鈞羽未稅)五項加總，
-// 不含代墊費用(供應商)；含稅金額＝未稅金額(小計)+營業稅5%；請款總金額＝
-// 含稅金額+代墊費用(供應商)，跟 computeClientInvoice 算出的 grandTotal
-// 是同一個數字，只是攤開顯示計算過程，這裡直接從 categoryTotals 重算，
-// 不需要 computeClientInvoice 額外回傳中間值。
+// 未稅金額(小計)＝辦件費/服務費/宿舍費/宿管費/宿舍其他費用(廠商代付)/
+// 代墊費用(鈞羽未稅)六項加總，不含代墊費用(供應商)；含稅金額＝未稅金額
+// (小計)+營業稅5%；請款總金額＝含稅金額+代墊費用(供應商)，跟
+// computeClientInvoice 算出的 grandTotal 是同一個數字，只是攤開顯示計算
+// 過程，這裡直接從 categoryTotals 重算，不需要 computeClientInvoice 額外
+// 回傳中間值。
 function taxBreakdown(invoice) {
   const { categoryTotals, tax, grandTotal } = invoice;
   const untaxedSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee
-    + categoryTotals.dormManageFee + categoryTotals.dailyExpenseJunyu;
+    + categoryTotals.dormManageFee + (categoryTotals.dormOtherFee || 0) + categoryTotals.dailyExpenseJunyu;
   const taxedTotal = untaxedSubtotal + tax;
   return { untaxedSubtotal, taxedTotal, supplierExpense: categoryTotals.dailyExpenseSupplier, grandTotal };
 }
 
-// Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/代墊費用鈞羽)分行
-// 列出未稅金額，再列未稅金額(小計)/營業稅5%/含稅金額，最後加上不計稅的
-// 代墊費用(供應商)算出請款總金額，方便客戶對帳跟核對含不含稅。
+// Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/宿舍其他費用廠商
+// 代付/代墊費用鈞羽)分行列出未稅金額，再列未稅金額(小計)/營業稅5%/含稅
+// 金額，最後加上不計稅的代墊費用(供應商)算出請款總金額，方便客戶對帳跟
+// 核對含不含稅。
 function buildSummarySheet(workbook, client, invoice) {
   const { range, periodLabel, taxId, categoryTotals } = invoice;
   const { untaxedSubtotal, taxedTotal, supplierExpense, grandTotal } = taxBreakdown(invoice);
@@ -65,6 +67,7 @@ function buildSummarySheet(workbook, client, invoice) {
     ['服務費(未稅)', categoryTotals.serviceFee],
     ['宿舍費(未稅)', categoryTotals.dormFee],
     ['宿管費(未稅)', categoryTotals.dormManageFee],
+    ['宿舍其他費用(廠商代付未稅)', categoryTotals.dormOtherFee || 0],
     ['代墊費用(鈞羽未稅)', categoryTotals.dailyExpenseJunyu],
   ];
   categoryRows.forEach(([label, value], idx) => {
