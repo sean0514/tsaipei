@@ -86,6 +86,7 @@ export default function VehiclePickupPage() {
         flightTime: a.flightTime || '',
         fee: a.fee || '',
         billTo: a.billTo || '',
+        billedToClient: a.billedToClient ? '是' : '否',
         done: a.done ? '是' : '否',
       }));
     exportEntityCSV(
@@ -101,6 +102,7 @@ export default function VehiclePickupPage() {
         { key: 'flightTime', label: '班機時間' },
         { key: 'fee', label: '車資費用' },
         { key: 'billTo', label: '請款對象' },
+        { key: 'billedToClient', label: '是否列入客戶請款' },
         { key: 'done', label: '已完成' },
       ],
       `接送車輛安排_${reportMonth}`
@@ -136,6 +138,14 @@ export default function VehiclePickupPage() {
     }
   }
 
+  async function toggleBilledToClient(a) {
+    try {
+      await update(a.id, { billedToClient: !a.billedToClient });
+    } catch (err) {
+      alert(`更新失敗：${err?.message || '請稍後再試'}`);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -146,7 +156,7 @@ export default function VehiclePickupPage() {
         <div className="row-actions">
           <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} />
           <button onClick={handleDownload}>下載此月份報表</button>
-          {canEditPage && <button className="primary" onClick={() => setEditing({ type: '送工', billTo: '', done: false })}>+ 新增安排車輛</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ type: '送工', billTo: '', billedToClient: false, done: false })}>+ 新增安排車輛</button>}
         </div>
       </div>
       {loading ? <p className="muted">載入中…</p> : (
@@ -171,7 +181,7 @@ export default function VehiclePickupPage() {
                           <td>
                             <button onClick={() => setEditing({
                               studentId: v.studentId, visaId: v.id, visaLabel: label,
-                              type: suggestedType, date, billTo: '', done: false,
+                              type: suggestedType, date, billTo: '', billedToClient: false, done: false,
                             })}>新增安排</button>
                           </td>
                         )}
@@ -191,7 +201,7 @@ export default function VehiclePickupPage() {
                   <thead>
                     <tr>
                       <th>學生</th><th>客戶</th><th>類型</th><th>車輛接送日期</th><th>車輛公司</th><th>車輛接送地點</th>
-                      <th>出入境航廈</th><th>班機時間</th><th>車資費用</th><th>請款對象</th><th>已完成</th>
+                      <th>出入境航廈</th><th>班機時間</th><th>車資費用</th><th>請款對象</th><th>是否列入客戶請款</th><th>已完成</th>
                       {canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -210,6 +220,11 @@ export default function VehiclePickupPage() {
                         <td>{a.billTo || '—'}</td>
                         <td>
                           {canEditPage ? (
+                            <input type="checkbox" checked={!!a.billedToClient} onChange={() => toggleBilledToClient(a)} />
+                          ) : (a.billedToClient ? '是' : '否')}
+                        </td>
+                        <td>
+                          {canEditPage ? (
                             <input type="checkbox" checked={!!a.done} onChange={() => toggleDone(a)} />
                           ) : (a.done ? '是' : '否')}
                         </td>
@@ -221,7 +236,7 @@ export default function VehiclePickupPage() {
                         )}
                       </tr>
                     ))}
-                    {arrangedList.length === 0 && <tr><td colSpan={11 + (canEditPage ? 1 : 0)} className="muted">目前沒有資料。</td></tr>}
+                    {arrangedList.length === 0 && <tr><td colSpan={12 + (canEditPage ? 1 : 0)} className="muted">目前沒有資料。</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -335,6 +350,10 @@ function VehicleFormModal({ initial, students, arrangements, ctx, onCancel, onSa
                 <option value="">請選擇</option>
                 {BILL_TO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+            </label>
+            <label>
+              是否列入客戶請款
+              <input type="checkbox" checked={!!form.billedToClient} onChange={(e) => setForm({ ...form, billedToClient: e.target.checked })} style={{ width: 'auto' }} />
             </label>
             <label>
               已完成
