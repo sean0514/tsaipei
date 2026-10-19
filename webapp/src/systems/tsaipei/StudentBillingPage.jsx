@@ -276,7 +276,9 @@ export default function StudentBillingPage() {
     // 「住宿安排」標「廠商代付」，這個學生自己這份就不跟他收，改計入客戶
     // 請款計算的「代收代付」(見 lib/bonus.js
     // buildMonthlyProjectClientVendorUtilityTotals，用同一套每人應攤金額)。
-    const utilityIsVendorPaid = h.payer === '廠商代付';
+    // 水電瓦斯的付款方式獨立於租金/宿舍費的付款方式(utilityPayer)，沒填
+    // 的話(舊資料)才退回跟租金同一個付款方式。
+    const utilityIsVendorPaid = (h.utilityPayer || h.payer) === '廠商代付';
     const waterFee = utilityIsVendorPaid ? 0 : perHead(u?.waterFee);
     const electricityFee = utilityIsVendorPaid ? 0 : perHead(u?.electricityFee);
     const gasFee = utilityIsVendorPaid ? 0 : perHead(u?.gasFee);
