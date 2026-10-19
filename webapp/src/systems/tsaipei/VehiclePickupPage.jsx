@@ -66,6 +66,10 @@ export default function VehiclePickupPage() {
     if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 30) pending.push({ v, date: v.firstExitDate, label: '第一次離境', suggestedType: '送機' });
     if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 30) pending.push({ v, date: v.secondExitDate, label: '第二次離境', suggestedType: '送機' });
   });
+  // 從「待安排」一鍵建立安排時，順便把在台簽證追蹤裡已經填好的航空公司/
+  // 航班編號/航廈/班機時間帶進來(目前只有離境紀錄的「預計入台/離台」頁面
+  // 會填這幾個欄位)，不用再去那邊看一次手動抄一遍；沒有填的話就是空字串，
+  // 業務還是可以在這裡直接補或改。
   // 已經依這筆入境/離境紀錄建立過安排的，不再出現在「待安排」清單。
   const arranged = (visaId, label) => arrangements.some((a) => a.visaId === visaId && a.visaLabel === label);
   const pendingList = pending.filter(({ v, label }) => !arranged(v.id, label)).sort((a, b) => a.date.localeCompare(b.date));
@@ -82,6 +86,8 @@ export default function VehiclePickupPage() {
         date: a.date || '',
         vehicleCompany: a.vehicleCompany || '',
         vehicleLocation: a.vehicleLocation || '',
+        airline: a.airline || '',
+        flightNumber: a.flightNumber || '',
         terminal: a.terminal || '',
         flightTime: a.flightTime || '',
         fee: a.fee || '',
@@ -98,6 +104,8 @@ export default function VehiclePickupPage() {
         { key: 'date', label: '車輛接送日期' },
         { key: 'vehicleCompany', label: '車輛公司' },
         { key: 'vehicleLocation', label: '車輛接送地點' },
+        { key: 'airline', label: '航空公司' },
+        { key: 'flightNumber', label: '航班編號' },
         { key: 'terminal', label: '出入境航廈' },
         { key: 'flightTime', label: '班機時間' },
         { key: 'fee', label: '車資費用' },
@@ -112,7 +120,7 @@ export default function VehiclePickupPage() {
   async function handleSave(data) {
     try {
       const { id, ...rest } = data;
-      if (!AIRPORT_TYPES.includes(rest.type)) { rest.terminal = ''; rest.flightTime = ''; }
+      if (!AIRPORT_TYPES.includes(rest.type)) { rest.airline = ''; rest.flightNumber = ''; rest.terminal = ''; rest.flightTime = ''; }
       if (id) await update(id, rest);
       else await add(rest);
       setEditing(null);
@@ -182,6 +190,8 @@ export default function VehiclePickupPage() {
                             <button onClick={() => setEditing({
                               studentId: v.studentId, visaId: v.id, visaLabel: label,
                               type: suggestedType, date, billTo: '', billedToClient: false, done: false,
+                              airline: v.airline || '', flightNumber: v.flightNumber || '',
+                              terminal: v.terminal || '', flightTime: v.flightTime || '',
                             })}>新增安排</button>
                           </td>
                         )}
@@ -201,7 +211,7 @@ export default function VehiclePickupPage() {
                   <thead>
                     <tr>
                       <th>學生</th><th>客戶</th><th>類型</th><th>車輛接送日期</th><th>車輛公司</th><th>車輛接送地點</th>
-                      <th>出入境航廈</th><th>班機時間</th><th>車資費用</th><th>請款對象</th><th>是否列入客戶請款</th><th>已完成</th>
+                      <th>航空公司</th><th>航班編號</th><th>出入境航廈</th><th>班機時間</th><th>車資費用</th><th>請款對象</th><th>是否列入客戶請款</th><th>已完成</th>
                       {canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -214,6 +224,8 @@ export default function VehiclePickupPage() {
                         <td>{a.date || '—'}</td>
                         <td>{a.vehicleCompany || '—'}</td>
                         <td>{a.vehicleLocation || '—'}</td>
+                        <td>{AIRPORT_TYPES.includes(a.type) ? (a.airline || '—') : '—'}</td>
+                        <td>{AIRPORT_TYPES.includes(a.type) ? (a.flightNumber || '—') : '—'}</td>
                         <td>{AIRPORT_TYPES.includes(a.type) ? (a.terminal || '—') : '—'}</td>
                         <td>{AIRPORT_TYPES.includes(a.type) ? (a.flightTime || '—') : '—'}</td>
                         <td>{a.fee || '—'}</td>
@@ -236,7 +248,7 @@ export default function VehiclePickupPage() {
                         )}
                       </tr>
                     ))}
-                    {arrangedList.length === 0 && <tr><td colSpan={12 + (canEditPage ? 1 : 0)} className="muted">目前沒有資料。</td></tr>}
+                    {arrangedList.length === 0 && <tr><td colSpan={14 + (canEditPage ? 1 : 0)} className="muted">目前沒有資料。</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -330,6 +342,14 @@ function VehicleFormModal({ initial, students, arrangements, ctx, onCancel, onSa
             </label>
             {showAirportFields && (
               <>
+                <label>
+                  航空公司
+                  <input value={form.airline || ''} onChange={(e) => setForm({ ...form, airline: e.target.value })} />
+                </label>
+                <label>
+                  航班編號
+                  <input value={form.flightNumber || ''} onChange={(e) => setForm({ ...form, flightNumber: e.target.value })} />
+                </label>
                 <label>
                   出入境航廈
                   <input value={form.terminal || ''} onChange={(e) => setForm({ ...form, terminal: e.target.value })} />
