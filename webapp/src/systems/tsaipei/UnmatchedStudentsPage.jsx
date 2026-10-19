@@ -23,27 +23,26 @@ function parseList(json) {
   return [json];
 }
 
-// 學生尚未安排：純彙整頁面，不用手動維護——學生建檔存檔時系統會自動在
-// 「媒合紀錄」建立一筆 positionId 空白的佔位紀錄(狀態「媒合中」)，所以不能
-// 用「完全沒有媒合紀錄」判斷，要用「所有媒合紀錄都還沒填實際職缺(positionId)」
-// 才算尚未安排；一旦業務在媒合紀錄頁面幫他配對職缺，就會自動從這個清單消失。
-// 已結案的學生不計入（跟其他分頁同一套 confirmedClosed 慣例）。
+// 學生尚未安排：純彙整頁面，不用手動維護——只列出在「媒合紀錄」裡有一筆
+// 狀態=媒合中的學生(學生建檔存檔時系統會自動建立這筆佔位紀錄)；業務在媒合
+// 紀錄頁面把狀態改成已媒合、或改成取消，這個學生就會自動從這個清單消失，
+// 不用在這裡手動維護。已結案的學生不計入（跟其他分頁同一套 confirmedClosed
+// 慣例）。
 export default function UnmatchedStudentsPage() {
   useOutletContext();
   const { rows: students, loading } = useCollection('tsaipei_students');
   const { rows: matches } = useCollection('tsaipei_matches');
   const [q, setQ] = useState('');
 
-  const matchedStudentIds = new Set(matches.filter((m) => m.positionId).map((m) => m.studentId));
-  const unmatched = students.filter((s) => !s.confirmedClosed && !matchedStudentIds.has(s.id));
-
   // 這個學生目前在「媒合紀錄」裡狀態=媒合中的那一筆(通常是系統自動建立的
-  // 佔位紀錄，positionId 還空著)，把實習場域/媒合日期/來台方案/備註這些
-  // 媒合中的資訊一起帶出來顯示，而不是只看學生資料本身——業務在媒合紀錄
-  // 頁面填的進度，這裡要同步看得到，不用兩邊分別維護。
+  // 佔位紀錄)，把實習場域/媒合日期/來台方案/備註這些媒合中的資訊一起帶出來
+  // 顯示，而不是只看學生資料本身——業務在媒合紀錄頁面填的進度，這裡要同步
+  // 看得到，不用兩邊分別維護。
   function matchingRecordOf(studentId) {
     return matches.find((m) => m.studentId === studentId && (m.status || '媒合中') === '媒合中') || null;
   }
+
+  const unmatched = students.filter((s) => !s.confirmedClosed && matchingRecordOf(s.id));
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
@@ -81,7 +80,7 @@ export default function UnmatchedStudentsPage() {
       <div className="page-header">
         <div>
           <h2>學生尚未安排</h2>
-          <div className="page-desc">自動列出目前在「媒合紀錄」裡還沒有任何一筆填上實際職缺的學生，依國籍分類顯示；實習場域/媒合日期/來台方案/媒合備註直接連動媒合紀錄裡該學生「媒合中」那筆紀錄，業務在媒合紀錄頁面填的進度這裡會同步看到，不用兩邊分別維護；一旦幫學生配對職缺，就會自動從這裡消失</div>
+          <div className="page-desc">自動列出目前在「媒合紀錄」裡狀態是「媒合中」的學生，依國籍分類顯示；實習場域/媒合日期/來台方案/媒合備註直接連動該學生「媒合中」那筆紀錄，業務在媒合紀錄頁面填的進度這裡會同步看到，不用兩邊分別維護；一旦狀態改成已媒合或取消，就會自動從這裡消失</div>
         </div>
         <div className="row-actions">
           <button onClick={handleDownload}>下載名單</button>
