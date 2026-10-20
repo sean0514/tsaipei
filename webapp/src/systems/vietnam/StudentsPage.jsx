@@ -226,8 +226,8 @@ export default function StudentsPage() {
                   </td>
                   <td>{r.gender || '—'}</td>
                   <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
-                  <td>{parseList(r.desiredIndustries).join('、') || '—'}</td>
-                  <td><Tag value={r.status} map={STUDENT_TAG} /></td>
+                  <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
+                  <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
                   {canEditPage && (
                     <td>
                       <div className="row-actions">
@@ -285,7 +285,7 @@ function MultiSelectEditor({ value, options, onChange, lang }) {
         {[...options, ...extraItems].map((item) => (
           <label key={item} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
             <input type="checkbox" checked={selected.includes(item)} onChange={() => toggle(item)} />
-            {item}
+            {t(item, lang)}
             {!options.includes(item) && (
               <button type="button" className="danger small" onClick={() => removeCustom(item)}>×</button>
             )}

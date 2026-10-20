@@ -158,7 +158,7 @@ export default function BankAccountProgressPage() {
                   <td>
                     {canEditPage ? (
                       <input type="checkbox" checked={!!p.bankAccountReceived} onChange={(e) => toggleBankAccount(v.studentId, e.target.checked)} />
-                    ) : (p.bankAccountReceived ? '是' : '否')}
+                    ) : (p.bankAccountReceived ? t('是', lang) : t('否', lang))}
                   </td>
                   {canEditPage && showConfirm && (
                     <td><button onClick={() => confirmDone(v.studentId)}>{t('確認完成', lang)}</button></td>

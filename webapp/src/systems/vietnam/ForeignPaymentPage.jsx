@@ -162,8 +162,8 @@ function ForeignPaymentFormModal({ initial, students, onCancel, onSave, lang }) 
             <label>
               {t('是否已付款', lang)}
               <select value={form.paid === '是' ? '是' : '否'} onChange={(e) => setForm({ ...form, paid: e.target.value })}>
-                <option value="否">否</option>
-                <option value="是">是</option>
+                <option value="否">{t('否', lang)}</option>
+                <option value="是">{t('是', lang)}</option>
               </select>
             </label>
           </div>

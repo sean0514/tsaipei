@@ -54,7 +54,7 @@ export default function SecondInterviewsPage() {
                         <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
                         <td>{r.date || '—'}</td>
                         <td>{r.method || '—'}</td>
-                        <td><Tag value={r.status} map={SECOND_INTERVIEW_TAG} /></td>
+                        <td><Tag value={r.status} map={SECOND_INTERVIEW_TAG} lang={lang} /></td>
                       </tr>
                     ))}
                   </tbody>

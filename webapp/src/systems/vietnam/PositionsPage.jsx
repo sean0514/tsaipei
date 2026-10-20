@@ -144,7 +144,7 @@ export default function PositionsPage() {
           <td>
             {info.groups.length ? info.groups.map((g, i) => (
               <div key={i} style={{ marginBottom: 4 }}>
-                {g.venue ? `${g.venue} · ` : ''}{g.location || '—'} · {g.headcount || 0}{t('名', lang)} <Tag value={g.status} map={POSITION_TAG} />
+                {g.venue ? `${g.venue} · ` : ''}{g.location || '—'} · {g.headcount || 0}{t('名', lang)} <Tag value={g.status} map={POSITION_TAG} lang={lang} />
               </div>
             )) : <span className="muted">{t('尚未設定地點', lang)}</span>}
           </td>

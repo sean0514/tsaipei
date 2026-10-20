@@ -89,11 +89,11 @@ export default function InTaiwanCarePage() {
                           <td>{studentName(r.studentId)}</td>
                           <td>{r.careDate || '—'}</td>
                           <td>{r.content || '—'}</td>
-                          <td><Tag value={r.status} map={CARE_TAG} /></td>
+                          <td><Tag value={r.status} map={CARE_TAG} lang={lang} /></td>
                           <td>
                             {canEditPage ? (
                               <input type="checkbox" checked={!!r.confirmedDeparture} onChange={(e) => update(r.id, { confirmedDeparture: e.target.checked })} />
-                            ) : (r.confirmedDeparture ? '是' : '否')}
+                            ) : (r.confirmedDeparture ? t('是', lang) : t('否', lang))}
                           </td>
                           {canEditPage && (
                             <td>
