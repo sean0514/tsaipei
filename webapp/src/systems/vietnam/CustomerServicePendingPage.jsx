@@ -150,12 +150,12 @@ export default function CustomerServicePendingPage() {
                         <td>
                           {canEditArrival ? (
                             <input type="checkbox" checked={!!v.healthCheckDone} onChange={(e) => toggleArrival(v.id, 'healthCheckDone', e.target.checked)} />
-                          ) : (v.healthCheckDone ? '是' : '否')}
+                          ) : (v.healthCheckDone ? t('是', lang) : t('否', lang))}
                         </td>
                         <td>
                           {canEditArrival ? (
                             <input type="checkbox" checked={!!v.dispatchDone} onChange={(e) => toggleArrival(v.id, 'dispatchDone', e.target.checked)} />
-                          ) : (v.dispatchDone ? '是' : '否')}
+                          ) : (v.dispatchDone ? t('是', lang) : t('否', lang))}
                         </td>
                       </tr>
                     ))}
@@ -180,7 +180,7 @@ export default function CustomerServicePendingPage() {
                         <td>
                           {canEditBankAccount ? (
                             <input type="checkbox" checked={!!bankProgressByStudent[v.studentId]?.bankAccountReceived} onChange={(e) => toggleBankAccount(v.studentId, e.target.checked)} />
-                          ) : (bankProgressByStudent[v.studentId]?.bankAccountReceived ? '是' : '否')}
+                          ) : (bankProgressByStudent[v.studentId]?.bankAccountReceived ? t('是', lang) : t('否', lang))}
                         </td>
                       </tr>
                     ))}

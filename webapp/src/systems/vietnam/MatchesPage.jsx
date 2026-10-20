@@ -47,7 +47,7 @@ export default function MatchesPage() {
                       <tr key={r.id}>
                         <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
                         <td>{r.venue || '—'}</td>
-                        <td><Tag value={r.status} map={MATCH_TAG} /></td>
+                        <td><Tag value={r.status} map={MATCH_TAG} lang={lang} /></td>
                         <td>{r.matchDate || '—'}</td>
                       </tr>
                     ))}

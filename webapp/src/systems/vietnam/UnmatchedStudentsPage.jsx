@@ -97,8 +97,8 @@ export default function UnmatchedStudentsPage() {
                         <td>{certSummary(s, lang)}</td>
                         <td>{s.school || '—'}</td>
                         <td>{s.department || '—'}</td>
-                        <td>{parseList(s.desiredIndustries).join('、') || '—'}</td>
-                        <td>{s.status || '—'}</td>
+                        <td>{parseList(s.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
+                        <td>{t(s.status, lang) || '—'}</td>
                         <td>{s.expectedGraduation || '—'}</td>
                       </tr>
                     ))}

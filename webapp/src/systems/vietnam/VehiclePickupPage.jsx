@@ -207,7 +207,7 @@ export default function VehiclePickupPage() {
                         <td>
                           {canEditPage ? (
                             <input type="checkbox" checked={!!a.done} onChange={() => toggleDone(a)} />
-                          ) : (a.done ? '是' : '否')}
+                          ) : (a.done ? t('是', lang) : t('否', lang))}
                         </td>
                         {canEditPage && (
                           <td className="row-actions">

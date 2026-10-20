@@ -53,7 +53,7 @@ export default function AdmittedListPage() {
                       <tr key={r.id}>
                         <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
                         <td>{r.admitDate || '—'}</td>
-                        <td><Tag value={r.status} map={ADMITTED_TAG} /></td>
+                        <td><Tag value={r.status} map={ADMITTED_TAG} lang={lang} /></td>
                       </tr>
                     ))}
                   </tbody>

@@ -354,8 +354,8 @@ function ClientFeeFormModal({ initial, positions, onCancel, onSave, lang }) {
             <label>
               {t('是否請款住宿費', lang)}
               <select value={form.billDormFee || '是'} onChange={(e) => setForm({ ...form, billDormFee: e.target.value })}>
-                <option value="是">是</option>
-                <option value="否">否</option>
+                <option value="是">{t('是', lang)}</option>
+                <option value="否">{t('否', lang)}</option>
               </select>
             </label>
           </div>

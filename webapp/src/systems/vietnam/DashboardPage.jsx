@@ -117,7 +117,7 @@ export default function DashboardPage() {
                     <div style={{ fontWeight: 600 }}>{studentFullLabel(s)}</div>
                     <div className="muted" style={{ fontSize: 12 }}>{t('入境日', lang)}：{effectiveEntryDate(s)}</div>
                   </div>
-                  <Tag value={s.status} map={STUDENT_TAG} />
+                  <Tag value={s.status} map={STUDENT_TAG} lang={lang} />
                 </div>
               )) : <p className="muted">{t('近一個月內沒有入境的學生。', lang)}</p>}
             </div>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
                     <div style={{ fontWeight: 600 }}>{studentFullLabel(s)}</div>
                     <div className="muted" style={{ fontSize: 12 }}>{t('離境日', lang)}：{effectiveExitDate(s)}</div>
                   </div>
-                  <Tag value={s.status} map={STUDENT_TAG} />
+                  <Tag value={s.status} map={STUDENT_TAG} lang={lang} />
                 </div>
               )) : <p className="muted">{t('一個月內沒有即將到期的學生。', lang)}</p>}
             </div>
@@ -146,7 +146,7 @@ export default function DashboardPage() {
                       <div style={{ fontWeight: 600 }}>{studentFullLabel(s)}</div>
                       <div className="muted" style={{ fontSize: 12 }}>{c.careDate ? `${t('上次關懷', lang)}：${c.careDate}` : t('尚未有關懷紀錄日期', lang)}</div>
                     </div>
-                    <Tag value={c.status} map={CARE_TAG} />
+                    <Tag value={c.status} map={CARE_TAG} lang={lang} />
                   </div>
                 );
               }) : <p className="muted">{t('目前沒有標記為「待關心」的學生。', lang)}</p>}

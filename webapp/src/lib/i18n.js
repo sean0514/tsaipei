@@ -823,4 +823,63 @@ const VI = {
   '客戶名稱（中文原文）': 'Tên khách hàng (nguyên văn tiếng Trung)',
   '越南文翻譯': 'Bản dịch tiếng Việt',
   '尚未翻譯的客戶': 'Khách hàng chưa có bản dịch',
+  // 補完各頁面介面文字翻譯缺口（原本已用 t(...) 包起來但字典漏填，或字典有
+  // 但畫面上還是 literal 中文沒包 t()）
+  '待審核': 'Chờ duyệt',
+  '待處理': 'Chờ xử lý',
+  '已完成': 'Đã hoàn thành',
+  '已結案': 'Đã kết thúc',
+  '客戶名稱': 'Tên khách hàng',
+  '請選擇客戶': 'Vui lòng chọn khách hàng',
+  '搜尋學生或客戶': 'Tìm theo học viên hoặc khách hàng',
+  '搜尋客戶或專案編號': 'Tìm theo khách hàng hoặc mã dự án',
+  '實習單位裡的專案編號都已經在這裡了，沒有新的可以帶入。': 'Mã dự án trong đơn vị thực tập đều đã có ở đây, không còn gì mới để thêm.',
+  '此專案／客戶在該月份沒有可計算的學生資料，無法封存。': 'Dự án/khách hàng này không có dữ liệu học viên để tính trong tháng đó, không thể lưu trữ.',
+  '此專案／客戶在該月份沒有可計算的學生資料，請確認在台簽證追蹤與客戶費用建檔是否都已設定。': 'Dự án/khách hàng này không có dữ liệu học viên để tính trong tháng đó, vui lòng kiểm tra đã thiết lập theo dõi visa tại Đài Loan và thiết lập phí khách hàng chưa.',
+  '沒有已核准或已匯款的申請需要同步。': 'Không có đơn đã duyệt hoặc đã chuyển khoản cần đồng bộ.',
+  '用途說明': 'Mô tả mục đích sử dụng',
+  '目前沒有住宿人員': 'Hiện không có người ở',
+  '範本檔案太大（上限約 700KB），請精簡後再上傳。': 'File mẫu quá lớn (tối đa khoảng 700KB), vui lòng thu nhỏ rồi tải lên lại.',
+  '複製失敗，請手動複製以下連結：': 'Sao chép thất bại, vui lòng tự sao chép liên kết sau:',
+  '宿舍管理員': 'Quản lý ký túc xá',
+  '（未指定）': '(Chưa chỉ định)',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有在台關懷紀錄，請先下載備份再匯入。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa (giữ cột "Mã học viên"); sau khi tải lên sẽ thay thế toàn bộ ghi nhận quan tâm tại Đài Loan hiện tại, vui lòng tải bản sao lưu trước khi nhập.',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。已結案的職缺按「已結案」後會移到下方「已結案」區塊，也可以按「取消已結案」移回上方列表。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ dữ liệu vị trí hiện tại, vui lòng tải bản sao lưu trước khi nhập. Vị trí đã kết thúc hồ sơ sau khi bấm "Đã kết thúc" sẽ chuyển xuống khối "Đã kết thúc" bên dưới, cũng có thể bấm "Hủy kết thúc hồ sơ" để chuyển lại danh sách phía trên.',
+
+  // 接送車輛安排（VehiclePickupPage 補字典）
+  '出入境航廈': 'Nhà ga xuất/nhập cảnh',
+  '請款對象': 'Đối tượng thu tiền',
+  '車資費用': 'Chi phí xe',
+  '車輛公司': 'Công ty xe',
+  '車輛接送地點': 'Địa điểm đưa đón xe',
+  '車輛接送日期': 'Ngày đưa đón xe',
+
+  // 狀態標籤（lib/tags.js 的 *_TAG，透過 Tag 元件的 lang 參數翻譯顯示文字，
+  // 媒合中/已完成/取消/已入台實習/已媒合/企業用印/待安排/已安排已經在上面有了）
+  '待面試': 'Chờ phỏng vấn',
+  '已面試': 'Đã phỏng vấn',
+  '送審中': 'Đang gửi duyệt',
+  '補件中': 'Đang bổ sung hồ sơ',
+  '辦理簽證中': 'Đang làm visa',
+  '收到函文': 'Đã nhận công văn',
+  '開放中': 'Đang mở',
+  '已額滿': 'Đã đầy',
+  '已結束': 'Đã kết thúc',
+  '已錄取': 'Đã trúng tuyển',
+  '通過': 'Đạt',
+  '未通過': 'Không đạt',
+  '通過二面': 'Đạt phỏng vấn lần 2',
+  '確認錄取': 'Xác nhận trúng tuyển',
+  '良好': 'Tốt',
+  '待關心': 'Cần quan tâm',
+  '預計離台': 'Dự kiến xuất cảnh',
+
+  // 期望產業別預設選項（StudentsPage.jsx DESIRED_INDUSTRY_PRESETS）
+  '餐飲業': 'Ngành ẩm thực',
+  '旅館業': 'Ngành khách sạn',
+  '製造業': 'Ngành sản xuất',
+  '服務業': 'Ngành dịch vụ',
+  '物流業': 'Ngành logistics',
 };
