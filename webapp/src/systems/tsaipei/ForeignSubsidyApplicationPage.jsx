@@ -35,7 +35,9 @@ async function syncApprovedPayment(app) {
     notes: app.purpose || '',
   };
   if (snap.empty) {
-    await addDoc(collection(db, 'tsaipei_foreignPayments'), { ...payload, status: '待審核' });
+    // 國外付款紀錄已經簡化成只有「已匯款」一種狀態（不再有待審核/已核准/
+    // 退回流程），這裡新建的紀錄直接寫死已匯款，不然會在那個頁面看不到。
+    await addDoc(collection(db, 'tsaipei_foreignPayments'), { ...payload, status: '已匯款' });
   } else {
     await updateDoc(snap.docs[0].ref, payload);
   }
