@@ -25,3 +25,9 @@ dist-ssr
 service-account.json
 *firebase-adminsdk*.json
 migration_export_*.json
+
+# functions/.env holds the BACKUP_BUCKET deploy-time setting; keep it
+# local to each deployer rather than hardcoding a bucket name in git.
+functions/.env
+functions/.env.*
+!functions/.env.example
