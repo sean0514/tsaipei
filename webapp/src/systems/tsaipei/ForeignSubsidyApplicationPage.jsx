@@ -67,6 +67,7 @@ export default function ForeignSubsidyApplicationPage() {
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
   const [backfilling, setBackfilling] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_foreignSubsidyApplications', CSV_FIELDS, { entityLabel: '國外補助申請', requiredKeys: ['purpose'], canEdit: canEditPage });
 
   // 補同步：這次修正之前，只有狀態「剛好轉成已核准」那個瞬間才會同步到
@@ -111,6 +112,10 @@ export default function ForeignSubsidyApplicationPage() {
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.remittanceDate || '').localeCompare(a.remittanceDate || '')));
 
+  // 結案/封存後從上面分類清單隱藏，但不是完全查不到——「顯示已結案/封存」
+  // 收合區塊點開才會渲染，不用下載完整資料 CSV 再自己篩選。
+  const closedList = rows.filter((r) => r.confirmedClosed || r.archived).sort((a, b) => (b.remittanceDate || '').localeCompare(a.remittanceDate || ''));
+
   // 複製成新的一筆待審核申請，不帶 id/status，其他欄位（申請人、學生、
   // 匯款日期、金額…）都照抄，存檔時 handleSave 的 add() 會自動補上
   // status: '待審核'，方便同一位學生每月申請時不用重新選一次。
@@ -146,7 +151,10 @@ export default function ForeignSubsidyApplicationPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有國外補助申請紀錄，請先下載備份再匯入。「下載此月份資料」依「匯款日期」篩選。「補同步國外付款紀錄」會把所有已核准/已匯款的申請重新同步一次到國外付款紀錄(修正舊版只在剛核准那一刻同步、之後轉已匯款就不再同步的問題)。</p>}
-      <input placeholder="搜尋申請人、學生、學生來源或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <input placeholder="搜尋申請人、學生、學生來源或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <button onClick={() => setShowClosed(!showClosed)}>{showClosed ? '隱藏' : '顯示'}已結案／已封存（{closedList.length}）</button>
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {STATUSES.map((status) => (
@@ -204,6 +212,35 @@ export default function ForeignSubsidyApplicationPage() {
               </table></div>
             </div>
           ))}
+        </div>
+      )}
+      {!loading && showClosed && (
+        <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
+          <h3 style={{ marginTop: 0 }}>已結案／已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{closedList.length} 筆</span></h3>
+          <div className="table-wrap"><table>
+            <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>實習單位</th><th>匯款日期</th><th>金額</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {closedList.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.applicant || '—'}</td>
+                  <td>{r.sourceSupplier || '—'}</td>
+                  <td>{studentName(r.studentId) || '—'}</td>
+                  <td>{companyName(r) || '—'}</td>
+                  <td>{r.remittanceDate || '—'}</td>
+                  <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
+                  <td>{r.archived ? '已封存' : '已結案'}</td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      {r.confirmedClosed && <button onClick={() => update(r.id, { confirmedClosed: false })}>取消結案</button>}
+                      {r.archived && canArchive() && <button onClick={() => update(r.id, { archived: false })}>取消封存</button>}
+                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {closedList.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
         </div>
       )}
       {editing && <ForeignSubsidyFormModal initial={editing} students={students} users={users} positions={positions} matches={matches} onCancel={() => setEditing(null)} onSave={handleSave} />}
