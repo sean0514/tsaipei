@@ -61,6 +61,7 @@ export default function DailyExpenseApplicationPage() {
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState('全部');
   const [month, setMonth] = useState(currentMonthStr());
+  const [showClosed, setShowClosed] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dailyExpenseApplications', CSV_FIELDS, { entityLabel: '日常支出申請', requiredKeys: ['purpose'], canEdit: canEditPage });
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || ''; };
@@ -81,6 +82,10 @@ export default function DailyExpenseApplicationPage() {
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+
+  // 結案/封存後從上面分類清單隱藏，但不是完全查不到——「顯示已結案/封存」
+  // 收合區塊點開才會渲染，不用下載完整資料 CSV 再自己篩選。
+  const closedList = rows.filter((r) => r.confirmedClosed || r.archived).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   async function handleSave(data) {
     try {
@@ -122,6 +127,7 @@ export default function DailyExpenseApplicationPage() {
           <option value="全部">全部類型</option>
           {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
+        <button onClick={() => setShowClosed(!showClosed)}>{showClosed ? '隱藏' : '顯示'}已結案／已封存（{closedList.length}）</button>
       </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -180,6 +186,37 @@ export default function DailyExpenseApplicationPage() {
               </table></div>
             </div>
           ))}
+        </div>
+      )}
+      {!loading && showClosed && (
+        <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
+          <h3 style={{ marginTop: 0 }}>已結案／已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{closedList.length} 筆</span></h3>
+          <div className="table-wrap"><table>
+            <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {closedList.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.type || '支出'}</td>
+                  <td>{r.applicant || '—'}</td>
+                  <td>{r.billToCompany || '—'}</td>
+                  <td>{studentName(r.studentId) || '—'}</td>
+                  <td>{r.item || '—'}</td>
+                  <td>{r.date || '—'}</td>
+                  <td>{r.purpose || '—'}</td>
+                  <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
+                  <td>{r.archived ? '已封存' : '已結案'}</td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      {r.confirmedClosed && canModify(r) && <button onClick={() => update(r.id, { confirmedClosed: false })}>取消結案</button>}
+                      {r.archived && canArchive() && <button onClick={() => update(r.id, { archived: false })}>取消封存</button>}
+                      {canModify(r) && <button className="danger" onClick={() => remove(r.id)}>刪除</button>}
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {closedList.length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
         </div>
       )}
       {editing && <DailyExpenseFormModal initial={editing} users={users} positions={positions} students={students} matches={matches} dormitories={dormitories} onCancel={() => setEditing(null)} onSave={handleSave} />}

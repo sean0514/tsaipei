@@ -8,9 +8,9 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 const CURRENCIES = ['台幣', '美金'];
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
-// 已匯款之後的「封存」只開放財務人員（跟系統管理員）能按，跟日常支出
-// 申請／國外補助申請／郵資費用紀錄同一套規則。
-const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
+// 已匯款之後的「封存」只開放會計/財務人員（跟系統管理員）能按，其他角色
+// 已匯款的紀錄只能按「刪除」，不能封存。
+const ARCHIVE_ROLES = ['系統管理員', '會計人員', '財務人員'];
 
 const FIELDS = [
   { key: 'paymentDate', label: '付款時間', type: 'date' },

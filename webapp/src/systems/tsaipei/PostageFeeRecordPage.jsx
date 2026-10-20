@@ -37,6 +37,7 @@ export default function PostageFeeRecordPage() {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const [month, setMonth] = useState(currentMonthStr());
+  const [showClosed, setShowClosed] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_postageFeeRecords', CSV_FIELDS, { entityLabel: '郵資費用紀錄', requiredKeys: ['trackingNumber'], canEdit: canEditPage });
 
   function handleDownloadMonth() {
@@ -53,6 +54,10 @@ export default function PostageFeeRecordPage() {
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.shipDate || '').localeCompare(a.shipDate || '')));
+
+  // 結案/封存後從上面分類清單隱藏，但不是完全查不到——「顯示已結案/封存」
+  // 收合區塊點開才會渲染，不用下載完整資料 CSV 再自己篩選。
+  const closedList = rows.filter((r) => r.confirmedClosed || r.archived).sort((a, b) => (b.shipDate || '').localeCompare(a.shipDate || ''));
 
   async function handleSave(data) {
     if (data.id) {
@@ -79,7 +84,10 @@ export default function PostageFeeRecordPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有郵資費用紀錄，請先下載備份再匯入。「下載此月份資料」依「寄件日期」篩選。</p>}
-      <input placeholder="搜尋寄件編號、寄件人、收件人或文件內容" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 280 }} />
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <input placeholder="搜尋寄件編號、寄件人、收件人或文件內容" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 280 }} />
+        <button onClick={() => setShowClosed(!showClosed)}>{showClosed ? '隱藏' : '顯示'}已結案／已封存（{closedList.length}）</button>
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {STATUSES.map((status) => (
@@ -137,6 +145,38 @@ export default function PostageFeeRecordPage() {
               </table></div>
             </div>
           ))}
+        </div>
+      )}
+      {!loading && showClosed && (
+        <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
+          <h3 style={{ marginTop: 0 }}>已結案／已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{closedList.length} 筆</span></h3>
+          <div className="table-wrap"><table>
+            <thead><tr>
+              <th>編號</th><th>寄件日期</th><th>寄件編號</th><th>寄件人</th><th>收件人</th><th>文件內容</th><th>金額</th><th>狀態</th>{canEditPage && <th></th>}
+            </tr></thead>
+            <tbody>
+              {closedList.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.serialNumber || '—'}</td>
+                  <td>{r.shipDate || '—'}</td>
+                  <td>{r.trackingNumber || '—'}</td>
+                  <td>{r.senderName || '—'}</td>
+                  <td>{r.recipientName || '—'}</td>
+                  <td>{r.documentContent || '—'}</td>
+                  <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                  <td>{r.archived ? '已封存' : '已結案'}</td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      {r.confirmedClosed && <button onClick={() => update(r.id, { confirmedClosed: false })}>取消結案</button>}
+                      {r.archived && canArchive() && <button onClick={() => update(r.id, { archived: false })}>取消封存</button>}
+                      <button className="danger" onClick={() => remove(r.id)}>刪除</button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {closedList.length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
         </div>
       )}
       {editing && <PostageFeeFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} />}
