@@ -16,6 +16,8 @@
 //
 // Usage (from webapp/):
 //   node scripts/backfill-vietnam-school-dept.mjs <path-to-service-account.json> [--dry-run]
+// or, with the service account JSON in an env var instead of a file:
+//   FIREBASE_SERVICE_ACCOUNT_JSON='{...}' node scripts/backfill-vietnam-school-dept.mjs [--dry-run]
 //
 // Not part of the deployed app — safe to delete this file once the backfill
 // is done.
@@ -24,14 +26,19 @@ import { readFileSync } from 'node:fs';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-const [, , serviceAccountPath, flag] = process.argv;
-if (!serviceAccountPath) {
+const [, , arg1, arg2] = process.argv;
+const serviceAccountPath = arg1 === '--dry-run' ? null : arg1;
+const dryRun = arg1 === '--dry-run' || arg2 === '--dry-run';
+
+const serviceAccountRaw = serviceAccountPath
+  ? readFileSync(serviceAccountPath, 'utf8')
+  : process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+if (!serviceAccountRaw) {
   console.error('Usage: node scripts/backfill-vietnam-school-dept.mjs <service-account.json> [--dry-run]');
+  console.error('   or: FIREBASE_SERVICE_ACCOUNT_JSON=\'{...}\' node scripts/backfill-vietnam-school-dept.mjs [--dry-run]');
   process.exit(1);
 }
-const dryRun = flag === '--dry-run';
-
-const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+const serviceAccount = JSON.parse(serviceAccountRaw);
 initializeApp({ credential: cert(serviceAccount) });
 const db = getFirestore();
 
