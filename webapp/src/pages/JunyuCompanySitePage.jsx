@@ -7,9 +7,9 @@ import { useState } from 'react';
 // 改文案都只要改這個物件，不用動版面結構。
 // 聯絡方式（地址/電話/Email）目前是「待補」佔位文字，等公司提供正式資料
 // 後再替換成實際內容。
-// 圖片部分：手上沒有公司實際的辦公室/團隊/學生照片，為了不誤導瀏覽者
-// （不能拿不是真的的人像/場景照片裝成公司實景），這裡全部改用原創的
-// 線條圖示（SVG）跟裝飾性波浪分隔線，走簡潔專業風格，不是真實照片。
+// 圖片部分：裝飾性的服務圖示/Hero 插圖/波浪分隔線都是原創 SVG，不是照片；
+// 「學生動態」區塊用的是公司提供的實際學生出入境/接送照片（存在
+// public/about-photos/，公開靜態檔案，沒有登入也看得到）。
 const LANGS = [
   { key: 'zh', label: '中文' },
   { key: 'en', label: 'English' },
@@ -73,11 +73,12 @@ function InvoiceIcon() {
     </svg>
   );
 }
-function PlaneIcon(props) {
+// 實心飛機圖示（側視角機身＋機翼），比原本的紙飛機圖示更接近真實飛機造型，
+// 填色不描邊，size 可以用 width/height 傳大一點。
+function PlaneIcon({ width = 28, height = 28, style, ...rest }) {
   return (
-    <svg {...ICON_PROPS} {...props}>
-      <path d="M2 16l20-7-20-7 3 7-3 7z" />
-      <path d="M5 9h17" />
+    <svg width={width} height={height} viewBox="0 0 24 24" fill="currentColor" style={style} {...rest}>
+      <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2.5 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
     </svg>
   );
 }
@@ -110,8 +111,8 @@ function HeroIllustration() {
       <path d="M90 95 L230 95" stroke="var(--accent, #EA82A3)" strokeWidth="2" strokeDasharray="6 6" />
       <circle cx="90" cy="95" r="6" fill="var(--accent, #EA82A3)" />
       <circle cx="230" cy="95" r="6" fill="var(--accent, #EA82A3)" />
-      <g transform="translate(148,80)" stroke="var(--accent, #EA82A3)" strokeWidth="1.6" fill="var(--accent, #EA82A3)" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M0 15L24 7 0 -1l3 8-3 8z" />
+      <g transform="translate(138,66) rotate(90 12 12)" fill="var(--accent, #EA82A3)">
+        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2.5 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
       </g>
       <g transform="translate(78,58)" stroke="var(--accent, #EA82A3)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="5" />
@@ -232,6 +233,29 @@ const CONTENT = {
       },
     },
   ],
+  galleryTitle: { zh: '學生動態', en: 'Student Moments', vi: 'Khoảnh khắc sinh viên' },
+  gallery: [
+    {
+      src: '/about-photos/departure-jakarta.jpg',
+      caption: { zh: '印尼學生從雅加達機場出發前往台灣', en: 'Indonesian students departing from Jakarta for Taiwan', vi: 'Sinh viên Indonesia khởi hành từ sân bay Jakarta đến Đài Loan' },
+    },
+    {
+      src: '/about-photos/arrival-taiwan.jpg',
+      caption: { zh: '學生順利抵達台灣，行李由專人接機協助', en: 'Students arriving safely in Taiwan with airport pickup support', vi: 'Sinh viên đến Đài Loan an toàn với sự hỗ trợ đón sân bay' },
+    },
+    {
+      src: '/about-photos/hotel-taipei.jpg',
+      caption: { zh: '抵台後安排入住，展開在台生活', en: 'Housing arranged upon arrival, starting life in Taiwan', vi: 'Sắp xếp chỗ ở khi đến nơi, bắt đầu cuộc sống tại Đài Loan' },
+    },
+    {
+      src: '/about-photos/departure-taiwan.jpg',
+      caption: { zh: '實習圓滿結束，準備返國', en: 'Internship completed, ready to return home', vi: 'Hoàn thành thực tập, sẵn sàng về nước' },
+    },
+    {
+      src: '/about-photos/meal-taiwan.jpg',
+      caption: { zh: '同學們聚餐，在台生活不孤單', en: 'Students sharing a meal together, never alone in Taiwan', vi: 'Các bạn sinh viên cùng ăn uống, không đơn độc tại Đài Loan' },
+    },
+  ],
   contactTitle: { zh: '聯絡我們', en: 'Contact Us', vi: 'Liên hệ chúng tôi' },
   contactIntro: {
     zh: '如有合作或合作學校洽詢需求，歡迎與我們聯繫。',
@@ -291,8 +315,8 @@ export default function JunyuCompanySitePage() {
           background: 'linear-gradient(180deg, var(--accent-soft, #FDE7EE) 0%, #FFF9FB 100%)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--accent, #EA82A3)', marginBottom: 4 }}>
-          <PlaneIcon width={22} height={22} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--accent, #EA82A3)', marginBottom: 8 }}>
+          <PlaneIcon width={48} height={48} />
         </div>
         <h1 style={{ fontSize: 32, margin: '0 0 8px', fontWeight: 800 }}>{c('heroSub')}</h1>
         <p style={{ fontSize: 17, color: '#6b5a60', maxWidth: 560, margin: '0 auto' }}>{c('tagline')}</p>
@@ -354,6 +378,18 @@ export default function JunyuCompanySitePage() {
         </div>
       </section>
       <WaveDivider fill="#FFF9FB" />
+
+      <section style={{ maxWidth: 1040, margin: '0 auto', padding: '16px 24px 48px' }}>
+        <h2 style={{ fontSize: 24, marginBottom: 20, textAlign: 'center' }}>{c('galleryTitle')}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          {CONTENT.gallery.map((g, i) => (
+            <figure key={i} className="card" style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
+              <img src={g.src} alt={g.caption[lang]} style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} loading="lazy" />
+              <figcaption style={{ padding: 12, fontSize: 13, color: '#6b5a60', lineHeight: 1.5 }}>{g.caption[lang]}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
 
       <section style={{ maxWidth: 560, margin: '0 auto', padding: '16px 24px 48px', textAlign: 'center' }}>
         <h2 style={{ fontSize: 24, marginBottom: 8 }}>{c('contactTitle')}</h2>
