@@ -73,6 +73,22 @@ function InvoiceIcon() {
     </svg>
   );
 }
+function PlaneIcon(props) {
+  return (
+    <svg {...ICON_PROPS} {...props}>
+      <path d="M2 16l20-7-20-7 3 7-3 7z" />
+      <path d="M5 9h17" />
+    </svg>
+  );
+}
+function GlobeIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" />
+    </svg>
+  );
+}
 
 // 裝飾性波浪分隔線，區塊之間用來當視覺過場，不是照片，純 SVG 路徑。
 function WaveDivider({ fill = '#FFF9FB' }) {
@@ -83,8 +99,9 @@ function WaveDivider({ fill = '#FFF9FB' }) {
   );
 }
 
-// Hero 裝飾圖：三個重疊圓圈＋虛線連接線＋小定位標記，意象是「連結國際學生
-// 與台灣企業」，純幾何線條，不是真實場景或人像。
+// Hero 裝飾圖：兩個重疊圓圈代表「東南亞」與「台灣」＋虛線飛行路徑＋飛機
+// 圖示，意象是「連結國際學生與台灣企業」，純幾何線條，不是真實場景或
+// 人像。
 function HeroIllustration() {
   return (
     <svg viewBox="0 0 320 180" style={{ width: '100%', maxWidth: 360, height: 'auto', margin: '0 auto', display: 'block' }}>
@@ -93,6 +110,9 @@ function HeroIllustration() {
       <path d="M90 95 L230 95" stroke="var(--accent, #EA82A3)" strokeWidth="2" strokeDasharray="6 6" />
       <circle cx="90" cy="95" r="6" fill="var(--accent, #EA82A3)" />
       <circle cx="230" cy="95" r="6" fill="var(--accent, #EA82A3)" />
+      <g transform="translate(148,80)" stroke="var(--accent, #EA82A3)" strokeWidth="1.6" fill="var(--accent, #EA82A3)" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M0 15L24 7 0 -1l3 8-3 8z" />
+      </g>
       <g transform="translate(78,58)" stroke="var(--accent, #EA82A3)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="5" />
         <path d="M4 26c0-6 4-10 8-10s8 4 8 10" />
@@ -121,6 +141,13 @@ const CONTENT = {
     en: 'Junyu Co., Ltd. has long helped international students intern in Taiwan — from matching positions and handling visa paperwork, to arranging housing and transportation, and caring for students throughout their stay — offering one-stop service so students and partner companies can both have peace of mind.',
     vi: 'Công ty TNHH Junyu từ lâu đã hỗ trợ sinh viên quốc tế thực tập tại Đài Loan — từ ghép đôi vị trí thực tập, xử lý hồ sơ visa, sắp xếp chỗ ở và đưa đón, đến quan tâm đời sống sinh viên trong suốt thời gian ở Đài Loan — cung cấp dịch vụ trọn gói để sinh viên và doanh nghiệp đối tác đều an tâm.',
   },
+  countriesTitle: { zh: '學生來源地區', en: 'Student Source Countries', vi: 'Khu vực nguồn sinh viên' },
+  countries: [
+    { flag: '🇻🇳', name: { zh: '越南', en: 'Vietnam', vi: 'Việt Nam' } },
+    { flag: '🇮🇩', name: { zh: '印尼', en: 'Indonesia', vi: 'Indonesia' } },
+    { flag: '🇵🇭', name: { zh: '菲律賓', en: 'Philippines', vi: 'Philippines' } },
+    { flag: '🇹🇭', name: { zh: '泰國', en: 'Thailand', vi: 'Thái Lan' } },
+  ],
   servicesTitle: { zh: '服務內容', en: 'Our Services', vi: 'Dịch vụ của chúng tôi' },
   services: [
     {
@@ -258,6 +285,9 @@ export default function JunyuCompanySitePage() {
           background: 'linear-gradient(180deg, var(--accent-soft, #FDE7EE) 0%, #FFF9FB 100%)',
         }}
       >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--accent, #EA82A3)', marginBottom: 4 }}>
+          <PlaneIcon width={22} height={22} />
+        </div>
         <h1 style={{ fontSize: 32, margin: '0 0 8px', fontWeight: 800 }}>{c('heroSub')}</h1>
         <p style={{ fontSize: 17, color: '#6b5a60', maxWidth: 560, margin: '0 auto' }}>{c('tagline')}</p>
         <div style={{ marginTop: 24 }}><HeroIllustration /></div>
@@ -267,6 +297,20 @@ export default function JunyuCompanySitePage() {
       <section style={{ maxWidth: 820, margin: '0 auto', padding: '16px 24px 48px' }}>
         <h2 style={{ fontSize: 24, marginBottom: 12 }}>{c('aboutTitle')}</h2>
         <p style={{ fontSize: 16, lineHeight: 1.8, color: '#4a4044' }}>{c('aboutBody')}</p>
+      </section>
+
+      <section style={{ maxWidth: 820, margin: '0 auto', padding: '0 24px 48px', textAlign: 'center' }}>
+        <h2 style={{ fontSize: 20, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ color: 'var(--accent, #EA82A3)' }}><GlobeIcon /></span>{c('countriesTitle')}
+        </h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16 }}>
+          {CONTENT.countries.map((ct, i) => (
+            <div key={i} className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, minWidth: 140 }}>
+              <span style={{ fontSize: 28 }}>{ct.flag}</span>
+              <span style={{ fontWeight: 600 }}>{ct.name[lang]}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 24px 48px' }}>
