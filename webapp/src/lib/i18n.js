@@ -885,4 +885,7 @@ const VI = {
 
   // 學生資料建立時間欄位（StudentsPage.jsx）
   '建立時間': 'Thời gian tạo',
+
+  // 學生尚未安排建立日期欄位（UnmatchedStudentsPage.jsx）
+  '建立日期': 'Ngày tạo',
 };
