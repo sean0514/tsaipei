@@ -251,6 +251,10 @@ const CONTENT = {
       src: '/about-photos/departure-taiwan.jpg',
       caption: { zh: '實習圓滿結束，準備返國', en: 'Internship completed, ready to return home', vi: 'Hoàn thành thực tập, sẵn sàng về nước' },
     },
+    {
+      src: '/about-photos/meal-taiwan.jpg',
+      caption: { zh: '同學們聚餐，在台生活不孤單', en: 'Students sharing a meal together, never alone in Taiwan', vi: 'Các bạn sinh viên cùng ăn uống, không đơn độc tại Đài Loan' },
+    },
   ],
   contactTitle: { zh: '聯絡我們', en: 'Contact Us', vi: 'Liên hệ chúng tôi' },
   contactIntro: {
