@@ -882,4 +882,7 @@ const VI = {
   '製造業': 'Ngành sản xuất',
   '服務業': 'Ngành dịch vụ',
   '物流業': 'Ngành logistics',
+
+  // 學生資料建立時間欄位（StudentsPage.jsx）
+  '建立時間': 'Thời gian tạo',
 };
