@@ -20,6 +20,14 @@ function parseList(json) {
   return [json];
 }
 
+// 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
+// 不是程式漏存。
+function formatCreatedAt(s) {
+  const d = s.createdAt?.toDate?.();
+  if (!d) return '—';
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 function certSummary(s, lang) {
   if (s.hasCert === '有' || s.hasCert === '已考試未領取證照') {
     return `${s.hasCert}${s.certType ? `（${s.certType} ${s.certLevel || ''}）` : ''}`.trim();
@@ -57,12 +65,12 @@ export default function UnmatchedStudentsPage() {
   function handleDownload() {
     const rows = filtered.map((s) => ({
       name: studentFullLabel(s), gender: s.gender || '', nationality: s.nationality || '', hasCert: certSummary(s, lang), school: s.school || '', department: s.department || '',
-      desiredIndustries: parseList(s.desiredIndustries).join('、'), status: s.status || '', expectedGraduation: s.expectedGraduation || '',
+      desiredIndustries: parseList(s.desiredIndustries).join('、'), status: s.status || '', expectedGraduation: s.expectedGraduation || '', createdAt: formatCreatedAt(s),
     }));
     exportEntityCSV(rows, [
       { key: 'name', label: '學生姓名' }, { key: 'gender', label: '性別' }, { key: 'nationality', label: '國籍' }, { key: 'hasCert', label: '是否有華語證照' },
       { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' }, { key: 'desiredIndustries', label: '期望產業別' },
-      { key: 'status', label: '狀態' }, { key: 'expectedGraduation', label: '預計畢業時間' },
+      { key: 'status', label: '狀態' }, { key: 'expectedGraduation', label: '預計畢業時間' }, { key: 'createdAt', label: '建立日期' },
     ], '學生尚未安排');
   }
 
@@ -88,7 +96,7 @@ export default function UnmatchedStudentsPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} {t('位學生', lang)}</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('預計畢業時間', lang)}</th></tr></thead>
+                  <thead><tr><th>{t('學生姓名', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('科系', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('預計畢業時間', lang)}</th><th>{t('建立日期', lang)}</th></tr></thead>
                   <tbody>
                     {groups[key].map((s) => (
                       <tr key={s.id}>
@@ -100,6 +108,7 @@ export default function UnmatchedStudentsPage() {
                         <td>{parseList(s.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
                         <td>{t(s.status, lang) || '—'}</td>
                         <td>{s.expectedGraduation || '—'}</td>
+                        <td>{formatCreatedAt(s)}</td>
                       </tr>
                     ))}
                   </tbody>

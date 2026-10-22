@@ -12,6 +12,14 @@ function studentDepartments(s) {
   return [s.department1, s.department2].filter(Boolean).join(' / ');
 }
 
+// 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
+// 不是程式漏存。
+function formatCreatedAt(s) {
+  const d = s.createdAt?.toDate?.();
+  if (!d) return '—';
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 // 期望產業別存成 JSON 字串陣列(跟 StudentsPage.jsx 同一套存法)，舊資料如果
 // 不是合法 JSON 就當作單一文字欄位處理，不會整欄消失。
 function parseList(json) {
@@ -71,7 +79,7 @@ export default function UnmatchedStudentsPage() {
         name: studentFullLabel(s), gender: s.gender || '', nationality: s.nationality || '', sourceSupplier: s.sourceSupplier || '',
         school: s.school || '', department: studentDepartments(s), desiredIndustries: parseList(s.desiredIndustries).join('、'),
         status: s.status || '', startDate: s.startDate || '', phone: s.phone || '',
-        venue: m?.venue || '', matchDate: m?.matchDate || '', program: m?.program || '', matchNotes: m?.notes || '',
+        venue: m?.venue || '', matchDate: m?.matchDate || '', program: m?.program || '', matchNotes: m?.notes || '', createdAt: formatCreatedAt(s),
       };
     });
     exportEntityCSV(rows, [
@@ -79,6 +87,7 @@ export default function UnmatchedStudentsPage() {
       { key: 'school', label: '就讀學校' }, { key: 'department', label: '科系' }, { key: 'desiredIndustries', label: '期望產業別' },
       { key: 'status', label: '狀態' }, { key: 'startDate', label: '實習開始日' }, { key: 'phone', label: '電話' },
       { key: 'venue', label: '實習場域(媒合中)' }, { key: 'matchDate', label: '媒合日期' }, { key: 'program', label: '來台方案' }, { key: 'matchNotes', label: '媒合備註' },
+      { key: 'createdAt', label: '建立日期' },
     ], '學生尚未安排');
   }
 
@@ -104,7 +113,7 @@ export default function UnmatchedStudentsPage() {
               <div className="card" key={key}>
                 <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th></tr></thead>
+                  <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th><th>建立日期</th></tr></thead>
                   <tbody>
                     {groups[key].map((s) => {
                       const m = matchingRecordOf(s.id);
@@ -123,6 +132,7 @@ export default function UnmatchedStudentsPage() {
                           <td>{m?.matchDate || '—'}</td>
                           <td>{m?.program || '—'}</td>
                           <td>{m?.notes || '—'}</td>
+                          <td>{formatCreatedAt(s)}</td>
                         </tr>
                       );
                     })}
