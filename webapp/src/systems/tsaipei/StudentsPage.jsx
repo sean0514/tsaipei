@@ -64,6 +64,14 @@ const FIELDS = [
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
 
+// 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
+// 不是程式漏存。
+function formatCreatedAt(r) {
+  const d = r.createdAt?.toDate?.();
+  if (!d) return '—';
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 // 系統來源：純粹依 syncedFromVietnamId 這個既有欄位（元凱/越南系統同步
 // 新增學生時，見 lib/vietnamTsaipeiStudentSync.js 的 createSyncedTsaipeiStudent
 // 自動帶上）自動判別，不是另外存一個新欄位、也不能手動編輯——跟
@@ -178,7 +186,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th>
+                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th><th>建立時間</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -202,6 +210,7 @@ export default function StudentsPage() {
                     <td>{parseList(r.desiredIndustries).join('、') || '—'}</td>
                     <td><Tag value={r.status} map={STUDENT_TAG} /></td>
                     <td className="muted">{systemSourceLabel(r)}</td>
+                    <td className="muted">{formatCreatedAt(r)}</td>
                     {canEditPage && (
                       <td>
                         <div className="row-actions">
@@ -214,7 +223,7 @@ export default function StudentsPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={11} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}

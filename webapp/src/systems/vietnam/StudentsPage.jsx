@@ -19,6 +19,14 @@ const CERT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
 const DESIRED_INDUSTRY_PRESETS = ['餐飲業', '旅館業', '製造業', '服務業', '物流業'];
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
+// 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
+// 不是程式漏存。
+function formatCreatedAt(r) {
+  const d = r.createdAt?.toDate?.();
+  if (!d) return '—';
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 // 期望產業別存成 JSON 字串陣列（跟 PositionsPage.jsx 的 otherBenefits 同一套
 // 存法），可複選預設的五個產業，也可以自行新增項目；不是合法 JSON（例如
 // 舊資料是單一文字）就當成一個項目處理。
@@ -209,7 +217,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th>
+                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -228,6 +236,7 @@ export default function StudentsPage() {
                   <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
                   <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
                   <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
+                  <td className="muted">{formatCreatedAt(r)}</td>
                   {canEditPage && (
                     <td>
                       <div className="row-actions">
@@ -239,7 +248,7 @@ export default function StudentsPage() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{t('沒有資料', lang)}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={8} className="muted">{t('沒有資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}
