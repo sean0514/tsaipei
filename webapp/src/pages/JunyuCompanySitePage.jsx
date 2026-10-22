@@ -241,12 +241,18 @@ const CONTENT = {
   addressLabel: { zh: '地址', en: 'Address', vi: 'Địa chỉ' },
   phoneLabel: { zh: '電話', en: 'Phone', vi: 'Điện thoại' },
   emailLabel: { zh: 'Email', en: 'Email', vi: 'Email' },
-  pending: { zh: '待補', en: 'Coming soon', vi: 'Sắp cập nhật' },
   footer: {
     zh: '鈞羽有限公司 版權所有',
     en: 'Junyu Co., Ltd. All rights reserved.',
     vi: 'Công ty TNHH Junyu. Bảo lưu mọi quyền.',
   },
+};
+
+// 實際聯絡資訊（地址/電話/Email 不分語言，同一組資料），跟 CONTENT 分開放。
+const CONTACT_INFO = {
+  address: '新北市新莊區台灣大道三段7號13樓之7',
+  phone: '02-66373899',
+  email: 'sean0514@gmail.com',
 };
 
 export default function JunyuCompanySitePage() {
@@ -353,9 +359,9 @@ export default function JunyuCompanySitePage() {
         <h2 style={{ fontSize: 24, marginBottom: 8 }}>{c('contactTitle')}</h2>
         <p style={{ fontSize: 15, color: '#6b5a60', marginBottom: 24 }}>{c('contactIntro')}</p>
         <div className="card" style={{ textAlign: 'left', padding: 20 }}>
-          <div style={{ marginBottom: 10 }}><strong>{c('addressLabel')}：</strong>{c('pending')}</div>
-          <div style={{ marginBottom: 10 }}><strong>{c('phoneLabel')}：</strong>{c('pending')}</div>
-          <div><strong>{c('emailLabel')}：</strong>{c('pending')}</div>
+          <div style={{ marginBottom: 10 }}><strong>{c('addressLabel')}：</strong>{CONTACT_INFO.address}</div>
+          <div style={{ marginBottom: 10 }}><strong>{c('phoneLabel')}：</strong><a href={`tel:${CONTACT_INFO.phone}`}>{CONTACT_INFO.phone}</a></div>
+          <div><strong>{c('emailLabel')}：</strong><a href={`mailto:${CONTACT_INFO.email}`}>{CONTACT_INFO.email}</a></div>
         </div>
       </section>
 
