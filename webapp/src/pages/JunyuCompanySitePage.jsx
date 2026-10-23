@@ -288,7 +288,7 @@ export default function JunyuCompanySitePage() {
   // 不影響其他頁面的標題。
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = '鈞羽有限公司 Junyu Co., Ltd.';
+    document.title = '鈞羽有限公司';
     return () => { document.title = prevTitle; };
   }, []);
 
