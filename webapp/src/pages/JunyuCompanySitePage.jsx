@@ -384,7 +384,9 @@ export default function JunyuCompanySitePage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
           {CONTENT.gallery.map((g, i) => (
             <figure key={i} className="card" style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
-              <img src={g.src} alt={g.caption[lang]} style={{ width: '100%', height: 220, objectFit: 'cover', objectPosition: 'top', display: 'block' }} loading="lazy" />
+              <div style={{ width: '100%', height: 260, background: '#f3e3e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={g.src} alt={g.caption[lang]} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} loading="lazy" />
+              </div>
               <figcaption style={{ padding: 12, fontSize: 13, color: '#6b5a60', lineHeight: 1.5 }}>{g.caption[lang]}</figcaption>
             </figure>
           ))}
