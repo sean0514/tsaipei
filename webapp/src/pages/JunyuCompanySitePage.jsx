@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // 鈞羽有限公司對外形象網站（公開頁面，/about，不需要登入），跟
 // VietnamResumeApplyPage.jsx 一樣是獨立的公開路由，但這裡是純介紹頁面，
@@ -282,6 +282,15 @@ const CONTACT_INFO = {
 export default function JunyuCompanySitePage() {
   const [lang, setLang] = useState('zh');
   const c = (field) => CONTENT[field][lang];
+
+  // 瀏覽器分頁標題：index.html 整站預設是「系統入口」（給登入後的內部管理
+  // 系統用），這個公開形象網站換成公司名稱比較合適，掛載時改、卸載時還原，
+  // 不影響其他頁面的標題。
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = '鈞羽有限公司 Junyu Co., Ltd.';
+    return () => { document.title = prevTitle; };
+  }, []);
 
   return (
     <div className="theme-tsaipei" style={{ minHeight: '100vh', background: '#FFF9FB', color: '#2b2b2b' }}>
