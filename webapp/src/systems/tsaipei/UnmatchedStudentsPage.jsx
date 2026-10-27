@@ -12,6 +12,8 @@ function studentDepartments(s) {
   return [s.department1, s.department2].filter(Boolean).join(' / ');
 }
 
+const NO_INDUSTRY_KEY = '未填期望產業別';
+
 // 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
 // 不是程式漏存。
 function formatCreatedAt(s) {
@@ -64,13 +66,27 @@ export default function UnmatchedStudentsPage() {
     .filter((s) => !searchQuery || `${studentFullLabel(s)} ${s.school || ''} ${studentDepartments(s)} ${s.nationality || ''} ${s.sourceSupplier || ''}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => studentFullLabel(a).localeCompare(studentFullLabel(b)));
 
-  // 用國籍分類顯示，方便業務一眼看出哪個國籍還有多少學生沒安排。
+  // 先用國籍分類，方便業務一眼看出哪個國籍還有多少學生沒安排；同一個國籍
+  // 底下再依期望產業別細分（學生可複選多個產業別，就會同時出現在對應的
+  // 每個子分類），沒填期望產業別的統一歸到「未填期望產業別」這組。
   const groups = {};
   filtered.forEach((s) => {
-    const key = s.nationality || '未填國籍';
-    (groups[key] ||= []).push(s);
+    const natKey = s.nationality || '未填國籍';
+    (groups[natKey] ||= { students: [], byIndustry: {} });
+    groups[natKey].students.push(s);
+    const industries = parseList(s.desiredIndustries);
+    (industries.length ? industries : [NO_INDUSTRY_KEY]).forEach((ind) => {
+      (groups[natKey].byIndustry[ind] ||= []).push(s);
+    });
   });
   const groupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+  function sortedIndustryKeys(byIndustry) {
+    return Object.keys(byIndustry).sort((a, b) => {
+      if (a === NO_INDUSTRY_KEY) return 1;
+      if (b === NO_INDUSTRY_KEY) return -1;
+      return a.localeCompare(b);
+    });
+  }
 
   function handleDownload() {
     const rows = filtered.map((s) => {
@@ -108,36 +124,43 @@ export default function UnmatchedStudentsPage() {
           <p className="muted">{searchQuery ? '沒有符合搜尋條件的學生。' : '目前所有學生都已經安排媒合了。'}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <p className="muted" style={{ margin: 0 }}>共 {filtered.length} 位學生尚未安排，依國籍分類如下</p>
+            <p className="muted" style={{ margin: 0 }}>共 {filtered.length} 位學生尚未安排，依國籍、期望產業別分類如下</p>
             {groupKeys.map((key) => (
               <div className="card" key={key}>
-                <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
-                <div className="table-wrap"><table>
-                  <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th><th>建立日期</th></tr></thead>
-                  <tbody>
-                    {groups[key].map((s) => {
-                      const m = matchingRecordOf(s.id);
-                      return (
-                        <tr key={s.id}>
-                          <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
-                          <td>{s.gender || '—'}</td>
-                          <td>{s.sourceSupplier || '—'}</td>
-                          <td>{s.school || '—'}</td>
-                          <td>{studentDepartments(s) || '—'}</td>
-                          <td>{parseList(s.desiredIndustries).join('、') || '—'}</td>
-                          <td>{s.status || '—'}</td>
-                          <td>{s.startDate || '—'}</td>
-                          <td>{s.phone || '—'}</td>
-                          <td>{m?.venue || '—'}</td>
-                          <td>{m?.matchDate || '—'}</td>
-                          <td>{m?.program || '—'}</td>
-                          <td>{m?.notes || '—'}</td>
-                          <td>{formatCreatedAt(s)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table></div>
+                <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].students.length} 位學生</span></h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {sortedIndustryKeys(groups[key].byIndustry).map((ind) => (
+                    <div key={ind}>
+                      <h4 style={{ margin: '0 0 8px' }}>{ind} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>{groups[key].byIndustry[ind].length} 位學生</span></h4>
+                      <div className="table-wrap"><table>
+                        <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th><th>建立日期</th></tr></thead>
+                        <tbody>
+                          {groups[key].byIndustry[ind].map((s) => {
+                            const m = matchingRecordOf(s.id);
+                            return (
+                              <tr key={s.id}>
+                                <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
+                                <td>{s.gender || '—'}</td>
+                                <td>{s.sourceSupplier || '—'}</td>
+                                <td>{s.school || '—'}</td>
+                                <td>{studentDepartments(s) || '—'}</td>
+                                <td>{parseList(s.desiredIndustries).join('、') || '—'}</td>
+                                <td>{s.status || '—'}</td>
+                                <td>{s.startDate || '—'}</td>
+                                <td>{s.phone || '—'}</td>
+                                <td>{m?.venue || '—'}</td>
+                                <td>{m?.matchDate || '—'}</td>
+                                <td>{m?.program || '—'}</td>
+                                <td>{m?.notes || '—'}</td>
+                                <td>{formatCreatedAt(s)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table></div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
