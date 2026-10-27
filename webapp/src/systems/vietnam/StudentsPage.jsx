@@ -18,6 +18,7 @@ const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補
 const CERT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
 const DESIRED_INDUSTRY_PRESETS = ['餐飲業', '旅館業', '製造業', '服務業', '物流業'];
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
+const NO_INDUSTRY_KEY = '未填期望產業別';
 
 // 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
 // 不是程式漏存。
@@ -116,6 +117,22 @@ export default function StudentsPage() {
     .filter((r) => !q || [r.chineseName, r.vietnameseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
 
+  // 依期望產業別分類顯示；一位學生可以複選多個產業別，就會同時出現在對應
+  // 的每一組（跟 UnmatchedStudentsPage.jsx 依國籍分組同一套模式），沒有填
+  // 期望產業別的學生統一歸到「未填期望產業別」這組。
+  const industryGroups = {};
+  filtered.forEach((r) => {
+    const industries = parseList(r.desiredIndustries);
+    (industries.length ? industries : [NO_INDUSTRY_KEY]).forEach((ind) => {
+      (industryGroups[ind] ||= []).push(r);
+    });
+  });
+  const industryGroupKeys = Object.keys(industryGroups).sort((a, b) => {
+    if (a === NO_INDUSTRY_KEY) return 1;
+    if (b === NO_INDUSTRY_KEY) return -1;
+    return a.localeCompare(b);
+  });
+
   async function handleSave(data) {
     try {
       if (data.id) {
@@ -211,48 +228,57 @@ export default function StudentsPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">{t('「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有學生資料，請先下載備份再匯入。', lang)}</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder={t('搜尋姓名/學校/國籍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
-        {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
-                {canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>{[r.vietnameseName, r.nationality].filter(Boolean).join(' · ') || '—'}</div>
-                  </td>
-                  <td>
-                    {r.school || '—'}{r.schoolZh ? `（${r.schoolZh}）` : ''}
-                    <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}{r.departmentZh ? `（${r.departmentZh}）` : ''}</div>
-                  </td>
-                  <td>{r.gender || '—'}</td>
-                  <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
-                  <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
-                  <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
-                  <td className="muted">{formatCreatedAt(r)}</td>
-                  {canEditPage && (
-                    <td>
-                      <div className="row-actions">
-                        <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
-                        <button className="danger" onClick={() => handleDelete(r.id)}>{t('刪除', lang)}</button>
-                        <button onClick={() => update(r.id, { confirmedClosed: true })}>{t('結案', lang)}</button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={8} className="muted">{t('沒有資料', lang)}</td></tr>}
-            </tbody>
-          </table></div>
-        )}
-      </div>
+      <input placeholder={t('搜尋姓名/學校/國籍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
+        filtered.length === 0 ? <p className="muted">{t('沒有資料', lang)}</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {industryGroupKeys.map((key) => (
+              <div className="card" key={key} style={{ overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0 }}>
+                  {key === NO_INDUSTRY_KEY ? t(NO_INDUSTRY_KEY, lang) : t(key, lang)}{' '}
+                  <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{industryGroups[key].length} {t('位學生', lang)}</span>
+                </h3>
+                <div className="table-wrap"><table>
+                  <thead>
+                    <tr>
+                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
+                      {canEditPage && <th></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {industryGroups[key].map((r) => (
+                      <tr key={r.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
+                          <div className="muted" style={{ fontSize: 12 }}>{[r.vietnameseName, r.nationality].filter(Boolean).join(' · ') || '—'}</div>
+                        </td>
+                        <td>
+                          {r.school || '—'}{r.schoolZh ? `（${r.schoolZh}）` : ''}
+                          <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}{r.departmentZh ? `（${r.departmentZh}）` : ''}</div>
+                        </td>
+                        <td>{r.gender || '—'}</td>
+                        <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
+                        <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
+                        <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
+                        <td className="muted">{formatCreatedAt(r)}</td>
+                        {canEditPage && (
+                          <td>
+                            <div className="row-actions">
+                              <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                              <button className="danger" onClick={() => handleDelete(r.id)}>{t('刪除', lang)}</button>
+                              <button onClick={() => update(r.id, { confirmedClosed: true })}>{t('結案', lang)}</button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
       {editing && (
         <StudentFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />
       )}
