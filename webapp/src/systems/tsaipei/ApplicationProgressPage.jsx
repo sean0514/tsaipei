@@ -144,10 +144,11 @@ export default function ApplicationProgressPage() {
   }
 
   // 「辦理簽證」日期第一次填入時就先建立住宿安排空白紀錄（未安排），讓宿舍
-  // 安排提早準備，不用等到學生實際入台；「入台」日期第一次填入時自動建立
-  // 在台簽證追蹤、在台關懷紀錄空白紀錄，跟原本 Apps Script 版的
-  // ensureInTaiwanVisaForStudent 一致。住宿安排另外也會在「新增/更新在台簽證
-  // 追蹤」那一步補建一次（見 InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用
+  // 安排提早準備，不用等到學生實際入台；「入台」日期填入或改動時自動建立
+  // （或更新）在台簽證追蹤的第一次入境時間、在台關懷紀錄空白紀錄，跟原本
+  // Apps Script 版的 ensureInTaiwanVisaForStudent 一致，不用兩邊分別填一次。
+  // 住宿安排另外也會在「新增/更新在台簽證追蹤」那一步補建一次（見
+  // InTaiwanVisaPage.jsx 的 afterVisaSave），兩處都用
   // existsForStudent/hasActiveHousingRecord 檢查避免重複建立。
   // 每個連動步驟各自包一層 try/catch：任何一步失敗（例如權限、網路問題）都
   // 只在主控台記錄、彈窗提醒，不會讓後面幾個獨立的連動步驟被跳過——之前
@@ -195,10 +196,16 @@ export default function ApplicationProgressPage() {
         }
       });
     }
-    if (data.arrivalDate && !prevArrivalDate) {
-      await runCascadeStep('建立在台簽證追蹤紀錄', async () => {
-        if (!(await existsForStudent('tsaipei_inTaiwanVisa', data.studentId))) {
-          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId });
+    if (data.arrivalDate && data.arrivalDate !== prevArrivalDate) {
+      // 入台日期填入或改動時，一併帶入在台簽證追蹤的「第一次入境時間」，不用
+      // 兩邊分別填一次；如果在台簽證追蹤那邊已經填過第一次入境時間（可能跟
+      // 這裡的入台日期不同，例如中途改簽證），就不覆蓋，尊重那邊手動填的值。
+      await runCascadeStep('建立/更新在台簽證追蹤紀錄', async () => {
+        const snap = await getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', data.studentId)));
+        if (snap.empty) {
+          await addDoc(collection(db, 'tsaipei_inTaiwanVisa'), { studentId: data.studentId, firstEntryDate: data.arrivalDate });
+        } else if (!snap.docs[0].data().firstEntryDate) {
+          await updateDoc(doc(db, 'tsaipei_inTaiwanVisa', snap.docs[0].id), { firstEntryDate: data.arrivalDate });
         }
       });
       await runCascadeStep('建立在台關懷紀錄', async () => {

@@ -50,8 +50,8 @@ function daysBetween(dateStr, today) {
 }
 
 // 這是原本 Apps Script 版沒有的新頁面（依使用者要求新增）：只要在台簽證追蹤
-// 裡填了入境或離境時間（第一次或第二次皆可），而且該時間落在今天前後一個月
-// 內，就自動列入對應清單；超過一個月（不論是過去還是未來）就自動從清單消失，
+// 裡填了入境或離境時間（第一次或第二次皆可），而且該時間落在今天前後兩個月
+// 內，就自動列入對應清單；超過兩個月（不論是過去還是未來）就自動從清單消失，
 // 不需要另外維護。
 export default function ExpectedArrivalPage() {
   const { system, role, overrides } = useOutletContext();
@@ -72,10 +72,10 @@ export default function ExpectedArrivalPage() {
   const arrivals = [];
   const departures = [];
   visaRecords.forEach((v) => {
-    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 30) arrivals.push({ v, date: v.firstEntryDate, label: '第一次入境' });
-    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 30) arrivals.push({ v, date: v.secondEntryDate, label: '第二次入境' });
-    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 30) departures.push({ v, date: v.firstExitDate, label: '第一次離境' });
-    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 30) departures.push({ v, date: v.secondExitDate, label: '第二次離境' });
+    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 60) arrivals.push({ v, date: v.firstEntryDate, label: '第一次入境' });
+    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 60) arrivals.push({ v, date: v.secondEntryDate, label: '第二次入境' });
+    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 60) departures.push({ v, date: v.firstExitDate, label: '第一次離境' });
+    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 60) departures.push({ v, date: v.secondExitDate, label: '第二次離境' });
   });
   arrivals.sort((a, b) => a.date.localeCompare(b.date));
   departures.sort((a, b) => a.date.localeCompare(b.date));
@@ -181,7 +181,7 @@ export default function ExpectedArrivalPage() {
       <div className="page-header">
         <div>
           <h2>預計入台/離台</h2>
-          <div className="page-desc">在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後一個月內的學生，超過一個月自動從清單移除{!canSee && '（唯讀）'}</div>
+          <div className="page-desc">在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後兩個月內的學生，超過兩個月自動從清單移除{!canSee && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} />
