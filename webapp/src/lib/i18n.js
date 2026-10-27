@@ -309,8 +309,8 @@ const VI = {
   '核准函正本': 'Công văn phê duyệt gốc',
 
   // 預計入台/離台
-  '在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後一個月內的學生，超過一個月自動從清單移除':
-    'Học viên đã nhập thời gian nhập cảnh hoặc xuất cảnh (lần 1 hoặc lần 2) trong theo dõi visa và nằm trong khoảng 1 tháng trước/sau hôm nay, tự động xóa khỏi danh sách khi quá 1 tháng',
+  '在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後兩個月內的學生，超過兩個月自動從清單移除':
+    'Học viên đã nhập thời gian nhập cảnh hoặc xuất cảnh (lần 1 hoặc lần 2) trong theo dõi visa và nằm trong khoảng 2 tháng trước/sau hôm nay, tự động xóa khỏi danh sách khi quá 2 tháng',
   '下載此月份報表': 'Tải báo cáo tháng này',
   '離台': 'Xuất cảnh',
   '入境日期': 'Ngày nhập cảnh',

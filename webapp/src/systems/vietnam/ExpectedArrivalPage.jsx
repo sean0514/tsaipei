@@ -55,10 +55,10 @@ export default function ExpectedArrivalPage() {
   const arrivals = [];
   const departures = [];
   allowedVisaRecords.forEach((v) => {
-    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 30) arrivals.push({ v, date: v.firstEntryDate, label: t('第一次入境', lang) });
-    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 30) arrivals.push({ v, date: v.secondEntryDate, label: t('第二次入境', lang) });
-    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 30) departures.push({ v, date: v.firstExitDate, label: t('第一次離境', lang) });
-    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 30) departures.push({ v, date: v.secondExitDate, label: t('第二次離境', lang) });
+    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 60) arrivals.push({ v, date: v.firstEntryDate, label: t('第一次入境', lang) });
+    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 60) arrivals.push({ v, date: v.secondEntryDate, label: t('第二次入境', lang) });
+    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 60) departures.push({ v, date: v.firstExitDate, label: t('第一次離境', lang) });
+    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 60) departures.push({ v, date: v.secondExitDate, label: t('第二次離境', lang) });
   });
   arrivals.sort((a, b) => a.date.localeCompare(b.date));
   departures.sort((a, b) => a.date.localeCompare(b.date));
@@ -152,7 +152,7 @@ export default function ExpectedArrivalPage() {
         <div>
           <h2>{t('預計入台/離台', lang)}</h2>
           <div className="page-desc">
-            {t('在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後一個月內的學生，超過一個月自動從清單移除', lang)}
+            {t('在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後兩個月內的學生，超過兩個月自動從清單移除', lang)}
             {t('資料來源：境外生實習系統，僅顯示學生來源(國外供應商)為阮氏芳草、阿草、阿草（鳳仙）、SON LE、NGOC LINH 的紀錄，唯讀顯示，編輯請到境外生實習系統操作', lang)}
           </div>
         </div>
