@@ -64,21 +64,29 @@ export default function ExpectedArrivalPage() {
   const { rows: visaRecords, loading, update } = useCollection('tsaipei_inTaiwanVisa');
   const [reportMonth, setReportMonth] = useState(currentMonthStr());
   const [editingExtras, setEditingExtras] = useState(null);
+  const [showClosed, setShowClosed] = useState(false);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
   const today = new Date().toISOString().slice(0, 10);
 
+  // 每個入境/離境時間各自獨立結案（結案狀態存在在台簽證追蹤同一筆紀錄裡，
+  // 欄位名依日期欄位區分，例如 firstEntryDate 結案存成 firstEntryClosed），
+  // 這樣業務處理完其中一筆（例如已經安排好接送、體檢都跑完）就可以先結案，
+  // 不用等超過兩個月才自動消失；結案後預設從清單隱藏，「顯示已結案」勾選
+  // 後可以看到並取消結案。
   const arrivals = [];
   const departures = [];
   visaRecords.forEach((v) => {
-    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 60) arrivals.push({ v, date: v.firstEntryDate, label: '第一次入境' });
-    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 60) arrivals.push({ v, date: v.secondEntryDate, label: '第二次入境' });
-    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 60) departures.push({ v, date: v.firstExitDate, label: '第一次離境' });
-    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 60) departures.push({ v, date: v.secondExitDate, label: '第二次離境' });
+    if (v.firstEntryDate && daysBetween(v.firstEntryDate, today) <= 60) arrivals.push({ v, date: v.firstEntryDate, label: '第一次入境', closedKey: 'firstEntryClosed' });
+    if (v.secondEntryDate && daysBetween(v.secondEntryDate, today) <= 60) arrivals.push({ v, date: v.secondEntryDate, label: '第二次入境', closedKey: 'secondEntryClosed' });
+    if (v.firstExitDate && daysBetween(v.firstExitDate, today) <= 60) departures.push({ v, date: v.firstExitDate, label: '第一次離境', closedKey: 'firstExitClosed' });
+    if (v.secondExitDate && daysBetween(v.secondExitDate, today) <= 60) departures.push({ v, date: v.secondExitDate, label: '第二次離境', closedKey: 'secondExitClosed' });
   });
   arrivals.sort((a, b) => a.date.localeCompare(b.date));
   departures.sort((a, b) => a.date.localeCompare(b.date));
+  const visibleArrivals = showClosed ? arrivals : arrivals.filter((x) => !x.v[x.closedKey]);
+  const visibleDepartures = showClosed ? departures : departures.filter((x) => !x.v[x.closedKey]);
 
   function handleDownload() {
     const monthArrivals = [];
@@ -129,7 +137,7 @@ export default function ExpectedArrivalPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map(({ v, date, label }, i) => (
+            {items.map(({ v, date, label, closedKey }, i) => (
               <tr key={`${v.id}-${label}-${i}`}>
                 <td>{studentFullLabel(studentById(v.studentId))}</td>
                 <td>{studentCompanyLabel(v.studentId, ctx)}</td>
@@ -152,11 +160,14 @@ export default function ExpectedArrivalPage() {
                 )}
                 {canEditPage && (
                   <td>
-                    <button onClick={() => {
-                      const initial = {};
-                      extraFields.forEach((f) => { initial[f.key] = v[f.key] || ''; });
-                      setEditingExtras({ visaId: v.id, fields: extraFields, initial, title: `${studentFullLabel(studentById(v.studentId))} - ${showArrivalExtras ? '體檢/送工資訊' : '航班/付款資訊'}` });
-                    }}>編輯</button>
+                    <div className="row-actions">
+                      <button onClick={() => {
+                        const initial = {};
+                        extraFields.forEach((f) => { initial[f.key] = v[f.key] || ''; });
+                        setEditingExtras({ visaId: v.id, fields: extraFields, initial, title: `${studentFullLabel(studentById(v.studentId))} - ${showArrivalExtras ? '體檢/送工資訊' : '航班/付款資訊'}` });
+                      }}>編輯</button>
+                      <button onClick={() => update(v.id, { [closedKey]: !v[closedKey] })}>{v[closedKey] ? '取消結案' : '結案'}</button>
+                    </div>
                   </td>
                 )}
               </tr>
@@ -181,9 +192,10 @@ export default function ExpectedArrivalPage() {
       <div className="page-header">
         <div>
           <h2>預計入台/離台</h2>
-          <div className="page-desc">在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後兩個月內的學生，超過兩個月自動從清單移除{!canSee && '（唯讀）'}</div>
+          <div className="page-desc">在台簽證追蹤裡填有入境或離境時間（第一次／第二次皆可）且落在今天前後兩個月內的學生，超過兩個月自動從清單移除；處理完的項目可以按「結案」提早從清單隱藏{!canSee && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
+          <label className="muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> 顯示已結案</label>
           <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} />
           <button onClick={handleDownload}>下載此月份報表</button>
         </div>
@@ -191,12 +203,12 @@ export default function ExpectedArrivalPage() {
       {loading ? <p className="muted">載入中…</p> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <h3 style={{ margin: '0 0 12px' }}>入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {arrivals.length} 筆</span></h3>
-            <div className="card"><ListTable items={arrivals} dateLabel="入境日期" showArrivalExtras /></div>
+            <h3 style={{ margin: '0 0 12px' }}>入台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {visibleArrivals.length} 筆</span></h3>
+            <div className="card"><ListTable items={visibleArrivals} dateLabel="入境日期" showArrivalExtras /></div>
           </div>
           <div>
-            <h3 style={{ margin: '0 0 12px' }}>離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {departures.length} 筆</span></h3>
-            <div className="card"><ListTable items={departures} showDepartureExtras /></div>
+            <h3 style={{ margin: '0 0 12px' }}>離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {visibleDepartures.length} 筆</span></h3>
+            <div className="card"><ListTable items={visibleDepartures} showDepartureExtras /></div>
           </div>
         </div>
       )}
