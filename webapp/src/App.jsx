@@ -35,6 +35,7 @@ import DashboardPage from './systems/tsaipei/DashboardPage';
 import UnmatchedStudentsPage from './systems/tsaipei/UnmatchedStudentsPage';
 import BonusPage from './systems/tsaipei/BonusPage';
 import ClientFeeSetupPage from './systems/tsaipei/ClientFeeSetupPage';
+import ClientListPage from './systems/tsaipei/ClientListPage';
 import InternalFeeSetupPage from './systems/tsaipei/InternalFeeSetupPage';
 import ManagerReportPage from './systems/tsaipei/ManagerReportPage';
 import ClientBillingPage from './systems/tsaipei/ClientBillingPage';
@@ -179,6 +180,7 @@ const PAGES = {
     dailyExpenseApplication: DailyExpenseApplicationPage,
     users: UsersPage,
     bonus: BonusPage,
+    clientList: ClientListPage,
     clientFeeSetup: ClientFeeSetupPage,
     internalFeeSetup: InternalFeeSetupPage,
     managerReport: ManagerReportPage,
