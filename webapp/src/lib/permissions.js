@@ -51,6 +51,7 @@ export const SYSTEMS = {
       foreignPayment: '國外付款紀錄',
       dormProfitLoss: '宿舍損益',
       companyProfitLoss: '公司損益',
+      clientList: '客戶列表',
       clientFeeSetup: '客戶費用建檔',
       internalFeeSetup: '內部費用建檔',
       bonus: '內部獎金計算',
@@ -101,6 +102,9 @@ export const SYSTEMS = {
       foreignPayment: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
       dormProfitLoss: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
       companyProfitLoss: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
+      // 客戶基本資料名冊，業務人員跟會計/財務人員都有維護需求（業務談定
+      // 產業別/福利，會計/財務需要統一編號/收費類型），行政人員只需查詢。
+      clientList: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'view', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
       clientFeeSetup: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
       internalFeeSetup: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
       bonus: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 服務人員: 'none', 翻譯人員: 'none', 國外供應: 'none', 行政人員: 'none', 會計人員: 'edit', 財務人員: 'edit', 宿管人員: 'none' },
