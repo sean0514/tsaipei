@@ -61,6 +61,7 @@ service cloud.firestore {
         'studentSelfPayHousing': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
         'studentMasterSheet': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
         'foreignPayment': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
+        'clientList': {'系統管理員':'edit','主管':'edit','業務人員':'edit','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'view','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
         'clientFeeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
         'internalFeeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
         'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'edit','財務人員':'edit','宿管人員':'none'},
@@ -286,6 +287,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow create: if tsCanEdit('clientFeeSetup') || tsCanEdit('positions');
       allow update, delete: if tsCanEdit('clientFeeSetup');
+    }
+    // 客戶列表：客戶基本資料名冊（名稱/統一編號/產業別/收費類型/實習津貼/
+    // 膳宿費扣款/其他福利），跟 clientFeeSetup 各自獨立。
+    match /tsaipei_clientList/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('clientList');
     }
     // create/update 額外放行 foreignSubsidyApplication：國外補助申請核准
     // （或核准後又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人
