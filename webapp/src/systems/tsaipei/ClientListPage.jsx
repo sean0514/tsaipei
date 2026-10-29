@@ -27,11 +27,14 @@ export default function ClientListPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_clientList');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [taxIdQuery, setTaxIdQuery] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_clientList', CSV_FIELDS, { entityLabel: '客戶列表', requiredKeys: ['client'], canEdit: canEditPage });
 
   const searchQuery = q.trim().toLowerCase();
+  const taxIdSearchQuery = taxIdQuery.trim().toLowerCase();
   const filteredRows = rows
     .filter((r) => !searchQuery || `${r.client || ''} ${r.taxId || ''} ${r.industry || ''}`.toLowerCase().includes(searchQuery))
+    .filter((r) => !taxIdSearchQuery || (r.taxId || '').toLowerCase().includes(taxIdSearchQuery))
     .sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 
   async function handleSave(data) {
@@ -58,7 +61,10 @@ export default function ClientListPage() {
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有客戶列表資料，請先下載備份再匯入。</p>}
       <div className="card" style={{ overflowX: 'auto' }}>
-        <input placeholder="搜尋客戶名稱/統一編號/產業別" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
+        <div className="row-actions" style={{ marginBottom: 12 }}>
+          <input placeholder="搜尋客戶名稱/統一編號/產業別" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <input placeholder="搜尋統一編號" value={taxIdQuery} onChange={(e) => setTaxIdQuery(e.target.value)} style={{ width: 180 }} />
+        </div>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap"><table>
             <thead>
