@@ -4,14 +4,18 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import Tag from '../../components/Tag';
 
 const BILLING_TYPES = ['固定制', '月費制'];
+const CONTRACT_STATUSES = ['洽談中', '已簽約', '已終止'];
+const CONTRACT_STATUS_TAG = { 洽談中: 'tag-amber', 已簽約: 'tag-green', 已終止: 'tag-grey' };
 
 // 單純的客戶基本資料總覽（跟「客戶費用建檔」不同，那邊是請款計算用的詳細
 // 費率設定，這裡只是一個客戶一列的簡單名冊，方便快速查詢客戶的產業別、
 // 收費類型、實習津貼/膳宿費扣款金額、其他福利，不綁定專案編號）。
 const FIELDS = [
   { key: 'client', label: '客戶名稱', required: true },
+  { key: 'contractStatus', label: '簽約狀態', options: CONTRACT_STATUSES },
   { key: 'taxId', label: '統一編號' },
   { key: 'industry', label: '產業別' },
   { key: 'billingType', label: '收費類型', options: BILLING_TYPES },
@@ -69,7 +73,7 @@ export default function ClientListPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>客戶名稱</th><th>統一編號</th><th>產業別</th><th>收費類型</th><th>實習津貼金額</th><th>膳宿費扣款金額</th><th>其他福利</th>
+                <th>客戶名稱</th><th>簽約狀態</th><th>統一編號</th><th>產業別</th><th>收費類型</th><th>實習津貼金額</th><th>膳宿費扣款金額</th><th>其他福利</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -77,6 +81,7 @@ export default function ClientListPage() {
               {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 600 }}>{r.client}</td>
+                  <td><Tag value={r.contractStatus} map={CONTRACT_STATUS_TAG} /></td>
                   <td>{r.taxId || '—'}</td>
                   <td>{r.industry || '—'}</td>
                   <td>{r.billingType || '—'}</td>
@@ -91,7 +96,7 @@ export default function ClientListPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">沒有資料</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 9 : 8} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
