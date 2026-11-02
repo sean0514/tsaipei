@@ -89,14 +89,10 @@ import VietnamAdmittedListPage from './systems/vietnam/AdmittedListPage';
 import VietnamVisaReminderPage from './systems/vietnam/VisaReminderPage';
 import VietnamInternshipDocsPage from './systems/vietnam/InternshipDocsPage';
 import VietnamApplicationProgressPage from './systems/vietnam/ApplicationProgressPage';
-import VietnamInTaiwanVisaPage from './systems/vietnam/InTaiwanVisaPage';
 import VietnamInTaiwanCarePage from './systems/vietnam/InTaiwanCarePage';
 import VietnamExpectedArrivalPage from './systems/vietnam/ExpectedArrivalPage';
 import VietnamBankAccountProgressPage from './systems/vietnam/BankAccountProgressPage';
 import VietnamVehiclePickupPage from './systems/vietnam/VehiclePickupPage';
-import VietnamForeignSubsidyApplicationPage from './systems/vietnam/ForeignSubsidyApplicationPage';
-import VietnamDailyExpenseApplicationPage from './systems/vietnam/DailyExpenseApplicationPage';
-import VietnamPostageFeeRecordPage from './systems/vietnam/PostageFeeRecordPage';
 import VietnamHousingPage from './systems/vietnam/HousingPage';
 import VietnamDormManagementPage from './systems/vietnam/DormManagementPage';
 import VietnamCustomerServicePendingPage from './systems/vietnam/CustomerServicePendingPage';
@@ -259,14 +255,10 @@ const PAGES = {
     visaReminder: VietnamVisaReminderPage,
     internshipDocs: VietnamInternshipDocsPage,
     applicationProgress: VietnamApplicationProgressPage,
-    inTaiwanVisa: VietnamInTaiwanVisaPage,
     inTaiwanCare: VietnamInTaiwanCarePage,
     expectedArrival: VietnamExpectedArrivalPage,
     bankAccountProgress: VietnamBankAccountProgressPage,
     vehiclePickup: VietnamVehiclePickupPage,
-    foreignSubsidyApplication: VietnamForeignSubsidyApplicationPage,
-    dailyExpenseApplication: VietnamDailyExpenseApplicationPage,
-    postageFee: VietnamPostageFeeRecordPage,
     housing: VietnamHousingPage,
     dormManagement: VietnamDormManagementPage,
     customerServicePending: VietnamCustomerServicePendingPage,
