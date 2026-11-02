@@ -122,6 +122,11 @@ import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage'
 import LaborAgencyDocsChecklistPage from './systems/laborAgency/DocsChecklistPage';
 import LaborAgencyResumeLinksPage from './systems/laborAgency/ResumeLinksPage';
 import LaborAgencySalaryCalcPage from './systems/laborAgency/SalaryCalcPage';
+import LaborAgencyFeeSetupPage from './systems/laborAgency/FeeSetupPage';
+import LaborAgencyChargeRecordsPage from './systems/laborAgency/ChargeRecordsPage';
+import LaborAgencyPaymentRecordsPage from './systems/laborAgency/PaymentRecordsPage';
+import LaborAgencyBonusPage from './systems/laborAgency/BonusPage';
+import LaborAgencyBonusRateSetupPage from './systems/laborAgency/BonusRateSetupPage';
 import LaborAgencyWorkerRosterPage from './systems/laborAgency/WorkerRosterPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
@@ -294,6 +299,11 @@ const PAGES = {
     docsChecklist: LaborAgencyDocsChecklistPage,
     expiryAlerts: LaborAgencyExpiryAlertsPage,
     salaryCalc: LaborAgencySalaryCalcPage,
+    feeSetup: LaborAgencyFeeSetupPage,
+    chargeRecords: LaborAgencyChargeRecordsPage,
+    paymentRecords: LaborAgencyPaymentRecordsPage,
+    bonus: LaborAgencyBonusPage,
+    bonusRateSetup: LaborAgencyBonusRateSetupPage,
     users: UsersPage,
   },
   foodfactory: {

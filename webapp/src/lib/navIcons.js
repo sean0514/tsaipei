@@ -97,6 +97,11 @@ export const NAV_ICONS = {
     docsChecklist: '📑',
     expiryAlerts: '⏰',
     salaryCalc: '💰',
+    feeSetup: '🧮',
+    chargeRecords: '🧾',
+    paymentRecords: '💸',
+    bonus: '🎯',
+    bonusRateSetup: '⚙',
     users: '▣',
   },
 };
