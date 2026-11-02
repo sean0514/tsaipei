@@ -138,8 +138,8 @@ const GROUP_SECTIONS = {
     { label: '申請表格', items: ['foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee'] },
   ],
   laborAgency: [
-    { label: '工人資料', items: ['resumeLinks', 'workers'] },
-    { label: '行政專用', items: ['employers', 'docsChecklist', 'expiryAlerts'] },
+    { label: '工人資料', items: ['resumeLinks'] },
+    { label: '行政專用', items: ['workers', 'employers', 'docsChecklist', 'expiryAlerts'] },
     { label: '財務專用', items: ['salaryCalc'] },
     { label: '資料建檔', items: ['users'] },
   ],

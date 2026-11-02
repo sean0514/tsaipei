@@ -989,6 +989,7 @@ const VI = {
   // WorkersPage.jsx
   '移工名冊': 'Danh sách lao động',
   '案件看板': 'Bảng Kanban hồ sơ',
+  '流程管理': 'Quản lý quy trình',
   '越南移工案件進度管理，「案件看板」依階段分欄、「移工名冊」可搜尋編輯': 'Quản lý tiến độ hồ sơ lao động Việt Nam, "Bảng Kanban hồ sơ" chia cột theo giai đoạn, "Danh sách lao động" có thể tìm kiếm và chỉnh sửa',
   '唯讀': 'Chỉ xem',
   '新增移工': 'Thêm lao động',
