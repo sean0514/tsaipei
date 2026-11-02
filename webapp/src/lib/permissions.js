@@ -284,6 +284,7 @@ export const SYSTEMS = {
     modules: {
       dashboard: '儀表板',
       resumeLinks: '履歷表連結',
+      workerRoster: '工人管理',
       workers: '移工管理',
       employers: '雇主需求單',
       docsChecklist: '文件追蹤',
@@ -294,6 +295,9 @@ export const SYSTEMS = {
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
       resumeLinks: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      // 工人管理只看基本資料（姓名/性別/省份/工種/護照效期/備註），跳過
+      // 案件階段與雇主配對，所有角色都開放編輯。
+      workerRoster: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       docsChecklist: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },

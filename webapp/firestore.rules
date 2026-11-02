@@ -995,6 +995,7 @@ service cloud.firestore {
     function laDefaultLevel(module, role) {
       return {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
+        'workerRoster': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'workers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'resumeLinks': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
@@ -1021,14 +1022,25 @@ service cloud.firestore {
       allow read: if laIsMember();
       allow write: if laIsMember() && laRole() == '系統管理員';
     }
+    // 公開線上履歷連結（/apply/laborAgency）送出履歷時，會同時直接建立一筆
+    // 工人資料（不用等內部人員「轉入移工管理」），只開放這裡列出的基本
+    // 欄位＋固定的初始階段，不能是其他欄位（例如 employerId/passportExpiry
+    // 等要內部人員才能填的資訊）。
+    function isPublicLaborWorkerCreate() {
+      return request.resource.data.keys().hasOnly([
+        'name', 'vietnameseName', 'chineseName', 'gender', 'province', 'photoUrl', 'note', 'stage', 'updatedAt'
+      ]) && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && request.resource.data.stage == '雇主確認';
+    }
     // 文件追蹤頁面只會更新 docsChecked 欄位（勾選清單），所以 update 也
     // 放行 docsChecklist；履歷表連結轉入移工資料時也會新增一筆，所以
-    // create 也放行 resumeLinks。
+    // create 也放行 resumeLinks；工人管理（跳過案件階段/雇主的簡化名冊）
+    // 共用同一個集合，也放行 workerRoster。
     match /laborAgency_workers/{docId} {
       allow read: if laIsMember();
-      allow create: if laCanEdit('workers') || laCanEdit('resumeLinks');
-      allow delete: if laCanEdit('workers');
-      allow update: if laCanEdit('workers') || laCanEdit('docsChecklist');
+      allow create: if laCanEdit('workers') || laCanEdit('resumeLinks') || laCanEdit('workerRoster') || isPublicLaborWorkerCreate();
+      allow delete: if laCanEdit('workers') || laCanEdit('workerRoster');
+      allow update: if laCanEdit('workers') || laCanEdit('docsChecklist') || laCanEdit('workerRoster');
     }
     match /laborAgency_employers/{docId} {
       allow read: if laIsMember();
@@ -1040,8 +1052,11 @@ service cloud.firestore {
     }
     // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
     // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status
-    // 一定要是「待處理」，workerId/processedAt（轉入移工管理後才會有）不
-    // 開放公開連結寫入，避免公開連結被用來改到已轉入的狀態。
+    // 一定要是「待處理」。workerId 開放在「建立當下」填入（送出履歷時會
+    // 同時直接建立一筆工人資料，見 isPublicLaborWorkerCreate()），但
+    // processedAt 仍不開放公開連結寫入；且這條規則只管 create，既有紀錄
+    // 之後要改 workerId（例如內部人員事後手動轉入）一樣只能靠內部人員的
+    // laCanEdit() 走 update。
     function isPublicLaborResumeSubmission() {
       return request.resource.data.keys().hasOnly([
         'vietnameseName', 'chineseName', 'gender', 'hometown', 'birthDate', 'height', 'weight', 'eyesight',
@@ -1051,7 +1066,7 @@ service cloud.firestore {
         'spouseName', 'spouseAge', 'spouseOccupation',
         'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
         'educationLevel', 'chineseLevel', 'englishLevel', 'domesticExperience', 'overseasExperience', 'specialties',
-        'assignedStaff', 'status', 'createdAt'
+        'assignedStaff', 'status', 'createdAt', 'workerId'
       ]) && (request.resource.data.vietnameseName is string && request.resource.data.vietnameseName.size() > 0)
         && request.resource.data.status == '待處理';
     }

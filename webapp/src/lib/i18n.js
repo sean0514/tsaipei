@@ -894,6 +894,13 @@ const VI = {
 
   // 元凱移工事業部（laborAgency，第二個開啟 bilingual: true 的系統）
   // 側邊欄模組名稱（儀表板/使用人員/履歷表連結已在上面有翻譯，可共用）
+  '工人管理': 'Quản lý người lao động',
+  '工人基本資料名冊，不含案件階段與雇主配對；移工送出履歷後會自動出現在這裡':
+    'Danh sách thông tin cơ bản của người lao động, không gồm giai đoạn hồ sơ và ghép đôi chủ sử dụng; lao động sau khi gửi hồ sơ sẽ tự động xuất hiện ở đây',
+  '搜尋姓名或省份': 'Tìm theo tên hoặc tỉnh',
+  '新增工人': 'Thêm người lao động',
+  '尚未建立工人資料': 'Chưa có dữ liệu người lao động',
+  '編輯工人': 'Chỉnh sửa người lao động',
   '移工管理': 'Quản lý lao động',
   '雇主需求單': 'Đơn yêu cầu của chủ sử dụng',
   '文件追蹤': 'Theo dõi hồ sơ',
@@ -966,8 +973,8 @@ const VI = {
   '證件須處理': 'Giấy tờ cần xử lý',
   '案件進度共': 'Tiến độ hồ sơ có tổng cộng',
   '個階段：': 'giai đoạn:',
-  '。詳細名單請到「移工管理」查看看板或名冊，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。':
-    '. Xem danh sách chi tiết tại "Quản lý lao động" (bảng Kanban hoặc danh sách), tình trạng thiếu lao động ở "Đơn yêu cầu của chủ sử dụng", hạn hộ chiếu/hồ sơ bị kẹt ở "Nhắc nhở hạn hiệu lực", tiến độ thu thập hồ sơ ở "Theo dõi hồ sơ".',
+  '。基本工人資料在「工人管理」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。':
+    '. Thông tin cơ bản của người lao động ở "Quản lý người lao động", xem tiến độ hồ sơ chi tiết tại "Quản lý lao động", tình trạng thiếu lao động ở "Đơn yêu cầu của chủ sử dụng", hạn hộ chiếu/hồ sơ bị kẹt ở "Nhắc nhở hạn hiệu lực", tiến độ thu thập hồ sơ ở "Theo dõi hồ sơ".',
   '「申請許可」送件流程': 'Quy trình nộp hồ sơ "Xin cấp phép"',
   '「簽證辦理」送簽時程': 'Lịch trình nộp visa "Làm visa"',
   '地區': 'Khu vực',
@@ -988,9 +995,8 @@ const VI = {
 
   // WorkersPage.jsx
   '移工名冊': 'Danh sách lao động',
-  '案件看板': 'Bảng Kanban hồ sơ',
   '流程管理': 'Quản lý quy trình',
-  '越南移工案件進度管理，「案件看板」依階段分欄、「移工名冊」可搜尋編輯': 'Quản lý tiến độ hồ sơ lao động Việt Nam, "Bảng Kanban hồ sơ" chia cột theo giai đoạn, "Danh sách lao động" có thể tìm kiếm và chỉnh sửa',
+  '越南移工案件進度管理，依雇主分組呈現每位移工目前所在的案件階段': 'Quản lý tiến độ hồ sơ lao động Việt Nam, hiển thị theo nhóm chủ sử dụng giai đoạn hồ sơ hiện tại của từng lao động',
   '唯讀': 'Chỉ xem',
   '新增移工': 'Thêm lao động',
   '搜尋姓名、省份、雇主、階段': 'Tìm theo tên, tỉnh, chủ sử dụng, giai đoạn',

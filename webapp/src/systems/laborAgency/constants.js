@@ -4,8 +4,9 @@
 // 「目前階段」欄位＋看板呈現進度，不另外拆成媒合/二面/錄取多張表。
 import { t } from '../../lib/i18n';
 
+// 「面試甄選」這一關已經由公開履歷連結（移工送出履歷後自動建立工人管理
+// 資料）取代，案件從「雇主確認」開始起算，不再是獨立階段。
 export const STAGES = [
-  { key: '面試甄選', tip: '越南當地招募、面試、體能與技能篩選' },
   { key: '雇主確認', tip: '雇主選工、簽訂契約' },
   { key: '申請許可', tip: '收到認證文件後：確認配額 → 提交招募許可文件給勞動部（6 個工作天，不含週六日）→ 提交勞工名冊核對配額人數（2-3 個工作天，不含週六日）' },
   { key: '簽證辦理', tip: '北越送簽僅限週一/三/五；南越送簽平日皆可。一般簽 66 美元 7 天取簽，快件 99 美元（北越 5 天／南越 3 天）取簽' },
@@ -49,7 +50,7 @@ export function passportStatus(w, lang) {
   const d = daysToExpiry(w.passportExpiry);
   if (d === null) return { label: t('未填護照效期', lang), cls: 'tag-grey' };
   if (d < 0) return { label: t('護照已過期', lang), cls: 'tag-red' };
-  if (d <= 180 && stageIndex(w.stage) < 5) return { label: `${t('護照剩', lang)} ${d} ${t('天（不足 6 個月）', lang)}`, cls: 'tag-red' };
+  if (d <= 180 && stageIndex(w.stage) < 4) return { label: `${t('護照剩', lang)} ${d} ${t('天（不足 6 個月）', lang)}`, cls: 'tag-red' };
   if (d <= 90) return { label: `${t('護照剩', lang)} ${d} ${t('天', lang)}`, cls: 'tag-red' };
   if (d <= 180) return { label: `${t('護照剩', lang)} ${d} ${t('天', lang)}`, cls: 'tag-amber' };
   return { label: `${t('護照', lang)} ${w.passportExpiry}`, cls: 'tag-green' };
