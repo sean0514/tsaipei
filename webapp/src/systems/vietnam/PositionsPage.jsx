@@ -32,21 +32,16 @@ const FIELDS = [
   { key: 'specialNotes', label: '特殊備註' },
 ];
 
-// 內部獎金計算讀取的角色指派欄位——跟 lib/bonus.js 的
-// BONUS_ROLE_KEYS/BONUS_ROLE_LABELS 保持一致。
+// 內部獎金計算的角色指派——「行政主管」是唯一還留在實習單位(專案+客戶)
+// 層級指派的角色；開發業務/行政招募/行政簽證/外務人員已改成在「學生資料」
+// 頁面各自指派（見 StudentsPage.jsx 的 assignedBizDev/assignedAdminRecruit/
+// assignedAdminVisa/assignedFieldStaff），學校代表改成在「學校資料建檔」
+// 依學生就讀學校指派；費率欄位請見 InternalFeeSetupPage.jsx 的
+// INTERNAL_FEE_ROLE_FIELDS（跟這裡的 key 要保持一致）。
+// 宿管人員1/2 維持舊有做法：依「宿舍管理」設定的宿管1/宿管2計算，不在
+// 這裡指派（見 lib/bonus.js 的 computeDormManagerBonusForMonth）。
 export const ROLE_FIELDS = [
-  { key: 'bizDev', label: '開發業務' },
-  { key: 'overseasRep', label: '國外代表' },
-  { key: 'serviceSupervisor', label: '服務主管' },
-  { key: 'serviceSpecialist', label: '服務專員' },
-  { key: 'translationSupervisor', label: '翻譯主管' },
-  { key: 'translationSpecialist', label: '翻譯專員' },
   { key: 'adminSupervisor', label: '行政主管' },
-  { key: 'adminSpecialist', label: '行政專員' },
-  { key: 'accountant', label: '會計人員' },
-  { key: 'accountantAssistant', label: '會計助理' },
-  { key: 'dormManager1', label: '宿管人員1' },
-  { key: 'dormManager2', label: '宿管人員2' },
 ];
 
 const CSV_FIELDS = [

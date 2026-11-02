@@ -325,7 +325,6 @@ service cloud.firestore {
         'admitted': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'visaReminder': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'applicationProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'inTaiwanVisa': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'inTaiwanCare': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'expectedArrival': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'bankAccountProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -335,9 +334,6 @@ service cloud.firestore {
         'dormManagement': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'meetings': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'closedCases': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'foreignSubsidyApplication': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'dailyExpenseApplication': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'postageFee': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'clientBilling': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'studentSelfPayHousing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'studentMasterSheet': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -346,7 +342,9 @@ service cloud.firestore {
         'companyProfitLoss': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'clientFeeSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'internalFeeSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'schoolSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'bonus': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'scholarships': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'users': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'managerReport': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'adminPending': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -503,6 +501,16 @@ service cloud.firestore {
     match /vietnam_internalFeeSetup/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('internalFeeSetup');
+    }
+    // 學校資料建檔：學校代表＋獎金月費率（給內部獎金計算用）、獎學金金額
+    // （給獎學金紀錄新增時自動帶入）。
+    match /vietnam_schoolSetup/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('schoolSetup');
+    }
+    match /vietnam_scholarships/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('scholarships');
     }
     // create 額外放行 positions：新增實習單位時會自動在這裡帶入一筆空白費率，
     // 經辦人不一定有 clientFeeSetup 權限。

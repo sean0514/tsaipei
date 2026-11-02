@@ -5,10 +5,12 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
-  computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth,
-  computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
+  computeClientBillingForMonth, computeDormProfitLossForYear, sumDormProfitLossGroups,
   monthRange, dateOverlapDays, currentYear,
 } from '../../lib/bonus';
+import {
+  VN_RATE_ROLE_KEYS, computeVietnamInternalBonusForMonth, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
+} from '../../lib/vietnamBonus';
 import { exportEntityCSV } from '../../lib/csv';
 import { t } from '../../lib/i18n';
 
@@ -30,6 +32,7 @@ const LINE_ITEMS = [
   { key: 'foreignPaymentExpense', label: '國外付款支出' },
   { key: 'postageFeeExpense', label: '郵資費用支出' },
   { key: 'projectBonusExpense', label: '內部獎金支出(專案角色)' },
+  { key: 'schoolRepBonusExpense', label: '內部獎金支出(學校代表)' },
   { key: 'dormManagerBonusExpense', label: '宿管獎金支出' },
   { key: 'dormProfitBonusExpense', label: '宿舍分紅(利潤×20%)' },
   { key: 'customExpenseTotal', label: '自訂支出項目合計(含內部人員薪資/保費，明細見下方)' },
@@ -173,8 +176,12 @@ function postageFeeExpenseForMonth(monthStr, postageFeeRecords) {
 }
 
 function projectBonusExpenseForMonth(monthStr, ctx) {
-  return computeInternalBonusForMonth(monthStr, ctx)
-    .reduce((sum, r) => sum + PROJECT_CLIENT_BONUS_ROLE_KEYS.reduce((s, k) => s + (r.roles[k] && r.amounts[k] ? r.amounts[k] : 0), 0), 0);
+  return computeVietnamInternalBonusForMonth(monthStr, ctx)
+    .reduce((sum, r) => sum + VN_RATE_ROLE_KEYS.reduce((s, k) => s + (r.roles[k] && r.amounts[k] ? r.amounts[k] : 0), 0), 0);
+}
+
+function schoolRepBonusExpenseForMonth(monthStr, ctx) {
+  return computeVietnamSchoolRepBonusForMonth(monthStr, ctx).reduce((sum, r) => sum + (r.amount || 0), 0);
 }
 
 function dormManagerBonusExpenseForMonth(monthStr, ctx) {
@@ -220,6 +227,7 @@ export default function CompanyProfitLossPage() {
   const { rows: clientFeeSetupRecords, loading: l6 } = useCollection('vietnam_clientFeeSetup');
   const { rows: dailyExpenseApplications, loading: l7 } = useCollection('vietnam_dailyExpenseApplications');
   const { rows: internalFeeSetupRecords, loading: l8 } = useCollection('vietnam_internalFeeSetup');
+  const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: dormitories, loading: l9 } = useCollection('vietnam_dormitories');
   const { rows: housingRecords, loading: l10 } = useCollection('vietnam_housingRecords');
   const { rows: dormitoryUtilities, loading: l11 } = useCollection('vietnam_dormitoryUtilities');
@@ -233,7 +241,7 @@ export default function CompanyProfitLossPage() {
 
   const ctx = {
     students, matches, positions, admittedList, inTaiwanVisaRecords, clientFeeSetupRecords,
-    dailyExpenseApplications, internalFeeSetupRecords, dormitories, housingRecords, dormitoryUtilities, foreignPayments, postageFeeRecords,
+    dailyExpenseApplications, internalFeeSetupRecords, schools, dormitories, housingRecords, dormitoryUtilities, foreignPayments, postageFeeRecords,
   };
   const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10 || l11 || l12 || l13 || l14;
   const years = availableYears(ctx);
@@ -272,14 +280,15 @@ export default function CompanyProfitLossPage() {
     const foreignPaymentExpense = foreignPaymentExpenseForMonth(monthStr, foreignPayments);
     const postageFeeExpense = postageFeeExpenseForMonth(monthStr, postageFeeRecords);
     const projectBonusExpense = projectBonusExpenseForMonth(monthStr, ctx);
+    const schoolRepBonusExpense = schoolRepBonusExpenseForMonth(monthStr, ctx);
     const dormManagerBonusExpense = dormManagerBonusExpenseForMonth(monthStr, ctx);
     const customIncomeTotal = customItemTotalForMonth(customIncomeItems, customAmounts, monthStr);
     const customExpenseTotal = customItemTotalForMonth(customExpenseItems, customAmounts, monthStr);
     const income = serviceIncome + dailyExpenseReimbursementIncome + taxTotal + dormIncome + otherIncome + customIncomeTotal;
-    const cost = otherExpense + dormCost + taxTotal + foreignPaymentExpense + postageFeeExpense + projectBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
+    const cost = otherExpense + dormCost + taxTotal + foreignPaymentExpense + postageFeeExpense + projectBonusExpense + schoolRepBonusExpense + dormManagerBonusExpense + dormProfitBonusExpense + customExpenseTotal;
     return {
       month: m, serviceIncome, dailyExpenseReimbursementIncome, taxIncome: taxTotal, dormIncome, otherIncome, customIncomeTotal, income,
-      otherExpense, dormCost, taxExpense: taxTotal, foreignPaymentExpense, postageFeeExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
+      otherExpense, dormCost, taxExpense: taxTotal, foreignPaymentExpense, postageFeeExpense, projectBonusExpense, schoolRepBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
       profit: income - cost,
     };
   });

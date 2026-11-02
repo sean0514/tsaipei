@@ -2,10 +2,26 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import { ROLE_FIELDS } from './PositionsPage';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
+
+// 依實習單位(專案+客戶)設定的角色費率，供「內部獎金計算」依在台天數比例
+// 試算。「行政主管」是指派在實習單位層級（見 PositionsPage.jsx 的
+// ROLE_FIELDS）；開發業務/行政招募/行政簽證/外務人員改成指派在「學生
+// 資料」頁面，但費率還是照實習單位(專案+客戶)設定，所以這 4 個角色的
+// 費率欄位還是留在這裡，只是負責人改用學生身上的指派。宿管人員1/2的
+// 費率維持舊欄位（給 lib/bonus.js 的 computeDormManagerBonusForMonth
+// 用），跟「宿舍管理」設定的宿管1/宿管2搭配計算，跟上面 6 個新角色無關。
+const ROLE_FIELDS = [
+  { key: 'bizDev', label: '開發業務' },
+  { key: 'adminSupervisor', label: '行政主管' },
+  { key: 'adminRecruit', label: '行政招募' },
+  { key: 'adminVisa', label: '行政簽證' },
+  { key: 'fieldStaff', label: '外務人員' },
+  { key: 'dormManager1', label: '宿管人員1' },
+  { key: 'dormManager2', label: '宿管人員2' },
+];
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'projectCode', label: '專案編號' }, { key: 'client', label: '客戶名稱' },
