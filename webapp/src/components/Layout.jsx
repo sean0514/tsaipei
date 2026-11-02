@@ -137,6 +137,13 @@ const GROUP_SECTIONS = {
     { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
     { label: '申請表格', items: ['foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee'] },
   ],
+  // 財務專用目前還沒有對應頁面（例如薪資計算、雇主請款等），之後新增時
+  // 再補一個 { label: '財務專用', items: [...] } 進來即可。
+  laborAgency: [
+    { label: '工人資料', items: ['resumeLinks', 'workers', 'docsChecklist', 'expiryAlerts'] },
+    { label: '資料建檔', items: ['employers'] },
+    { label: '行政專用', items: ['users'] },
+  ],
 };
 
 function NavItem({ system, route, label, lang }) {

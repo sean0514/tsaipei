@@ -899,6 +899,11 @@ const VI = {
   '文件追蹤': 'Theo dõi hồ sơ',
   '效期提醒': 'Nhắc nhở hạn hiệu lực',
 
+  // 側邊欄分組標題（GROUP_SECTIONS.laborAgency）
+  '工人資料': 'Dữ liệu lao động',
+  '資料建檔': 'Lập hồ sơ dữ liệu',
+  '行政專用': 'Dành cho hành chính',
+
   // 案件階段（constants.js STAGES，看板欄位標題/名冊階段欄/下拉選單共用）
   '面試甄選': 'Tuyển chọn phỏng vấn',
   '雇主確認': 'Chủ xác nhận',
