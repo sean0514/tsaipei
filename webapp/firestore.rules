@@ -1034,7 +1034,7 @@ service cloud.firestore {
     }
     // 文件追蹤頁面只會更新 docsChecked 欄位（勾選清單），所以 update 也
     // 放行 docsChecklist；履歷表連結轉入移工資料時也會新增一筆，所以
-    // create 也放行 resumeLinks；工人管理（跳過案件階段/雇主的簡化名冊）
+    // create 也放行 resumeLinks；移工名冊（跳過案件階段/雇主的簡化名冊）
     // 共用同一個集合，也放行 workerRoster。
     match /laborAgency_workers/{docId} {
       allow read: if laIsMember();

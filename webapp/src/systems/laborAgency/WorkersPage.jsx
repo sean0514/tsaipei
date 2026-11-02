@@ -25,6 +25,7 @@ export default function WorkersPage() {
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
+  const [arranging, setArranging] = useState(false);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_workers', CSV_FIELDS, { entityLabel: '移工資料', requiredKeys: ['name'], canEdit: canEditPage });
 
@@ -52,6 +53,12 @@ export default function WorkersPage() {
     await update(id, { stage, updatedAt: Date.now() });
   }
 
+  async function handleArrangeEmployer({ workerId, employerId }) {
+    const worker = workers.find((w) => w.id === workerId);
+    await update(workerId, { employerId, stage: worker?.stage || STAGE_KEYS[0], updatedAt: Date.now() });
+    setArranging(false);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -61,7 +68,8 @@ export default function WorkersPage() {
         </div>
         <div className="row-actions">
           <input placeholder={t('搜尋姓名、省份、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ {t('新增移工', lang)}</button>}
+          {canEditPage && <button className="primary" onClick={() => setArranging(true)}>+ {t('新增雇主安排', lang)}</button>}
+          {canEditPage && <button onClick={() => setEditing({})}>+ {t('新增移工', lang)}</button>}
           <ImportExportButtons rows={workers} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
@@ -71,6 +79,53 @@ export default function WorkersPage() {
       {editing && (
         <WorkerFormModal initial={editing} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
       )}
+      {arranging && (
+        <ArrangeEmployerModal workers={workers} employers={employers} onCancel={() => setArranging(false)} onSave={handleArrangeEmployer} lang={lang} />
+      )}
+    </div>
+  );
+}
+
+// 新增雇主安排：直接從既有的移工（移工名冊／履歷自動建立）跟既有的雇主
+// 需求單各選一筆，建立配對，不用像「新增移工」一樣重新輸入一筆完整的
+// 移工資料。
+function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
+  const [workerId, setWorkerId] = useState('');
+  const [employerId, setEmployerId] = useState('');
+  const sortedWorkers = [...workers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave({ workerId, employerId });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{t('新增雇主安排', lang)}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <label>
+              {t('移工', lang)}
+              <select required value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
+                <option value="">{t('請選擇', lang)}</option>
+                {sortedWorkers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </label>
+            <label>
+              {t('雇主', lang)}
+              <select required value={employerId} onChange={(e) => setEmployerId(e.target.value)}>
+                <option value="">{t('請選擇', lang)}</option>
+                {employers.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="row-actions">
+            <button type="submit" className="primary">{t('儲存', lang)}</button>
+            <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
