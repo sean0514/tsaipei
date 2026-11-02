@@ -7,6 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { hasActiveHousingRecord } from '../../lib/housingRecords';
+import { isAllowedSourceStudent } from '../../lib/tsaipeiSourceFilter';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -168,6 +169,7 @@ export default function ApplicationProgressPage() {
     const prevVisaDate = editing?.visaDate || '';
     const prevArrivalDate = editing?.arrivalDate || '';
     const prevAdmittedDate = editing?.admittedDate || '';
+    const prevMinistryReviewDate = editing?.ministryReviewDate || '';
     try {
       if (data.id) {
         const { id, ...rest } = data;
@@ -211,6 +213,20 @@ export default function ApplicationProgressPage() {
       await runCascadeStep('建立在台關懷紀錄', async () => {
         if (!(await existsForStudent('tsaipei_inTaiwanCare', data.studentId))) {
           await addDoc(collection(db, 'tsaipei_inTaiwanCare'), { studentId: data.studentId, status: '良好' });
+        }
+      });
+    }
+    // 「經濟部/交通部審核」這關第一次填入日期時，如果學生來源(國外供應商)
+    // 是元凱移工事業部/越南實習生系統那幾個 ALLOWED_SOURCE_SUPPLIERS，就
+    // 自動在越南系統的「越南簽證辦理」建立一筆「辦理中」的紀錄，不用越南
+    // 端的人員自己盯著這裡的進度手動建立；辦理簽證時間/簽證完成時間留給
+    // 越南端的人員自己在那個頁面填寫，這裡不自動帶日期。
+    if (data.ministryReviewDate && data.ministryReviewDate !== prevMinistryReviewDate) {
+      await runCascadeStep('建立越南簽證辦理紀錄', async () => {
+        const student = students.find((s) => s.id === data.studentId);
+        if (!isAllowedSourceStudent(student)) return;
+        if (!(await existsForStudent('vietnam_visaProcessing', data.studentId))) {
+          await addDoc(collection(db, 'vietnam_visaProcessing'), { studentId: data.studentId, status: '辦理中' });
         }
       });
     }

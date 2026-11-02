@@ -1267,4 +1267,27 @@ const VI = {
 
   '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
+
+  // 越南簽證辦理（VisaProcessingPage）
+  '越南簽證辦理': 'Xử lý visa Việt Nam',
+  '境外生實習系統「申辦進度追蹤」的經濟部/交通部審核完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫':
+    'Sau khi "Theo dõi tiến độ hồ sơ" của hệ thống thực tập sinh nước ngoài hoàn tất bước Bộ Kinh tế/Bộ Giao thông duyệt, sẽ tự động tạo bản ghi "Đang xử lý"; thời gian xử lý visa/thời gian hoàn tất visa được điền thủ công tại đây',
+  '目前沒有越南簽證辦理中的學生。': 'Hiện không có học viên đang xử lý visa Việt Nam.',
+  '辦理簽證時間': 'Thời gian xử lý visa',
+  '簽證完成時間': 'Thời gian hoàn tất visa',
+  '編輯越南簽證辦理': 'Chỉnh sửa xử lý visa Việt Nam',
+  '新增越南簽證辦理': 'Thêm xử lý visa Việt Nam',
+  '辦理中': 'Đang xử lý',
+
+  // 越南送機行程（DepartureTransportPage）
+  '越南送機行程': 'Lịch đưa sân bay Việt Nam',
+  '學生離台送機安排，依日期分組顯示': 'Lịch đưa học viên ra sân bay khi về nước, hiển thị theo nhóm ngày',
+  '送機日期': 'Ngày đưa sân bay',
+  '學生名稱': 'Tên học viên',
+  '是否列入學生請款': 'Có tính vào thu phí học viên',
+  '未填日期': 'Chưa điền ngày',
+  '尚未建立送機行程': 'Chưa có lịch đưa sân bay',
+  '新增送機行程': 'Thêm lịch đưa sân bay',
+  '編輯送機行程': 'Chỉnh sửa lịch đưa sân bay',
+  '元凱': 'Yuankai',
 };
