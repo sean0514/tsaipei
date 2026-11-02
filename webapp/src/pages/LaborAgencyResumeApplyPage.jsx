@@ -33,12 +33,14 @@ const LABELS = {
   majorSurgery: { zh: '是否有過重大手術', vi: 'Có hay không trải qua phẫu thuật lớn' },
   yes: { zh: '有', vi: 'Có' },
   no: { zh: '無', vi: 'Không' },
-  maritalStatus: { zh: '婚姻狀況', vi: 'Tình trạng hôn nhân' },
-  single: { zh: '未婚', vi: 'Độc thân' },
-  married: { zh: '已婚', vi: 'Đã kết hôn' },
+  hasTattoo: { zh: '是否有刺青', vi: 'Có hình xăm không' },
+  tattooPhoto: { zh: '刺青照片', vi: 'Ảnh hình xăm' },
   photo: { zh: '照片', vi: 'Ảnh' },
 
   sectionFamily: { zh: '家庭狀況', vi: 'Gia đình' },
+  maritalStatus: { zh: '結婚狀況', vi: 'Tình trạng hôn nhân' },
+  single: { zh: '未婚', vi: 'Độc thân' },
+  married: { zh: '已婚', vi: 'Đã kết hôn' },
   father: { zh: '父親姓名', vi: 'Họ tên Bố' },
   mother: { zh: '母親姓名', vi: 'Họ tên Mẹ' },
   spouse: { zh: '配偶姓名', vi: 'Họ tên Vợ/chồng' },
@@ -91,11 +93,13 @@ export default function LaborAgencyResumeApplyPage() {
   const [searchParams] = useSearchParams();
   const assignedStaff = searchParams.get('ref') || '';
   const [lang, setLang] = useState('zh');
-  const [form, setForm] = useState({ gender: '', dominantHand: '', majorSurgery: '', maritalStatus: '', relativesInTaiwan: '', chineseLevel: '', englishLevel: '' });
-  const [domesticExperience, setDomesticExperience] = useState([emptyExperienceRow()]);
-  const [overseasExperience, setOverseasExperience] = useState([emptyExperienceRow()]);
+  const [form, setForm] = useState({ gender: '', dominantHand: '', majorSurgery: '', hasTattoo: '', maritalStatus: '', relativesInTaiwan: '', chineseLevel: '', englishLevel: '' });
+  const [domesticExperience, setDomesticExperience] = useState([emptyExperienceRow(), emptyExperienceRow()]);
+  const [overseasExperience, setOverseasExperience] = useState([emptyExperienceRow(), emptyExperienceRow()]);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoError, setPhotoError] = useState('');
+  const [tattooPhotoFile, setTattooPhotoFile] = useState(null);
+  const [tattooPhotoError, setTattooPhotoError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -118,9 +122,21 @@ export default function LaborAgencyResumeApplyPage() {
     setPhotoFile(file);
   }
 
-  async function uploadPhoto(file) {
+  function handleTattooPhotoChange(e) {
+    const file = e.target.files?.[0] || null;
+    setTattooPhotoError('');
+    if (file && file.size > MAX_PHOTO_SIZE) {
+      setTattooPhotoError(L('photoTooBig'));
+      setTattooPhotoFile(null);
+      e.target.value = '';
+      return;
+    }
+    setTattooPhotoFile(file);
+  }
+
+  async function uploadPhoto(file, prefix) {
     if (!file) return '';
-    const path = `laborAgency_resumePhotos/headshot_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
+    const path = `laborAgency_resumePhotos/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file, { contentType: file.type });
     return getDownloadURL(storageRef);
@@ -162,7 +178,8 @@ export default function LaborAgencyResumeApplyPage() {
     setError('');
     setBusy(true);
     try {
-      const photoUrl = await uploadPhoto(photoFile);
+      const photoUrl = await uploadPhoto(photoFile, 'headshot');
+      const tattooPhotoUrl = await uploadPhoto(tattooPhotoFile, 'tattoo');
       await addDoc(collection(db, 'laborAgency_resumeSubmissions'), {
         vietnameseName: form.vietnameseName || '',
         chineseName: form.chineseName || '',
@@ -176,6 +193,8 @@ export default function LaborAgencyResumeApplyPage() {
         ethnicity: form.ethnicity || '',
         dominantHand: form.dominantHand || '',
         majorSurgery: form.majorSurgery || '',
+        hasTattoo: form.hasTattoo || '',
+        tattooPhotoUrl,
         maritalStatus: form.maritalStatus || '',
         photoUrl,
         fatherName: form.fatherName || '',
@@ -298,13 +317,20 @@ export default function LaborAgencyResumeApplyPage() {
             </select>
           </label>
           <label>
-            {L('maritalStatus')}
-            <select value={form.maritalStatus} onChange={(e) => setField('maritalStatus', e.target.value)}>
+            {L('hasTattoo')}
+            <select value={form.hasTattoo} onChange={(e) => setField('hasTattoo', e.target.value)}>
               <option value="">{L('select')}</option>
-              <option value="未婚">{L('single')}</option>
-              <option value="已婚">{L('married')}</option>
+              <option value="有">{L('yes')}</option>
+              <option value="無">{L('no')}</option>
             </select>
           </label>
+          {form.hasTattoo === '有' && (
+            <label>
+              {L('tattooPhoto')}
+              <input type="file" accept="image/*" onChange={handleTattooPhotoChange} />
+              {tattooPhotoError && <div className="error-text">{tattooPhotoError}</div>}
+            </label>
+          )}
           <label>
             {L('photo')}
             <input type="file" accept="image/*" onChange={handlePhotoChange} />
@@ -314,6 +340,14 @@ export default function LaborAgencyResumeApplyPage() {
 
         <h3>{L('sectionFamily')}</h3>
         <div className="form-grid">
+          <label>
+            {L('maritalStatus')}
+            <select value={form.maritalStatus} onChange={(e) => setField('maritalStatus', e.target.value)}>
+              <option value="">{L('select')}</option>
+              <option value="未婚">{L('single')}</option>
+              <option value="已婚">{L('married')}</option>
+            </select>
+          </label>
           <label>{L('father')}<input value={form.fatherName || ''} onChange={(e) => setField('fatherName', e.target.value)} /></label>
           <label>{L('alive')}
             <select value={form.fatherAlive || ''} onChange={(e) => setField('fatherAlive', e.target.value)}>
