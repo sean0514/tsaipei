@@ -88,4 +88,13 @@ export const NAV_ICONS = {
     postageFee: '✉',
     users: '▣',
   },
+  laborAgency: {
+    dashboard: '◆',
+    resumeLinks: '📋',
+    workers: '👷',
+    employers: '🏭',
+    docsChecklist: '📑',
+    expiryAlerts: '⏰',
+    users: '▣',
+  },
 };

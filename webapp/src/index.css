@@ -174,6 +174,44 @@
 .theme-dispatch .tag { border-radius: 4px; }
 .theme-dispatch .brand-sub { color: #D8B571; }
 
+/* 元凱移工事業部：白＋黃為主色，白色側邊欄配金黃色強調，跟其他系統的
+   深色側邊欄做出區隔，只在這個系統的頁面範圍內生效。 */
+.theme-laborAgency {
+  --bg: #FFFEF5;
+  --panel: #FFFFFF;
+  --border: #F0E4B8;
+  --text: #3A3426;
+  --text-muted: #9C9272;
+  --accent: #F2B705;
+  --accent-soft: #FEF6D8;
+  --danger: #D64545;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #F0E4B8;
+  --sidebar-text: #3A3426;
+  --sidebar-text-muted: #9C9272;
+  --sidebar-active-bg: #F2B705;
+  --sidebar-active-text: #3A2E00;
+  --heading-font: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 10px;
+  --radius-lg: 12px;
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.theme-laborAgency button.primary { background: var(--accent); border-color: var(--accent); color: #3A2E00; }
+.theme-laborAgency button.primary:hover { background: #D9A300; border-color: #D9A300; }
+.theme-laborAgency h2, .theme-laborAgency h3, .theme-laborAgency h4 { font-family: var(--heading-font); color: #B8860B; }
+.theme-laborAgency button { border-radius: 10px; border-color: #F0E4B8; }
+.theme-laborAgency button:not(.primary):not(.danger):hover { background: #FEF6D8; border-color: #F2D98A; }
+.theme-laborAgency button.danger { background: #FDEAEA; color: #D64545; border-color: #F3C2C2; }
+.theme-laborAgency button.danger:hover { background: #FBDADA; }
+.theme-laborAgency input, .theme-laborAgency select, .theme-laborAgency textarea { border-radius: 8px; border-color: #F0E4B8; }
+.theme-laborAgency input:focus, .theme-laborAgency select:focus, .theme-laborAgency textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(242,183,5,0.2);
+}
+.theme-laborAgency .card { border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 18px rgba(242,183,5,0.08); }
+.theme-laborAgency .modal { border-radius: 16px; box-shadow: 0 20px 60px rgba(58,52,38,0.25); }
+.theme-laborAgency .tag { border-radius: 999px; }
+.theme-laborAgency .brand-sub { color: #9C9272; }
+
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }

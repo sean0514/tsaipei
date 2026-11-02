@@ -179,7 +179,7 @@ export default function Layout() {
   const role = effectiveRole;
 
   return (
-    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}${system === 'vietnam' ? ' theme-vietnam' : ''}`}>
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}${system === 'vietnam' ? ' theme-vietnam' : ''}${system === 'laborAgency' ? ' theme-laborAgency' : ''}`}>
       <aside className="sidebar">
         {system === 'tsaipei' ? (
           <h1 className="brand-mark">🌸 鈞羽有限公司<br />境外實習生管理系統<div className="brand-sub">International Internship Desk</div></h1>
