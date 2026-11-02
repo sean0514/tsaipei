@@ -8,8 +8,8 @@ export default function DashboardPage() {
   const { rows: workers, loading } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
-  const active = workers.filter((w) => stageIndex(w.stage) < 7).length;
-  const placed = workers.filter((w) => stageIndex(w.stage) === 7).length;
+  const active = workers.filter((w) => stageIndex(w.stage) < 6).length;
+  const placed = workers.filter((w) => stageIndex(w.stage) === 6).length;
   const gap = employers.reduce((n, e) => n + Math.max(0, (+e.demand || 0) - workers.filter((w) => w.employerId === e.id).length), 0);
   const expiring = workers.filter((w) => { const d = daysToExpiry(w.passportExpiry); return d !== null && d <= 180; }).length;
 
@@ -32,7 +32,7 @@ export default function DashboardPage() {
       )}
       <div className="card">
         <p className="muted" style={{ marginTop: 0 }}>
-          {t('案件進度共', lang)} {STAGE_KEYS.length} {t('個階段：', lang)}{STAGE_KEYS.map((k) => t(k, lang)).join(' → ')}{t('。詳細名單請到「移工管理」查看看板或名冊，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。', lang)}
+          {t('案件進度共', lang)} {STAGE_KEYS.length} {t('個階段：', lang)}{STAGE_KEYS.map((k) => t(k, lang)).join(' → ')}{t('。基本工人資料在「工人管理」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。', lang)}
         </p>
       </div>
       <div className="card" style={{ marginTop: 16 }}>

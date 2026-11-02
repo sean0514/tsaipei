@@ -180,6 +180,19 @@ export default function LaborAgencyResumeApplyPage() {
     try {
       const photoUrl = await uploadPhoto(photoFile, 'headshot');
       const tattooPhotoUrl = await uploadPhoto(tattooPhotoFile, 'tattoo');
+      // 送出履歷時直接建立一筆工人資料（進「工人管理」的基本名冊，案件
+      // 階段從「雇主確認」起算），內部人員不用再手動「轉入移工管理」。
+      const workerDoc = await addDoc(collection(db, 'laborAgency_workers'), {
+        name: form.chineseName || form.vietnameseName || '',
+        vietnameseName: form.vietnameseName || '',
+        chineseName: form.chineseName || '',
+        gender: form.gender || '',
+        province: form.hometown || '',
+        photoUrl,
+        note: form.specialties || '',
+        stage: '雇主確認',
+        updatedAt: Date.now(),
+      });
       await addDoc(collection(db, 'laborAgency_resumeSubmissions'), {
         vietnameseName: form.vietnameseName || '',
         chineseName: form.chineseName || '',
@@ -221,6 +234,7 @@ export default function LaborAgencyResumeApplyPage() {
         specialties: form.specialties || '',
         assignedStaff,
         status: '待處理',
+        workerId: workerDoc.id,
         createdAt: serverTimestamp(),
       });
       setDone(true);

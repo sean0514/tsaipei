@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { STAGES, STAGE_KEYS, JOBS, GENDERS, stageIndex, passportStatus, employerLabel } from './constants';
+import { STAGE_KEYS, JOBS, GENDERS, stageIndex, passportStatus, employerLabel } from './constants';
 
 const FIELDS = [
   { key: 'name', label: '姓名（越南文姓名可直接輸入）', required: true },
@@ -24,7 +24,6 @@ export default function WorkersPage() {
   const canEditPage = computeCanEdit(system, 'workers', role, overrides);
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
-  const [view, setView] = useState('board');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_workers', CSV_FIELDS, { entityLabel: '移工資料', requiredKeys: ['name'], canEdit: canEditPage });
@@ -58,27 +57,16 @@ export default function WorkersPage() {
       <div className="page-header">
         <div>
           <h2>{t('移工管理', lang)}</h2>
-          <div className="page-desc">{t('越南移工案件進度管理，「案件看板」依階段分欄、「移工名冊」可搜尋編輯', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('越南移工案件進度管理，依雇主分組呈現每位移工目前所在的案件階段', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
+          <input placeholder={t('搜尋姓名、省份、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ {t('新增移工', lang)}</button>}
           <ImportExportButtons rows={workers} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
-      <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className={view === 'board' ? 'primary' : ''} onClick={() => setView('board')}>{t('案件看板', lang)}</button>
-        <button className={view === 'process' ? 'primary' : ''} onClick={() => setView('process')}>{t('流程管理', lang)}</button>
-        <button className={view === 'roster' ? 'primary' : ''} onClick={() => setView('roster')}>{t('移工名冊', lang)}</button>
-        {view === 'roster' && <input placeholder={t('搜尋姓名、省份、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />}
-      </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        view === 'board' ? (
-          <BoardView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
-        ) : view === 'process' ? (
-          <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
-        ) : (
-          <RosterView workers={filtered} employers={employers} onEdit={setEditing} lang={lang} />
-        )
+        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
       )}
       {editing && (
         <WorkerFormModal initial={editing} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
@@ -87,49 +75,9 @@ export default function WorkersPage() {
   );
 }
 
-function BoardView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-      {STAGES.map((s, i) => {
-        const items = workers.filter((w) => stageIndex(w.stage) === i);
-        return (
-          <div key={s.key} className="card" style={{ minWidth: 220, flex: '0 0 220px' }} title={t(s.tip, lang)}>
-            <h4 style={{ marginTop: 0, display: 'flex', justifyContent: 'space-between' }}>
-              <span>{t(s.key, lang)}</span><span className="muted" style={{ fontWeight: 400 }}>{items.length}</span>
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {items.map((w) => {
-                const ps = passportStatus(w, lang);
-                return (
-                  <div key={w.id} className="card" style={{ padding: 10, cursor: 'pointer' }} onClick={() => onEdit(w)}>
-                    <div style={{ fontWeight: 600 }}>{w.name}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>{t(w.job, lang) || ''} · {employerLabel(employers, w.employerId, lang)}</div>
-                    <div style={{ marginTop: 6 }}><span className={`tag ${ps.cls}`}>{ps.label}</span></div>
-                    {canEditPage && (
-                      <select
-                        value={w.stage}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => onMoveStage(w.id, e.target.value)}
-                        style={{ marginTop: 8, width: '100%' }}
-                      >
-                        {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
-                      </select>
-                    )}
-                  </div>
-                );
-              })}
-              {items.length === 0 && <p className="muted" style={{ fontSize: 12, margin: 0 }}>{t('沒有案件', lang)}</p>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// 流程管理：跟「案件看板」一樣是依階段呈現進度，但改成用雇主分組（而不是
-// 階段分欄），方便業務/行政人員一次看完某個雇主底下所有移工目前卡在哪個
-// 階段；沒有配對雇主的移工歸在最後的「尚未配對」分組。
+// 流程管理：依雇主分組（而不是階段分欄）呈現進度，方便業務/行政人員一次
+// 看完某個雇主底下所有移工目前卡在哪個階段；沒有配對雇主的移工歸在最後
+// 的「尚未配對」分組。
 function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
   const groups = [
     ...employers.map((e) => ({ id: e.id, name: e.name, items: workers.filter((w) => w.employerId === e.id) })),
@@ -168,34 +116,6 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
           </table></div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function RosterView({ workers, employers, onEdit, lang }) {
-  return (
-    <div className="card" style={{ overflowX: 'auto' }}>
-      <div className="table-wrap"><table>
-        <thead><tr><th>{t('姓名', lang)}</th><th>{t('性別', lang)}</th><th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('雇主', lang)}</th><th>{t('階段', lang)}</th><th>{t('護照效期', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
-        <tbody>
-          {workers.map((w) => {
-            const ps = passportStatus(w, lang);
-            return (
-              <tr key={w.id} style={{ cursor: 'pointer' }} onClick={() => onEdit(w)}>
-                <td style={{ fontWeight: 600 }}>{w.name}</td>
-                <td>{t(w.gender, lang) || '—'}</td>
-                <td>{w.province || '—'}</td>
-                <td>{t(w.job, lang) || '—'}</td>
-                <td>{employerLabel(employers, w.employerId, lang)}</td>
-                <td>{t(w.stage, lang)}</td>
-                <td>{w.passportExpiry || '—'}</td>
-                <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
-              </tr>
-            );
-          })}
-          {workers.length === 0 && <tr><td colSpan={8} className="muted">{workers.length ? t('沒有符合的移工', lang) : t('尚未建立移工資料', lang)}</td></tr>}
-        </tbody>
-      </table></div>
     </div>
   );
 }

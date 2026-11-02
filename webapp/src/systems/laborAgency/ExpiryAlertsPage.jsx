@@ -15,7 +15,7 @@ export default function ExpiryAlertsPage() {
     .filter((w) => { const d = daysToExpiry(w.passportExpiry); return d !== null && d <= 180; })
     .sort((a, b) => daysToExpiry(a.passportExpiry) - daysToExpiry(b.passportExpiry));
   const stuck = workers
-    .filter((w) => stageIndex(w.stage) < 7 && w.updatedAt && (now - w.updatedAt) > 30 * DAY)
+    .filter((w) => stageIndex(w.stage) < 6 && w.updatedAt && (now - w.updatedAt) > 30 * DAY)
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
   function Row({ w, right }) {

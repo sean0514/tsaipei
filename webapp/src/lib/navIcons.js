@@ -91,6 +91,7 @@ export const NAV_ICONS = {
   laborAgency: {
     dashboard: '◆',
     resumeLinks: '📋',
+    workerRoster: '🪪',
     workers: '👷',
     employers: '🏭',
     docsChecklist: '📑',
