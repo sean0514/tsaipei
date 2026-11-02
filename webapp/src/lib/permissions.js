@@ -272,6 +272,29 @@ export const SYSTEMS = {
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none' },
     },
   },
+  // 元凱移工事業部：獨立的越南外勞仲介引進系統，跟 yujian（看護/家事人員）
+  // 是分開的業務線，不共用資料——這裡的工種涵蓋製造業/營造業/農漁業等
+  // 產業類移工，不只是家事類。案件用單一「目前階段」欄位＋看板呈現進度
+  // （面試甄選→雇主確認→申請許可→簽證辦理→行前訓練→入境接機→體檢居留→
+  // 在職追蹤），比照使用者提供的參考雛型（移工案件管理）設計。
+  laborAgency: {
+    label: '元凱移工事業部',
+    roles: ['系統管理員', '主管', '業務人員', '行政人員'],
+    modules: {
+      dashboard: '儀表板',
+      workers: '移工管理',
+      employers: '雇主需求單',
+      expiryAlerts: '效期提醒',
+      users: '使用人員',
+    },
+    defaultPermissions: {
+      dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
+      employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
+      expiryAlerts: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none' },
+    },
+  },
   dormMgmt: {
     label: '宿舍管理系統',
     roles: ['系統管理員', '主管', '行政人員', '會計人員'],

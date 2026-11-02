@@ -116,6 +116,10 @@ import VietnamStudentMasterSheetPage from './systems/vietnam/StudentMasterSheetP
 import VietnamDormProfitLossPage from './systems/vietnam/DormProfitLossPage';
 import VietnamStudentBillingPage from './systems/vietnam/StudentBillingPage';
 import VietnamCompanyProfitLossPage from './systems/vietnam/CompanyProfitLossPage';
+import LaborAgencyDashboardPage from './systems/laborAgency/DashboardPage';
+import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
+import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
+import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -278,6 +282,13 @@ const PAGES = {
     dormProfitLoss: VietnamDormProfitLossPage,
     studentBilling: VietnamStudentBillingPage,
     companyProfitLoss: VietnamCompanyProfitLossPage,
+    users: UsersPage,
+  },
+  laborAgency: {
+    dashboard: LaborAgencyDashboardPage,
+    workers: LaborAgencyWorkersPage,
+    employers: LaborAgencyEmployersPage,
+    expiryAlerts: LaborAgencyExpiryAlertsPage,
     users: UsersPage,
   },
   foodfactory: {
