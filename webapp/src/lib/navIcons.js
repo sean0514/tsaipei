@@ -95,6 +95,7 @@ export const NAV_ICONS = {
     employers: '🏭',
     docsChecklist: '📑',
     expiryAlerts: '⏰',
+    salaryCalc: '💰',
     users: '▣',
   },
 };
