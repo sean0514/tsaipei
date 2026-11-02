@@ -11,6 +11,14 @@ const GENDER_REQUIREMENTS = ['不限', '男', '女'];
 const MEAL_ARRANGEMENTS = ['供餐', '不供餐', '自理（補貼伙食費）'];
 const LANGUAGE_REQUIREMENTS = ['不會', '一點點', '可以溝通', '流利中文'];
 const WORKER_IDENTITIES = ['第一次出國', '曾經在台灣', '指定工'];
+// 工作地點縣市分類，只到縣市層級（不細到鄉鎮市區），用來把雇主需求單
+// 依工作地點分組顯示。
+const COUNTIES = [
+  '臺北市', '新北市', '桃園市', '臺中市', '臺南市', '高雄市', '基隆市', '新竹市', '嘉義市',
+  '新竹縣', '苗栗縣', '彰化縣', '南投縣', '雲林縣', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣',
+  '澎湖縣', '金門縣', '連江縣',
+];
+const UNSET_COUNTY = '__unset__';
 
 // 基本欄位：複選/數字/單選直接用一般欄位；需求/福利各自可以自行新增項目
 // （otherRequirements/otherBenefits 各自存成 JSON 字串陣列），不是固定選項
@@ -18,6 +26,7 @@ const WORKER_IDENTITIES = ['第一次出國', '曾經在台灣', '指定工'];
 const FIELDS = [
   { key: 'name', label: '雇主名稱', required: true },
   { key: 'industry', label: '產業別', options: INDUSTRIES },
+  { key: 'county', label: '工作地點（縣市）', options: COUNTIES },
   { key: 'workAddress', label: '工作地址' },
   { key: 'jobDescription', label: '工作內容', type: 'textarea' },
   { key: 'genderRequirement', label: '需求性別', options: GENDER_REQUIREMENTS },
@@ -80,47 +89,59 @@ export default function EmployersPage() {
         employers.length === 0 ? (
           <div className="card"><p className="muted" style={{ margin: 0 }}>{t('還沒有雇主需求單。新增後，可在移工資料中指定雇主，這裡會自動計算已配對與缺口。', lang)}</p></div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-            {employers.map((e) => {
-              const matched = workers.filter((w) => w.employerId === e.id).length;
-              const demand = +e.demand || 0;
-              const remaining = demand - matched;
-              const otherRequirements = parseList(e.otherRequirements);
-              const otherBenefits = parseList(e.otherBenefits);
-              return (
-                <div className="card" key={e.id}>
-                  <h3 style={{ marginTop: 0 }}>{e.name}</h3>
-                  <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
-                  {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
-                  <div style={{ margin: '10px 0' }}>
-                    {t('已配對', lang)} <b>{matched}</b> / {t('需求', lang)} <b>{demand}</b>
-                    {e.genderRequirement && e.genderRequirement !== '不限' ? `（${t('限', lang)}${t(e.genderRequirement, lang)}）` : ''}
-                    {e.ageRequirement ? `，${t('年齡', lang)} ${e.ageRequirement}` : ''}{' '}
-                    {remaining > 0 ? <span className="tag tag-amber">{t('缺', lang)} {remaining} {t('人', lang)}</span> : <span className="tag tag-green">{t('已滿額', lang)}</span>}
-                  </div>
-                  {e.jobDescription && <div style={{ fontSize: 13, marginBottom: 6, whiteSpace: 'pre-wrap' }}><strong>{t('工作內容：', lang)}</strong>{e.jobDescription}</div>}
-                  {otherRequirements.length > 0 && <div style={{ fontSize: 13, marginBottom: 6 }}><strong>{t('其他需求：', lang)}</strong>{otherRequirements.join('、')}</div>}
-                  <div style={{ fontSize: 13, marginBottom: 6 }}>
-                    {e.salary && <div>{t('薪資：', lang)}{e.salary}</div>}
-                    {e.housingFee && <div>{t('住宿費：', lang)}{e.housingFee}</div>}
-                    {e.mealArrangement && <div>{t('供餐情況：', lang)}{t(e.mealArrangement, lang)}</div>}
-                    {otherBenefits.length > 0 && <div>{t('其他福利：', lang)}{otherBenefits.join('、')}</div>}
-                    {e.overtimeArrangement && <div>{t('加班情況：', lang)}{e.overtimeArrangement}</div>}
-                    {e.languageRequirement && <div>{t('語文要求：', lang)}{t(e.languageRequirement, lang)}</div>}
-                    {e.workerIdentity && <div>{t('工人身分：', lang)}{t(e.workerIdentity, lang)}</div>}
-                  </div>
-                  {e.specialNotes && <div className="muted" style={{ fontSize: 13, marginBottom: 6, whiteSpace: 'pre-wrap' }}><strong>{t('特殊狀況：', lang)}</strong>{e.specialNotes}</div>}
-                  {e.note && <div className="muted" style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{e.note}</div>}
-                  {canEditPage && (
-                    <div className="row-actions" style={{ marginTop: 10 }}>
-                      <button onClick={() => setEditing(e)}>{t('編輯', lang)}</button>
-                      <button className="danger" onClick={() => remove(e.id)}>{t('刪除', lang)}</button>
-                    </div>
-                  )}
+          [...COUNTIES, UNSET_COUNTY].map((county) => {
+            const group = employers.filter((e) => (e.county || UNSET_COUNTY) === county);
+            if (group.length === 0) return null;
+            return (
+              <div key={county} style={{ marginBottom: 24 }}>
+                <h3 style={{ marginBottom: 10 }}>
+                  {county === UNSET_COUNTY ? t('未填工作地點', lang) : t(county, lang)}
+                  <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+                  {group.map((e) => {
+                    const matched = workers.filter((w) => w.employerId === e.id).length;
+                    const demand = +e.demand || 0;
+                    const remaining = demand - matched;
+                    const otherRequirements = parseList(e.otherRequirements);
+                    const otherBenefits = parseList(e.otherBenefits);
+                    return (
+                      <div className="card" key={e.id}>
+                        <h3 style={{ marginTop: 0 }}>{e.name}</h3>
+                        <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
+                        {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
+                        <div style={{ margin: '10px 0' }}>
+                          {t('已配對', lang)} <b>{matched}</b> / {t('需求', lang)} <b>{demand}</b>
+                          {e.genderRequirement && e.genderRequirement !== '不限' ? `（${t('限', lang)}${t(e.genderRequirement, lang)}）` : ''}
+                          {e.ageRequirement ? `，${t('年齡', lang)} ${e.ageRequirement}` : ''}{' '}
+                          {remaining > 0 ? <span className="tag tag-amber">{t('缺', lang)} {remaining} {t('人', lang)}</span> : <span className="tag tag-green">{t('已滿額', lang)}</span>}
+                        </div>
+                        {e.jobDescription && <div style={{ fontSize: 13, marginBottom: 6, whiteSpace: 'pre-wrap' }}><strong>{t('工作內容：', lang)}</strong>{e.jobDescription}</div>}
+                        {otherRequirements.length > 0 && <div style={{ fontSize: 13, marginBottom: 6 }}><strong>{t('其他需求：', lang)}</strong>{otherRequirements.join('、')}</div>}
+                        <div style={{ fontSize: 13, marginBottom: 6 }}>
+                          {e.salary && <div>{t('薪資：', lang)}{e.salary}</div>}
+                          {e.housingFee && <div>{t('住宿費：', lang)}{e.housingFee}</div>}
+                          {e.mealArrangement && <div>{t('供餐情況：', lang)}{t(e.mealArrangement, lang)}</div>}
+                          {otherBenefits.length > 0 && <div>{t('其他福利：', lang)}{otherBenefits.join('、')}</div>}
+                          {e.overtimeArrangement && <div>{t('加班情況：', lang)}{e.overtimeArrangement}</div>}
+                          {e.languageRequirement && <div>{t('語文要求：', lang)}{t(e.languageRequirement, lang)}</div>}
+                          {e.workerIdentity && <div>{t('工人身分：', lang)}{t(e.workerIdentity, lang)}</div>}
+                        </div>
+                        {e.specialNotes && <div className="muted" style={{ fontSize: 13, marginBottom: 6, whiteSpace: 'pre-wrap' }}><strong>{t('特殊狀況：', lang)}</strong>{e.specialNotes}</div>}
+                        {e.note && <div className="muted" style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{e.note}</div>}
+                        {canEditPage && (
+                          <div className="row-actions" style={{ marginTop: 10 }}>
+                            <button onClick={() => setEditing(e)}>{t('編輯', lang)}</button>
+                            <button className="danger" onClick={() => remove(e.id)}>{t('刪除', lang)}</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })
         )
       )}
       {editing && <EmployerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
