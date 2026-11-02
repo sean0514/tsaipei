@@ -61,6 +61,7 @@ const FIELDS = [
   { key: 'originalName', label: '英文姓名（與護照相符）', required: true },
   { key: 'chineseName', label: '中文姓名' },
   { key: 'vietnameseName', label: '越南姓名' },
+  { key: 'vietnamPhone', label: '越南電話' },
   { key: 'photoUrl', label: '大頭貼', type: 'photo' },
   { key: 'hasPassport', label: '是否有護照', options: ['', 'Yes', 'No'] },
   { key: 'passportNumber', label: '護照號碼', visibleIf: (f) => f.hasPassport === 'Yes' },
