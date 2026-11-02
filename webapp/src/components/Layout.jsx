@@ -55,7 +55,7 @@ export const IMPLEMENTED_MODULES = {
   ],
   // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續加入
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
-  vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'expectedArrival', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'foreignPayment', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'clientBilling', 'studentMasterSheet', 'companyProfitLoss', 'users'],
+  vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'expectedArrival', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'foreignPayment', 'clientFeeSetup', 'internalFeeSetup', 'schoolSetup', 'bonus', 'scholarships', 'clientBilling', 'studentMasterSheet', 'companyProfitLoss', 'users'],
   // 元凱移工事業部：獨立的越南外勞仲介引進系統，跟 yujian 分開。
   laborAgency: ['dashboard', 'resumeLinks', 'workerRoster', 'workers', 'employers', 'docsChecklist', 'expiryAlerts', 'salaryCalc', 'users'],
 };
@@ -133,8 +133,8 @@ const GROUP_SECTIONS = {
     { label: '學生資料', items: ['unmatchedStudents', 'students', 'resumeLinks'] },
     { label: '職缺媒合', items: ['matches', 'secondInterview', 'admitted', 'visaReminder'] },
     { label: '實習在台追蹤', items: ['expectedArrival'] },
-    { label: '會計專用', items: ['clientBilling', 'studentMasterSheet', 'foreignPayment', 'companyProfitLoss'] },
-    { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'bonus'] },
+    { label: '會計專用', items: ['clientBilling', 'studentMasterSheet', 'foreignPayment', 'companyProfitLoss', 'scholarships'] },
+    { label: '資料建檔', items: ['clientFeeSetup', 'internalFeeSetup', 'schoolSetup', 'bonus'] },
   ],
   laborAgency: [
     { label: '工人資料', items: ['resumeLinks', 'workerRoster'] },

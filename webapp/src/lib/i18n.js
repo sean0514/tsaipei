@@ -1179,4 +1179,42 @@ const VI = {
   '國外工作經驗': 'Kinh nghiệm làm việc nước ngoài',
   '離職原因：': 'Lý do nghỉ việc: ',
   '專長': 'Chuyên môn',
+
+  // 越南系統內部獎金角色改版（學校資料建檔/學生資料角色指派/獎學金紀錄）
+  '開發業務': 'Phát triển kinh doanh',
+  '行政主管': 'Trưởng phòng hành chính',
+  '行政招募': 'Hành chính tuyển dụng',
+  '行政簽證': 'Hành chính visa',
+  '外務人員': 'Nhân viên đối ngoại',
+  '選擇或自行輸入姓名': 'Chọn hoặc tự nhập tên',
+
+  '學校資料建檔': 'Lập hồ sơ trường học',
+  '每所學校設定一位學校代表＋獎金月費率（給內部獎金計算用）、以及獎學金金額（給獎學金紀錄自動帶入）':
+    'Mỗi trường thiết lập một đại diện trường + mức phí thưởng hàng tháng (dùng cho tính thưởng nội bộ), và số tiền học bổng (dùng để tự động điền vào hồ sơ học bổng)',
+  '新增學校': 'Thêm trường học',
+  '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有學校資料，請先下載備份再匯入。':
+    '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ dữ liệu trường học hiện tại, vui lòng tải bản sao lưu trước khi nhập.',
+  '搜尋學校名稱': 'Tìm theo tên trường học',
+  '學校名稱': 'Tên trường học',
+  '學校代表': 'Đại diện trường',
+  '學校代表獎金月費率': 'Mức phí thưởng hàng tháng của đại diện trường',
+  '獎學金金額': 'Số tiền học bổng',
+  '編輯學校': 'Chỉnh sửa trường học',
+
+  '獎學金紀錄': 'Hồ sơ học bổng',
+  '新增紀錄時依學生就讀學校自動帶入「學校資料建檔」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案':
+    'Khi tạo hồ sơ mới, số tiền học bổng sẽ tự động điền theo thiết lập ở "Lập hồ sơ trường học" dựa trên trường của học viên (có thể điều chỉnh lại); trạng thái duyệt: chờ duyệt → đã duyệt → đã chuyển khoản (kèm ngày chuyển khoản) → kết thúc hồ sơ',
+  '搜尋學生或學校': 'Tìm theo học viên hoặc trường học',
+  '新增獎學金紀錄': 'Thêm hồ sơ học bổng',
+  '匯款日期': 'Ngày chuyển khoản',
+  '尚未建立獎學金紀錄': 'Chưa có hồ sơ học bổng',
+  '已審核': 'Đã duyệt',
+  '已匯款': 'Đã chuyển khoản',
+  '編輯獎學金紀錄': 'Chỉnh sửa hồ sơ học bổng',
+
+  '學校代表獎金': 'Tiền thưởng đại diện trường',
+  '依學校資料建檔設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。':
+    'Tính theo đại diện trường + mức phí hàng tháng thiết lập ở Lập hồ sơ trường học: số ngày tại Đài Loan trong tháng của mỗi học viên trường đó ÷ số ngày trong tháng × mức phí hàng tháng, cộng dồn cho đại diện trường tương ứng.',
+  '獎金': 'Tiền thưởng',
+  '內部獎金支出(學校代表)': 'Chi phí thưởng nội bộ (đại diện trường)',
 };

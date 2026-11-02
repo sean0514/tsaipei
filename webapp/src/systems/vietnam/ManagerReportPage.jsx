@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
+import { computeClientBillingForMonth, studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
 import {
-  PROJECT_CLIENT_BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, computeDormManagerBonusForMonth, studentProjectClientPair, currentMonthStr,
-} from '../../lib/bonus';
+  VN_RATE_ROLE_KEYS, computeVietnamInternalBonusForMonth, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
+} from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
 const STUDENT_STATUS_ORDER = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -37,13 +38,14 @@ export default function ManagerReportPage() {
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
   const { rows: internalFeeSetupRecords } = useCollection('vietnam_internalFeeSetup');
+  const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: clientFeeSetupRecords } = useCollection('vietnam_clientFeeSetup');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const [month, setMonth] = useState(currentMonthStr());
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, clientFeeSetupRecords, dormitories, housingRecords };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, schools, clientFeeSetupRecords, dormitories, housingRecords };
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });
@@ -84,7 +86,8 @@ export default function ManagerReportPage() {
 
   let bonusTotal = 0, billingTotal = 0;
   if (canSeeBonus) {
-    computeInternalBonusForMonth(month, ctx).forEach((r) => PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+    computeVietnamInternalBonusForMonth(month, ctx).forEach((r) => VN_RATE_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+    computeVietnamSchoolRepBonusForMonth(month, ctx).forEach((r) => { bonusTotal += r.amount || 0; });
     computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
   }
   if (canSeeBilling) computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });

@@ -105,7 +105,9 @@ import VietnamManagerReportPage from './systems/vietnam/ManagerReportPage';
 import VietnamUnmatchedStudentsPage from './systems/vietnam/UnmatchedStudentsPage';
 import VietnamClientFeeSetupPage from './systems/vietnam/ClientFeeSetupPage';
 import VietnamInternalFeeSetupPage from './systems/vietnam/InternalFeeSetupPage';
+import VietnamSchoolSetupPage from './systems/vietnam/SchoolSetupPage';
 import VietnamBonusPage from './systems/vietnam/BonusPage';
+import VietnamScholarshipsPage from './systems/vietnam/ScholarshipsPage';
 import VietnamForeignPaymentPage from './systems/vietnam/ForeignPaymentPage';
 import VietnamClientBillingPage from './systems/vietnam/ClientBillingPage';
 import VietnamStudentSelfPayHousingPage from './systems/vietnam/StudentSelfPayHousingPage';
@@ -271,7 +273,9 @@ const PAGES = {
     unmatchedStudents: VietnamUnmatchedStudentsPage,
     clientFeeSetup: VietnamClientFeeSetupPage,
     internalFeeSetup: VietnamInternalFeeSetupPage,
+    schoolSetup: VietnamSchoolSetupPage,
     bonus: VietnamBonusPage,
+    scholarships: VietnamScholarshipsPage,
     foreignPayment: VietnamForeignPaymentPage,
     clientBilling: VietnamClientBillingPage,
     studentSelfPayHousing: VietnamStudentSelfPayHousingPage,
