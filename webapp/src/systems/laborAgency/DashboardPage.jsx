@@ -32,7 +32,7 @@ export default function DashboardPage() {
       )}
       <div className="card">
         <p className="muted" style={{ marginTop: 0 }}>
-          {t('案件進度共', lang)} {STAGE_KEYS.length} {t('個階段：', lang)}{STAGE_KEYS.map((k) => t(k, lang)).join(' → ')}{t('。基本工人資料在「工人管理」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。', lang)}
+          {t('案件進度共', lang)} {STAGE_KEYS.length} {t('個階段：', lang)}{STAGE_KEYS.map((k) => t(k, lang)).join(' → ')}{t('。基本工人資料在「移工名冊」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。', lang)}
         </p>
       </div>
       <div className="card" style={{ marginTop: 16 }}>

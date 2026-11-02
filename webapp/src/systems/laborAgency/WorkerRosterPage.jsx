@@ -7,7 +7,7 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { JOBS, GENDERS, STAGE_KEYS } from './constants';
 
-// 工人管理：跳過「移工管理」的案件階段／雇主配對等流程資訊，只看工人的
+// 移工名冊：跳過「移工管理」的案件階段／雇主配對等流程資訊，只看工人的
 // 基本資料（姓名/性別/省份/工種/護照效期/備註），跟「移工管理」共用同一個
 // laborAgency_workers 集合——移工送出履歷後會自動在這裡出現一筆（見
 // pages/LaborAgencyResumeApplyPage.jsx），內部人員也可以在這裡直接補建。
@@ -52,7 +52,7 @@ export default function WorkerRosterPage() {
     <div className="content">
       <div className="page-header">
         <div>
-          <h2>{t('工人管理', lang)}</h2>
+          <h2>{t('移工名冊', lang)}</h2>
           <div className="page-desc">{t('工人基本資料名冊，不含案件階段與雇主配對；移工送出履歷後會自動出現在這裡', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
