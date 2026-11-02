@@ -15,6 +15,15 @@ const FIELDS = [
   { key: 'employerId', label: '配對雇主' },
   { key: 'stage', label: '目前階段', options: STAGE_KEYS },
   { key: 'passportExpiry', label: '護照效期', type: 'date' },
+  // 內部獎金計算讀取的角色指派——每位移工各自指派負責人，詳見
+  // BonusPage.jsx／BonusRateSetupPage.jsx。「招募人員」的獎金金額直接在
+  // 「費用計算」(FeeSetupPage.jsx) 設定，其餘 4 個角色的獎金金額在
+  // 「內部獎金編輯」(BonusRateSetupPage.jsx) 設定固定金額。
+  { key: 'assignedRecruiter', label: '招募人員', type: 'staff' },
+  { key: 'assignedAdminResume', label: '行政（履歷表）', type: 'staff' },
+  { key: 'assignedAccountant', label: '會計人員', type: 'staff' },
+  { key: 'assignedFieldStaff', label: '外務人員', type: 'staff' },
+  { key: 'assignedSupervisor', label: '主管', type: 'staff' },
   { key: 'note', label: '備註', type: 'textarea' },
 ];
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
@@ -24,6 +33,7 @@ export default function WorkersPage() {
   const canEditPage = computeCanEdit(system, 'workers', role, overrides);
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
+  const { rows: users } = useCollection('laborAgency_users');
   const [editing, setEditing] = useState(null);
   const [arranging, setArranging] = useState(false);
   const [q, setQ] = useState('');
@@ -77,7 +87,7 @@ export default function WorkersPage() {
         <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
       )}
       {editing && (
-        <WorkerFormModal initial={editing} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
+        <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
       )}
       {arranging && (
         <ArrangeEmployerModal workers={workers} employers={employers} onCancel={() => setArranging(false)} onSave={handleArrangeEmployer} lang={lang} />
@@ -175,8 +185,9 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
   );
 }
 
-function WorkerFormModal({ initial, employers, onCancel, onSave, onRemove, lang }) {
+function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove, lang }) {
   const [form, setForm] = useState(initial);
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -186,7 +197,19 @@ function WorkerFormModal({ initial, employers, onCancel, onSave, onRemove, lang 
             {FIELDS.filter((f) => f.type !== 'textarea' && f.key !== 'employerId').map((f) => (
               <label key={f.key}>
                 {t(f.label, lang)}
-                {f.options ? (
+                {f.type === 'staff' ? (
+                  <>
+                    <input
+                      list={`${f.key}-options`}
+                      value={form[f.key] || ''}
+                      placeholder={t('選擇或自行輸入姓名', lang)}
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    />
+                    <datalist id={`${f.key}-options`}>
+                      {staffOptions.map((o) => <option key={o} value={o} />)}
+                    </datalist>
+                  </>
+                ) : f.options ? (
                   <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                     <option value="">{t('請選擇', lang)}</option>
                     {f.options.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}

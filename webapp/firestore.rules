@@ -1010,6 +1010,11 @@ service cloud.firestore {
         'docsChecklist': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'expiryAlerts': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
         'salaryCalc': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
+        'feeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
+        'chargeRecords': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
+        'paymentRecords': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
+        'bonus': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'view'},
+        'bonusRateSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'none'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
       }[module][role];
     }
@@ -1057,6 +1062,26 @@ service cloud.firestore {
     match /laborAgency_salaryRecords/{docId} {
       allow read: if laIsMember();
       allow write: if laCanEdit('salaryCalc');
+    }
+    match /laborAgency_feeSetup/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('feeSetup');
+    }
+    match /laborAgency_chargeRecords/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('chargeRecords');
+    }
+    match /laborAgency_paymentRecords/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('paymentRecords');
+    }
+    // 內部獎金編輯：全公司統一一筆設定（固定 doc id "default"），跟
+    // dispatch_referralBonusRate 同一套做法，用 bonusRateSetup 這個權限鍵
+    // 單獨控管（跟「內部獎金」頁面本身的 bonus 權限鍵分開，避免有唯讀
+    // 權限看獎金試算的人也能改費率）。
+    match /laborAgency_bonusRateSetup/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('bonusRateSetup');
     }
     // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
     // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status

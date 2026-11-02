@@ -1217,4 +1217,54 @@ const VI = {
     'Tính theo đại diện trường + mức phí hàng tháng thiết lập ở Lập hồ sơ trường học: số ngày tại Đài Loan trong tháng của mỗi học viên trường đó ÷ số ngày trong tháng × mức phí hàng tháng, cộng dồn cho đại diện trường tương ứng.',
   '獎金': 'Tiền thưởng',
   '內部獎金支出(學校代表)': 'Chi phí thưởng nội bộ (đại diện trường)',
+
+  // 元凱移工事業部：財務專用新增（費用計算/收費紀錄/支付紀錄/內部獎金/
+  // 內部獎金編輯），以及移工資料新增的角色指派欄位
+  '招募人員': 'Nhân viên tuyển dụng',
+  '行政（履歷表）': 'Hành chính (hồ sơ)',
+  '主管': 'Quản lý',
+  '搜尋姓名': 'Tìm theo tên',
+
+  '費用計算': 'Tính phí',
+  '每位移工一筆費用設定：應繳費用為總金額，台仲收費為其中元凱自己抽的部分，招募者獎金直接填固定金額，收費對象記錄向工人本人或向招募人員收取':
+    'Mỗi lao động một thiết lập phí: phí phải nộp là tổng số tiền, phí môi giới Đài Loan là phần Nguyên Khải tự thu, tiền thưởng người tuyển dụng điền số tiền cố định, đối tượng thu phí ghi lại thu từ chính lao động hay từ người tuyển dụng',
+  '新增費用設定': 'Thêm thiết lập phí',
+  '應繳費用': 'Phí phải nộp',
+  '台仲收費': 'Phí môi giới Đài Loan',
+  '招募者獎金': 'Tiền thưởng người tuyển dụng',
+  '收費對象': 'Đối tượng thu phí',
+  '工人': 'Công nhân',
+  '招募': 'Tuyển dụng',
+  '尚未建立費用設定': 'Chưa có thiết lập phí',
+  '編輯費用設定': 'Chỉnh sửa thiết lập phí',
+
+  '收費紀錄': 'Hồ sơ thu phí',
+  '實際向工人或招募人員收到款項的日誌': 'Nhật ký thực tế thu tiền từ công nhân hoặc người tuyển dụng',
+  '新增收費紀錄': 'Thêm hồ sơ thu phí',
+  '收費日期': 'Ngày thu phí',
+  '尚未建立收費紀錄': 'Chưa có hồ sơ thu phí',
+  '編輯收費紀錄': 'Chỉnh sửa hồ sơ thu phí',
+
+  '支付紀錄': 'Hồ sơ chi trả',
+  '實際付出的款項日誌（招募者獎金、內部獎金或其他支出）': 'Nhật ký thực tế chi tiền (tiền thưởng người tuyển dụng, tiền thưởng nội bộ hoặc chi phí khác)',
+  '搜尋收款人': 'Tìm theo người nhận',
+  '新增支付紀錄': 'Thêm hồ sơ chi trả',
+  '支付日期': 'Ngày chi trả',
+  '收款人': 'Người nhận',
+  '款項類別': 'Loại khoản chi',
+  '對應移工': 'Lao động liên quan',
+  '內部獎金': 'Tiền thưởng nội bộ',
+  '其他支出': 'Chi phí khác',
+  '（無）': '(Không có)',
+  '尚未建立支付紀錄': 'Chưa có hồ sơ chi trả',
+  '編輯支付紀錄': 'Chỉnh sửa hồ sơ chi trả',
+
+  '內部獎金編輯': 'Chỉnh sửa tiền thưởng nội bộ',
+  '設定行政（履歷表）/會計人員/外務人員/主管每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '每案': 'mỗi hồ sơ',
+  '已儲存': 'Đã lưu',
+
+  '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
+    'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
 };
