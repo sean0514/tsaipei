@@ -996,6 +996,7 @@ service cloud.firestore {
       return {
         'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
         'workers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'resumeLinks': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'docsChecklist': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'expiryAlerts': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
@@ -1020,15 +1021,42 @@ service cloud.firestore {
       allow write: if laIsMember() && laRole() == '系統管理員';
     }
     // 文件追蹤頁面只會更新 docsChecked 欄位（勾選清單），所以 update 也
-    // 放行 docsChecklist；新增/刪除移工資料仍只限 workers 權限。
+    // 放行 docsChecklist；履歷表連結轉入移工資料時也會新增一筆，所以
+    // create 也放行 resumeLinks。
     match /laborAgency_workers/{docId} {
       allow read: if laIsMember();
-      allow create, delete: if laCanEdit('workers');
+      allow create: if laCanEdit('workers') || laCanEdit('resumeLinks');
+      allow delete: if laCanEdit('workers');
       allow update: if laCanEdit('workers') || laCanEdit('docsChecklist');
     }
     match /laborAgency_employers/{docId} {
       allow read: if laIsMember();
       allow write: if laCanEdit('employers');
+    }
+    // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
+    // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status
+    // 一定要是「待處理」，workerId/processedAt（轉入移工管理後才會有）不
+    // 開放公開連結寫入，避免公開連結被用來改到已轉入的狀態。
+    function isPublicLaborResumeSubmission() {
+      return request.resource.data.keys().hasOnly([
+        'vietnameseName', 'chineseName', 'gender', 'hometown', 'birthDate', 'height', 'weight', 'eyesight',
+        'religion', 'ethnicity', 'dominantHand', 'majorSurgery', 'maritalStatus', 'photoUrl',
+        'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation',
+        'motherName', 'motherAlive', 'motherAge', 'motherOccupation',
+        'spouseName', 'spouseAge', 'spouseOccupation',
+        'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
+        'educationLevel', 'chineseLevel', 'englishLevel', 'domesticExperience', 'overseasExperience', 'specialties',
+        'assignedStaff', 'status', 'createdAt'
+      ]) && (request.resource.data.vietnameseName is string && request.resource.data.vietnameseName.size() > 0)
+        && request.resource.data.status == '待處理';
+    }
+    // 履歷表連結：移工透過公開連結送出的履歷，待內部人員審核後轉入
+    // laborAgency_workers；轉入後的 workerId/processedAt 只能由內部人員寫入。
+    match /laborAgency_resumeSubmissions/{docId} {
+      allow read: if laIsMember();
+      allow create: if laCanEdit('resumeLinks') || isPublicLaborResumeSubmission();
+      allow update: if laCanEdit('resumeLinks') || laCanEdit('workers');
+      allow delete: if laCanEdit('resumeLinks');
     }
 
     match /{document=**} {

@@ -36,5 +36,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.resource.size <= 3 * 1024 * 1024;
     }
+    // 元凱移工事業部「履歷表連結」公開填寫頁面（/apply/laborAgency，不需要
+    // 登入）上傳的移工照片，同一套理由跟限制比照 vietnam_resumePhotos。
+    match /laborAgency_resumePhotos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size <= 3 * 1024 * 1024;
+    }
   }
 }
