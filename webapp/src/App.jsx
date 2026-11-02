@@ -87,10 +87,12 @@ import VietnamMatchesPage from './systems/vietnam/MatchesPage';
 import VietnamSecondInterviewsPage from './systems/vietnam/SecondInterviewsPage';
 import VietnamAdmittedListPage from './systems/vietnam/AdmittedListPage';
 import VietnamVisaReminderPage from './systems/vietnam/VisaReminderPage';
+import VietnamVisaProcessingPage from './systems/vietnam/VisaProcessingPage';
 import VietnamInternshipDocsPage from './systems/vietnam/InternshipDocsPage';
 import VietnamApplicationProgressPage from './systems/vietnam/ApplicationProgressPage';
 import VietnamInTaiwanCarePage from './systems/vietnam/InTaiwanCarePage';
 import VietnamExpectedArrivalPage from './systems/vietnam/ExpectedArrivalPage';
+import VietnamDepartureTransportPage from './systems/vietnam/DepartureTransportPage';
 import VietnamBankAccountProgressPage from './systems/vietnam/BankAccountProgressPage';
 import VietnamVehiclePickupPage from './systems/vietnam/VehiclePickupPage';
 import VietnamHousingPage from './systems/vietnam/HousingPage';
@@ -260,10 +262,12 @@ const PAGES = {
     secondInterview: VietnamSecondInterviewsPage,
     admitted: VietnamAdmittedListPage,
     visaReminder: VietnamVisaReminderPage,
+    visaProcessing: VietnamVisaProcessingPage,
     internshipDocs: VietnamInternshipDocsPage,
     applicationProgress: VietnamApplicationProgressPage,
     inTaiwanCare: VietnamInTaiwanCarePage,
     expectedArrival: VietnamExpectedArrivalPage,
+    departureTransport: VietnamDepartureTransportPage,
     bankAccountProgress: VietnamBankAccountProgressPage,
     vehiclePickup: VietnamVehiclePickupPage,
     housing: VietnamHousingPage,

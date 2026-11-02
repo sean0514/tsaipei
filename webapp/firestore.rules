@@ -324,9 +324,11 @@ service cloud.firestore {
         'secondInterview': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'admitted': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'visaReminder': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'visaProcessing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'applicationProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'inTaiwanCare': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'expectedArrival': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'departureTransport': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'bankAccountProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'vehiclePickup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'internshipDocs': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -445,6 +447,17 @@ service cloud.firestore {
     match /vietnam_vehicleArrangements/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('vehiclePickup');
+    }
+    // 越南簽證辦理：境外生實習系統「申辦進度追蹤」的經濟部/交通部審核完成
+    // 後會自動建立一筆「辦理中」紀錄，create 也放行 applicationProgress。
+    match /vietnam_visaProcessing/{docId} {
+      allow read: if vnIsMember();
+      allow create: if vnCanEdit('visaProcessing') || vnCanEdit('applicationProgress');
+      allow update, delete: if vnCanEdit('visaProcessing');
+    }
+    match /vietnam_departureTransport/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('departureTransport');
     }
     // 申請表格：國外補助申請/日常支出申請/郵資費用紀錄每個分頁各自独立權限
     // （比照 tsaipei）。已核准/已匯款之後，只有系統管理員/主管/會計人員能
