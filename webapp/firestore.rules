@@ -1000,6 +1000,7 @@ service cloud.firestore {
         'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
         'docsChecklist': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
         'expiryAlerts': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
+        'salaryCalc': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
       }[module][role];
     }
@@ -1033,6 +1034,10 @@ service cloud.firestore {
       allow read: if laIsMember();
       allow write: if laCanEdit('employers');
     }
+    match /laborAgency_salaryRecords/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('salaryCalc');
+    }
     // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
     // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status
     // 一定要是「待處理」，workerId/processedAt（轉入移工管理後才會有）不
@@ -1040,7 +1045,7 @@ service cloud.firestore {
     function isPublicLaborResumeSubmission() {
       return request.resource.data.keys().hasOnly([
         'vietnameseName', 'chineseName', 'gender', 'hometown', 'birthDate', 'height', 'weight', 'eyesight',
-        'religion', 'ethnicity', 'dominantHand', 'majorSurgery', 'maritalStatus', 'photoUrl',
+        'religion', 'ethnicity', 'dominantHand', 'majorSurgery', 'hasTattoo', 'tattooPhotoUrl', 'maritalStatus', 'photoUrl',
         'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation',
         'motherName', 'motherAlive', 'motherAge', 'motherOccupation',
         'spouseName', 'spouseAge', 'spouseOccupation',

@@ -903,6 +903,23 @@ const VI = {
   '工人資料': 'Dữ liệu lao động',
   '資料建檔': 'Lập hồ sơ dữ liệu',
   '行政專用': 'Dành cho hành chính',
+  '財務專用': 'Dành cho tài vụ',
+
+  // SalaryCalcPage.jsx
+  '薪資計算': 'Tính lương',
+  '每位移工每月一筆薪資紀錄，基本薪＋加班費－住宿費扣除－其他扣除＝實發薪資':
+    'Mỗi lao động có một bản ghi lương mỗi tháng, lương cơ bản + tiền tăng ca − khấu trừ phí ở − khấu trừ khác = lương thực nhận',
+  '新增薪資紀錄': 'Thêm bản ghi lương',
+  '月份': 'Tháng',
+  '基本薪': 'Lương cơ bản',
+  '加班費': 'Tiền tăng ca',
+  '住宿費扣除': 'Khấu trừ phí ở',
+  '其他扣除': 'Khấu trừ khác',
+  '實發薪資': 'Lương thực nhận',
+  '尚未建立薪資紀錄': 'Chưa có bản ghi lương',
+  '編輯薪資紀錄': 'Chỉnh sửa bản ghi lương',
+  '移工': 'Lao động',
+  '實發薪資：': 'Lương thực nhận: ',
 
   // 案件階段（constants.js STAGES，看板欄位標題/名冊階段欄/下拉選單共用）
   '面試甄選': 'Tuyển chọn phỏng vấn',

@@ -288,6 +288,7 @@ export const SYSTEMS = {
       employers: '雇主需求單',
       docsChecklist: '文件追蹤',
       expiryAlerts: '效期提醒',
+      salaryCalc: '薪資計算',
       users: '使用人員',
     },
     defaultPermissions: {
@@ -297,6 +298,8 @@ export const SYSTEMS = {
       employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       docsChecklist: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       expiryAlerts: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      // 薪資資料較敏感，業務人員不開放；行政人員負責實際計算，開放編輯。
+      salaryCalc: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'edit' },
       users: { 系統管理員: 'edit', 主管: 'view', 業務人員: 'none', 行政人員: 'none' },
     },
   },

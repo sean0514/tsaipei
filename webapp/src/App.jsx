@@ -123,6 +123,7 @@ import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
 import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage';
 import LaborAgencyDocsChecklistPage from './systems/laborAgency/DocsChecklistPage';
 import LaborAgencyResumeLinksPage from './systems/laborAgency/ResumeLinksPage';
+import LaborAgencySalaryCalcPage from './systems/laborAgency/SalaryCalcPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -294,6 +295,7 @@ const PAGES = {
     employers: LaborAgencyEmployersPage,
     docsChecklist: LaborAgencyDocsChecklistPage,
     expiryAlerts: LaborAgencyExpiryAlertsPage,
+    salaryCalc: LaborAgencySalaryCalcPage,
     users: UsersPage,
   },
   foodfactory: {
