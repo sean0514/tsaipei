@@ -1,6 +1,6 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { STAGE_KEYS, stageIndex, daysToExpiry } from './constants';
+import { STAGE_KEYS, stageIndex, daysToExpiry, PERMIT_TIMELINE, VISA_TIMELINE } from './constants';
 
 export default function DashboardPage() {
   useOutletContext();
@@ -31,8 +31,30 @@ export default function DashboardPage() {
       )}
       <div className="card">
         <p className="muted" style={{ marginTop: 0 }}>
-          案件進度共 {STAGE_KEYS.length} 個階段：{STAGE_KEYS.join(' → ')}。詳細名單請到「移工管理」查看看板或名冊，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」。
+          案件進度共 {STAGE_KEYS.length} 個階段：{STAGE_KEYS.join(' → ')}。詳細名單請到「移工管理」查看看板或名冊，雇主缺工狀況在「雇主需求單」，護照效期/停滯案件在「效期提醒」，文件收集進度在「文件追蹤」。
         </p>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginTop: 0 }}>「申請許可」送件流程</h3>
+        <ol style={{ margin: 0, paddingLeft: 20 }}>
+          {PERMIT_TIMELINE.map((step) => <li key={step} style={{ marginBottom: 4 }}>{step}</li>)}
+        </ol>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginTop: 0 }}>「簽證辦理」送簽時程</h3>
+        <div className="table-wrap"><table>
+          <thead><tr><th>地區</th><th>送件時間</th><th>一般簽</th><th>快件</th></tr></thead>
+          <tbody>
+            {VISA_TIMELINE.map((v) => (
+              <tr key={v.region}>
+                <td style={{ fontWeight: 600 }}>{v.region}</td>
+                <td>{v.schedule}</td>
+                <td>{v.normal}</td>
+                <td>{v.express}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
       </div>
     </div>
   );

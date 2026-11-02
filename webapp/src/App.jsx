@@ -120,6 +120,7 @@ import LaborAgencyDashboardPage from './systems/laborAgency/DashboardPage';
 import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
 import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
 import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage';
+import LaborAgencyDocsChecklistPage from './systems/laborAgency/DocsChecklistPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -288,6 +289,7 @@ const PAGES = {
     dashboard: LaborAgencyDashboardPage,
     workers: LaborAgencyWorkersPage,
     employers: LaborAgencyEmployersPage,
+    docsChecklist: LaborAgencyDocsChecklistPage,
     expiryAlerts: LaborAgencyExpiryAlertsPage,
     users: UsersPage,
   },
