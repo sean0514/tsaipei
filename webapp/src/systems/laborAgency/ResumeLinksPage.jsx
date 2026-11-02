@@ -155,10 +155,17 @@ function ViewingModal({ sub, onClose, lang }) {
           <div><strong>{t('民族', lang)}：</strong>{sub.ethnicity || '—'}</div>
           <div><strong>{t('慣用手', lang)}：</strong>{sub.dominantHand || '—'}</div>
           <div><strong>{t('重大手術', lang)}：</strong>{sub.majorSurgery || '—'}</div>
-          <div><strong>{t('婚姻狀況', lang)}：</strong>{sub.maritalStatus || '—'}</div>
+          <div><strong>{t('是否有刺青', lang)}：</strong>{sub.hasTattoo || '—'}</div>
         </div>
+        {sub.tattooPhotoUrl && (
+          <div style={{ marginBottom: 12 }}>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{t('刺青照片', lang)}</div>
+            <img src={sub.tattooPhotoUrl} alt="" style={{ width: 160, maxHeight: 160, objectFit: 'cover' }} />
+          </div>
+        )}
         <h4>{t('家庭狀況', lang)}</h4>
         <div className="form-grid">
+          <div><strong>{t('結婚狀況', lang)}：</strong>{sub.maritalStatus || '—'}</div>
           <div><strong>{t('父親', lang)}：</strong>{sub.fatherName || '—'}（{sub.fatherAlive || '—'}／{sub.fatherAge || '—'}{t('歲', lang)}／{sub.fatherOccupation || '—'}）</div>
           <div><strong>{t('母親', lang)}：</strong>{sub.motherName || '—'}（{sub.motherAlive || '—'}／{sub.motherAge || '—'}{t('歲', lang)}／{sub.motherOccupation || '—'}）</div>
           <div><strong>{t('配偶', lang)}：</strong>{sub.spouseName || '—'}（{sub.spouseAge || '—'}{t('歲', lang)}／{sub.spouseOccupation || '—'}）</div>
