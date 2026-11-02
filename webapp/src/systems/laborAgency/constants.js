@@ -2,6 +2,8 @@
 // 人員）系統分開，工種涵蓋製造業/營造業/農漁業等產業類移工。
 // 比照使用者提供的參考雛型（Firebase 版移工案件管理）設計：案件只用單一
 // 「目前階段」欄位＋看板呈現進度，不另外拆成媒合/二面/錄取多張表。
+import { t } from '../../lib/i18n';
+
 export const STAGES = [
   { key: '面試甄選', tip: '越南當地招募、面試、體能與技能篩選' },
   { key: '雇主確認', tip: '雇主選工、簽訂契約' },
@@ -43,18 +45,18 @@ export function daysToExpiry(dateStr) {
   return Math.round((new Date(`${dateStr}T00:00:00`) - today) / DAY);
 }
 
-export function passportStatus(w) {
+export function passportStatus(w, lang) {
   const d = daysToExpiry(w.passportExpiry);
-  if (d === null) return { label: '未填護照效期', cls: 'tag-grey' };
-  if (d < 0) return { label: '護照已過期', cls: 'tag-red' };
-  if (d <= 180 && stageIndex(w.stage) < 5) return { label: `護照剩 ${d} 天（不足 6 個月）`, cls: 'tag-red' };
-  if (d <= 90) return { label: `護照剩 ${d} 天`, cls: 'tag-red' };
-  if (d <= 180) return { label: `護照剩 ${d} 天`, cls: 'tag-amber' };
-  return { label: `護照 ${w.passportExpiry}`, cls: 'tag-green' };
+  if (d === null) return { label: t('未填護照效期', lang), cls: 'tag-grey' };
+  if (d < 0) return { label: t('護照已過期', lang), cls: 'tag-red' };
+  if (d <= 180 && stageIndex(w.stage) < 5) return { label: `${t('護照剩', lang)} ${d} ${t('天（不足 6 個月）', lang)}`, cls: 'tag-red' };
+  if (d <= 90) return { label: `${t('護照剩', lang)} ${d} ${t('天', lang)}`, cls: 'tag-red' };
+  if (d <= 180) return { label: `${t('護照剩', lang)} ${d} ${t('天', lang)}`, cls: 'tag-amber' };
+  return { label: `${t('護照', lang)} ${w.passportExpiry}`, cls: 'tag-green' };
 }
 
-export function employerLabel(employers, employerId) {
-  return employers.find((e) => e.id === employerId)?.name || '尚未配對';
+export function employerLabel(employers, employerId, lang) {
+  return employers.find((e) => e.id === employerId)?.name || t('尚未配對', lang);
 }
 
 // 挑到工人後的文件清單（必備 required=true／依個案可選 required=false），
