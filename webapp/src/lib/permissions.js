@@ -282,6 +282,7 @@ export const SYSTEMS = {
     roles: ['系統管理員', '主管', '業務人員', '行政人員'],
     modules: {
       dashboard: '儀表板',
+      resumeLinks: '履歷表連結',
       workers: '移工管理',
       employers: '雇主需求單',
       docsChecklist: '文件追蹤',
@@ -290,6 +291,7 @@ export const SYSTEMS = {
     },
     defaultPermissions: {
       dashboard: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      resumeLinks: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       docsChecklist: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
 import DispatchApplyPage from './pages/DispatchApplyPage';
 import VietnamResumeApplyPage from './pages/VietnamResumeApplyPage';
+import LaborAgencyResumeApplyPage from './pages/LaborAgencyResumeApplyPage';
 import JunyuCompanySitePage from './pages/JunyuCompanySitePage';
 import CompanyPicker from './pages/CompanyPicker';
 import CompanyHomePage from './pages/CompanyHomePage';
@@ -121,6 +122,7 @@ import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
 import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
 import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage';
 import LaborAgencyDocsChecklistPage from './systems/laborAgency/DocsChecklistPage';
+import LaborAgencyResumeLinksPage from './systems/laborAgency/ResumeLinksPage';
 import YujianArrivedListPage from './systems/yujian/ArrivedListPage';
 import YujianArrivedSummaryPage from './systems/yujian/ArrivedSummaryPage';
 import YujianClosedCasesPage from './systems/yujian/ClosedCasesPage';
@@ -287,6 +289,7 @@ const PAGES = {
   },
   laborAgency: {
     dashboard: LaborAgencyDashboardPage,
+    resumeLinks: LaborAgencyResumeLinksPage,
     workers: LaborAgencyWorkersPage,
     employers: LaborAgencyEmployersPage,
     docsChecklist: LaborAgencyDocsChecklistPage,
@@ -332,6 +335,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
         <Route path="/apply/vietnam" element={<VietnamResumeApplyPage />} />
+        <Route path="/apply/laborAgency" element={<LaborAgencyResumeApplyPage />} />
         <Route path="/about" element={<JunyuCompanySitePage />} />
         <Route path="/" element={<RequireAuth><CompanyPicker /></RequireAuth>} />
         <Route path="/company/:companyKey" element={<RequireAuth><CompanyHomePage /></RequireAuth>} />

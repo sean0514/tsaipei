@@ -57,7 +57,7 @@ export const IMPLEMENTED_MODULES = {
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
   vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'expectedArrival', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee', 'foreignPayment', 'clientFeeSetup', 'internalFeeSetup', 'bonus', 'clientBilling', 'studentMasterSheet', 'companyProfitLoss', 'users'],
   // 元凱移工事業部：獨立的越南外勞仲介引進系統，跟 yujian 分開。
-  laborAgency: ['dashboard', 'workers', 'employers', 'docsChecklist', 'expiryAlerts', 'users'],
+  laborAgency: ['dashboard', 'resumeLinks', 'workers', 'employers', 'docsChecklist', 'expiryAlerts', 'users'],
 };
 
 // A permission module can cover several routes at once — each route under
