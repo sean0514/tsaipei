@@ -778,6 +778,7 @@ const VI = {
   '確定要刪除這筆履歷嗎？': 'Xác nhận xóa hồ sơ này?',
   '有': 'Có',
   '越南姓名': 'Tên tiếng Việt',
+  '越南電話': 'Số điện thoại Việt Nam',
   '護照照片': 'Ảnh hộ chiếu',
   '證照核發日期': 'Ngày cấp chứng chỉ',
   '預計考試日期': 'Ngày dự kiến thi',
