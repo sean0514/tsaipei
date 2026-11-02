@@ -11,6 +11,7 @@ const SYSTEM_META = {
   dormMgmt: { icon: '🏠', desc: '目前僅有基本骨架，業務功能陸續建置中' },
   yujian: { icon: '🤝', desc: '看護/家事人員資料、雇主家庭/需求單、媒合紀錄，其他功能陸續建置中' },
   vietnam: { icon: '🇻🇳', desc: '複製境外實習生管理系統架構，介面可切換中文/越南文，功能陸續建置中' },
+  laborAgency: { icon: '🧳', desc: '移工案件看板、雇主需求單、護照效期提醒，越南外勞仲介引進專用' },
 };
 
 // 公司主頁：列出該公司底下有哪些系統可以選。只有系統管理員在「使用人員」頁面
@@ -28,14 +29,16 @@ export default function CompanyHomePage() {
   const dormMgmtProfile = useSystemProfile('dormMgmt');
   const yujianProfile = useSystemProfile('yujian');
   const vietnamProfile = useSystemProfile('vietnam');
+  const laborAgencyProfile = useSystemProfile('laborAgency');
   const tsaipeiOverrides = useRolePermissions('tsaipei');
   const foodfactoryOverrides = useRolePermissions('foodfactory');
   const dispatchOverrides = useRolePermissions('dispatch');
   const dormMgmtOverrides = useRolePermissions('dormMgmt');
   const yujianOverrides = useRolePermissions('yujian');
   const vietnamOverrides = useRolePermissions('vietnam');
-  const profiles = { tsaipei: tsaipeiProfile, foodfactory: foodfactoryProfile, dispatch: dispatchProfile, dormMgmt: dormMgmtProfile, yujian: yujianProfile, vietnam: vietnamProfile };
-  const overrides = { tsaipei: tsaipeiOverrides, foodfactory: foodfactoryOverrides, dispatch: dispatchOverrides, dormMgmt: dormMgmtOverrides, yujian: yujianOverrides, vietnam: vietnamOverrides };
+  const laborAgencyOverrides = useRolePermissions('laborAgency');
+  const profiles = { tsaipei: tsaipeiProfile, foodfactory: foodfactoryProfile, dispatch: dispatchProfile, dormMgmt: dormMgmtProfile, yujian: yujianProfile, vietnam: vietnamProfile, laborAgency: laborAgencyProfile };
+  const overrides = { tsaipei: tsaipeiOverrides, foodfactory: foodfactoryOverrides, dispatch: dispatchOverrides, dormMgmt: dormMgmtOverrides, yujian: yujianOverrides, vietnam: vietnamOverrides, laborAgency: laborAgencyOverrides };
 
   if (!company) return <div className="content">找不到這間公司。<Link to="/">回選擇公司</Link></div>;
 

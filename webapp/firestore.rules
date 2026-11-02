@@ -983,6 +983,50 @@ service cloud.firestore {
       allow write: if yjCanEdit('postageFee');
     }
 
+    // ---------------- 元凱移工事業部 (laborAgency) ----------------
+    // 獨立的越南外勞仲介引進系統，跟 yujian（看護/家事人員）分開，不共用
+    // 任何集合。
+    function laRole() {
+      return get(/databases/$(database)/documents/laborAgency_users/$(request.auth.uid)).data.role;
+    }
+    function laIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/laborAgency_users/$(request.auth.uid));
+    }
+    function laDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
+        'workers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'edit'},
+        'employers': {'系統管理員':'edit','主管':'edit','業務人員':'edit','行政人員':'view'},
+        'expiryAlerts': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'view'},
+        'users': {'系統管理員':'edit','主管':'view','業務人員':'none','行政人員':'none'},
+      }[module][role];
+    }
+    function laCanEdit(module) {
+      return laIsMember() && (
+        laRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/laborAgency_rolePermissions/$(module + '__' + laRole()))
+          ? get(/databases/$(database)/documents/laborAgency_rolePermissions/$(module + '__' + laRole())).data.level == 'edit'
+          : laDefaultLevel(module, laRole()) == 'edit')
+      );
+    }
+
+    match /laborAgency_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || laIsMember());
+      allow write: if laIsMember() && laRole() == '系統管理員';
+    }
+    match /laborAgency_rolePermissions/{docId} {
+      allow read: if laIsMember();
+      allow write: if laIsMember() && laRole() == '系統管理員';
+    }
+    match /laborAgency_workers/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('workers');
+    }
+    match /laborAgency_employers/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('employers');
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
