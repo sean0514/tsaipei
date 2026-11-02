@@ -67,12 +67,15 @@ export default function WorkersPage() {
       </div>
       <div className="row-actions" style={{ marginBottom: 16 }}>
         <button className={view === 'board' ? 'primary' : ''} onClick={() => setView('board')}>{t('案件看板', lang)}</button>
+        <button className={view === 'process' ? 'primary' : ''} onClick={() => setView('process')}>{t('流程管理', lang)}</button>
         <button className={view === 'roster' ? 'primary' : ''} onClick={() => setView('roster')}>{t('移工名冊', lang)}</button>
         {view === 'roster' && <input placeholder={t('搜尋姓名、省份、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />}
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         view === 'board' ? (
           <BoardView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
+        ) : view === 'process' ? (
+          <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
         ) : (
           <RosterView workers={filtered} employers={employers} onEdit={setEditing} lang={lang} />
         )
@@ -120,6 +123,51 @@ function BoardView({ workers, employers, canEditPage, onMoveStage, onEdit, lang 
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// 流程管理：跟「案件看板」一樣是依階段呈現進度，但改成用雇主分組（而不是
+// 階段分欄），方便業務/行政人員一次看完某個雇主底下所有移工目前卡在哪個
+// 階段；沒有配對雇主的移工歸在最後的「尚未配對」分組。
+function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
+  const groups = [
+    ...employers.map((e) => ({ id: e.id, name: e.name, items: workers.filter((w) => w.employerId === e.id) })),
+    { id: '', name: t('尚未配對', lang), items: workers.filter((w) => !w.employerId) },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {groups.length === 0 && <p className="muted">{t('沒有案件', lang)}</p>}
+      {groups.map((g) => (
+        <div className="card" key={g.id || '__unmatched__'}>
+          <h4 style={{ marginTop: 0 }}>{g.name} <span className="muted" style={{ fontWeight: 400 }}>（{g.items.length}）</span></h4>
+          <div className="table-wrap"><table>
+            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
+            <tbody>
+              {g.items
+                .sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage))
+                .map((w) => {
+                  const ps = passportStatus(w, lang);
+                  return (
+                    <tr key={w.id}>
+                      <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                      <td>{t(w.job, lang) || '—'}</td>
+                      <td>
+                        {canEditPage ? (
+                          <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
+                            {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
+                          </select>
+                        ) : t(w.stage, lang)}
+                      </td>
+                      <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table></div>
+        </div>
+      ))}
     </div>
   );
 }
