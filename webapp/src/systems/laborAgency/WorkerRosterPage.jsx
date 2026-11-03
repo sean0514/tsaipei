@@ -101,8 +101,10 @@ function EmployerCheckboxGroup({ employers, values, onChange }) {
 // 工人的履歷資料，不含案件階段／雇主配對這些流程資訊——移工送出履歷後
 // 會自動在這裡出現一筆（見 pages/LaborAgencyResumeApplyPage.jsx），內部
 // 人員也可以在這裡直接新增/編輯，表單欄位跟公開填寫頁完全一致(見
-// components/ResumeInternalFields.jsx)，另外加上工種/護照效期這兩個
-// 履歷表沒有、但移工管理需要的欄位。「下載履歷表」產生排版跟紙本履歷表
+// components/ResumeInternalFields.jsx)，另外加上工種/配對雇主/招募人員
+// 這幾個履歷表沒有、但移工名冊建檔時就需要填的欄位。護照效期改在「移工
+// 管理」(WorkersPage.jsx) 填寫，這裡的表單不重複開一個輸入框，但清單
+// 還是顯示（可能是那邊填過的）。「下載履歷表」產生排版跟紙本履歷表
 // 一樣的 Word 文件(lib/laborAgencyResumeDocx.js)，不是 Excel 表格。
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
@@ -115,6 +117,7 @@ export default function WorkerRosterPage() {
   const canEditPage = computeCanEdit(system, 'workerRoster', role, overrides);
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
+  const { rows: users } = useCollection('laborAgency_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_workers', CSV_FIELDS, { entityLabel: '工人資料', requiredKeys: ['name'], canEdit: canEditPage });
@@ -183,15 +186,16 @@ export default function WorkerRosterPage() {
           </table></div>
         </div>
       )}
-      {editing && <WorkerRosterFormModal initial={editing} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <WorkerRosterFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
 
-function WorkerRosterFormModal({ initial, employers, onCancel, onSave, lang }) {
+function WorkerRosterFormModal({ initial, employers, users, onCancel, onSave, lang }) {
   // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
   // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const [jobs, setJobs] = useState(() => parseJobs(initial.job));
   const [employerIds, setEmployerIds] = useState(() => workerEmployerIds(initial));
   const [domesticExperience, setDomesticExperience] = useState(() => {
@@ -227,7 +231,18 @@ function WorkerRosterFormModal({ initial, employers, onCancel, onSave, lang }) {
         <h3 style={{ marginTop: 0 }}>{initial.id ? t('編輯工人', lang) : t('新增工人', lang)}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            <label>{t('護照效期', lang)}<input type="date" value={form.passportExpiry || ''} onChange={(e) => setField('passportExpiry', e.target.value)} /></label>
+            <label>
+              {t('招募人員', lang)}
+              <input
+                list="assignedRecruiter-options"
+                value={form.assignedRecruiter || ''}
+                placeholder={t('選擇或自行輸入姓名', lang)}
+                onChange={(e) => setField('assignedRecruiter', e.target.value)}
+              />
+              <datalist id="assignedRecruiter-options">
+                {staffOptions.map((o) => <option key={o} value={o} />)}
+              </datalist>
+            </label>
           </div>
           <label style={{ display: 'block', marginBottom: 16 }}>
             {t('工種', lang)}（{t('可複選', lang)}）
