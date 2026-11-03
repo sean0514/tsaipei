@@ -61,8 +61,11 @@ async function fetchImage(url) {
 
 export async function downloadWorkerResumeDocx(w) {
   const {
-    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, ImageRun, AlignmentType,
+    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, ImageRun, AlignmentType, BorderStyle,
   } = await import('docx');
+
+  const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
 
   function heading(labelKey) {
     const label = RESUME_LABELS[labelKey];
@@ -153,19 +156,26 @@ export async function downloadWorkerResumeDocx(w) {
     alert(`部分圖片下載失敗，履歷表內會略過：\n${fetchWarnings.join('\n')}\n\n若持續失敗，可能是 Firebase Storage 沒有設定允許瀏覽器跨來源讀取（CORS），需要有 Firebase 專案權限的人用 gsutil 設定儲存桶的 CORS 規則。`);
   }
 
+  // 標題跟大頭照排成一列：標題靠左、照片靠右，跟紙本履歷表版面一致，
+  // 不是標題置中、照片另外整行置中。用無邊框表格做兩欄排版（docx 沒有
+  // 真正的文繞圖，表格是最簡單能做出「左文字右圖片同一行」的做法）。
+  const titleCell = new TableCell({
+    width: { size: 65, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    children: [new Paragraph({ children: [new TextRun({ text: `${RESUME_LABELS.pageTitle.zh} / ${RESUME_LABELS.pageTitle.vi}`, bold: true, size: 32 })] })],
+  });
+  const photoCell = new TableCell({
+    width: { size: 35, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    children: [new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: photo ? [new ImageRun({ data: photo.buffer, type: photo.type, transformation: { width: 150, height: 190 } })] : [],
+    })],
+  });
   const children = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `${RESUME_LABELS.pageTitle.zh} / ${RESUME_LABELS.pageTitle.vi}`, bold: true, size: 32 })],
-    }),
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [new TableRow({ children: [titleCell, photoCell] })] }),
+    new Paragraph({ text: '' }),
   ];
-  if (photo) {
-    children.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 120 },
-      children: [new ImageRun({ data: photo.buffer, type: photo.type, transformation: { width: 120, height: 150 } })],
-    }));
-  }
   children.push(heading('sectionBasic'), sectionTable('basic'));
   children.push(heading('sectionFamily'), sectionTable('family'));
   children.push(heading('sectionEducation'), sectionTable('education'));
