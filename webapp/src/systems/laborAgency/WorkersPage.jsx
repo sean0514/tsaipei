@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { STAGE_KEYS, JOBS, GENDERS, stageIndex, passportStatus, employerLabel } from './constants';
+import { STAGE_KEYS, JOBS, GENDERS, REVIEW_RESULTS, stageIndex, passportStatus, employerLabel, workerEmployerIds } from './constants';
 
 // 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
 // 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
@@ -26,6 +26,7 @@ const FIELDS = [
   { key: 'job', label: '工種', options: JOBS },
   { key: 'employerId', label: '配對雇主' },
   { key: 'stage', label: '目前階段', options: STAGE_KEYS },
+  { key: 'reviewResult', label: '審核結果', options: REVIEW_RESULTS },
   { key: 'passportExpiry', label: '護照效期', type: 'date' },
   // 內部獎金計算讀取的角色指派——每位移工各自指派負責人，詳見
   // BonusPage.jsx／BonusRateSetupPage.jsx。「招募人員」的獎金金額直接在
@@ -52,8 +53,9 @@ export default function WorkersPage() {
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_workers', CSV_FIELDS, { entityLabel: '移工資料', requiredKeys: ['name'], canEdit: canEditPage });
 
   const searchQuery = q.trim().toLowerCase();
+  const employerNames = (w) => workerEmployerIds(w).map((id) => employerLabel(employers, id, lang)).join(' ');
   const filtered = workers
-    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerLabel(employers, w.employerId, lang)} ${w.stage || ''} ${jobLabel(w.job, lang)}`.toLowerCase().includes(searchQuery))
+    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerNames(w)} ${w.stage || ''} ${jobLabel(w.job, lang)}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   async function handleSave(data) {
@@ -77,7 +79,9 @@ export default function WorkersPage() {
 
   async function handleArrangeEmployer({ workerId, employerId }) {
     const worker = workers.find((w) => w.id === workerId);
-    await update(workerId, { employerId, stage: worker?.stage || STAGE_KEYS[0], updatedAt: Date.now() });
+    const ids = workerEmployerIds(worker || {});
+    const nextIds = ids.includes(employerId) ? ids : [...ids, employerId];
+    await update(workerId, { employerIds: JSON.stringify(nextIds), stage: worker?.stage || STAGE_KEYS[0], updatedAt: Date.now() });
     setArranging(false);
   }
 
@@ -153,51 +157,91 @@ function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
 }
 
 const UNMATCHED_EMPLOYER = '__unmatched__';
+const UNSET_AGENCY = '__unset_agency__';
 
-// 案件清單：依配對雇主分組（未配對的歸一組，排最後），同一雇主底下依
-// 目前階段排序，同階段的再依姓名排序；搜尋時仍在各分組內比對姓名/工種/
-// 階段/雇主。
+// 案件清單：先依仲介分組，仲介底下再依雇主分組（未配對的歸一組，排
+// 最後）；同一個移工若在移工名冊同時配對多個雇主（可複選），這裡會依
+// 雇主各自顯示一行，不是只算一筆。同一雇主底下依目前階段排序，同階段
+// 的再依姓名排序；搜尋時仍在各分組內比對姓名/工種/階段/雇主。
 function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
-  const sortedEmployerIds = [...new Set(workers.map((w) => w.employerId).filter(Boolean))]
-    .sort((a, b) => employerLabel(employers, a, lang).localeCompare(employerLabel(employers, b, lang)));
-  const groupKeys = [...sortedEmployerIds, UNMATCHED_EMPLOYER];
+  // 攤平成「移工×配對雇主」的案件列：workerEmployerIds 回傳的陣列是空的
+  // 就代表尚未配對，用 null 佔一個「尚未配對」的位置。
+  const rows = workers.flatMap((w) => {
+    const ids = workerEmployerIds(w);
+    return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
+  });
+
+  const employerOf = (id) => employers.find((e) => e.id === id);
+  const sortedEmployerIds = [...new Set(rows.map((r) => r.employerId).filter(Boolean))]
+    .sort((a, b) => {
+      const ea = employerOf(a); const eb = employerOf(b);
+      return (ea?.agencyName || '').localeCompare(eb?.agencyName || '') || employerLabel(employers, a, lang).localeCompare(employerLabel(employers, b, lang));
+    });
+  const employerGroupKeys = [...sortedEmployerIds, UNMATCHED_EMPLOYER];
+
+  // 仲介分組：同一仲介底下可能有好幾個雇主，先依仲介名稱（沒填的歸一
+  // 組）把雇主分組鍵排在一起，未配對永遠排最後。
+  const agencyOrder = [];
+  employerGroupKeys.forEach((employerId) => {
+    const agencyKey = employerId === UNMATCHED_EMPLOYER ? UNSET_AGENCY : (employerOf(employerId)?.agencyName || UNSET_AGENCY);
+    if (!agencyOrder.includes(agencyKey)) agencyOrder.push(agencyKey);
+  });
+
+  function EmployerTable({ employerId }) {
+    const group = rows.filter((r) => (r.employerId || UNMATCHED_EMPLOYER) === employerId);
+    if (group.length === 0) return null;
+    const sorted = [...group].sort((a, b) => stageIndex(a.worker.stage) - stageIndex(b.worker.stage) || (a.worker.name || '').localeCompare(b.worker.name || ''));
+    return (
+      <div key={employerId} style={{ marginBottom: 16 }}>
+        <h4 style={{ marginBottom: 8 }}>
+          {employerId === UNMATCHED_EMPLOYER ? t('尚未配對', lang) : employerLabel(employers, employerId, lang)}
+          <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+        </h4>
+        <div className="card">
+          <div className="table-wrap"><table>
+            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('審核結果', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
+            <tbody>
+              {sorted.map(({ worker: w }) => {
+                const ps = passportStatus(w, lang);
+                return (
+                  <tr key={`${w.id}-${employerId}`}>
+                    <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                    <td>{jobLabel(w.job, lang)}</td>
+                    <td>
+                      {canEditPage ? (
+                        <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
+                          {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
+                        </select>
+                      ) : t(w.stage, lang)}
+                    </td>
+                    <td>{t(w.reviewResult, lang) || '—'}</td>
+                    <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {groupKeys.map((employerId) => {
-        const group = workers.filter((w) => (w.employerId || UNMATCHED_EMPLOYER) === employerId);
-        if (group.length === 0) return null;
-        const sorted = [...group].sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage) || (a.name || '').localeCompare(b.name || ''));
+      {agencyOrder.map((agencyKey) => {
+        const employerIdsInAgency = employerGroupKeys.filter((employerId) => {
+          const key = employerId === UNMATCHED_EMPLOYER ? UNSET_AGENCY : (employerOf(employerId)?.agencyName || UNSET_AGENCY);
+          return key === agencyKey;
+        });
+        const count = rows.filter((r) => employerIdsInAgency.includes(r.employerId || UNMATCHED_EMPLOYER)).length;
+        if (count === 0) return null;
         return (
-          <div key={employerId} style={{ marginBottom: 24 }}>
+          <div key={agencyKey} style={{ marginBottom: 24 }}>
             <h3 style={{ marginBottom: 10 }}>
-              {employerId === UNMATCHED_EMPLOYER ? t('尚未配對', lang) : employerLabel(employers, employerId, lang)}
-              <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+              {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
+              <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{count}）</span>
             </h3>
-            <div className="card">
-              <div className="table-wrap"><table>
-                <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
-                <tbody>
-                  {sorted.map((w) => {
-                    const ps = passportStatus(w, lang);
-                    return (
-                      <tr key={w.id}>
-                        <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
-                        <td>{jobLabel(w.job, lang)}</td>
-                        <td>
-                          {canEditPage ? (
-                            <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
-                              {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
-                            </select>
-                          ) : t(w.stage, lang)}
-                        </td>
-                        <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table></div>
-            </div>
+            {employerIdsInAgency.map((employerId) => <EmployerTable key={employerId} employerId={employerId} />)}
           </div>
         );
       })}

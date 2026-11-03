@@ -5,8 +5,9 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { INDUSTRIES } from './constants';
+import { INDUSTRIES, workerEmployerIds, isHired } from './constants';
 
+const YES_NO = ['是', '否'];
 const GENDER_REQUIREMENTS = ['不限', '男', '女'];
 const MEAL_ARRANGEMENTS = ['供餐', '不供餐', '自理（補貼伙食費）'];
 const LANGUAGE_REQUIREMENTS = ['不會', '一點點', '可以溝通', '流利中文'];
@@ -40,6 +41,7 @@ const FIELDS = [
   { key: 'overtimeArrangement', label: '加班情況' },
   { key: 'languageRequirement', label: '語文要求', options: LANGUAGE_REQUIREMENTS },
   { key: 'workerIdentity', label: '工人身分', options: WORKER_IDENTITIES },
+  { key: 'acceptsTattoo', label: '是否可以接受刺青', options: YES_NO },
   { key: 'contact', label: '聯絡人' },
   { key: 'specialNotes', label: '特殊狀況', type: 'textarea' },
   { key: 'note', label: '備註', type: 'textarea' },
@@ -63,6 +65,14 @@ export default function EmployersPage() {
   const { rows: workers } = useCollection('laborAgency_workers');
   const [editing, setEditing] = useState(null);
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_employers', CSV_FIELDS, { entityLabel: '雇主需求單', requiredKeys: ['name'], canEdit: canEditPage });
+  const activeEmployers = employers.filter((e) => !e.closed);
+  const closedEmployers = employers.filter((e) => e.closed);
+
+  function employerStats(employerId) {
+    const matchedWorkers = workers.filter((w) => workerEmployerIds(w).includes(employerId));
+    const hired = matchedWorkers.filter(isHired).length;
+    return { matched: matchedWorkers.length, hired };
+  }
 
   async function handleSave(data) {
     const payload = { ...data, demand: Math.max(0, parseInt(data.demand, 10) || 0) };
@@ -73,6 +83,17 @@ export default function EmployersPage() {
       await add(payload);
     }
     setEditing(null);
+  }
+
+  // 複製：帶入同一筆雇主需求的所有欄位重新建一筆，名稱加註「（複製）」，
+  // 方便同一雇主短時間內又有新的需求時不用整張表重填。
+  async function handleDuplicate(e) {
+    const { id: _id, ...rest } = e;
+    await add({ ...rest, name: `${e.name}（複製）`, closed: false });
+  }
+
+  async function handleToggleClosed(e) {
+    await update(e.id, { closed: !e.closed });
   }
 
   return (
@@ -91,8 +112,8 @@ export default function EmployersPage() {
         employers.length === 0 ? (
           <div className="card"><p className="muted" style={{ margin: 0 }}>{t('還沒有雇主需求單。新增後，可在移工資料中指定雇主，這裡會自動計算已配對與缺口。', lang)}</p></div>
         ) : (
-          [...new Set(employers.map((e) => e.agencyName).filter(Boolean)), UNSET_AGENCY].map((agencyName) => {
-            const group = employers.filter((e) => (e.agencyName || UNSET_AGENCY) === agencyName);
+          [...new Set(activeEmployers.map((e) => e.agencyName).filter(Boolean)), UNSET_AGENCY].map((agencyName) => {
+            const group = activeEmployers.filter((e) => (e.agencyName || UNSET_AGENCY) === agencyName);
             if (group.length === 0) return null;
             return (
               <div key={agencyName} style={{ marginBottom: 24 }}>
@@ -102,9 +123,9 @@ export default function EmployersPage() {
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                   {group.map((e) => {
-                    const matched = workers.filter((w) => w.employerId === e.id).length;
+                    const { matched, hired } = employerStats(e.id);
                     const demand = +e.demand || 0;
-                    const remaining = demand - matched;
+                    const remaining = demand - hired;
                     const otherRequirements = parseList(e.otherRequirements);
                     const otherBenefits = parseList(e.otherBenefits);
                     return (
@@ -114,7 +135,7 @@ export default function EmployersPage() {
                         <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.county ? `　${t(e.county, lang)}` : ''}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
                         {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
                         <div style={{ margin: '10px 0' }}>
-                          {t('已配對', lang)} <b>{matched}</b> / {t('需求', lang)} <b>{demand}</b>
+                          {t('已配對', lang)} <b>{matched}</b> / {t('已錄取', lang)} <b>{hired}</b> / {t('需求', lang)} <b>{demand}</b>
                           {e.genderRequirement && e.genderRequirement !== '不限' ? `（${t('限', lang)}${t(e.genderRequirement, lang)}）` : ''}
                           {e.ageRequirement ? `，${t('年齡', lang)} ${e.ageRequirement}` : ''}{' '}
                           {remaining > 0 ? <span className="tag tag-amber">{t('缺', lang)} {remaining} {t('人', lang)}</span> : <span className="tag tag-green">{t('已滿額', lang)}</span>}
@@ -129,12 +150,15 @@ export default function EmployersPage() {
                           {e.overtimeArrangement && <div>{t('加班情況：', lang)}{e.overtimeArrangement}</div>}
                           {e.languageRequirement && <div>{t('語文要求：', lang)}{t(e.languageRequirement, lang)}</div>}
                           {e.workerIdentity && <div>{t('工人身分：', lang)}{t(e.workerIdentity, lang)}</div>}
+                          {e.acceptsTattoo && <div>{t('是否可以接受刺青：', lang)}{t(e.acceptsTattoo, lang)}</div>}
                         </div>
                         {e.specialNotes && <div className="muted" style={{ fontSize: 13, marginBottom: 6, whiteSpace: 'pre-wrap' }}><strong>{t('特殊狀況：', lang)}</strong>{e.specialNotes}</div>}
                         {e.note && <div className="muted" style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{e.note}</div>}
                         {canEditPage && (
                           <div className="row-actions" style={{ marginTop: 10 }}>
                             <button onClick={() => setEditing(e)}>{t('編輯', lang)}</button>
+                            <button onClick={() => handleDuplicate(e)}>{t('複製', lang)}</button>
+                            <button onClick={() => handleToggleClosed(e)}>{t('結案', lang)}</button>
                             <button className="danger" onClick={() => remove(e.id)}>{t('刪除', lang)}</button>
                           </div>
                         )}
@@ -146,6 +170,25 @@ export default function EmployersPage() {
             );
           })
         )
+      )}
+      {closedEmployers.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ marginBottom: 10 }}>{t('已結案', lang)}<span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{closedEmployers.length}）</span></h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            {closedEmployers.map((e) => (
+              <div className="card muted" key={e.id}>
+                <h3 style={{ marginTop: 0 }}>{e.name}</h3>
+                <div style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.agencyName ? `　${e.agencyName}` : ''}</div>
+                {canEditPage && (
+                  <div className="row-actions" style={{ marginTop: 10 }}>
+                    <button onClick={() => handleToggleClosed(e)}>{t('重新開啟', lang)}</button>
+                    <button className="danger" onClick={() => remove(e.id)}>{t('刪除', lang)}</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
       {editing && <EmployerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} role={role} />}
     </div>

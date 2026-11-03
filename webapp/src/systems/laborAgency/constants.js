@@ -60,6 +60,29 @@ export function employerLabel(employers, employerId, lang) {
   return employers.find((e) => e.id === employerId)?.name || t('尚未配對', lang);
 }
 
+// 移工名冊的「配對雇主」可複選，存成 employerIds（JSON 字串陣列）；舊資料
+// 或「移工管理」的「新增雇主安排」功能寫的是單一 employerId，兩者合併
+// 不重複，取不到才當作尚未配對（回傳空陣列）。
+export function workerEmployerIds(w) {
+  let ids = [];
+  try {
+    const arr = w.employerIds ? JSON.parse(w.employerIds) : [];
+    if (Array.isArray(arr)) ids = arr.filter(Boolean);
+  } catch { /* 不是 JSON，忽略 */ }
+  if (w.employerId && !ids.includes(w.employerId)) ids = [...ids, w.employerId];
+  return ids;
+}
+
+// 審核結果：配對後的面試/錄取結果，跟案件「目前階段」分開追蹤——階段是
+// 走到哪個行政流程，審核結果是這次配對有沒有被雇主選上。雇主需求單的
+// 「已錄取」人數、文件追蹤/辦理簽證/出境辦理等後續關卡的名單，都是從
+// 「通過錄取」的移工篩出來。
+export const REVIEW_RESULTS = ['面試中', '通過錄取', '取消', '不錄取'];
+
+export function isHired(w) {
+  return w.reviewResult === '通過錄取';
+}
+
 // 挑到工人後的文件清單（必備 required=true／依個案可選 required=false），
 // 勾選狀態存在對應 worker 文件的 docsChecked（物件，key 對照下面的 key）。
 export const DOCS_CHECKLIST = [
