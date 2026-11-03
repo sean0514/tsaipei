@@ -152,39 +152,57 @@ function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
   );
 }
 
-// 案件清單：單一平面表格（不分組），依姓名/工種/階段/雇主搜尋時結果
-// 一目了然，不用在各個雇主分組卡片裡找；依目前階段排序，同階段的再依
-// 姓名排序。
+const UNMATCHED_EMPLOYER = '__unmatched__';
+
+// 案件清單：依配對雇主分組（未配對的歸一組，排最後），同一雇主底下依
+// 目前階段排序，同階段的再依姓名排序；搜尋時仍在各分組內比對姓名/工種/
+// 階段/雇主。
 function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
-  const sorted = [...workers].sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage) || (a.name || '').localeCompare(b.name || ''));
+  const sortedEmployerIds = [...new Set(workers.map((w) => w.employerId).filter(Boolean))]
+    .sort((a, b) => employerLabel(employers, a, lang).localeCompare(employerLabel(employers, b, lang)));
+  const groupKeys = [...sortedEmployerIds, UNMATCHED_EMPLOYER];
 
   return (
-    <div className="card">
-      <div className="table-wrap"><table>
-        <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('配對雇主', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
-        <tbody>
-          {sorted.map((w) => {
-            const ps = passportStatus(w, lang);
-            return (
-              <tr key={w.id}>
-                <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
-                <td>{jobLabel(w.job, lang)}</td>
-                <td>
-                  {canEditPage ? (
-                    <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
-                      {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
-                    </select>
-                  ) : t(w.stage, lang)}
-                </td>
-                <td>{employerLabel(employers, w.employerId, lang)}</td>
-                <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
-              </tr>
-            );
-          })}
-          {sorted.length === 0 && <tr><td colSpan={5} className="muted">{t('沒有案件', lang)}</td></tr>}
-        </tbody>
-      </table></div>
-    </div>
+    <>
+      {groupKeys.map((employerId) => {
+        const group = workers.filter((w) => (w.employerId || UNMATCHED_EMPLOYER) === employerId);
+        if (group.length === 0) return null;
+        const sorted = [...group].sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage) || (a.name || '').localeCompare(b.name || ''));
+        return (
+          <div key={employerId} style={{ marginBottom: 24 }}>
+            <h3 style={{ marginBottom: 10 }}>
+              {employerId === UNMATCHED_EMPLOYER ? t('尚未配對', lang) : employerLabel(employers, employerId, lang)}
+              <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+            </h3>
+            <div className="card">
+              <div className="table-wrap"><table>
+                <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
+                <tbody>
+                  {sorted.map((w) => {
+                    const ps = passportStatus(w, lang);
+                    return (
+                      <tr key={w.id}>
+                        <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                        <td>{jobLabel(w.job, lang)}</td>
+                        <td>
+                          {canEditPage ? (
+                            <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
+                              {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
+                            </select>
+                          ) : t(w.stage, lang)}
+                        </td>
+                        <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+        );
+      })}
+      {workers.length === 0 && <div className="card"><p className="muted" style={{ margin: 0 }}>{t('沒有案件', lang)}</p></div>}
+    </>
   );
 }
 
