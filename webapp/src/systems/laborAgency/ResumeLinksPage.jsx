@@ -4,6 +4,8 @@ import { serverTimestamp } from 'firebase/firestore';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
+import { emptyExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
+import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { STAGE_KEYS } from './constants';
 
 function copyLink(url, lang) {
@@ -32,9 +34,10 @@ export default function ResumeLinksPage() {
   const canEditWorkers = computeCanEdit(system, 'workers', role, overrides);
   const { rows: staff, loading: loadingStaff } = useCollection('laborAgency_users');
   const { rows: submissions, loading: loadingSubmissions, update: updateSubmission, remove: removeSubmission } = useCollection('laborAgency_resumeSubmissions');
-  const { add: addWorker } = useCollection('laborAgency_workers');
+  const { add: addWorker, update: updateWorker } = useCollection('laborAgency_workers');
   const [q, setQ] = useState('');
   const [viewing, setViewing] = useState(null);
+  const [editing, setEditing] = useState(null);
 
   function handleCopyLink(member) {
     const url = `${window.location.origin}/apply/laborAgency?ref=${encodeURIComponent(member.displayName || '')}`;
@@ -63,6 +66,22 @@ export default function ResumeLinksPage() {
   async function handleDeleteSubmission(sub) {
     if (!window.confirm(t('確定要刪除這筆履歷嗎？', lang))) return;
     await removeSubmission(sub.id);
+  }
+
+  // 編輯履歷：資料存回履歷紀錄本身；這筆履歷如果已經轉入移工名冊
+  // (sub.workerId)，同一份內容也同步更新到那邊，避免名冊/下載履歷表
+  // 顯示的還是轉入當下的舊資料。
+  async function handleSaveEdit(sub, data) {
+    await updateSubmission(sub.id, data);
+    if (sub.workerId) {
+      await updateWorker(sub.workerId, {
+        ...data,
+        name: data.chineseName || data.vietnameseName || '',
+        province: data.hometown || '',
+        note: data.specialties || '',
+      });
+    }
+    setEditing(null);
   }
 
   const query = q.trim().toLowerCase();
@@ -120,6 +139,7 @@ export default function ResumeLinksPage() {
                   <td>{sub.workerId ? t('已轉入', lang) : t('待處理', lang)}</td>
                   <td className="row-actions">
                     <button onClick={() => setViewing(sub)}>{t('查看詳情', lang)}</button>
+                    {canEditPage && <button onClick={() => setEditing(sub)}>{t('編輯', lang)}</button>}
                     {canEditWorkers && !sub.workerId && <button className="primary" onClick={() => handleConvertToWorker(sub)}>{t('轉入移工管理', lang)}</button>}
                     {canEditPage && <button className="danger" onClick={() => handleDeleteSubmission(sub)}>{t('刪除', lang)}</button>}
                   </td>
@@ -132,6 +152,14 @@ export default function ResumeLinksPage() {
       </div>
 
       {viewing && <ViewingModal sub={viewing} onClose={() => setViewing(null)} lang={lang} />}
+      {editing && (
+        <EditSubmissionModal
+          sub={editing}
+          onCancel={() => setEditing(null)}
+          onSave={(data) => handleSaveEdit(editing, data)}
+          lang={lang}
+        />
+      )}
     </div>
   );
 }
@@ -174,6 +202,7 @@ function ViewingModal({ sub, onClose, lang }) {
         <h4>{t('家庭狀況', lang)}</h4>
         <div className="form-grid">
           <div><strong>{t('結婚狀況', lang)}：</strong>{sub.maritalStatus || '—'}</div>
+          <div><strong>{t('緊急聯絡電話', lang)}：</strong>{sub.familyContactPhone || '—'}</div>
           <div><strong>{t('父親', lang)}：</strong>{sub.fatherName || '—'}（{sub.fatherAlive || '—'}／{sub.fatherAge || '—'}{t('歲', lang)}／{sub.fatherOccupation || '—'}）</div>
           <div><strong>{t('母親', lang)}：</strong>{sub.motherName || '—'}（{sub.motherAlive || '—'}／{sub.motherAge || '—'}{t('歲', lang)}／{sub.motherOccupation || '—'}）</div>
           <div><strong>{t('配偶', lang)}：</strong>{sub.spouseName || '—'}（{sub.spouseAge || '—'}{t('歲', lang)}／{sub.spouseOccupation || '—'}）</div>
@@ -202,6 +231,61 @@ function ViewingModal({ sub, onClose, lang }) {
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button onClick={onClose}>{t('關閉', lang)}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 編輯移工填寫的履歷——欄位跟公開填寫頁 (pages/LaborAgencyResumeApplyPage.jsx)
+// 一致，國內外工作經驗編輯器直接共用那邊匯出的 ExperienceEditor，不用
+// 重複寫一份。不開放改照片/刺青照片/LINE 圖片，只處理文字資料的修正。
+function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
+  const [form, setForm] = useState({ ...sub });
+  const [domesticExperience, setDomesticExperience] = useState(() => {
+    const rows = parseExperience(sub.domesticExperience);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+  const [overseasExperience, setOverseasExperience] = useState(() => {
+    const rows = parseExperience(sub.overseasExperience);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    // 排除 id/狀態/轉入紀錄這幾個不是履歷表單欄位的管理用欄位，避免存回
+    // 時當成一般欄位寫進 Firestore 文件（id 本來就是文件自己的 id）。
+    const { id: _id, assignedStaff: _assignedStaff, status: _status, workerId: _workerId, createdAt: _createdAt, processedAt: _processedAt, ...resumeFields } = form;
+    onSave({
+      ...resumeFields,
+      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
+      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+    });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100%' }}>
+        <h3 style={{ marginTop: 0 }}>{t('編輯履歷', lang)}</h3>
+        <form onSubmit={handleSubmit}>
+          <ResumeInternalFields
+            form={form}
+            setField={setField}
+            lang={lang}
+            domesticExperience={domesticExperience}
+            setDomesticExperience={setDomesticExperience}
+            overseasExperience={overseasExperience}
+            setOverseasExperience={setOverseasExperience}
+          />
+
+          <div className="row-actions" style={{ marginTop: 16 }}>
+            <button type="submit" className="primary">{t('儲存', lang)}</button>
+            <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

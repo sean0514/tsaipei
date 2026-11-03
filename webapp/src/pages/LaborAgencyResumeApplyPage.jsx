@@ -16,14 +16,16 @@ const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 // 資料（跟 vietnam 系統的 VietnamResumeApplyPage.jsx 同一套模式）。
 const LANGS = [{ key: 'zh', label: '中文' }, { key: 'vi', label: 'Tiếng Việt' }];
 
-function emptyExperienceRow() {
+// 匯出給 systems/laborAgency/ResumeLinksPage.jsx 的「編輯履歷」表單共用，
+// 不用重複寫一份一樣的國內外工作經驗編輯器。
+export function emptyExperienceRow() {
   return { year: '', description: '', reason: '' };
 }
 
 // 獨立宣告在元件外面——原本寫在 LaborAgencyResumeApplyPage 裡面，每次
 // render 都會產生新的函式參照，React 視為不同的元件型別而整個重新掛載，
 // 導致裡面的 input 每打一個字就失焦、看起來像完全打不進去。
-function ExperienceEditor({ rows, setRows, labels }) {
+export function ExperienceEditor({ rows, setRows, labels }) {
   function updateRow(i, patch) {
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
@@ -155,6 +157,7 @@ export default function LaborAgencyResumeApplyPage() {
         tattooPhotoUrl,
         lineQrPhotoUrl,
         maritalStatus: form.maritalStatus || '',
+        familyContactPhone: form.familyContactPhone || '',
         photoUrl,
         fatherName: form.fatherName || '',
         fatherAlive: form.fatherAlive || '',
@@ -330,6 +333,7 @@ export default function LaborAgencyResumeApplyPage() {
               <option value="已婚">{L('married')}</option>
             </select>
           </label>
+          <label>{L('familyContactPhone')}<input value={form.familyContactPhone || ''} onChange={(e) => setField('familyContactPhone', e.target.value)} /></label>
           <label>{L('father')}<input value={form.fatherName || ''} onChange={(e) => setField('fatherName', e.target.value)} /></label>
           <label>{L('alive')}
             <select value={form.fatherAlive || ''} onChange={(e) => setField('fatherAlive', e.target.value)}>

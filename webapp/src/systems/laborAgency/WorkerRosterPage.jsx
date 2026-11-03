@@ -5,9 +5,10 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
-import { RESUME_LABELS, RESUME_VALUE_LABEL_KEYS, RESUME_DOWNLOAD_FIELDS } from '../../lib/laborAgencyResumeLabels';
-import { JOBS, GENDERS, STAGE_KEYS } from './constants';
+import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
+import ResumeInternalFields from '../../components/ResumeInternalFields';
+import { emptyExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
+import { JOBS } from './constants';
 
 function parseExperience(json) {
   try {
@@ -16,56 +17,18 @@ function parseExperience(json) {
   } catch { return []; }
 }
 
-// 中文原文 → 越南文：履歷表的是/否、性別等選項欄位資料庫存的是中文原文，
-// 查不到對照（例如工人自己手寫的自由文字欄位）就中越文都顯示原文。
-function bilingualValue(raw) {
-  if (!raw) return { zh: '', vi: '' };
-  const labelKey = RESUME_VALUE_LABEL_KEYS[raw];
-  return { zh: raw, vi: labelKey ? RESUME_LABELS[labelKey].vi : raw };
-}
-
-// 下載履歷表：把「移工填寫的履歷」(pages/LaborAgencyResumeApplyPage.jsx)
-// 送出時帶進移工名冊(laborAgency_workers)的完整欄位整理成中越文對照的
-// Excel，欄位名稱/選項翻譯跟填寫頁共用 lib/laborAgencyResumeLabels.js，
-// 不用再手動維護第二份對照表。
-async function downloadWorkerResume(w) {
-  await downloadXlsx(`履歷表_${w.name || w.vietnameseName || w.id}.xlsx`, (workbook) => {
-    const rows = RESUME_DOWNLOAD_FIELDS.map(({ key, labelKey, prefixKey }) => {
-      const label = RESUME_LABELS[labelKey];
-      const prefix = prefixKey ? RESUME_LABELS[prefixKey].zh : '';
-      const prefixVi = prefixKey ? RESUME_LABELS[prefixKey].vi : '';
-      const { zh, vi } = bilingualValue(w[key]);
-      return [`${prefix}${label.zh} / ${prefixVi} ${label.vi}`.trim(), zh || '—', vi || '—'];
-    });
-    [['photoUrl', 'photo'], ['tattooPhotoUrl', 'tattooPhoto'], ['lineQrPhotoUrl', 'lineQrPhoto']].forEach(([key, labelKey]) => {
-      if (!w[key]) return;
-      const label = RESUME_LABELS[labelKey];
-      rows.push([`${label.zh} / ${label.vi}`, w[key], w[key]]);
-    });
-    ['domesticExperience', 'overseasExperience'].forEach((key) => {
-      const label = RESUME_LABELS[key];
-      parseExperience(w[key]).forEach((r, i) => {
-        rows.push([`${label.zh} / ${label.vi} ${i + 1}`, `${r.year || ''} ${r.description || ''} ${r.reason || ''}`.trim() || '—', '—']);
-      });
-    });
-    addTableSheet(workbook, '履歷表', ['欄位 Field / Trường thông tin', '中文 Tiếng Trung', 'Tiếng Việt'], rows);
-  });
-}
-
-// 移工名冊：跳過「移工管理」的案件階段／雇主配對等流程資訊，只看工人的
-// 基本資料（姓名/性別/省份/工種/護照效期/備註），跟「移工管理」共用同一個
-// laborAgency_workers 集合——移工送出履歷後會自動在這裡出現一筆（見
-// pages/LaborAgencyResumeApplyPage.jsx），內部人員也可以在這裡直接補建。
-const FIELDS = [
-  { key: 'name', label: '姓名', required: true },
-  { key: 'vietnameseName', label: '越文姓名' },
-  { key: 'gender', label: '性別', options: GENDERS },
-  { key: 'province', label: '省份' },
-  { key: 'job', label: '工種', options: JOBS },
-  { key: 'passportExpiry', label: '護照效期', type: 'date' },
-  { key: 'note', label: '備註', type: 'textarea' },
+// 移工名冊：跟「移工管理」共用同一個 laborAgency_workers 集合，但只看
+// 工人的履歷資料，不含案件階段／雇主配對這些流程資訊——移工送出履歷後
+// 會自動在這裡出現一筆（見 pages/LaborAgencyResumeApplyPage.jsx），內部
+// 人員也可以在這裡直接新增/編輯，表單欄位跟公開填寫頁完全一致(見
+// components/ResumeInternalFields.jsx)，另外加上工種/護照效期這兩個
+// 履歷表沒有、但移工管理需要的欄位。「下載履歷表」產生排版跟紙本履歷表
+// 一樣的 Word 文件(lib/laborAgencyResumeDocx.js)，不是 Excel 表格。
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
+  { key: 'gender', label: '性別' }, { key: 'province', label: '省份' }, { key: 'job', label: '工種' },
+  { key: 'passportExpiry', label: '護照效期' }, { key: 'note', label: '備註' },
 ];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 
 export default function WorkerRosterPage() {
   const { system, role, overrides, lang } = useOutletContext();
@@ -81,14 +44,13 @@ export default function WorkerRosterPage() {
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   async function handleSave(data) {
-    const payload = { ...data };
     if (data.id) {
-      const { id, ...rest } = payload;
+      const { id, ...rest } = data;
       await update(id, rest);
     } else {
       // 新增時沿用「移工管理」流程的第一個階段，避免新建的工人在「移工
       // 管理」的流程管理頁面裡沒有階段可顯示。
-      await add({ ...payload, stage: STAGE_KEYS[0], updatedAt: Date.now() });
+      await add({ ...data, stage: '雇主確認', updatedAt: Date.now() });
     }
     setEditing(null);
   }
@@ -125,7 +87,7 @@ export default function WorkerRosterPage() {
                   <td>{t(w.job, lang) || '—'}</td>
                   <td>{w.passportExpiry || '—'}</td>
                   <td className="row-actions">
-                    <button onClick={() => downloadWorkerResume(w)}>{t('下載履歷表', lang)}</button>
+                    <button onClick={() => downloadWorkerResumeDocx(w)}>{t('下載履歷表', lang)}</button>
                     {canEditPage && (
                       <>
                         <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
@@ -146,32 +108,61 @@ export default function WorkerRosterPage() {
 }
 
 function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
-  const [form, setForm] = useState(initial);
+  // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
+  // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
+  const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
+  const [domesticExperience, setDomesticExperience] = useState(() => {
+    const rows = parseExperience(initial.domesticExperience);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+  const [overseasExperience, setOverseasExperience] = useState(() => {
+    const rows = parseExperience(initial.overseasExperience);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave({
+      ...form,
+      name: form.chineseName || form.vietnameseName || '',
+      province: form.hometown || '',
+      note: form.specialties || '',
+      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
+      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+    });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? t('編輯工人', lang) : t('新增工人', lang)}</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100%' }}>
+        <h3 style={{ marginTop: 0 }}>{initial.id ? t('編輯工人', lang) : t('新增工人', lang)}</h3>
+        <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            {FIELDS.filter((f) => f.type !== 'textarea').map((f) => (
-              <label key={f.key}>
-                {t(f.label, lang)}
-                {f.options ? (
-                  <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    <option value="">{t('請選擇', lang)}</option>
-                    {f.options.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
-                  </select>
-                ) : (
-                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
-                )}
-              </label>
-            ))}
+            <label>
+              {t('工種', lang)}
+              <select value={form.job || ''} onChange={(e) => setField('job', e.target.value)}>
+                <option value="">{t('請選擇', lang)}</option>
+                {JOBS.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
+              </select>
+            </label>
+            <label>{t('護照效期', lang)}<input type="date" value={form.passportExpiry || ''} onChange={(e) => setField('passportExpiry', e.target.value)} /></label>
           </div>
-          <label>
-            {t('備註', lang)}
-            <textarea rows={3} value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ marginBottom: 16 }} />
-          </label>
-          <div className="row-actions">
+
+          <ResumeInternalFields
+            form={form}
+            setField={setField}
+            lang={lang}
+            domesticExperience={domesticExperience}
+            setDomesticExperience={setDomesticExperience}
+            overseasExperience={overseasExperience}
+            setOverseasExperience={setOverseasExperience}
+          />
+
+          <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
           </div>
