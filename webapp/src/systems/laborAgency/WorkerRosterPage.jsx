@@ -8,7 +8,7 @@ import { t } from '../../lib/i18n';
 import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
-import { JOBS, workerEmployerIds, employerLabel } from './constants';
+import { JOBS, workerEmployerIds, employerLabel, employerPickerLabel } from './constants';
 
 function parseExperience(json) {
   try {
@@ -80,7 +80,7 @@ export function CheckboxGroup({ options, values, onChange, lang }) {
 // employerIds（JSON 字串陣列），跟「移工管理」既有的單一 employerId
 // （「新增雇主安排」功能寫的）合併顯示，見 constants.js 的
 // workerEmployerIds()。
-export function EmployerCheckboxGroup({ employers, values, onChange }) {
+export function EmployerCheckboxGroup({ employers, values, onChange, role }) {
   function toggle(id) {
     onChange(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
   }
@@ -89,7 +89,7 @@ export function EmployerCheckboxGroup({ employers, values, onChange }) {
       {employers.map((emp) => (
         <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
           <input type="checkbox" checked={values.includes(emp.id)} onChange={() => toggle(emp.id)} />
-          {emp.name}
+          {employerPickerLabel(emp, role)}
         </label>
       ))}
       {employers.length === 0 && <span className="muted">尚未建立雇主需求單</span>}
@@ -189,12 +189,12 @@ export default function WorkerRosterPage() {
           </table></div>
         </div>
       )}
-      {editing && <WorkerRosterFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <WorkerRosterFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} role={role} />}
     </div>
   );
 }
 
-function WorkerRosterFormModal({ initial, employers, users, onCancel, onSave, lang }) {
+function WorkerRosterFormModal({ initial, employers, users, onCancel, onSave, lang, role }) {
   // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
   // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
@@ -253,7 +253,7 @@ function WorkerRosterFormModal({ initial, employers, users, onCancel, onSave, la
           </label>
           <label style={{ display: 'block', marginBottom: 16 }}>
             {t('配對雇主', lang)}（{t('可複選', lang)}）
-            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} />
+            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} role={role} />
           </label>
 
           <ResumeInternalFields
