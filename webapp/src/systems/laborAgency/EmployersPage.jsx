@@ -110,7 +110,7 @@ export default function EmployersPage() {
                     return (
                       <div className="card" key={e.id}>
                         <h3 style={{ marginTop: 0 }}>{e.name}</h3>
-                        {role === '行政人員' && e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('函文編號：', lang)}{e.docNumber}</div>}
+                        {canSeeDocNumber(role) && e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('函文編號：', lang)}{e.docNumber}</div>}
                         <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.county ? `　${t(e.county, lang)}` : ''}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
                         {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
                         <div style={{ margin: '10px 0' }}>
@@ -191,10 +191,16 @@ function ListEditor({ label, addLabel, items, onChange, lang }) {
   );
 }
 
-// 函文編號是行政專用欄位，只有「行政人員」角色能看到/填寫，其他角色
-// 的表單跟卡片都不顯示這個欄位。
+// 函文編號是行政專用欄位，只有「行政人員」跟「系統管理員」能看到/填寫
+// （系統管理員是最高權限，本來就能看到所有行政專用欄位；用「以角色
+// 預覽」功能切換成其他角色時才會跟著被擋），其他角色的表單跟卡片都
+// 不顯示這個欄位。
+const DOC_NUMBER_ROLES = ['行政人員', '系統管理員'];
+function canSeeDocNumber(role) {
+  return DOC_NUMBER_ROLES.includes(role);
+}
 function visibleFields(role) {
-  return FIELDS.filter((f) => f.key !== 'docNumber' || role === '行政人員');
+  return FIELDS.filter((f) => f.key !== 'docNumber' || canSeeDocNumber(role));
 }
 
 function EmployerFormModal({ initial, onCancel, onSave, lang, role }) {
