@@ -30,6 +30,7 @@ export const RESUME_LABELS = {
   lineQrPhoto: { zh: 'LINE(上傳圖片)', vi: 'LINE (Tải ảnh lên)' },
 
   sectionFamily: { zh: '家庭狀況', vi: 'Gia đình' },
+  familyContactPhone: { zh: '緊急聯絡電話', vi: 'Số điện thoại liên hệ khẩn cấp' },
   maritalStatus: { zh: '結婚狀況', vi: 'Tình trạng hôn nhân' },
   single: { zh: '未婚', vi: 'Độc thân' },
   married: { zh: '已婚', vi: 'Đã kết hôn' },
@@ -108,6 +109,7 @@ export const RESUME_DOWNLOAD_FIELDS = [
   { key: 'majorSurgery', labelKey: 'majorSurgery' },
   { key: 'hasTattoo', labelKey: 'hasTattoo' },
   { key: 'maritalStatus', labelKey: 'maritalStatus' },
+  { key: 'familyContactPhone', labelKey: 'familyContactPhone' },
   { key: 'fatherName', labelKey: 'father' },
   { key: 'fatherAlive', labelKey: 'alive', prefixKey: 'father' },
   { key: 'fatherAge', labelKey: 'age', prefixKey: 'father' },
