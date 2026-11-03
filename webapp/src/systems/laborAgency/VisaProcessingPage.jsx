@@ -7,27 +7,6 @@ import { employerLabel, workerEmployerIds } from './constants';
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// 簽證辦理/領取日期改成可點擊的流程步驟：還沒填就點一下，直接帶入今天
-// 的日期；已經填過再點一下可以清空重填（例如填錯日期），不用另外開
-// 日期輸入框一個個改，跟文件追蹤「必備文件進度」同一套互動方式。
-function DateStep({ label, value, onChange, canEdit }) {
-  return (
-    <button
-      type="button"
-      disabled={!canEdit}
-      onClick={() => onChange(value ? '' : today())}
-      className={`tag ${value ? 'tag-green' : 'tag-grey'}`}
-      style={{ cursor: canEdit ? 'pointer' : 'default', fontWeight: value ? 700 : 400 }}
-    >
-      {value ? '✓ ' : ''}{label}{value ? `（${value}）` : ''}
-    </button>
-  );
-}
-
 // 名單來源：文件追蹤標記「完成」(docsCompleted) 的移工，自動出現在這裡
 // 辦簽證；填好辦理/領取日期後按「完成」(visaCompleted)，會從這份名單
 // 消失，接著自動出現在「出境辦理」頁面。先依仲介分組，仲介底下再依
@@ -36,7 +15,7 @@ function DateStep({ label, value, onChange, canEdit }) {
 export default function VisaProcessingPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'visaProcessing', role, overrides);
-  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
   const pending = workers.filter((w) => w.docsCompleted && !w.visaCompleted);
@@ -81,7 +60,7 @@ export default function VisaProcessingPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('簽證進度', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -92,12 +71,21 @@ export default function VisaProcessingPage() {
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.province || '—'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <DateStep label={t('簽證辦理', lang)} value={w.visaProcessDate} onChange={(v) => handleField(w, 'visaProcessDate', v)} canEdit={canEditPage} />
-                      <DateStep label={t('簽證領取', lang)} value={w.visaPickupDate} onChange={(v) => handleField(w, 'visaPickupDate', v)} canEdit={canEditPage} />
-                    </div>
+                    {canEditPage ? (
+                      <input type="date" value={w.visaProcessDate || ''} onChange={(e) => handleField(w, 'visaProcessDate', e.target.value)} />
+                    ) : (w.visaProcessDate || '—')}
                   </td>
-                  {canEditPage && <td><button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button></td>}
+                  <td>
+                    {canEditPage ? (
+                      <input type="date" value={w.visaPickupDate || ''} onChange={(e) => handleField(w, 'visaPickupDate', e.target.value)} />
+                    ) : (w.visaPickupDate || '—')}
+                  </td>
+                  {canEditPage && (
+                    <td className="row-actions">
+                      <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
+                      <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -112,7 +100,7 @@ export default function VisaProcessingPage() {
       <div className="page-header">
         <div>
           <h2>{t('辦理簽證', lang)}</h2>
-          <div className="page-desc">{t('自動列出文件已收齊完成的移工，點選簽證辦理/領取步驟即可帶入當天日期；完成後進入下一關「出境辦理」', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('自動列出文件已收齊完成的移工，填寫簽證辦理日期、領取日期；完成後進入下一關「出境辦理」', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
