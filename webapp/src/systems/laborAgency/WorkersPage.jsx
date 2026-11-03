@@ -126,7 +126,7 @@ export default function WorkersPage() {
         <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} onRemove={handleRemoveRow} lang={lang} />
       )}
       {editing && (
-        <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
+        <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} role={role} />
       )}
       {arranging && (
         <ArrangeEmployerModal workers={workers} employers={employers} onCancel={() => setArranging(false)} onSave={handleArrangeEmployer} lang={lang} />
@@ -306,7 +306,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, on
 // parseJobs，跟 ResumeInternalFields），資料自動帶入移工名冊已經填好的
 // 內容，不是另一份獨立、對不上的簡化表單；另外加上護照效期跟角色指派
 // 這幾個移工名冊沒有、案件管理才需要的欄位（CASE_FIELDS）。
-function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove, lang }) {
+function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove, lang, role }) {
   // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
   // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
@@ -373,7 +373,7 @@ function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove
           </label>
           <label style={{ display: 'block', marginBottom: 16 }}>
             {t('配對雇主', lang)}（{t('可複選', lang)}）
-            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} />
+            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} role={role} />
           </label>
 
           <ResumeInternalFields

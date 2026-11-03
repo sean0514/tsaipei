@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { INDUSTRIES, workerEmployerIds, isHired } from './constants';
+import { INDUSTRIES, workerEmployerIds, isHired, canSeeDocNumber } from './constants';
 
 const YES_NO = ['是', '否'];
 const GENDER_REQUIREMENTS = ['不限', '男', '女'];
@@ -234,12 +234,6 @@ function ListEditor({ label, addLabel, items, onChange, lang }) {
   );
 }
 
-// 函文編號是行政專用欄位，只有「行政人員」「主管」「系統管理員」能
-// 看到/填寫，其他角色（業務人員）的表單跟卡片都不顯示這個欄位。
-const DOC_NUMBER_ROLES = ['行政人員', '主管', '系統管理員'];
-function canSeeDocNumber(role) {
-  return DOC_NUMBER_ROLES.includes(role);
-}
 function visibleFields(role) {
   return FIELDS.filter((f) => f.key !== 'docNumber' || canSeeDocNumber(role));
 }
