@@ -147,7 +147,7 @@ export const SYSTEMS = {
       meetings: '會議記錄',
       closedCases: '已結案名單',
       studentMasterSheet: '學生資料總檔',
-      schoolSetup: '學校資料建檔',
+      schoolSetup: '學校費用設定',
       bonus: '內部獎金計算',
       internalBonusRateSetup: '內部獎金設定',
       scholarships: '獎學金紀錄',

@@ -494,7 +494,7 @@ service cloud.firestore {
       allow read: if vnIsMember() || tsIsMember();
       allow write: if vnCanEdit('companyNameTranslations');
     }
-    // 學校資料建檔：學校代表＋獎金月費率（給內部獎金計算用）、獎學金金額
+    // 學校費用設定：學校代表＋獎金月費率（給內部獎金計算用）、獎學金金額
     // （給獎學金紀錄新增時自動帶入）。
     match /vietnam_schoolSetup/{docId} {
       allow read: if vnIsMember();
