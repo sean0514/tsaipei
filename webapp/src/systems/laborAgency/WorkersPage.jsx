@@ -7,6 +7,18 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { STAGE_KEYS, JOBS, GENDERS, stageIndex, passportStatus, employerLabel } from './constants';
 
+// 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
+// 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
+// 表單自己要改的欄位（移工名冊才是維護履歷資料的地方）。
+function jobLabel(raw, lang) {
+  if (!raw) return '—';
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return arr.map((j) => t(j, lang)).join('、') || '—';
+  } catch { /* 不是 JSON，當成單一字串 */ }
+  return t(raw, lang);
+}
+
 const FIELDS = [
   { key: 'name', label: '姓名（越南文姓名可直接輸入）', required: true },
   { key: 'gender', label: '性別', options: GENDERS },
@@ -165,7 +177,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
                   return (
                     <tr key={w.id}>
                       <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
-                      <td>{t(w.job, lang) || '—'}</td>
+                      <td>{jobLabel(w.job, lang)}</td>
                       <td>
                         {canEditPage ? (
                           <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>

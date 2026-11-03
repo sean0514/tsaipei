@@ -17,6 +17,33 @@ function parseExperience(json) {
   } catch { return []; }
 }
 
+// 工種改複選後存成 JSON 陣列字串；舊資料是單一字串（例如「製造業」），
+// 不是 JSON，parse 失敗或結果不是陣列就當成單一項目的陣列，舊資料不用
+// 遷移也能正常顯示/編輯。
+function parseJobs(raw) {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [raw];
+  } catch { return [raw]; }
+}
+
+function CheckboxGroup({ options, values, onChange, lang }) {
+  function toggle(o) {
+    onChange(values.includes(o) ? values.filter((v) => v !== o) : [...values, o]);
+  }
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      {options.map((o) => (
+        <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+          <input type="checkbox" checked={values.includes(o)} onChange={() => toggle(o)} />
+          {t(o, lang)}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 // 移工名冊：跟「移工管理」共用同一個 laborAgency_workers 集合，但只看
 // 工人的履歷資料，不含案件階段／雇主配對這些流程資訊——移工送出履歷後
 // 會自動在這裡出現一筆（見 pages/LaborAgencyResumeApplyPage.jsx），內部
@@ -84,7 +111,7 @@ export default function WorkerRosterPage() {
                   <td>{w.vietnameseName || '—'}</td>
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.province || '—'}</td>
-                  <td>{t(w.job, lang) || '—'}</td>
+                  <td>{parseJobs(w.job).map((j) => t(j, lang)).join('、') || '—'}</td>
                   <td>{w.passportExpiry || '—'}</td>
                   <td className="row-actions">
                     <button onClick={() => downloadWorkerResumeDocx(w)}>{t('下載履歷表', lang)}</button>
@@ -111,6 +138,7 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
   // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
   // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
+  const [jobs, setJobs] = useState(() => parseJobs(initial.job));
   const [domesticExperience, setDomesticExperience] = useState(() => {
     const rows = parseExperience(initial.domesticExperience);
     return rows.length ? rows : [emptyExperienceRow()];
@@ -131,6 +159,7 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
       name: form.chineseName || form.vietnameseName || '',
       province: form.hometown || '',
       note: form.specialties || '',
+      job: JSON.stringify(jobs),
       domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
       overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
     });
@@ -142,15 +171,12 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
         <h3 style={{ marginTop: 0 }}>{initial.id ? t('編輯工人', lang) : t('新增工人', lang)}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            <label>
-              {t('工種', lang)}
-              <select value={form.job || ''} onChange={(e) => setField('job', e.target.value)}>
-                <option value="">{t('請選擇', lang)}</option>
-                {JOBS.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
-              </select>
-            </label>
             <label>{t('護照效期', lang)}<input type="date" value={form.passportExpiry || ''} onChange={(e) => setField('passportExpiry', e.target.value)} /></label>
           </div>
+          <label style={{ display: 'block', marginBottom: 16 }}>
+            {t('工種', lang)}（{t('可複選', lang)}）
+            <CheckboxGroup options={JOBS} values={jobs} onChange={setJobs} lang={lang} />
+          </label>
 
           <ResumeInternalFields
             form={form}
