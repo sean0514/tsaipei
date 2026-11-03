@@ -170,8 +170,6 @@ export default function ApplicationProgressPage() {
     const prevVisaDate = editing?.visaDate || '';
     const prevArrivalDate = editing?.arrivalDate || '';
     const prevAdmittedDate = editing?.admittedDate || '';
-    const prevMinistryReviewDate = editing?.ministryReviewDate || '';
-    const prevSentAbroadDate = editing?.sentAbroadDate || '';
     try {
       if (data.id) {
         const { id, ...rest } = data;
@@ -218,15 +216,15 @@ export default function ApplicationProgressPage() {
         }
       });
     }
-    // 「經濟部/交通部審核」或「發函後寄國外」這兩關，任一關第一次填入日期
-    // 時，如果學生來源(國外供應商)是元凱移工事業部/越南實習生系統那幾個
-    // ALLOWED_SOURCE_SUPPLIERS，就自動在越南系統的「越南簽證辦理」建立
-    // 一筆「辦理中」的紀錄，不用越南端的人員自己盯著這裡的進度手動建立；
-    // 辦理簽證時間/簽證完成時間留給越南端的人員自己在那個頁面填寫，這裡
-    // 不自動帶日期。
-    const ministryReviewJustFilled = data.ministryReviewDate && data.ministryReviewDate !== prevMinistryReviewDate;
-    const sentAbroadJustFilled = data.sentAbroadDate && data.sentAbroadDate !== prevSentAbroadDate;
-    if (ministryReviewJustFilled || sentAbroadJustFilled) {
+    // 「經濟部/交通部審核」或「發函後寄國外」只要任一關有填日期（不限第一次
+    // 填入——這筆進度紀錄可能是這個連動功能上線前就已經填過的舊資料，這裡
+    // 刻意不比較跟存檔前的差異，每次存檔都檢查），如果學生來源(國外供應商)
+    // 是元凱移工事業部/越南實習生系統那幾個 ALLOWED_SOURCE_SUPPLIERS，就
+    // 自動在越南系統的「越南簽證辦理」建立一筆「辦理中」的紀錄，不用越南
+    // 端的人員自己盯著這裡的進度手動建立；辦理簽證時間/簽證完成時間留給
+    // 越南端的人員自己在那個頁面填寫，這裡不自動帶日期。existsForStudent
+    // 檢查避免重複建立，所以每次存檔都檢查是安全的，不會建出重複紀錄。
+    if (data.ministryReviewDate || data.sentAbroadDate) {
       await runCascadeStep('建立越南簽證辦理紀錄', async () => {
         const student = students.find((s) => s.id === data.studentId);
         if (!isAllowedSourceStudent(student)) return;

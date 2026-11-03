@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
-import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
+import { ensureVietnamStudentForTsaipeiStudent, backfillVietnamStudentsForTsaipeiStudents } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 // 越南簽證辦理：資料本身存在越南系統（vietnam_visaProcessing），學生則是
@@ -39,6 +39,21 @@ export default function VisaProcessingPage() {
     .map((r) => ({ ...r, student: students.find((s) => s.id === r.studentId) }))
     .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier));
   const groups = groupByLabel(withStudent, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
+
+  // 補跑一次：這個同步機制上線前就已經存在的「越南簽證辦理」紀錄，對應的
+  // 越南系統學生資料可能還沒建立（見 lib/vietnamTsaipeiStudentSync.js 的
+  // backfillVietnamStudentsForTsaipeiStudents），頁面載入後補一次，不用等
+  // 下次有人編輯/重新建立紀錄才會補到。
+  const backfillDone = useRef(false);
+  useEffect(() => {
+    if (loading || !canEditPage || backfillDone.current) return;
+    backfillDone.current = true;
+    const tsStudentsWithIds = withStudent.map((r) => ({ id: r.studentId, ...r.student }));
+    backfillVietnamStudentsForTsaipeiStudents(tsStudentsWithIds).catch((err) => {
+      console.error('越南簽證辦理：補建越南學生資料失敗', err);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   async function handleSave(data) {
     if (data.id) {
