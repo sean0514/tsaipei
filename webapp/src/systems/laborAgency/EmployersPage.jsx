@@ -191,11 +191,9 @@ function ListEditor({ label, addLabel, items, onChange, lang }) {
   );
 }
 
-// 函文編號是行政專用欄位，只有「行政人員」跟「系統管理員」能看到/填寫
-// （系統管理員是最高權限，本來就能看到所有行政專用欄位；用「以角色
-// 預覽」功能切換成其他角色時才會跟著被擋），其他角色的表單跟卡片都
-// 不顯示這個欄位。
-const DOC_NUMBER_ROLES = ['行政人員', '系統管理員'];
+// 函文編號是行政專用欄位，只有「行政人員」「主管」「系統管理員」能
+// 看到/填寫，其他角色（業務人員）的表單跟卡片都不顯示這個欄位。
+const DOC_NUMBER_ROLES = ['行政人員', '主管', '系統管理員'];
 function canSeeDocNumber(role) {
   return DOC_NUMBER_ROLES.includes(role);
 }
