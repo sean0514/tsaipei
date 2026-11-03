@@ -5,7 +5,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
-import ResumeInternalFields, { emptyInterviewRow } from '../../components/ResumeInternalFields';
+import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { STAGE_KEYS } from './constants';
 
 function copyLink(url, lang) {
@@ -174,7 +174,6 @@ function withZh(raw, zh) {
 function ViewingModal({ sub, onClose, lang }) {
   const domestic = parseExperience(sub.domesticExperience).map(normalizeExperienceRow);
   const overseas = parseExperience(sub.overseasExperience).map(normalizeExperienceRow);
-  const interviewLinks = parseExperience(sub.interviewLinks);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: '100%' }}>
@@ -233,12 +232,8 @@ function ViewingModal({ sub, onClose, lang }) {
         {overseas.length === 0 ? <p className="muted">—</p> : overseas.map((r, i) => (
           <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.startDate || '—'} ~ {r.endDate || '—'}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
         ))}
-        <h4>{t('面試連結', lang)}</h4>
-        {interviewLinks.length === 0 ? <p className="muted">—</p> : interviewLinks.map((r, i) => (
-          <p key={i} className="muted" style={{ margin: '4px 0' }}>
-            {r.date || '—'}　{r.link ? <a href={r.link} target="_blank" rel="noreferrer">{r.link}</a> : '—'}{r.note ? `（${r.note}）` : ''}
-          </p>
-        ))}
+        <h4>{t('面試影片連結', lang)}</h4>
+        <p className="muted">{sub.interviewVideoLink ? <a href={sub.interviewVideoLink} target="_blank" rel="noreferrer">{sub.interviewVideoLink}</a> : '—'}</p>
         <h4>{t('專長', lang)}</h4>
         <p className="muted">{withZh(sub.specialties, sub.specialtiesZh)}</p>
         <div><strong>{t('負責專員', lang)}：</strong>{sub.assignedStaff || '—'}</div>
@@ -253,7 +248,7 @@ function ViewingModal({ sub, onClose, lang }) {
 // 編輯移工填寫的履歷——欄位跟公開填寫頁 (pages/LaborAgencyResumeApplyPage.jsx)
 // 一致，國內外工作經驗編輯器直接共用那邊匯出的 ExperienceEditor，不用
 // 重複寫一份；也能補上傳或換掉照片/刺青照片/LINE 圖片(components/
-// ResumeInternalFields.jsx 的 PhotoField)，跟增加的「面試連結」欄位。
+// ResumeInternalFields.jsx 的 PhotoField)。
 function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
   const [form, setForm] = useState({ ...sub });
   const [domesticExperience, setDomesticExperience] = useState(() => {
@@ -263,10 +258,6 @@ function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
   const [overseasExperience, setOverseasExperience] = useState(() => {
     const rows = parseExperience(sub.overseasExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
-  });
-  const [interviewLinks, setInterviewLinks] = useState(() => {
-    const rows = parseExperience(sub.interviewLinks);
-    return rows.length ? rows : [emptyInterviewRow()];
   });
 
   function setField(key, value) {
@@ -282,7 +273,6 @@ function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
       ...resumeFields,
       domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
       overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
-      interviewLinks: JSON.stringify(interviewLinks.filter((r) => r.date || r.link || r.note)),
     });
   }
 
@@ -299,8 +289,6 @@ function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
             setDomesticExperience={setDomesticExperience}
             overseasExperience={overseasExperience}
             setOverseasExperience={setOverseasExperience}
-            interviewLinks={interviewLinks}
-            setInterviewLinks={setInterviewLinks}
           />
 
           <div className="row-actions" style={{ marginTop: 16 }}>

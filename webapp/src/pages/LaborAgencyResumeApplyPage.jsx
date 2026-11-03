@@ -239,6 +239,7 @@ export default function LaborAgencyResumeApplyPage() {
         overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
         specialties: form.specialties || '',
         specialtiesZh: form.specialtiesZh || '',
+        interviewVideoLink: form.interviewVideoLink || '',
       };
       // 送出履歷時直接建立一筆工人資料（進「移工名冊」，案件
       // 階段從「雇主確認」起算），內部人員不用再手動「轉入移工管理」。
@@ -463,6 +464,11 @@ export default function LaborAgencyResumeApplyPage() {
         <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} translatable />
         <h4>{L('overseasExperience')}</h4>
         <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} translatable />
+
+        <label style={{ display: 'block', marginTop: 16 }}>
+          {L('interviewVideoLink')}
+          <input value={form.interviewVideoLink || ''} onChange={(e) => setField('interviewVideoLink', e.target.value)} placeholder="https://..." />
+        </label>
 
         <label style={{ display: 'block', marginTop: 16 }}>
           {L('specialties')}

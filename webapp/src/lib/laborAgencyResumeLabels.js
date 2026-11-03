@@ -67,13 +67,7 @@ export const RESUME_LABELS = {
   addRow: { zh: '+ 新增一筆', vi: '+ Thêm dòng' },
   removeRow: { zh: '移除', vi: 'Xóa' },
 
-  // 面試連結是內部專用欄位（公開填寫頁沒有，只有內部表單
-  // components/ResumeInternalFields.jsx 跟下載履歷表有），移工自己不會
-  // 知道面試連結，所以不跟上面履歷表的欄位放在同一個邏輯分區裡。
-  interviewLinks: { zh: '面試連結', vi: 'Liên kết phỏng vấn' },
-  interviewDate: { zh: '面試日期', vi: 'Ngày phỏng vấn' },
-  note: { zh: '備註', vi: 'Ghi chú' },
-
+  interviewVideoLink: { zh: '面試影片連結', vi: 'Liên kết video phỏng vấn' },
   specialties: { zh: '專長', vi: 'Chuyên môn' },
 
   submit: { zh: '送出', vi: 'Gửi' },
@@ -140,5 +134,6 @@ export const RESUME_DOWNLOAD_FIELDS = [
   { key: 'educationLevel', labelKey: 'educationLevel', section: 'education', translatable: true },
   { key: 'chineseLevel', labelKey: 'chineseLevel', section: 'education' },
   { key: 'englishLevel', labelKey: 'englishLevel', section: 'education' },
+  { key: 'interviewVideoLink', labelKey: 'interviewVideoLink', section: 'other' },
   { key: 'specialties', labelKey: 'specialties', section: 'other', translatable: true },
 ];
