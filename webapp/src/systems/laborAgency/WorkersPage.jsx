@@ -93,6 +93,21 @@ export default function WorkersPage() {
     setArranging(false);
   }
 
+  // 刪除：這裡的清單是「移工×配對雇主」的案件列，刪除一行應該只拿掉
+  // 那一筆配對（從 employerIds 移除），不是把整個移工資料刪掉——同一個
+  // 移工可能還配對其他雇主，或履歷資料要留在移工名冊。「尚未配對」那
+  // 一行沒有配對雇主可以移除，才整筆刪除移工資料。
+  async function handleRemoveRow(worker, employerId) {
+    if (!employerId) {
+      await remove(worker.id);
+      return;
+    }
+    const nextIds = workerEmployerIds(worker).filter((id) => id !== employerId);
+    const payload = { employerIds: JSON.stringify(nextIds), updatedAt: Date.now() };
+    if (worker.employerId === employerId) payload.employerId = '';
+    await update(worker.id, payload);
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -108,7 +123,7 @@ export default function WorkersPage() {
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} onRemove={(w) => remove(w.id)} lang={lang} />
+        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} onRemove={handleRemoveRow} lang={lang} />
       )}
       {editing && (
         <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
@@ -252,7 +267,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, on
                       lang={lang}
                     />
                   </td>
-                  {canEditPage && <td><button className="danger" onClick={() => onRemove(w)}>{t('刪除', lang)}</button></td>}
+                  {canEditPage && <td><button className="danger" onClick={() => onRemove(w, rowEmployerId)}>{t('刪除', lang)}</button></td>}
                 </tr>
               ))}
             </tbody>
