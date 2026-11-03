@@ -105,18 +105,13 @@ import VietnamMeetingsPage from './systems/vietnam/MeetingsPage';
 import VietnamClosedCasesPage from './systems/vietnam/ClosedCasesPage';
 import VietnamManagerReportPage from './systems/vietnam/ManagerReportPage';
 import VietnamUnmatchedStudentsPage from './systems/vietnam/UnmatchedStudentsPage';
-import VietnamClientFeeSetupPage from './systems/vietnam/ClientFeeSetupPage';
-import VietnamInternalFeeSetupPage from './systems/vietnam/InternalFeeSetupPage';
 import VietnamSchoolSetupPage from './systems/vietnam/SchoolSetupPage';
 import VietnamBonusPage from './systems/vietnam/BonusPage';
 import VietnamScholarshipsPage from './systems/vietnam/ScholarshipsPage';
-import VietnamForeignPaymentPage from './systems/vietnam/ForeignPaymentPage';
-import VietnamClientBillingPage from './systems/vietnam/ClientBillingPage';
 import VietnamStudentSelfPayHousingPage from './systems/vietnam/StudentSelfPayHousingPage';
 import VietnamStudentMasterSheetPage from './systems/vietnam/StudentMasterSheetPage';
 import VietnamDormProfitLossPage from './systems/vietnam/DormProfitLossPage';
 import VietnamStudentBillingPage from './systems/vietnam/StudentBillingPage';
-import VietnamCompanyProfitLossPage from './systems/vietnam/CompanyProfitLossPage';
 import LaborAgencyDashboardPage from './systems/laborAgency/DashboardPage';
 import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
 import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
@@ -280,18 +275,13 @@ const PAGES = {
     closedCases: VietnamClosedCasesPage,
     managerReport: VietnamManagerReportPage,
     unmatchedStudents: VietnamUnmatchedStudentsPage,
-    clientFeeSetup: VietnamClientFeeSetupPage,
-    internalFeeSetup: VietnamInternalFeeSetupPage,
     schoolSetup: VietnamSchoolSetupPage,
     bonus: VietnamBonusPage,
     scholarships: VietnamScholarshipsPage,
-    foreignPayment: VietnamForeignPaymentPage,
-    clientBilling: VietnamClientBillingPage,
     studentSelfPayHousing: VietnamStudentSelfPayHousingPage,
     studentMasterSheet: VietnamStudentMasterSheetPage,
     dormProfitLoss: VietnamDormProfitLossPage,
     studentBilling: VietnamStudentBillingPage,
-    companyProfitLoss: VietnamCompanyProfitLossPage,
     users: UsersPage,
   },
   laborAgency: {

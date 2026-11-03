@@ -79,12 +79,13 @@ export default function DormProfitLossPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
-  const { rows: clientFeeSetupRecords } = useCollection('vietnam_clientFeeSetup');
   const [year, setYear] = useState(currentYear());
 
+  // 客戶費用建檔（費率來源）已移除，廠商代付的住宿費/宿管費收入固定算 0
+  // （lib/bonus.js 的 computeDormProfitLossForYear 對找不到費率已有防呆）。
   const ctx = {
     dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications,
-    students, matches, positions, admittedList, clientFeeSetupRecords,
+    students, matches, positions, admittedList,
   };
   const years = availableYears(ctx);
   const managerGroups = computeDormProfitLossForYear(year, ctx);

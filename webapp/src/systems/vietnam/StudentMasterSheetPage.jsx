@@ -22,22 +22,17 @@ export default function StudentMasterSheetPage() {
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
-  const { rows: clientFeeSetupRecords } = useCollection('vietnam_clientFeeSetup');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
 
   const ctx = { matches, admittedList, positions };
   const rows = students.map((s) => {
     const pair = studentProjectClientPair(s.id, ctx);
-    const rate = pair ? clientFeeSetupRecords.find((r) => (r.projectCode || '') === pair.projectCode && r.client === pair.client) : null;
     return {
       student: s,
       client: pair ? pair.client : '',
       projectCode: pair ? pair.projectCode : '',
       workDays: studentDaysInTaiwanForMonth(s.id, month, inTaiwanVisaRecords),
-      billingStartDate: rate ? (rate.billingStartDate || '') : '',
-      billingSettleDay: rate ? (rate.billingSettleDay || '') : '',
-      billDormFee: rate ? (rate.billDormFee !== '否' ? '是' : '否') : '',
     };
   });
 
@@ -52,13 +47,12 @@ export default function StudentMasterSheetPage() {
     const exportRows = filtered.map((r) => ({
       client: r.client, projectCode: r.projectCode, name: studentFullLabel(r.student), passportNumber: r.student.passportNumber || '',
       gender: r.student.gender || '', entryDate: effectiveEntryDate(r.student), exitDate: effectiveExitDate(r.student),
-      workDays: r.workDays, billingStartDate: r.billingStartDate, billingSettleDay: r.billingSettleDay, billDormFee: r.billDormFee,
+      workDays: r.workDays,
     }));
     exportEntityCSV(exportRows, [
       { key: 'client', label: '廠商' }, { key: 'projectCode', label: '專案類別' }, { key: 'name', label: '姓名' },
       { key: 'passportNumber', label: '護照' }, { key: 'gender', label: '性別' }, { key: 'entryDate', label: '入境日' },
-      { key: 'exitDate', label: '離境日' }, { key: 'workDays', label: '當月在職天數' }, { key: 'billingStartDate', label: '計費起算日' },
-      { key: 'billingSettleDay', label: '請款結算日' }, { key: 'billDormFee', label: '是否請款住宿費' },
+      { key: 'exitDate', label: '離境日' }, { key: 'workDays', label: '當月在職天數' },
     ], `學生資料總檔_${month}`);
   }
 
@@ -67,7 +61,7 @@ export default function StudentMasterSheetPage() {
       <div className="page-header">
         <div>
           <h2>{t('學生資料總檔', lang)}</h2>
-          <div className="page-desc">{t('依月份彙整所有學生的廠商、專案、證件與計費資訊', lang)}</div>
+          <div className="page-desc">{t('依月份彙整所有學生的廠商、專案與證件資訊', lang)}</div>
         </div>
         <button onClick={handleDownload}>{t('下載此月份資料', lang)}</button>
       </div>
@@ -81,7 +75,7 @@ export default function StudentMasterSheetPage() {
             <thead>
               <tr>
                 <th>{t('廠商', lang)}</th><th>{t('專案類別', lang)}</th><th>{t('姓名', lang)}</th><th>{t('護照', lang)}</th><th>{t('性別', lang)}</th><th>{t('入境日', lang)}</th><th>{t('離境日', lang)}</th>
-                <th>{t('當月在職天數', lang)}</th><th>{t('計費起算日', lang)}</th><th>{t('請款結算日', lang)}</th><th>{t('是否請款住宿費', lang)}</th>
+                <th>{t('當月在職天數', lang)}</th>
               </tr>
             </thead>
             <tbody>
@@ -95,12 +89,9 @@ export default function StudentMasterSheetPage() {
                   <td>{effectiveEntryDate(r.student) || '—'}</td>
                   <td>{effectiveExitDate(r.student) || '—'}</td>
                   <td>{r.workDays}</td>
-                  <td>{r.billingStartDate || '—'}</td>
-                  <td>{r.billingSettleDay || '—'}</td>
-                  <td>{r.billDormFee || '—'}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={11} className="muted">{query ? t('沒有符合搜尋條件的學生。', lang) : t('目前沒有學生資料。', lang)}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={8} className="muted">{query ? t('沒有符合搜尋條件的學生。', lang) : t('目前沒有學生資料。', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}

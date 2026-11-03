@@ -1,24 +1,11 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-
-async function ensureClientFeeSetup(projectCode, client) {
-  if (!projectCode || !client) return;
-  const snap = await getDocs(query(
-    collection(db, 'vietnam_clientFeeSetup'),
-    where('projectCode', '==', projectCode),
-    where('client', '==', client),
-  ));
-  if (!snap.empty) return;
-  await addDoc(collection(db, 'vietnam_clientFeeSetup'), { projectCode, client });
-}
 
 const FIELDS = [
   { key: 'projectCode', label: '專案編號', required: true },
@@ -36,8 +23,8 @@ const FIELDS = [
 // 層級指派的角色；開發業務/行政招募/行政簽證/外務人員已改成在「學生資料」
 // 頁面各自指派（見 StudentsPage.jsx 的 assignedBizDev/assignedAdminRecruit/
 // assignedAdminVisa/assignedFieldStaff），學校代表改成在「學校資料建檔」
-// 依學生就讀學校指派；費率欄位請見 InternalFeeSetupPage.jsx 的
-// INTERNAL_FEE_ROLE_FIELDS（跟這裡的 key 要保持一致）。
+// 依學生就讀學校指派；內部費用建檔（費率來源）已移除，這幾個角色的獎金
+// 金額一律顯示為 0（見 lib/vietnamBonus.js）。
 // 宿管人員1/2 維持舊有做法：依「宿舍管理」設定的宿管1/宿管2計算，不在
 // 這裡指派（見 lib/bonus.js 的 computeDormManagerBonusForMonth）。
 export const ROLE_FIELDS = [
@@ -117,7 +104,6 @@ export default function PositionsPage() {
       await update(id, rest);
     } else {
       await add({ ...data, closed: '' });
-      await ensureClientFeeSetup(data.projectCode, data.company);
     }
     setEditing(null);
   }
