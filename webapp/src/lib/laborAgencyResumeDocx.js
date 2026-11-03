@@ -13,12 +13,21 @@ function parseExperience(json) {
   } catch { return []; }
 }
 
-// 中文原文 → 中文／越南文並列：履歷表的是/否、性別等選項欄位資料庫存的
-// 是中文原文，查不到對照（例如工人自己手寫的自由文字欄位）就原文照顯示。
-function bilingualText(raw) {
+// 欄位值要怎麼中越文並列顯示，分兩種情況：
+// 1. 是/否、性別這幾個選項欄位，資料庫存的是中文原文，查表轉成對應越南文。
+// 2. translatable 的自由文字欄位（省份/宗教/民族/最高學歷/職業/專長），原文
+//    可能是工人自己填的越南文，查 `${key}Zh`（lib/useResumeTranslate.js
+//    自動翻譯存的）當中文；沒有翻譯（例如內部人員直接填中文）就原文照顯示。
+function fieldValueText(w, field) {
+  const raw = w[field.key];
   if (!raw) return '—';
   const labelKey = RESUME_VALUE_LABEL_KEYS[raw];
-  return labelKey ? `${raw} / ${RESUME_LABELS[labelKey].vi}` : raw;
+  if (labelKey) return `${raw} / ${RESUME_LABELS[labelKey].vi}`;
+  if (field.translatable) {
+    const zh = w[`${field.key}Zh`];
+    return zh && zh !== raw ? `${zh} / ${raw}` : raw;
+  }
+  return raw;
 }
 
 function fieldLabel({ labelKey, prefixKey }) {
@@ -70,7 +79,7 @@ export async function downloadWorkerResumeDocx(w) {
         }),
         new TableCell({
           width: { size: 65, type: WidthType.PERCENTAGE },
-          children: [new Paragraph(bilingualText(w[field.key]))],
+          children: [new Paragraph(fieldValueText(w, field))],
         }),
       ],
     });
@@ -88,6 +97,14 @@ export async function downloadWorkerResumeDocx(w) {
     });
   }
 
+  // 工作內容/離職原因是自由文字，可能有 lib/useResumeTranslate.js 自動
+  // 翻譯存的 descriptionZh/reasonZh，有就中越並列，沒有（例如內部人員
+  // 直接填中文）就原文照顯示。
+  function withZh(raw, zh) {
+    if (!raw) return '—';
+    return zh && zh !== raw ? `${zh} / ${raw}` : raw;
+  }
+
   function experienceTable(rows) {
     const header = new TableRow({
       children: [experienceHeaderCell('year', 20), experienceHeaderCell('description', 50), experienceHeaderCell('leaveReason', 30)],
@@ -95,8 +112,8 @@ export async function downloadWorkerResumeDocx(w) {
     const body = (rows.length ? rows : [{}]).map((r) => new TableRow({
       children: [
         new TableCell({ children: [new Paragraph(r.year || '—')] }),
-        new TableCell({ children: [new Paragraph(r.description || '—')] }),
-        new TableCell({ children: [new Paragraph(r.reason || '—')] }),
+        new TableCell({ children: [new Paragraph(withZh(r.description, r.descriptionZh))] }),
+        new TableCell({ children: [new Paragraph(withZh(r.reason, r.reasonZh))] }),
       ],
     }));
     return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body] });
@@ -142,7 +159,7 @@ export async function downloadWorkerResumeDocx(w) {
   children.push(heading('domesticExperience'), experienceTable(domestic));
   children.push(heading('overseasExperience'), experienceTable(overseas));
   children.push(heading('interviewLinks'), interviewTable(interviewLinks));
-  children.push(heading('specialties'), new Paragraph(w.specialties || '—'));
+  children.push(heading('specialties'), new Paragraph(fieldValueText(w, { key: 'specialties', translatable: true })));
   if (tattooPhoto) {
     children.push(heading('tattooPhoto'));
     children.push(new Paragraph({ children: [new ImageRun({ data: tattooPhoto.buffer, type: tattooPhoto.type, transformation: { width: 160, height: 160 } })] }));

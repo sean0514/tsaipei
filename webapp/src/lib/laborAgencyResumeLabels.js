@@ -100,20 +100,21 @@ export const RESUME_VALUE_LABEL_KEYS = {
 // 欄位，依履歷表的分區順序排列；每筆 { key: 資料欄位, labelKey: 對應
 // RESUME_LABELS 的 key, section: 'basic'|'family'|'education' 分區,
 // prefixKey?: 父親/母親/配偶這幾個共用「存歿/年齡/職業」標籤前面要加的
-// 限定詞 }；不含照片/刺青照片/LINE 圖片（連結另外處理）跟國內外工作
-// 經驗（陣列另外處理）。
+// 限定詞, translatable?: 自由文字欄位，有對應的 `${key}Zh` 自動翻譯
+// 欄位(見 lib/useResumeTranslate.js)可以顯示 }；不含照片/刺青照片/LINE
+// 圖片（連結另外處理）跟國內外工作經驗（陣列另外處理）。
 export const RESUME_DOWNLOAD_FIELDS = [
   { key: 'vietnameseName', labelKey: 'vietnameseName', section: 'basic' },
   { key: 'chineseName', labelKey: 'chineseName', section: 'basic' },
   { key: 'gender', labelKey: 'gender', section: 'basic' },
   { key: 'phone', labelKey: 'phone', section: 'basic' },
-  { key: 'hometown', labelKey: 'hometown', section: 'basic' },
+  { key: 'hometown', labelKey: 'hometown', section: 'basic', translatable: true },
   { key: 'birthDate', labelKey: 'birthDate', section: 'basic' },
   { key: 'height', labelKey: 'height', section: 'basic' },
   { key: 'weight', labelKey: 'weight', section: 'basic' },
   { key: 'eyesight', labelKey: 'eyesight', section: 'basic' },
-  { key: 'religion', labelKey: 'religion', section: 'basic' },
-  { key: 'ethnicity', labelKey: 'ethnicity', section: 'basic' },
+  { key: 'religion', labelKey: 'religion', section: 'basic', translatable: true },
+  { key: 'ethnicity', labelKey: 'ethnicity', section: 'basic', translatable: true },
   { key: 'dominantHand', labelKey: 'dominantHand', section: 'basic' },
   { key: 'majorSurgery', labelKey: 'majorSurgery', section: 'basic' },
   { key: 'hasTattoo', labelKey: 'hasTattoo', section: 'basic' },
@@ -122,21 +123,21 @@ export const RESUME_DOWNLOAD_FIELDS = [
   { key: 'fatherName', labelKey: 'father', section: 'family' },
   { key: 'fatherAlive', labelKey: 'alive', prefixKey: 'father', section: 'family' },
   { key: 'fatherAge', labelKey: 'age', prefixKey: 'father', section: 'family' },
-  { key: 'fatherOccupation', labelKey: 'occupation', prefixKey: 'father', section: 'family' },
+  { key: 'fatherOccupation', labelKey: 'occupation', prefixKey: 'father', section: 'family', translatable: true },
   { key: 'motherName', labelKey: 'mother', section: 'family' },
   { key: 'motherAlive', labelKey: 'alive', prefixKey: 'mother', section: 'family' },
   { key: 'motherAge', labelKey: 'age', prefixKey: 'mother', section: 'family' },
-  { key: 'motherOccupation', labelKey: 'occupation', prefixKey: 'mother', section: 'family' },
+  { key: 'motherOccupation', labelKey: 'occupation', prefixKey: 'mother', section: 'family', translatable: true },
   { key: 'spouseName', labelKey: 'spouse', section: 'family' },
   { key: 'spouseAge', labelKey: 'age', prefixKey: 'spouse', section: 'family' },
-  { key: 'spouseOccupation', labelKey: 'occupation', prefixKey: 'spouse', section: 'family' },
+  { key: 'spouseOccupation', labelKey: 'occupation', prefixKey: 'spouse', section: 'family', translatable: true },
   { key: 'childrenCount', labelKey: 'childrenCount', section: 'family' },
   { key: 'siblingsCount', labelKey: 'siblingsCount', section: 'family' },
   { key: 'birthOrder', labelKey: 'birthOrder', section: 'family' },
   { key: 'relativesInTaiwan', labelKey: 'relativesInTaiwan', section: 'family' },
   { key: 'relativesLocation', labelKey: 'relativesLocation', section: 'family' },
-  { key: 'educationLevel', labelKey: 'educationLevel', section: 'education' },
+  { key: 'educationLevel', labelKey: 'educationLevel', section: 'education', translatable: true },
   { key: 'chineseLevel', labelKey: 'chineseLevel', section: 'education' },
   { key: 'englishLevel', labelKey: 'englishLevel', section: 'education' },
-  { key: 'specialties', labelKey: 'specialties', section: 'other' },
+  { key: 'specialties', labelKey: 'specialties', section: 'other', translatable: true },
 ];

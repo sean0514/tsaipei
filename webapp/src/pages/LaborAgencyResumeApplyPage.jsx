@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { RESUME_LABELS as LABELS } from '../lib/laborAgencyResumeLabels';
+import { translateViToZh } from '../lib/translate';
+import { useResumeTranslate } from '../lib/useResumeTranslate';
 
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
@@ -25,12 +27,31 @@ export function emptyExperienceRow() {
 // 獨立宣告在元件外面——原本寫在 LaborAgencyResumeApplyPage 裡面，每次
 // render 都會產生新的函式參照，React 視為不同的元件型別而整個重新掛載，
 // 導致裡面的 input 每打一個字就失焦、看起來像完全打不進去。
-export function ExperienceEditor({ rows, setRows, labels }) {
+// translatable=true 時，工作內容/離職原因失焦會自動把越南文翻譯結果存進
+// 同一列的 descriptionZh/reasonZh（原文保留，跟 lib/useResumeTranslate.js
+// 同一套模式，只是這裡是陣列裡每一列各自的欄位，不是整個表單的欄位，
+// 沒辦法直接共用那個 hook）。
+export function ExperienceEditor({ rows, setRows, labels, translatable }) {
+  const lastSource = useRef({});
+
   function updateRow(i, patch) {
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
   function removeRow(i) {
     setRows(rows.filter((_, idx) => idx !== i));
+  }
+  async function handleBlurTranslate(i, zhField, value) {
+    if (!translatable) return;
+    const source = (value || '').trim();
+    const cacheKey = `${i}-${zhField}`;
+    if (!source || lastSource.current[cacheKey] === source) return;
+    lastSource.current[cacheKey] = source;
+    try {
+      const result = await translateViToZh(source);
+      updateRow(i, { [zhField]: result });
+    } catch {
+      // 翻譯失敗就留空，不擋住繼續填寫。
+    }
   }
   return (
     <div>
@@ -42,11 +63,19 @@ export function ExperienceEditor({ rows, setRows, labels }) {
           </label>
           <label>
             {labels.description}
-            <input value={r.description} onChange={(e) => updateRow(i, { description: e.target.value })} />
+            <input
+              value={r.description}
+              onChange={(e) => updateRow(i, { description: e.target.value })}
+              onBlur={(e) => handleBlurTranslate(i, 'descriptionZh', e.target.value)}
+            />
           </label>
           <label>
             {labels.leaveReason}
-            <input value={r.reason} onChange={(e) => updateRow(i, { reason: e.target.value })} />
+            <input
+              value={r.reason}
+              onChange={(e) => updateRow(i, { reason: e.target.value })}
+              onBlur={(e) => handleBlurTranslate(i, 'reasonZh', e.target.value)}
+            />
           </label>
           {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{labels.removeRow}</button>}
         </div>
@@ -78,6 +107,8 @@ export default function LaborAgencyResumeApplyPage() {
   function setField(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
+
+  const { translateOnBlur } = useResumeTranslate(setField);
 
   function handlePhotoChange(e) {
     const file = e.target.files?.[0] || null;
@@ -145,12 +176,15 @@ export default function LaborAgencyResumeApplyPage() {
         gender: form.gender || '',
         phone: form.phone || '',
         hometown: form.hometown || '',
+        hometownZh: form.hometownZh || '',
         birthDate: form.birthDate || '',
         height: form.height || '',
         weight: form.weight || '',
         eyesight: form.eyesight || '',
         religion: form.religion || '',
+        religionZh: form.religionZh || '',
         ethnicity: form.ethnicity || '',
+        ethnicityZh: form.ethnicityZh || '',
         dominantHand: form.dominantHand || '',
         majorSurgery: form.majorSurgery || '',
         hasTattoo: form.hasTattoo || '',
@@ -163,24 +197,29 @@ export default function LaborAgencyResumeApplyPage() {
         fatherAlive: form.fatherAlive || '',
         fatherAge: form.fatherAge || '',
         fatherOccupation: form.fatherOccupation || '',
+        fatherOccupationZh: form.fatherOccupationZh || '',
         motherName: form.motherName || '',
         motherAlive: form.motherAlive || '',
         motherAge: form.motherAge || '',
         motherOccupation: form.motherOccupation || '',
+        motherOccupationZh: form.motherOccupationZh || '',
         spouseName: form.spouseName || '',
         spouseAge: form.spouseAge || '',
         spouseOccupation: form.spouseOccupation || '',
+        spouseOccupationZh: form.spouseOccupationZh || '',
         childrenCount: form.childrenCount || '',
         siblingsCount: form.siblingsCount || '',
         birthOrder: form.birthOrder || '',
         relativesInTaiwan: form.relativesInTaiwan || '',
         relativesLocation: form.relativesLocation || '',
         educationLevel: form.educationLevel || '',
+        educationLevelZh: form.educationLevelZh || '',
         chineseLevel: form.chineseLevel || '',
         englishLevel: form.englishLevel || '',
         domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
         overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
         specialties: form.specialties || '',
+        specialtiesZh: form.specialtiesZh || '',
       };
       // 送出履歷時直接建立一筆工人資料（進「移工名冊」，案件
       // 階段從「雇主確認」起算），內部人員不用再手動「轉入移工管理」。
@@ -250,7 +289,7 @@ export default function LaborAgencyResumeApplyPage() {
           </label>
           <label>
             {L('hometown')}
-            <input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} />
+            <input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} onBlur={(e) => translateOnBlur('hometownZh', e.target.value)} />
           </label>
           <label>
             {L('phone')}
@@ -279,11 +318,11 @@ export default function LaborAgencyResumeApplyPage() {
           </label>
           <label>
             {L('religion')}
-            <input value={form.religion || ''} onChange={(e) => setField('religion', e.target.value)} />
+            <input value={form.religion || ''} onChange={(e) => setField('religion', e.target.value)} onBlur={(e) => translateOnBlur('religionZh', e.target.value)} />
           </label>
           <label>
             {L('ethnicity')}
-            <input value={form.ethnicity || ''} onChange={(e) => setField('ethnicity', e.target.value)} />
+            <input value={form.ethnicity || ''} onChange={(e) => setField('ethnicity', e.target.value)} onBlur={(e) => translateOnBlur('ethnicityZh', e.target.value)} />
           </label>
           <label>
             {L('dominantHand')}
@@ -343,7 +382,7 @@ export default function LaborAgencyResumeApplyPage() {
             </select>
           </label>
           <label>{L('age')}<input value={form.fatherAge || ''} onChange={(e) => setField('fatherAge', e.target.value)} /></label>
-          <label>{L('occupation')}<input value={form.fatherOccupation || ''} onChange={(e) => setField('fatherOccupation', e.target.value)} /></label>
+          <label>{L('occupation')}<input value={form.fatherOccupation || ''} onChange={(e) => setField('fatherOccupation', e.target.value)} onBlur={(e) => translateOnBlur('fatherOccupationZh', e.target.value)} /></label>
 
           <label>{L('mother')}<input value={form.motherName || ''} onChange={(e) => setField('motherName', e.target.value)} /></label>
           <label>{L('alive')}
@@ -354,11 +393,11 @@ export default function LaborAgencyResumeApplyPage() {
             </select>
           </label>
           <label>{L('age')}<input value={form.motherAge || ''} onChange={(e) => setField('motherAge', e.target.value)} /></label>
-          <label>{L('occupation')}<input value={form.motherOccupation || ''} onChange={(e) => setField('motherOccupation', e.target.value)} /></label>
+          <label>{L('occupation')}<input value={form.motherOccupation || ''} onChange={(e) => setField('motherOccupation', e.target.value)} onBlur={(e) => translateOnBlur('motherOccupationZh', e.target.value)} /></label>
 
           <label>{L('spouse')}<input value={form.spouseName || ''} onChange={(e) => setField('spouseName', e.target.value)} /></label>
           <label>{L('age')}<input value={form.spouseAge || ''} onChange={(e) => setField('spouseAge', e.target.value)} /></label>
-          <label>{L('occupation')}<input value={form.spouseOccupation || ''} onChange={(e) => setField('spouseOccupation', e.target.value)} /></label>
+          <label>{L('occupation')}<input value={form.spouseOccupation || ''} onChange={(e) => setField('spouseOccupation', e.target.value)} onBlur={(e) => translateOnBlur('spouseOccupationZh', e.target.value)} /></label>
 
           <label>{L('childrenCount')}<input type="number" value={form.childrenCount || ''} onChange={(e) => setField('childrenCount', e.target.value)} /></label>
           <label>{L('siblingsCount')}<input type="number" value={form.siblingsCount || ''} onChange={(e) => setField('siblingsCount', e.target.value)} /></label>
@@ -377,7 +416,7 @@ export default function LaborAgencyResumeApplyPage() {
 
         <h3>{L('sectionEducation')}</h3>
         <div className="form-grid">
-          <label>{L('educationLevel')}<input value={form.educationLevel || ''} onChange={(e) => setField('educationLevel', e.target.value)} /></label>
+          <label>{L('educationLevel')}<input value={form.educationLevel || ''} onChange={(e) => setField('educationLevel', e.target.value)} onBlur={(e) => translateOnBlur('educationLevelZh', e.target.value)} /></label>
           <label>
             {L('chineseLevel')}
             <select value={form.chineseLevel} onChange={(e) => setField('chineseLevel', e.target.value)}>
@@ -402,13 +441,13 @@ export default function LaborAgencyResumeApplyPage() {
 
         <h3>{L('sectionExperience')}</h3>
         <h4>{L('domesticExperience')}</h4>
-        <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} />
+        <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} translatable />
         <h4>{L('overseasExperience')}</h4>
-        <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} />
+        <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} translatable />
 
         <label style={{ display: 'block', marginTop: 16 }}>
           {L('specialties')}
-          <textarea rows={3} value={form.specialties || ''} onChange={(e) => setField('specialties', e.target.value)} />
+          <textarea rows={3} value={form.specialties || ''} onChange={(e) => setField('specialties', e.target.value)} onBlur={(e) => translateOnBlur('specialtiesZh', e.target.value)} />
         </label>
 
         {error && <div className="error-text">{error}</div>}
