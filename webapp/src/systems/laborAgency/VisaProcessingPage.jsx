@@ -2,28 +2,33 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 名單來源：文件追蹤標記「完成」(docsCompleted) 的移工，自動出現在這裡
-// 辦簽證；填好辦理/領取日期後按「完成」(visaCompleted)，會從這份名單
-// 消失，接著自動出現在「出境辦理」頁面。先依仲介分組，仲介底下再依
-// 雇主分組（未配對的歸一組，排最後），跟移工管理的分組邏輯一致；同一
-// 移工配對多個雇主就依雇主各自顯示一行。
+// 名單來源：某一筆配對（移工×雇主）在文件追蹤標記「完成」
+// (docsCompletedMap) 的，自動出現在這裡辦簽證；填好辦理/領取日期後按
+// 「完成」(visaCompletedMap)，那一筆會從這份名單消失，接著自動出現在
+// 「出境辦理」頁面——完成/刪除都只影響那一筆配對，同一個移工配對多個
+// 雇主時不會互相連動。先依仲介分組，仲介底下再依雇主分組（未配對的
+// 歸一組，排最後），跟移工管理的分組邏輯一致；同一移工配對多個雇主就
+// 依雇主各自顯示一行。
 export default function VisaProcessingPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'visaProcessing', role, overrides);
   const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
-  const pending = workers.filter((w) => w.docsCompleted && !w.visaCompleted && !w.visaListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
-  const rows = pending.flatMap((w) => {
-    const ids = workerEmployerIds(w);
-    return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
-  });
+  const rows = workers
+    .flatMap((w) => {
+      const ids = workerEmployerIds(w);
+      return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
+    })
+    .filter((r) => getPairFlag(r.worker, 'docsCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'visaCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'visaListRemovedMap', r.employerId));
 
   const sortedEmployerIds = [...new Set(rows.map((r) => r.employerId).filter(Boolean))]
     .sort((a, b) => {
@@ -41,13 +46,14 @@ export default function VisaProcessingPage() {
   async function handleField(w, key, value) {
     await update(w.id, { [key]: value });
   }
-  async function handleComplete(w) {
-    await update(w.id, { visaCompleted: true });
+  async function handleComplete(w, employerId) {
+    await update(w.id, { visaCompletedMap: withPairFlag(w, 'visaCompletedMap', employerId, true) });
   }
-  // 刪除：只從「辦理簽證」這份名單移除，不影響移工本身的資料，也不影響
-  // 其他頁面——用 visaListRemoved 這個頁面專屬的隱藏旗標。
-  async function handleRemove(w) {
-    await update(w.id, { visaListRemoved: true });
+  // 刪除：只從「辦理簽證」這份名單移除那一筆配對，不影響移工本身的
+  // 資料，也不影響其他頁面——用 visaListRemovedMap 這個頁面專屬、依
+  // 配對獨立的隱藏旗標。
+  async function handleRemove(w, employerId) {
+    await update(w.id, { visaListRemovedMap: withPairFlag(w, 'visaListRemovedMap', employerId, true) });
   }
 
   function EmployerTable({ employerId }) {
@@ -87,8 +93,8 @@ export default function VisaProcessingPage() {
                   </td>
                   {canEditPage && (
                     <td className="row-actions">
-                      <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
-                      <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
+                      <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                      <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                     </td>
                   )}
                 </tr>

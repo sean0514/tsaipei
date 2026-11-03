@@ -119,6 +119,29 @@ export function isHired(w, employerId) {
   return matchStatusOf(w, employerId) === '錄取';
 }
 
+// 文件追蹤/辦理簽證/出境辦理/入境通知後續關卡的「完成」「從名單移除」
+// 都要各自獨立到每一筆配對（移工×雇主），不能整個移工共用一個欄位
+// ——否則同一個移工同時配對多個雇主時，在其中一筆按下「完成」會讓
+// 其他配對也一起被判定完成、一起跳到下一關，不是只有那一筆資料。
+// field 是存在 worker 文件上的欄位名稱（例如 docsCompletedMap），值是
+// JSON 物件，key 是雇主 id（「尚未配對」用 UNMATCHED_MATCH_KEY）。
+function parsePairFlags(w, field) {
+  try {
+    const obj = w[field] ? JSON.parse(w[field]) : {};
+    return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+  } catch { return {}; }
+}
+
+export function getPairFlag(w, field, employerId) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return !!parsePairFlags(w, field)[key];
+}
+
+export function withPairFlag(w, field, employerId, value) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
+}
+
 // 挑到工人後的文件清單（必備 required=true／依個案可選 required=false），
 // 勾選狀態存在對應 worker 文件的 docsChecked（物件，key 對照下面的 key）。
 export const DOCS_CHECKLIST = [

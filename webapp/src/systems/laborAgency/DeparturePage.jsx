@@ -3,14 +3,16 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 名單來源：辦理簽證標記「完成」(visaCompleted) 的移工，自動出現在這裡
-// 安排出境行程；填好航班資訊後按「已完成」(departureCompleted)，會從
-// 這份名單消失，接著自動出現在「入境通知」頁面。依仲介、雇主分類顯示。
+// 名單來源：某一筆配對在辦理簽證標記「完成」(visaCompletedMap) 的，
+// 自動出現在這裡安排出境行程；填好航班資訊後按「已完成」
+// (departureCompletedMap)，那一筆會從這份名單消失，接著自動出現在
+// 「入境通知」頁面——完成/刪除都只影響那一筆配對。依仲介、雇主分類
+// 顯示。
 export default function DeparturePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'departure', role, overrides);
@@ -18,12 +20,15 @@ export default function DeparturePage() {
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
-  const pending = workers.filter((w) => w.visaCompleted && !w.departureCompleted && !w.departureListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
-  const rows = pending.flatMap((w) => {
-    const ids = workerEmployerIds(w);
-    return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
-  });
+  const rows = workers
+    .flatMap((w) => {
+      const ids = workerEmployerIds(w);
+      return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
+    })
+    .filter((r) => getPairFlag(r.worker, 'visaCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'departureCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'departureListRemovedMap', r.employerId));
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
 
@@ -31,13 +36,14 @@ export default function DeparturePage() {
     await update(worker.id, data);
     setEditing(null);
   }
-  async function handleComplete(w) {
-    await update(w.id, { departureCompleted: true });
+  async function handleComplete(w, employerId) {
+    await update(w.id, { departureCompletedMap: withPairFlag(w, 'departureCompletedMap', employerId, true) });
   }
-  // 刪除：只從「出境辦理」這份名單移除，不影響移工本身的資料，也不影響
-  // 其他頁面——用 departureListRemoved 這個頁面專屬的隱藏旗標。
-  async function handleRemove(w) {
-    await update(w.id, { departureListRemoved: true });
+  // 刪除：只從「出境辦理」這份名單移除那一筆配對，不影響移工本身的
+  // 資料，也不影響其他頁面——用 departureListRemovedMap 這個頁面專屬、
+  // 依配對獨立的隱藏旗標。
+  async function handleRemove(w, employerId) {
+    await update(w.id, { departureListRemovedMap: withPairFlag(w, 'departureListRemovedMap', employerId, true) });
   }
 
   return (
@@ -80,8 +86,8 @@ export default function DeparturePage() {
                         {canEditPage && (
                           <td className="row-actions">
                             <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
-                            <button className="primary" onClick={() => handleComplete(w)}>{t('已完成', lang)}</button>
-                            <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
+                            <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('已完成', lang)}</button>
+                            <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                           </td>
                         )}
                       </tr>
