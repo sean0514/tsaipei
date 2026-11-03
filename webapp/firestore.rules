@@ -340,6 +340,7 @@ service cloud.firestore {
         'studentMasterSheet': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'dormProfitLoss': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'schoolSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'internalBonusRateSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'bonus': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'scholarships': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'users': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -498,6 +499,12 @@ service cloud.firestore {
     match /vietnam_schoolSetup/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('schoolSetup');
+    }
+    // 內部獎金設定：開發業務/行政主管/行政招募/行政簽證/外務人員全公司
+    // 統一一筆固定月費率設定，供「內部獎金計算」試算。
+    match /vietnam_internalBonusRateSetup/{docId} {
+      allow read: if vnIsMember();
+      allow write: if vnCanEdit('internalBonusRateSetup');
     }
     match /vietnam_scholarships/{docId} {
       allow read: if vnIsMember();
