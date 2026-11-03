@@ -14,7 +14,7 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function DeparturePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'departure', role, overrides);
-  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
@@ -76,6 +76,7 @@ export default function DeparturePage() {
                           <td className="row-actions">
                             <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
                             <button className="primary" onClick={() => handleComplete(w)}>{t('已完成', lang)}</button>
+                            <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
                           </td>
                         )}
                       </tr>

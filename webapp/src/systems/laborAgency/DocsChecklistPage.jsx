@@ -17,7 +17,7 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function DocsChecklistPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'docsChecklist', role, overrides);
-  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
@@ -75,6 +75,7 @@ export default function DocsChecklistPage() {
                             <td className="row-actions">
                               <button onClick={() => setEditing(w)}>{t('編輯文件', lang)}</button>
                               <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
+                              <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
                             </td>
                           )}
                         </tr>
