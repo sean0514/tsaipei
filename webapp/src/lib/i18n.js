@@ -1131,7 +1131,6 @@ const VI = {
   '依臺灣相關規定所需之其他文件／聲明書': 'Hồ sơ khác/giấy khai theo quy định liên quan của Đài Loan',
   '依個案及簽證申請要求提供': 'Cung cấp theo từng trường hợp và yêu cầu xin visa',
 
-  // ExpiryAlertsPage.jsx
   '護照效期不足 180 天、或同一階段停留超過 30 天的案件': 'Hồ sơ có hạn hộ chiếu dưới 180 ngày, hoặc ở cùng một giai đoạn quá 30 ngày',
   '護照效期 180 天內': 'Hạn hộ chiếu trong 180 ngày',
   '共': 'Tổng',

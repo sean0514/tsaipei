@@ -8,7 +8,7 @@ import { t } from '../../lib/i18n';
 import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
-import { JOBS } from './constants';
+import { JOBS, workerEmployerIds } from './constants';
 
 function parseExperience(json) {
   try {
@@ -75,6 +75,28 @@ function CheckboxGroup({ options, values, onChange, lang }) {
   );
 }
 
+// 配對雇主複選：跟工種的 CheckboxGroup 不同，選項是雇主需求單裡的既有
+// 雇主（value 是雇主 id，顯示用雇主名稱），不開放自行輸入新項目。存成
+// employerIds（JSON 字串陣列），跟「移工管理」既有的單一 employerId
+// （「新增雇主安排」功能寫的）合併顯示，見 constants.js 的
+// workerEmployerIds()。
+function EmployerCheckboxGroup({ employers, values, onChange }) {
+  function toggle(id) {
+    onChange(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
+  }
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      {employers.map((emp) => (
+        <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+          <input type="checkbox" checked={values.includes(emp.id)} onChange={() => toggle(emp.id)} />
+          {emp.name}
+        </label>
+      ))}
+      {employers.length === 0 && <span className="muted">尚未建立雇主需求單</span>}
+    </div>
+  );
+}
+
 // 移工名冊：跟「移工管理」共用同一個 laborAgency_workers 集合，但只看
 // 工人的履歷資料，不含案件階段／雇主配對這些流程資訊——移工送出履歷後
 // 會自動在這裡出現一筆（見 pages/LaborAgencyResumeApplyPage.jsx），內部
@@ -92,6 +114,7 @@ export default function WorkerRosterPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'workerRoster', role, overrides);
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
+  const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_workers', CSV_FIELDS, { entityLabel: '工人資料', requiredKeys: ['name'], canEdit: canEditPage });
@@ -160,16 +183,17 @@ export default function WorkerRosterPage() {
           </table></div>
         </div>
       )}
-      {editing && <WorkerRosterFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <WorkerRosterFormModal initial={editing} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
 
-function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
+function WorkerRosterFormModal({ initial, employers, onCancel, onSave, lang }) {
   // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
   // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
   const [jobs, setJobs] = useState(() => parseJobs(initial.job));
+  const [employerIds, setEmployerIds] = useState(() => workerEmployerIds(initial));
   const [domesticExperience, setDomesticExperience] = useState(() => {
     const rows = parseExperience(initial.domesticExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
@@ -191,6 +215,7 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
       province: form.hometown || '',
       note: form.specialties || '',
       job: JSON.stringify(jobs),
+      employerIds: JSON.stringify(employerIds),
       domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
       overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
     });
@@ -207,6 +232,10 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
           <label style={{ display: 'block', marginBottom: 16 }}>
             {t('工種', lang)}（{t('可複選', lang)}）
             <CheckboxGroup options={JOBS} values={jobs} onChange={setJobs} lang={lang} />
+          </label>
+          <label style={{ display: 'block', marginBottom: 16 }}>
+            {t('配對雇主', lang)}（{t('可複選', lang)}）
+            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} />
           </label>
 
           <ResumeInternalFields

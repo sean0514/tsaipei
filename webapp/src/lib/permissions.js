@@ -280,7 +280,9 @@ export const SYSTEMS = {
       employers: '雇主需求單',
       workers: '移工管理',
       docsChecklist: '文件追蹤',
-      expiryAlerts: '效期提醒',
+      visaProcessing: '辦理簽證',
+      departure: '出境辦理',
+      arrivalNotice: '入境通知',
       salaryCalc: '薪資計算',
       feeSetup: '費用計算',
       chargeRecords: '收費紀錄',
@@ -298,7 +300,9 @@ export const SYSTEMS = {
       workers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
       employers: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'view' },
       docsChecklist: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'edit', 行政人員: 'edit' },
-      expiryAlerts: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'view' },
+      visaProcessing: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit' },
+      departure: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit' },
+      arrivalNotice: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'view', 行政人員: 'edit' },
       // 薪資資料較敏感，業務人員不開放；行政人員負責實際計算，開放編輯。
       salaryCalc: { 系統管理員: 'edit', 主管: 'edit', 業務人員: 'none', 行政人員: 'edit' },
       // 財務相關頁面一律不開放業務人員，行政人員負責實際記帳，開放編輯。
