@@ -1046,7 +1046,7 @@ service cloud.firestore {
         'spouseName', 'spouseAge', 'spouseOccupation', 'spouseOccupationZh',
         'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
         'educationLevel', 'educationLevelZh', 'chineseLevel', 'englishLevel',
-        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh'
+        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh', 'interviewVideoLink'
       ]) && request.resource.data.name is string && request.resource.data.name.size() > 0
         && request.resource.data.stage == '雇主確認';
     }
@@ -1106,7 +1106,7 @@ service cloud.firestore {
         'spouseName', 'spouseAge', 'spouseOccupation', 'spouseOccupationZh',
         'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
         'educationLevel', 'educationLevelZh', 'chineseLevel', 'englishLevel',
-        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh',
+        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh', 'interviewVideoLink',
         'assignedStaff', 'status', 'createdAt', 'workerId'
       ]) && (request.resource.data.vietnameseName is string && request.resource.data.vietnameseName.size() > 0)
         && request.resource.data.status == '待處理';
