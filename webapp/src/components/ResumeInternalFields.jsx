@@ -111,7 +111,7 @@ export default function ResumeInternalFields({
             <option value="女">{t('女', lang)}</option>
           </select>
         </label>
-        <label>{t('地區', lang)}<input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} /></label>
+        <label>{t('省份', lang)}<input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} /></label>
         <label>{t('電話', lang)}<input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} /></label>
         <label>{t('出生日期', lang)}<input type="date" value={form.birthDate || ''} onChange={(e) => setField('birthDate', e.target.value)} /></label>
         <label>{t('身高(cm)', lang)}<input type="number" value={form.height || ''} onChange={(e) => setField('height', e.target.value)} /></label>

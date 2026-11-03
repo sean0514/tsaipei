@@ -177,7 +177,7 @@ function ViewingModal({ sub, onClose, lang }) {
           <div><strong>{t('越文姓名', lang)}：</strong>{sub.vietnameseName || '—'}</div>
           <div><strong>{t('中文姓名', lang)}：</strong>{sub.chineseName || '—'}</div>
           <div><strong>{t('性別', lang)}：</strong>{t(sub.gender, lang) || '—'}</div>
-          <div><strong>{t('地區', lang)}：</strong>{sub.hometown || '—'}</div>
+          <div><strong>{t('省份', lang)}：</strong>{sub.hometown || '—'}</div>
           <div><strong>{t('電話', lang)}：</strong>{sub.phone || '—'}</div>
           <div><strong>{t('出生日期', lang)}：</strong>{sub.birthDate || '—'}</div>
           <div><strong>{t('身高/體重', lang)}：</strong>{sub.height || '—'} cm / {sub.weight || '—'} kg</div>

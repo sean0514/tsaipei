@@ -10,7 +10,7 @@ export const RESUME_LABELS = {
   gender: { zh: '性別', vi: 'Giới tính' },
   male: { zh: '男', vi: 'Nam' },
   female: { zh: '女', vi: 'Nữ' },
-  hometown: { zh: '地區', vi: 'Địa chỉ' },
+  hometown: { zh: '省份', vi: 'Tỉnh/Thành phố' },
   birthDate: { zh: '出生日期', vi: 'Ngày sinh' },
   height: { zh: '身高(cm)', vi: 'Chiều cao (cm)' },
   weight: { zh: '體重(kg)', vi: 'Cân nặng (kg)' },
