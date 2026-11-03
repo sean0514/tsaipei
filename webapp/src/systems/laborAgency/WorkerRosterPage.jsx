@@ -28,18 +28,49 @@ function parseJobs(raw) {
   } catch { return [raw]; }
 }
 
+// 工種複選群組，同時可以自行輸入清單以外的項目——跟 vietnam 系統
+// StudentsPage.jsx 的 MultiSelectEditor 同一套做法：自訂項目額外顯示在
+// 固定選項後面，旁邊有「×」可以移除。
 function CheckboxGroup({ options, values, onChange, lang }) {
+  const [newItem, setNewItem] = useState('');
+  const extraItems = values.filter((v) => !options.includes(v));
+
   function toggle(o) {
     onChange(values.includes(o) ? values.filter((v) => v !== o) : [...values, o]);
   }
+  function addCustom() {
+    const text = newItem.trim();
+    if (!text || values.includes(text)) return;
+    onChange([...values, text]);
+    setNewItem('');
+  }
+  function removeCustom(o) {
+    onChange(values.filter((v) => v !== o));
+  }
+
   return (
-    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-      {options.map((o) => (
-        <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
-          <input type="checkbox" checked={values.includes(o)} onChange={() => toggle(o)} />
-          {t(o, lang)}
-        </label>
-      ))}
+    <div>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {[...options, ...extraItems].map((o) => (
+          <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+            <input type="checkbox" checked={values.includes(o)} onChange={() => toggle(o)} />
+            {t(o, lang)}
+            {!options.includes(o) && (
+              <button type="button" className="danger small" onClick={() => removeCustom(o)}>×</button>
+            )}
+          </label>
+        ))}
+      </div>
+      <div className="row-actions" style={{ marginTop: 8 }}>
+        <input
+          placeholder={t('輸入自訂項目', lang)}
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          style={{ flex: 1 }}
+        />
+        <button type="button" onClick={addCustom}>+ {t('新增項目', lang)}</button>
+      </div>
     </div>
   );
 }

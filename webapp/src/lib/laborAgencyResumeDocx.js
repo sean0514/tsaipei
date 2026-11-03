@@ -40,19 +40,22 @@ function fieldLabel({ labelKey, prefixKey }) {
 
 // 照片存在 Firebase Storage，下載連結是公開的下載 URL；fetch 回來的
 // blob.type 判斷圖片格式餵給 docx 的 ImageRun（它要求明確指定 jpg/png/
-// gif/bmp 其中一種，不接受自動判斷)。抓不到(網路錯誤/已被刪除)就跳過，
-// 不讓整份履歷表下載失敗。
+// gif/bmp 其中一種，不接受自動判斷)。抓不到就跳過，不讓整份履歷表下載
+// 失敗，但把失敗原因回傳給呼叫端，讓使用者知道「沒帶到照片」是因為
+// 根本沒上傳過(url 是空的)，還是上傳過但抓取失敗(網址失效/網路問題/
+// Firebase Storage 沒設定允許跨來源讀取)——這兩種狀況處理方式不同，
+// 不能都默默略過。
 async function fetchImage(url) {
-  if (!url) return null;
+  if (!url) return { data: null, error: null };
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
     const blob = await res.blob();
     const buffer = await blob.arrayBuffer();
     const type = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : blob.type.includes('bmp') ? 'bmp' : 'jpg';
-    return { buffer, type };
-  } catch {
-    return null;
+    return { data: { buffer, type }, error: null };
+  } catch (err) {
+    return { data: null, error: err.message || String(err) };
   }
 }
 
@@ -136,9 +139,23 @@ export async function downloadWorkerResumeDocx(w) {
   const domestic = parseExperience(w.domesticExperience);
   const overseas = parseExperience(w.overseasExperience);
   const interviewLinks = parseExperience(w.interviewLinks);
-  const photo = await fetchImage(w.photoUrl);
-  const tattooPhoto = w.hasTattoo === '有' ? await fetchImage(w.tattooPhotoUrl) : null;
-  const linePhoto = await fetchImage(w.lineQrPhotoUrl);
+  const photoResult = await fetchImage(w.photoUrl);
+  const tattooResult = w.hasTattoo === '有' ? await fetchImage(w.tattooPhotoUrl) : { data: null, error: null };
+  const lineResult = await fetchImage(w.lineQrPhotoUrl);
+  const photo = photoResult.data;
+  const tattooPhoto = tattooResult.data;
+  const linePhoto = lineResult.data;
+
+  // 照片欄位有網址但抓不到（跟「根本沒上傳過」不同）才提醒，不然每個
+  // 沒填照片的工人下載履歷表都會跳警告，太吵。
+  const fetchWarnings = [
+    w.photoUrl && photoResult.error && `${RESUME_LABELS.photo.zh}：${photoResult.error}`,
+    w.tattooPhotoUrl && tattooResult.error && `${RESUME_LABELS.tattooPhoto.zh}：${tattooResult.error}`,
+    w.lineQrPhotoUrl && lineResult.error && `LINE：${lineResult.error}`,
+  ].filter(Boolean);
+  if (fetchWarnings.length) {
+    alert(`部分圖片下載失敗，履歷表內會略過：\n${fetchWarnings.join('\n')}\n\n若持續失敗，可能是 Firebase Storage 沒有設定允許瀏覽器跨來源讀取（CORS），需要有 Firebase 專案權限的人用 gsutil 設定儲存桶的 CORS 規則。`);
+  }
 
   const children = [
     new Paragraph({
