@@ -8,7 +8,7 @@ import { t } from '../../lib/i18n';
 import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
-import { JOBS, workerEmployerIds } from './constants';
+import { JOBS, workerEmployerIds, employerLabel } from './constants';
 
 function parseExperience(json) {
   try {
@@ -158,7 +158,7 @@ export default function WorkerRosterPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('護照效期', lang)}</th><th></th>
+                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('配對雇主', lang)}</th><th>{t('護照效期', lang)}</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -169,6 +169,7 @@ export default function WorkerRosterPage() {
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.province || '—'}</td>
                   <td>{parseJobs(w.job).map((j) => t(j, lang)).join('、') || '—'}</td>
+                  <td>{workerEmployerIds(w).map((id) => employerLabel(employers, id, lang)).join('、') || t('尚未配對', lang)}</td>
                   <td>{w.passportExpiry || '—'}</td>
                   <td className="row-actions">
                     <button onClick={() => downloadWorkerResumeDocx(w)}>{t('下載履歷表', lang)}</button>
@@ -181,7 +182,7 @@ export default function WorkerRosterPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{t('尚未建立工人資料', lang)}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={8} className="muted">{t('尚未建立工人資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         </div>
