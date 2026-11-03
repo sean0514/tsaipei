@@ -8,6 +8,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { hasActiveHousingRecord } from '../../lib/housingRecords';
 import { isAllowedSourceStudent } from '../../lib/tsaipeiSourceFilter';
+import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -232,6 +233,10 @@ export default function ApplicationProgressPage() {
         if (!(await existsForStudent('vietnam_visaProcessing', data.studentId))) {
           await addDoc(collection(db, 'vietnam_visaProcessing'), { studentId: data.studentId, status: '辦理中' });
         }
+        // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄，這樣
+        // 「越南送機行程」才能選到這位學生、建立送機紀錄（見
+        // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+        await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
       });
     }
     setEditing(null);

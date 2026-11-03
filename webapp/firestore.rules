@@ -369,7 +369,12 @@ service cloud.firestore {
     }
     match /vietnam_students/{docId} {
       allow read: if vnIsMember();
-      allow create, delete: if vnCanEdit('students');
+      // create 也放行 visaProcessing/applicationProgress：「越南辦理簽證」
+      // 新增紀錄、以及境外生實習系統「申辦進度追蹤」自動建立越南簽證辦理
+      // 紀錄時，會順便確保這裡也有一筆對應的學生資料（見
+      // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+      allow create: if vnCanEdit('students') || vnCanEdit('visaProcessing') || vnCanEdit('applicationProgress');
+      allow delete: if vnCanEdit('students');
       // update 也放行 internshipDocs 編輯者：InternshipDocsPage 會把文件
       // 狀態同步回學生紀錄的對應欄位(syncStudentDocField)；closedCases 也
       // 放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。

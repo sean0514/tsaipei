@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 // 越南簽證辦理：資料本身存在越南系統（vietnam_visaProcessing），學生則是
@@ -13,7 +14,10 @@ import { t } from '../../lib/i18n';
 // 的 handleSave），不用等越南端的人員自己盯著境外生實習系統手動建立；
 // 辦理簽證時間/簽證完成時間則是越南端的人員自己在這裡填寫。依客戶（學生
 // 所媒合的實習單位）分組顯示，跟「辦理簽證提醒」「在台簽證追蹤」同一套
-// 分組方式。
+// 分組方式。建立紀錄時（手動新增或上面的自動連動）會順便確保越南系統
+// （vietnam_students）也有這位學生的對應紀錄，這樣「越南送機行程」才能
+// 選到這位學生、建立送機紀錄（見 lib/vietnamTsaipeiStudentSync.js 的
+// ensureVietnamStudentForTsaipeiStudent）。
 export default function VisaProcessingPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'visaProcessing', role, overrides);
@@ -42,6 +46,11 @@ export default function VisaProcessingPage() {
       await update(id, rest);
     } else {
       await add(data);
+      // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄，這樣
+      // 「越南送機行程」才能選到這位學生、建立送機紀錄（見
+      // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+      const student = students.find((s) => s.id === data.studentId);
+      await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
     }
     setEditing(null);
   }
