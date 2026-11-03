@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { STAGE_KEYS, JOBS, GENDERS, REVIEW_RESULTS, stageIndex, passportStatus, employerLabel, workerEmployerIds } from './constants';
+import { STAGE_KEYS, JOBS, GENDERS, REVIEW_RESULTS, stageIndex, employerLabel, workerEmployerIds } from './constants';
 
 // 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
 // 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
@@ -159,6 +159,32 @@ function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
 const UNMATCHED_EMPLOYER = '__unmatched__';
 const UNSET_AGENCY = '__unset_agency__';
 
+// 目前階段改成「流程圖勾選式」：一排階段步驟，點哪一關就直接跳到那一關
+// （不是只能往下一關），已到達（含目前這關）的步驟打勾標示，比下拉選單
+// 更直覺地看出整體進度在哪。
+function StageStepper({ stage, onChange, canEdit, lang }) {
+  const idx = stageIndex(stage);
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {STAGE_KEYS.map((k, i) => {
+        const done = i <= idx;
+        return (
+          <button
+            key={k}
+            type="button"
+            disabled={!canEdit}
+            onClick={() => onChange(k)}
+            className={`tag ${done ? 'tag-green' : 'tag-grey'}`}
+            style={{ cursor: canEdit ? 'pointer' : 'default', fontWeight: i === idx ? 700 : 400 }}
+          >
+            {done ? '✓ ' : ''}{t(k, lang)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // 案件清單：先依仲介分組，仲介底下再依雇主分組（未配對的歸一組，排
 // 最後）；同一個移工若在移工名冊同時配對多個雇主（可複選），這裡會依
 // 雇主各自顯示一行，不是只算一筆。同一雇主底下依目前階段排序，同階段
@@ -199,26 +225,16 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
         </h4>
         <div className="card">
           <div className="table-wrap"><table>
-            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('審核結果', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
+            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('審核結果', lang)}</th></tr></thead>
             <tbody>
-              {sorted.map(({ worker: w }) => {
-                const ps = passportStatus(w, lang);
-                return (
-                  <tr key={`${w.id}-${employerId}`}>
-                    <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
-                    <td>{jobLabel(w.job, lang)}</td>
-                    <td>
-                      {canEditPage ? (
-                        <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
-                          {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
-                        </select>
-                      ) : t(w.stage, lang)}
-                    </td>
-                    <td>{t(w.reviewResult, lang) || '—'}</td>
-                    <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
-                  </tr>
-                );
-              })}
+              {sorted.map(({ worker: w }) => (
+                <tr key={`${w.id}-${employerId}`}>
+                  <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                  <td>{jobLabel(w.job, lang)}</td>
+                  <td><StageStepper stage={w.stage} onChange={(stage) => onMoveStage(w.id, stage)} canEdit={canEditPage} lang={lang} /></td>
+                  <td>{t(w.reviewResult, lang) || '—'}</td>
+                </tr>
+              ))}
             </tbody>
           </table></div>
         </div>
