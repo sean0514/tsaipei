@@ -8,6 +8,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { hasActiveHousingRecord } from '../../lib/housingRecords';
 import { isAllowedSourceStudent } from '../../lib/tsaipeiSourceFilter';
+import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -170,6 +171,7 @@ export default function ApplicationProgressPage() {
     const prevArrivalDate = editing?.arrivalDate || '';
     const prevAdmittedDate = editing?.admittedDate || '';
     const prevMinistryReviewDate = editing?.ministryReviewDate || '';
+    const prevSentAbroadDate = editing?.sentAbroadDate || '';
     try {
       if (data.id) {
         const { id, ...rest } = data;
@@ -216,18 +218,25 @@ export default function ApplicationProgressPage() {
         }
       });
     }
-    // 「經濟部/交通部審核」這關第一次填入日期時，如果學生來源(國外供應商)
-    // 是元凱移工事業部/越南實習生系統那幾個 ALLOWED_SOURCE_SUPPLIERS，就
-    // 自動在越南系統的「越南簽證辦理」建立一筆「辦理中」的紀錄，不用越南
-    // 端的人員自己盯著這裡的進度手動建立；辦理簽證時間/簽證完成時間留給
-    // 越南端的人員自己在那個頁面填寫，這裡不自動帶日期。
-    if (data.ministryReviewDate && data.ministryReviewDate !== prevMinistryReviewDate) {
+    // 「經濟部/交通部審核」或「發函後寄國外」這兩關，任一關第一次填入日期
+    // 時，如果學生來源(國外供應商)是元凱移工事業部/越南實習生系統那幾個
+    // ALLOWED_SOURCE_SUPPLIERS，就自動在越南系統的「越南簽證辦理」建立
+    // 一筆「辦理中」的紀錄，不用越南端的人員自己盯著這裡的進度手動建立；
+    // 辦理簽證時間/簽證完成時間留給越南端的人員自己在那個頁面填寫，這裡
+    // 不自動帶日期。
+    const ministryReviewJustFilled = data.ministryReviewDate && data.ministryReviewDate !== prevMinistryReviewDate;
+    const sentAbroadJustFilled = data.sentAbroadDate && data.sentAbroadDate !== prevSentAbroadDate;
+    if (ministryReviewJustFilled || sentAbroadJustFilled) {
       await runCascadeStep('建立越南簽證辦理紀錄', async () => {
         const student = students.find((s) => s.id === data.studentId);
         if (!isAllowedSourceStudent(student)) return;
         if (!(await existsForStudent('vietnam_visaProcessing', data.studentId))) {
           await addDoc(collection(db, 'vietnam_visaProcessing'), { studentId: data.studentId, status: '辦理中' });
         }
+        // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄，這樣
+        // 「越南送機行程」才能選到這位學生、建立送機紀錄（見
+        // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+        await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
       });
     }
     setEditing(null);

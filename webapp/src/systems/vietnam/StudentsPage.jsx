@@ -86,11 +86,12 @@ const FIELDS = [
   { key: 'workExperience', label: '工作經驗', type: 'textarea' },
   { key: 'workExperienceZh', label: '工作經驗（中文翻譯）', type: 'textarea', translateFrom: 'workExperience' },
   { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
-  // 內部獎金計算讀取的角色指派——這 4 個角色改成每位學生各自指派（取代
-  // 原本在「實習單位」(PositionsPage.jsx) 層級指派的做法），獎金費率仍
-  // 依這位學生的實習單位(專案+客戶)在「內部費用建檔」設定的月費率，
-  // 詳見 lib/vietnamBonus.js。
+  // 內部獎金計算讀取的角色指派——這 5 個角色改成每位學生各自指派（取代
+  // 原本在「實習單位」(PositionsPage.jsx) 層級指派的做法），學生安排「越南
+  // 送機行程」後，依這位學生就讀學校在「內部獎金設定」設定的月費率一次性
+  // 計算，詳見 lib/vietnamBonus.js。
   { key: 'assignedBizDev', label: '開發業務', type: 'staff' },
+  { key: 'assignedAdminSupervisor', label: '行政主管', type: 'staff' },
   { key: 'assignedAdminRecruit', label: '行政招募', type: 'staff' },
   { key: 'assignedAdminVisa', label: '行政簽證', type: 'staff' },
   { key: 'assignedFieldStaff', label: '外務人員', type: 'staff' },

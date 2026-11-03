@@ -3,16 +3,21 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 // 越南簽證辦理：資料本身存在越南系統（vietnam_visaProcessing），學生則是
 // 境外生實習系統（tsaipei_students）裡學生來源(國外供應商)為
 // ALLOWED_SOURCE_SUPPLIERS 的紀錄——境外生實習系統「申辦進度追蹤」的
-// 「經濟部/交通部審核」這關第一次填入日期時，會自動在這裡建立一筆「辦理
-// 中」的紀錄（見 tsaipei/ApplicationProgressPage.jsx 的 handleSave），
-// 不用等越南端的人員自己盯著境外生實習系統手動建立；辦理簽證時間/簽證
-// 完成時間則是越南端的人員自己在這裡填寫。依客戶（學生所媒合的實習單位）
-// 分組顯示，跟「辦理簽證提醒」「在台簽證追蹤」同一套分組方式。
+// 「經濟部/交通部審核」或「發函後寄國外」任一關第一次填入日期時，會自動
+// 在這裡建立一筆「辦理中」的紀錄（見 tsaipei/ApplicationProgressPage.jsx
+// 的 handleSave），不用等越南端的人員自己盯著境外生實習系統手動建立；
+// 辦理簽證時間/簽證完成時間則是越南端的人員自己在這裡填寫。依客戶（學生
+// 所媒合的實習單位）分組顯示，跟「辦理簽證提醒」「在台簽證追蹤」同一套
+// 分組方式。建立紀錄時（手動新增或上面的自動連動）會順便確保越南系統
+// （vietnam_students）也有這位學生的對應紀錄，這樣「越南送機行程」才能
+// 選到這位學生、建立送機紀錄（見 lib/vietnamTsaipeiStudentSync.js 的
+// ensureVietnamStudentForTsaipeiStudent）。
 export default function VisaProcessingPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'visaProcessing', role, overrides);
@@ -41,6 +46,11 @@ export default function VisaProcessingPage() {
       await update(id, rest);
     } else {
       await add(data);
+      // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄，這樣
+      // 「越南送機行程」才能選到這位學生、建立送機紀錄（見
+      // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+      const student = students.find((s) => s.id === data.studentId);
+      await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
     }
     setEditing(null);
   }
@@ -50,7 +60,7 @@ export default function VisaProcessingPage() {
       <div className="page-header">
         <div>
           <h2>{t('越南簽證辦理', lang)}</h2>
-          <div className="page-desc">{t('境外生實習系統「申辦進度追蹤」的經濟部/交通部審核完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或發函後寄國外任一完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         {canEditPage && <button className="primary" onClick={() => setEditing({ status: '辦理中' })}>+ {t('新增紀錄', lang)}</button>}
       </div>

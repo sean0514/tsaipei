@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
@@ -51,4 +51,37 @@ export async function createSyncedTsaipeiStudent(vietnamStudentId, vietnamData) 
     studentId: tsaipeiRef.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依元凱系統學生建檔自動建立）', createdAt: serverTimestamp(),
   });
   return tsaipeiRef.id;
+}
+
+// 反過來的方向：境外生實習系統（tsaipei_students）裡學生來源是元凱/越南的
+// 那幾個 ALLOWED_SOURCE_SUPPLIERS，一開始就是直接在 tsaipei 建檔，不是從
+// 元凱系統同步過去的，越南系統自己的 vietnam_students 裡沒有對應紀錄——
+// 「越南辦理簽證」(VisaProcessingPage.jsx) 建立紀錄時，呼叫這個函式確保
+// 越南系統也有一筆對應的學生資料，這樣「越南送機行程」(DepartureTransportPage.jsx，
+// 讀 vietnam_students) 才能選到這位學生、建立送機紀錄。先用護照號碼配對，
+// 配不到再用中文姓名+原始姓名配對，兩者都配不到才新建一筆（新建的紀錄
+// 存 syncedFromTsaipeiStudentId 方便追溯來源，跟反方向 createSyncedTsaipeiStudent
+// 建立的 tsaipei_students 紀錄存 syncedFromVietnamId 對稱）。
+export async function ensureVietnamStudentForTsaipeiStudent(tsaipeiStudentId, ts) {
+  if (!ts) return null;
+  const passportNumber = ts.passportNumber || '';
+  const snap = await getDocs(collection(db, 'vietnam_students'));
+  const matched = snap.docs.find((d) => {
+    const v = d.data();
+    if (passportNumber && v.passportNumber === passportNumber) return true;
+    return !!(ts.chineseName && ts.originalName && v.chineseName === ts.chineseName && v.originalName === ts.originalName);
+  });
+  if (matched) return matched.id;
+  const ref = await addDoc(collection(db, 'vietnam_students'), {
+    chineseName: ts.chineseName || '',
+    originalName: ts.originalName || '',
+    school: ts.school || '',
+    nationality: ts.nationality || '',
+    gender: ts.gender || '',
+    hasPassport: passportNumber ? 'Yes' : '',
+    passportNumber,
+    syncedFromTsaipeiStudentId: tsaipeiStudentId,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
 }
