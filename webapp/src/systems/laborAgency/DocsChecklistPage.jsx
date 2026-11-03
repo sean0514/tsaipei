@@ -17,13 +17,13 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function DocsChecklistPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'docsChecklist', role, overrides);
-  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = workers
-    .filter((w) => !w.docsCompleted)
+    .filter((w) => !w.docsCompleted && !w.docsListRemoved)
     .flatMap((w) => {
       const ids = workerEmployerIds(w);
       return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
@@ -34,6 +34,13 @@ export default function DocsChecklistPage() {
 
   async function handleComplete(w) {
     await update(w.id, { docsCompleted: true });
+  }
+
+  // 刪除：只從「文件追蹤」這份名單移除，不影響移工本身的資料，也不影響
+  // 其他頁面（移工管理、辦理簽證…）——用 docsListRemoved 這個頁面專屬的
+  // 隱藏旗標，不呼叫 remove() 刪除整筆移工資料。
+  async function handleRemove(w) {
+    await update(w.id, { docsListRemoved: true });
   }
 
   return (
@@ -75,7 +82,7 @@ export default function DocsChecklistPage() {
                             <td className="row-actions">
                               <button onClick={() => setEditing(w)}>{t('編輯文件', lang)}</button>
                               <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
-                              <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
+                              <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
                             </td>
                           )}
                         </tr>

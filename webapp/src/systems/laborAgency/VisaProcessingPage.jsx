@@ -15,10 +15,10 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function VisaProcessingPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'visaProcessing', role, overrides);
-  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
-  const pending = workers.filter((w) => w.docsCompleted && !w.visaCompleted);
+  const pending = workers.filter((w) => w.docsCompleted && !w.visaCompleted && !w.visaListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = pending.flatMap((w) => {
     const ids = workerEmployerIds(w);
@@ -43,6 +43,11 @@ export default function VisaProcessingPage() {
   }
   async function handleComplete(w) {
     await update(w.id, { visaCompleted: true });
+  }
+  // 刪除：只從「辦理簽證」這份名單移除，不影響移工本身的資料，也不影響
+  // 其他頁面——用 visaListRemoved 這個頁面專屬的隱藏旗標。
+  async function handleRemove(w) {
+    await update(w.id, { visaListRemoved: true });
   }
 
   function EmployerTable({ employerId }) {
@@ -83,7 +88,7 @@ export default function VisaProcessingPage() {
                   {canEditPage && (
                     <td className="row-actions">
                       <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
-                      <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
+                      <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
                     </td>
                   )}
                 </tr>
