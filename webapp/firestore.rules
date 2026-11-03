@@ -369,11 +369,13 @@ service cloud.firestore {
     }
     match /vietnam_students/{docId} {
       allow read: if vnIsMember();
-      // create 也放行 visaProcessing/applicationProgress：「越南辦理簽證」
-      // 新增紀錄、以及境外生實習系統「申辦進度追蹤」自動建立越南簽證辦理
-      // 紀錄時，會順便確保這裡也有一筆對應的學生資料（見
-      // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
-      allow create: if vnCanEdit('students') || vnCanEdit('visaProcessing') || vnCanEdit('applicationProgress');
+      // create 也放行 visaProcessing（越南端新增「越南辦理簽證」紀錄時）
+      // 跟 tsCanEdit('applicationProgress')（境外生實習系統「申辦進度
+      // 追蹤」自動連動建立越南簽證辦理紀錄時，是從 tsaipei 那邊的使用者
+      // 觸發，要放行 tsaipei 系統自己的 applicationProgress 權限，不是
+      // 越南系統的）：這兩種情況都會順便確保這裡也有一筆對應的學生資料
+      // （見 lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+      allow create: if vnCanEdit('students') || vnCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
       allow delete: if vnCanEdit('students');
       // update 也放行 internshipDocs 編輯者：InternshipDocsPage 會把文件
       // 狀態同步回學生紀錄的對應欄位(syncStudentDocField)；closedCases 也
@@ -449,11 +451,15 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('vehiclePickup');
     }
-    // 越南簽證辦理：境外生實習系統「申辦進度追蹤」的經濟部/交通部審核完成
-    // 後會自動建立一筆「辦理中」紀錄，create 也放行 applicationProgress。
+    // 越南簽證辦理：境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或
+    // 發函後寄國外完成後會自動建立一筆「辦理中」紀錄，這個連動是從
+    // tsaipei 那邊的使用者觸發的，所以 create 放行的是 tsCanEdit
+    // (tsaipei 系統自己的 applicationProgress 權限)，不是 vnCanEdit
+    // （那檢查的是越南系統自己的 applicationProgress 模組，跟這個連動
+    // 無關，放錯會讓沒有越南系統帳號的 tsaipei 人員寫入被拒絕）。
     match /vietnam_visaProcessing/{docId} {
       allow read: if vnIsMember();
-      allow create: if vnCanEdit('visaProcessing') || vnCanEdit('applicationProgress');
+      allow create: if vnCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
       allow update, delete: if vnCanEdit('visaProcessing');
     }
     match /vietnam_departureTransport/{docId} {
