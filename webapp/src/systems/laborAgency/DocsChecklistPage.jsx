@@ -109,24 +109,46 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
     setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // 「護照」這項必備文件額外要確認有效日期，不是只打勾——跟
-  // WorkersPage.jsx 編輯移工表單共用同一個 passportExpiry 欄位，這裡填
-  // 過那邊也會同步看到。
-  function ItemList({ items }) {
+  // 全部繳交：必備文件一次全部打勾，不用一項一項點——文件全部收到的
+  // 情況很常見，一個按鈕就能完成，不用再逐項確認。
+  function markAllSubmitted() {
+    setChecked((prev) => {
+      const next = { ...prev };
+      requiredItems.forEach((d) => { next[d.key] = true; });
+      return next;
+    });
+  }
+
+  // 必備文件進度改成一排可點擊的流程步驟：點哪一項就直接打勾/取消那
+  // 一項，比原本逐行的核取方塊清單更一目了然地看出整體收件進度。
+  function RequiredSteps() {
+    return (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {requiredItems.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => toggle(d.key)}
+            title={t(d.note, lang)}
+            className={`tag ${checked[d.key] ? 'tag-green' : 'tag-grey'}`}
+            style={{ cursor: 'pointer', fontWeight: checked[d.key] ? 700 : 400 }}
+          >
+            {checked[d.key] ? '✓ ' : ''}{t(d.label, lang)}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function OptionalItemList() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((d) => (
+        {optionalItems.map((d) => (
           <label key={d.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontWeight: 400 }}>
             <input type="checkbox" checked={!!checked[d.key]} onChange={() => toggle(d.key)} style={{ marginTop: 3 }} />
-            <span style={{ flex: 1 }}>
+            <span>
               <div>{t(d.label, lang)}</div>
               <div className="muted" style={{ fontSize: 12 }}>{t(d.note, lang)}</div>
-              {d.key === 'passport' && (
-                <label style={{ display: 'block', marginTop: 6, fontWeight: 400 }}>
-                  {t('護照有效日期', lang)}
-                  <input type="date" value={passportExpiry} onChange={(e) => setPassportExpiry(e.target.value)} style={{ marginLeft: 8, width: 'auto' }} />
-                </label>
-              )}
             </span>
           </label>
         ))}
@@ -138,10 +160,20 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{worker.name} － {t('文件清單', lang)}</h3>
-        <h4 style={{ marginTop: 0 }}>{t('必備文件', lang)}</h4>
-        <ItemList items={requiredItems} />
+        <div className="row-actions" style={{ marginBottom: 10 }}>
+          <h4 style={{ margin: 0, flex: 1 }}>{t('必備文件', lang)}</h4>
+          <button type="button" onClick={markAllSubmitted}>{t('全部繳交', lang)}</button>
+        </div>
+        <RequiredSteps />
+        {/* 「護照」這項必備文件額外要確認有效日期，不是只打勾——跟
+            WorkersPage.jsx 編輯移工表單共用同一個 passportExpiry 欄位，
+            這裡填過那邊也會同步看到。 */}
+        <label style={{ display: 'block', marginTop: 10 }}>
+          {t('護照有效日期', lang)}
+          <input type="date" value={passportExpiry} onChange={(e) => setPassportExpiry(e.target.value)} style={{ marginLeft: 8, width: 'auto' }} />
+        </label>
         <h4>{t('依個案提供', lang)}</h4>
-        <ItemList items={optionalItems} />
+        <OptionalItemList />
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button type="button" className="primary" onClick={() => onSave({ docsChecked: checked, passportExpiry })}>{t('儲存', lang)}</button>
           <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
