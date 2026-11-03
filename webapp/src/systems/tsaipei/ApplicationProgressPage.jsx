@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -231,13 +231,40 @@ export default function ApplicationProgressPage() {
         if (!(await existsForStudent('vietnam_visaProcessing', data.studentId))) {
           await addDoc(collection(db, 'vietnam_visaProcessing'), { studentId: data.studentId, status: '辦理中' });
         }
-        // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄，這樣
-        // 「越南送機行程」才能選到這位學生、建立送機紀錄（見
+        // 同步確保越南系統（vietnam_students）也有這位學生的對應紀錄、
+        // 「越南送機行程」也有這位學生的空白紀錄（見
         // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
         await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
       });
     }
     setEditing(null);
+  }
+
+  // 刪除這筆申辦進度紀錄時，如果曾經連動建立過「越南簽證辦理」紀錄（這個
+  // 學生來源是元凱移工事業部/越南實習生系統），那筆紀錄也要一併刪除，不
+  // 留著一筆對應不到進度紀錄的孤兒資料；越南端如果已經手動填了辦理簽證
+  // 時間/簽證完成時間，刪除前用 confirm 提醒一次，避免誤刪越南端已經在
+  // 處理中的紀錄。
+  async function handleDelete(id) {
+    const row = rows.find((r) => r.id === id);
+    const student = row && students.find((s) => s.id === row.studentId);
+    if (isAllowedSourceStudent(student)) {
+      const snap = await getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', row.studentId)));
+      if (!snap.empty) {
+        const hasVietnamProgress = snap.docs.some((d) => d.data().visaStartDate || d.data().visaCompleteDate);
+        const confirmed = !hasVietnamProgress || window.confirm(
+          '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，刪除這筆申辦進度紀錄會連同刪除越南端的紀錄，確定要刪除嗎？'
+        );
+        if (confirmed) {
+          await runCascadeStep('刪除越南簽證辦理紀錄', async () => {
+            await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'vietnam_visaProcessing', d.id))));
+          });
+        } else {
+          return;
+        }
+      }
+    }
+    await remove(id);
   }
 
   // 補救用：把目前所有「辦理簽證」日期已填的學生都檢查一次，缺住宿安排紀錄、
@@ -305,7 +332,7 @@ export default function ApplicationProgressPage() {
               ctx={ctx}
               studentById={studentById}
               onEdit={setEditing}
-              onRemove={remove}
+              onRemove={handleDelete}
               onClose={(id) => update(id, { confirmedClosed: true })}
             />
             <ArrivalSection
@@ -315,7 +342,7 @@ export default function ApplicationProgressPage() {
               ctx={ctx}
               studentById={studentById}
               onEdit={setEditing}
-              onRemove={remove}
+              onRemove={handleDelete}
               onClose={(id) => update(id, { confirmedClosed: true })}
             />
           </div>
