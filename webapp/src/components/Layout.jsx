@@ -138,7 +138,7 @@ const GROUP_SECTIONS = {
   ],
   laborAgency: [
     { label: '工人資料', items: ['resumeLinks', 'workerRoster'] },
-    { label: '行政專用', items: ['workers', 'employers', 'docsChecklist', 'expiryAlerts'] },
+    { label: '行政專用', items: ['employers', 'workers', 'docsChecklist', 'expiryAlerts'] },
     { label: '財務專用', items: ['salaryCalc', 'feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup'] },
     { label: '資料建檔', items: ['users'] },
   ],
