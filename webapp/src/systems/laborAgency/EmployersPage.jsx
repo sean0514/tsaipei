@@ -110,7 +110,7 @@ export default function EmployersPage() {
                     return (
                       <div className="card" key={e.id}>
                         <h3 style={{ marginTop: 0 }}>{e.name}</h3>
-                        {e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('函文編號：', lang)}{e.docNumber}</div>}
+                        {role === '行政人員' && e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('函文編號：', lang)}{e.docNumber}</div>}
                         <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.county ? `　${t(e.county, lang)}` : ''}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
                         {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
                         <div style={{ margin: '10px 0' }}>
@@ -147,7 +147,7 @@ export default function EmployersPage() {
           })
         )
       )}
-      {editing && <EmployerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <EmployerFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} role={role} />}
     </div>
   );
 }
@@ -191,10 +191,17 @@ function ListEditor({ label, addLabel, items, onChange, lang }) {
   );
 }
 
-function EmployerFormModal({ initial, onCancel, onSave, lang }) {
+// 函文編號是行政專用欄位，只有「行政人員」角色能看到/填寫，其他角色
+// 的表單跟卡片都不顯示這個欄位。
+function visibleFields(role) {
+  return FIELDS.filter((f) => f.key !== 'docNumber' || role === '行政人員');
+}
+
+function EmployerFormModal({ initial, onCancel, onSave, lang, role }) {
   const [form, setForm] = useState(initial);
   const otherRequirements = parseList(form.otherRequirements);
   const otherBenefits = parseList(form.otherBenefits);
+  const fields = visibleFields(role);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -207,7 +214,7 @@ function EmployerFormModal({ initial, onCancel, onSave, lang }) {
         <h3>{initial.id ? t('編輯雇主需求', lang) : t('新增雇主需求', lang)}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            {FIELDS.filter((f) => f.type !== 'textarea').map((f) => (
+            {fields.filter((f) => f.type !== 'textarea').map((f) => (
               <label key={f.key}>
                 {t(f.label, lang)}
                 {f.options ? (
