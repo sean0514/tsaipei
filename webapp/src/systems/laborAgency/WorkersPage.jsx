@@ -168,14 +168,25 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 const UNSET_AGENCY = '__unset_agency__';
 
 // 目前階段（面試/錄取/取消/未通過）每一筆配對（移工×雇主）各自獨立，
-// 不是整個移工共用一個狀態，所以用下拉選單直接改這一行的狀態，不影響
-// 同一移工在其他雇主那邊的狀態。
-function MatchStatusSelect({ status, onChange, canEdit, lang }) {
-  if (!canEdit) return t(status, lang);
+// 不是整個移工共用一個狀態。用一排可點擊的流程步驟顯示，點哪一個就
+// 直接改成那個狀態，只影響這一行（這一筆配對），不影響同一移工在其他
+// 雇主那邊的狀態。
+function MatchStatusSteps({ status, onChange, canEdit, lang }) {
   return (
-    <select value={status} onChange={(e) => onChange(e.target.value)}>
-      {MATCH_STATUSES.map((s) => <option key={s} value={s}>{t(s, lang)}</option>)}
-    </select>
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {MATCH_STATUSES.map((s) => (
+        <button
+          key={s}
+          type="button"
+          disabled={!canEdit}
+          onClick={() => onChange(s)}
+          className={`tag ${s === status ? 'tag-green' : 'tag-grey'}`}
+          style={{ cursor: canEdit ? 'pointer' : 'default', fontWeight: s === status ? 700 : 400 }}
+        >
+          {s === status ? '✓ ' : ''}{t(s, lang)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -219,14 +230,22 @@ function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, la
         </h4>
         <div className="card">
           <div className="table-wrap"><table>
-            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
+                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th>
+              </tr>
+            </thead>
             <tbody>
               {sorted.map(({ worker: w, employerId: rowEmployerId }) => (
                 <tr key={`${w.id}-${employerId}`}>
                   <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                  <td>{w.vietnameseName || '—'}</td>
+                  <td>{t(w.gender, lang) || '—'}</td>
+                  <td>{w.province || '—'}</td>
                   <td>{jobLabel(w.job, lang)}</td>
                   <td>
-                    <MatchStatusSelect
+                    <MatchStatusSteps
                       status={matchStatusOf(w, rowEmployerId)}
                       onChange={(status) => onMoveStatus(w, rowEmployerId, status)}
                       canEdit={canEditPage}
