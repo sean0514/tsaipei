@@ -102,8 +102,23 @@ export async function downloadWorkerResumeDocx(w) {
     return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body] });
   }
 
+  function interviewTable(rows) {
+    const header = new TableRow({
+      children: [experienceHeaderCell('interviewDate', 20), experienceHeaderCell('interviewLinks', 50), experienceHeaderCell('note', 30)],
+    });
+    const body = (rows.length ? rows : [{}]).map((r) => new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(r.date || '—')] }),
+        new TableCell({ children: [new Paragraph(r.link || '—')] }),
+        new TableCell({ children: [new Paragraph(r.note || '—')] }),
+      ],
+    }));
+    return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body] });
+  }
+
   const domestic = parseExperience(w.domesticExperience);
   const overseas = parseExperience(w.overseasExperience);
+  const interviewLinks = parseExperience(w.interviewLinks);
   const photo = await fetchImage(w.photoUrl);
   const tattooPhoto = w.hasTattoo === '有' ? await fetchImage(w.tattooPhotoUrl) : null;
   const linePhoto = await fetchImage(w.lineQrPhotoUrl);
@@ -126,6 +141,7 @@ export async function downloadWorkerResumeDocx(w) {
   children.push(heading('sectionEducation'), sectionTable('education'));
   children.push(heading('domesticExperience'), experienceTable(domestic));
   children.push(heading('overseasExperience'), experienceTable(overseas));
+  children.push(heading('interviewLinks'), interviewTable(interviewLinks));
   children.push(heading('specialties'), new Paragraph(w.specialties || '—'));
   if (tattooPhoto) {
     children.push(heading('tattooPhoto'));

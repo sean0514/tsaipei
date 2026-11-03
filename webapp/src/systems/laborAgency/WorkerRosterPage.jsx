@@ -6,7 +6,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
-import ResumeInternalFields from '../../components/ResumeInternalFields';
+import ResumeInternalFields, { emptyInterviewRow } from '../../components/ResumeInternalFields';
 import { emptyExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import { JOBS } from './constants';
 
@@ -147,6 +147,10 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
     const rows = parseExperience(initial.overseasExperience);
     return rows.length ? rows : [emptyExperienceRow()];
   });
+  const [interviewLinks, setInterviewLinks] = useState(() => {
+    const rows = parseExperience(initial.interviewLinks);
+    return rows.length ? rows : [emptyInterviewRow()];
+  });
 
   function setField(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -162,6 +166,7 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
       job: JSON.stringify(jobs),
       domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
       overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+      interviewLinks: JSON.stringify(interviewLinks.filter((r) => r.date || r.link || r.note)),
     });
   }
 
@@ -186,6 +191,8 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
             setDomesticExperience={setDomesticExperience}
             overseasExperience={overseasExperience}
             setOverseasExperience={setOverseasExperience}
+            interviewLinks={interviewLinks}
+            setInterviewLinks={setInterviewLinks}
           />
 
           <div className="row-actions" style={{ marginTop: 16 }}>

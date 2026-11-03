@@ -1,14 +1,96 @@
+import { useState } from 'react';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { storage } from '../firebase';
 import { ExperienceEditor } from '../pages/LaborAgencyResumeApplyPage';
 import { t } from '../lib/i18n';
+
+const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
+
+async function uploadResumePhoto(file, prefix) {
+  const path = `laborAgency_resumePhotos/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
+// 照片/刺青照片/LINE 圖片上傳——內部人員「新增工人／編輯」「編輯履歷」
+// 也要能補上傳或換掉這幾張圖片，不是只有移工自己填公開履歷表時才能上傳，
+// 不然下載履歷表時這幾個欄位永遠是空的（內部新建的工人資料從來沒有管道
+// 可以填圖片）。
+function PhotoField({ label, value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleChange(e) {
+    const file = e.target.files?.[0] || null;
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+    if (file.size > MAX_PHOTO_SIZE) {
+      setError('照片檔案太大（上限 3MB）');
+      return;
+    }
+    setBusy(true);
+    try {
+      const url = await uploadResumePhoto(file, 'internal');
+      onChange(url);
+    } catch (err) {
+      setError(`上傳失敗：${err.message || err}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <label>
+      {label}
+      {value && (
+        <div style={{ margin: '4px 0' }}>
+          <img src={value} alt="" style={{ width: 80, height: 80, objectFit: 'cover', display: 'block' }} />
+        </div>
+      )}
+      <input type="file" accept="image/*" onChange={handleChange} disabled={busy} />
+      {error && <div className="error-text">{error}</div>}
+    </label>
+  );
+}
+
+export function emptyInterviewRow() {
+  return { date: '', link: '', note: '' };
+}
+
+// 面試連結：可複選新增多筆（例如視訊面試、複試各一筆），不是單一欄位。
+function InterviewLinksEditor({ rows, setRows, lang }) {
+  function updateRow(i, patch) {
+    setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i) {
+    setRows(rows.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+          <label>{t('面試日期', lang)}<input type="date" value={r.date} onChange={(e) => updateRow(i, { date: e.target.value })} /></label>
+          <label>{t('面試連結', lang)}<input value={r.link} onChange={(e) => updateRow(i, { link: e.target.value })} placeholder="https://..." /></label>
+          <label>{t('備註', lang)}<input value={r.note} onChange={(e) => updateRow(i, { note: e.target.value })} /></label>
+          {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{t('移除', lang)}</button>}
+        </div>
+      ))}
+      <button type="button" onClick={() => setRows([...rows, emptyInterviewRow()])}>{t('+ 新增一筆', lang)}</button>
+    </div>
+  );
+}
 
 // 內部人員用的「工廠移工人員履歷表」欄位——systems/laborAgency/ResumeLinksPage.jsx
 // 的「編輯履歷」跟 systems/laborAgency/WorkerRosterPage.jsx 的「新增工人／
 // 編輯」都共用這份，欄位跟公開填寫頁 (pages/LaborAgencyResumeApplyPage.jsx)
 // 完全一致，只維護一次；國內外工作經驗的編輯器也直接共用該頁匯出的
-// ExperienceEditor，不用各自重複寫一份。不含照片/刺青照片/LINE 圖片上傳
-// （那些只在公開填寫頁處理），呼叫端自己決定要不要顯示現有圖片。
+// ExperienceEditor，不用各自重複寫一份。面試連結是內部專用欄位，公開
+// 填寫頁沒有（移工自己不會知道面試連結），只在這裡出現。
 export default function ResumeInternalFields({
   form, setField, lang, domesticExperience, setDomesticExperience, overseasExperience, setOverseasExperience,
+  interviewLinks, setInterviewLinks,
 }) {
   const experienceLabels = {
     year: t('年份', lang), description: t('工作內容', lang), leaveReason: t('離職原因', lang),
@@ -61,6 +143,11 @@ export default function ResumeInternalFields({
             <option value="無">{t('無', lang)}</option>
           </select>
         </label>
+        <PhotoField label={t('照片', lang)} value={form.photoUrl} onChange={(url) => setField('photoUrl', url)} />
+        {form.hasTattoo === '有' && (
+          <PhotoField label={t('刺青照片', lang)} value={form.tattooPhotoUrl} onChange={(url) => setField('tattooPhotoUrl', url)} />
+        )}
+        <PhotoField label="LINE" value={form.lineQrPhotoUrl} onChange={(url) => setField('lineQrPhotoUrl', url)} />
       </div>
 
       <h4>{t('家庭狀況', lang)}</h4>
@@ -147,6 +234,9 @@ export default function ResumeInternalFields({
       <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} />
       <h4>{t('國外工作經驗', lang)}</h4>
       <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} />
+
+      <h4>{t('面試連結', lang)}</h4>
+      <InterviewLinksEditor rows={interviewLinks} setRows={setInterviewLinks} lang={lang} />
 
       <label style={{ display: 'block', marginTop: 16 }}>
         {t('專長', lang)}
