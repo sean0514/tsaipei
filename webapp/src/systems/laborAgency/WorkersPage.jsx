@@ -108,7 +108,7 @@ export default function WorkersPage() {
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} lang={lang} />
+        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} onRemove={(w) => remove(w.id)} lang={lang} />
       )}
       {editing && (
         <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
@@ -194,7 +194,7 @@ function MatchStatusSteps({ status, onChange, canEdit, lang }) {
 // 最後）；同一個移工若在移工名冊同時配對多個雇主（可複選），這裡會依
 // 雇主各自顯示一行，不是只算一筆，每一行的目前階段也各自獨立。同一
 // 雇主底下依姓名排序；搜尋時仍在各分組內比對姓名/工種/雇主。
-function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, lang }) {
+function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, onRemove, lang }) {
   // 攤平成「移工×配對雇主」的案件列：workerEmployerIds 回傳的陣列是空的
   // 就代表尚未配對，用 null 佔一個「尚未配對」的位置。
   const rows = workers.flatMap((w) => {
@@ -233,7 +233,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, la
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th>
+                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -252,6 +252,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, la
                       lang={lang}
                     />
                   </td>
+                  {canEditPage && <td><button className="danger" onClick={() => onRemove(w)}>{t('刪除', lang)}</button></td>}
                 </tr>
               ))}
             </tbody>

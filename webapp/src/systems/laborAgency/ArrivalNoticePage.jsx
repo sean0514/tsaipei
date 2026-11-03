@@ -13,7 +13,7 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function ArrivalNoticePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivalNotice', role, overrides);
-  const { rows: workers, loading } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
   const confirmed = workers.filter((w) => w.departureCompleted);
@@ -46,7 +46,7 @@ export default function ArrivalNoticePage() {
                   <thead>
                     <tr>
                       <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('航空公司', lang)}</th>
-                      <th>{t('航班編號', lang)}</th><th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th>
+                      <th>{t('航班編號', lang)}</th><th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th>{canEditPage && <th></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -58,6 +58,7 @@ export default function ArrivalNoticePage() {
                         <td>{w.flightNumber || '—'}</td>
                         <td>{w.flightTerminal || '—'}</td>
                         <td>{w.flightTime || '—'}</td>
+                        {canEditPage && <td><button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button></td>}
                       </tr>
                     ))}
                   </tbody>
