@@ -2,33 +2,37 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 名單來源：出境辦理標記「已完成」(departureCompleted) 的移工，航班已經
-// 確認，自動帶入這裡通知接機／入境相關人員；單純顯示航班資訊，不再有
-// 下一關，所以沒有「完成」按鈕。依仲介、雇主分類顯示。
+// 名單來源：某一筆配對在出境辦理標記「已完成」(departureCompletedMap)
+// 的，航班已經確認，自動帶入這裡通知接機／入境相關人員；單純顯示航班
+// 資訊，不再有下一關，所以沒有「完成」按鈕。刪除只影響那一筆配對。
+// 依仲介、雇主分類顯示。
 export default function ArrivalNoticePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivalNotice', role, overrides);
   const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
-  const confirmed = workers.filter((w) => w.departureCompleted && !w.arrivalListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
-  const rows = confirmed.flatMap((w) => {
-    const ids = workerEmployerIds(w);
-    return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
-  });
+  const rows = workers
+    .flatMap((w) => {
+      const ids = workerEmployerIds(w);
+      return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
+    })
+    .filter((r) => getPairFlag(r.worker, 'departureCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'arrivalListRemovedMap', r.employerId));
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
 
-  // 刪除：只從「入境通知」這份名單移除，不影響移工本身的資料，也不影響
-  // 其他頁面——用 arrivalListRemoved 這個頁面專屬的隱藏旗標。
-  async function handleRemove(w) {
-    await update(w.id, { arrivalListRemoved: true });
+  // 刪除：只從「入境通知」這份名單移除那一筆配對，不影響移工本身的
+  // 資料，也不影響其他頁面——用 arrivalListRemovedMap 這個頁面專屬、
+  // 依配對獨立的隱藏旗標。
+  async function handleRemove(w, employerId) {
+    await update(w.id, { arrivalListRemovedMap: withPairFlag(w, 'arrivalListRemovedMap', employerId, true) });
   }
 
   return (
@@ -64,7 +68,7 @@ export default function ArrivalNoticePage() {
                         <td>{w.flightNumber || '—'}</td>
                         <td>{w.flightTerminal || '—'}</td>
                         <td>{w.flightTime || '—'}</td>
-                        {canEditPage && <td><button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button></td>}
+                        {canEditPage && <td><button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button></td>}
                       </tr>
                     ))}
                   </tbody>

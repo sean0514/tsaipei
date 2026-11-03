@@ -3,17 +3,17 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { DOCS_CHECKLIST, SOUTH_VIETNAM_EXTRA_NOTE, requiredDocsDone, employerLabel, workerEmployerIds, isHired } from './constants';
+import { DOCS_CHECKLIST, SOUTH_VIETNAM_EXTRA_NOTE, requiredDocsDone, employerLabel, workerEmployerIds, isHired, getPairFlag, withPairFlag } from './constants';
 
 const REQUIRED_COUNT = DOCS_CHECKLIST.filter((d) => d.required).length;
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 名單來源：某一筆配對（移工×雇主）的「目前階段」＝「錄取」且文件還沒
-// 收齊完成（docsCompleted）的，才需要在這裡追蹤文件——看的是那一筆
-// 配對的狀態，不是整個移工，所以同一個移工若有多筆配對，只有錄取的那
-// 筆會出現。標記完成後會從這份名單消失，接著自動出現在「辦理簽證」
-// 頁面。依仲介、雇主分類顯示。
+// 名單來源：某一筆配對（移工×雇主）的「目前階段」＝「錄取」且那一筆
+// 配對還沒標記完成（docsCompletedMap）的，才需要在這裡追蹤文件——完成
+// 跟刪除都是各自配對獨立的旗標，不是整個移工共用，所以同一個移工若
+// 配對多個雇主，按下某一筆的「完成」只會讓那一筆消失、進入「辦理
+// 簽證」，不會連動其他配對。依仲介、雇主分類顯示。
 export default function DocsChecklistPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'docsChecklist', role, overrides);
@@ -23,24 +23,26 @@ export default function DocsChecklistPage() {
 
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = workers
-    .filter((w) => !w.docsCompleted && !w.docsListRemoved)
     .flatMap((w) => {
       const ids = workerEmployerIds(w);
       return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
     })
-    .filter((r) => isHired(r.worker, r.employerId));
+    .filter((r) => isHired(r.worker, r.employerId)
+      && !getPairFlag(r.worker, 'docsCompletedMap', r.employerId)
+      && !getPairFlag(r.worker, 'docsListRemovedMap', r.employerId));
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
 
-  async function handleComplete(w) {
-    await update(w.id, { docsCompleted: true });
+  async function handleComplete(w, employerId) {
+    await update(w.id, { docsCompletedMap: withPairFlag(w, 'docsCompletedMap', employerId, true) });
   }
 
-  // 刪除：只從「文件追蹤」這份名單移除，不影響移工本身的資料，也不影響
-  // 其他頁面（移工管理、辦理簽證…）——用 docsListRemoved 這個頁面專屬的
-  // 隱藏旗標，不呼叫 remove() 刪除整筆移工資料。
-  async function handleRemove(w) {
-    await update(w.id, { docsListRemoved: true });
+  // 刪除：只從「文件追蹤」這份名單移除那一筆配對，不影響移工本身的
+  // 資料，也不影響其他頁面（移工管理、辦理簽證…）——用
+  // docsListRemovedMap 這個頁面專屬、依配對獨立的隱藏旗標，不呼叫
+  // remove() 刪除整筆移工資料。
+  async function handleRemove(w, employerId) {
+    await update(w.id, { docsListRemovedMap: withPairFlag(w, 'docsListRemovedMap', employerId, true) });
   }
 
   return (
@@ -81,8 +83,8 @@ export default function DocsChecklistPage() {
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(w)}>{t('編輯文件', lang)}</button>
-                              <button className="primary" onClick={() => handleComplete(w)}>{t('完成', lang)}</button>
-                              <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
+                              <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                              <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                             </td>
                           )}
                         </tr>
