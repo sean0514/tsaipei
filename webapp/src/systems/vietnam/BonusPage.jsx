@@ -22,8 +22,7 @@ export default function BonusPage() {
   const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
-  const { rows: bonusRateSetupRows } = useCollection('vietnam_internalBonusRateSetup');
-  const bonusRateSetup = bonusRateSetupRows.find((r) => r.id === 'default');
+  const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
 
@@ -44,8 +43,8 @@ export default function BonusPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('依月份自動試算：內部獎金設定的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0', lang)}</div></div></div>
-      <p className="muted">{t('依月份自動試算：內部獎金設定的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0。', lang)}</p>
+      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('依月份自動試算：依學生就讀學校在「內部獎金設定」的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0', lang)}</div></div></div>
+      <p className="muted">{t('依月份自動試算：依學生就讀學校在「內部獎金設定」的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0。', lang)}</p>
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         <input placeholder={t('搜尋客戶或專案編號', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
