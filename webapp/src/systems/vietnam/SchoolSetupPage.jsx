@@ -12,7 +12,7 @@ const CSV_FIELDS = [
 ];
 const ROLE_CUSTOM = '__custom__';
 
-// 學校資料建檔：每所學校設定一位「學校代表」負責人＋獎金月費率（給「內部
+// 學校費用設定：每所學校設定一位「學校代表」負責人＋獎金月費率（給「內部
 // 獎金計算」依學生就讀學校、在台天數比例試算），以及這所學校的「獎學金
 // 金額」（給「獎學金紀錄」新增時自動帶入）。學校名稱要跟學生資料「就讀
 // 學校」欄位的值完全一致才能對上，所以學校名稱改成下拉選單，選項是學生
@@ -52,7 +52,7 @@ export default function SchoolSetupPage() {
     <div className="content">
       <div className="page-header">
         <div>
-          <h2>{t('學校資料建檔', lang)}</h2>
+          <h2>{t('學校費用設定', lang)}</h2>
           <div className="page-desc">{t('每所學校設定一位學校代表＋獎金月費率（給內部獎金計算用）、以及獎學金金額（給獎學金紀錄自動帶入）', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">

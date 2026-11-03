@@ -25,12 +25,15 @@ function studentLabel(s) {
   return s ? (s.chineseName || s.originalName || s.vietnameseName || '') : '';
 }
 
+// 獎學金紀錄：新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生
+// （學生安排送機後才算案件完成，才需要辦獎學金），依學生就讀學校分組顯示。
 export default function ScholarshipsPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'scholarships', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_scholarships');
   const { rows: students } = useCollection('vietnam_students');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
+  const { rows: departureTransport } = useCollection('vietnam_departureTransport');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_scholarships', CSV_FIELDS, { entityLabel: '獎學金紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -39,14 +42,24 @@ export default function ScholarshipsPage() {
     return students.find((s) => s.id === studentId);
   }
 
+  const departedStudentIds = new Set(departureTransport.map((d) => d.studentId).filter(Boolean));
+  const eligibleStudents = students.filter((s) => departedStudentIds.has(s.id));
+  const unrecordedStudents = eligibleStudents.filter((s) => !rows.some((r) => r.studentId === s.id));
+
   const searchQuery = q.trim().toLowerCase();
-  const filteredRows = rows
-    .filter((r) => {
-      if (!searchQuery) return true;
-      const s = studentOf(r.studentId);
-      return `${studentLabel(s)} ${s?.school || ''}`.toLowerCase().includes(searchQuery);
-    })
-    .sort((a, b) => studentLabel(studentOf(b.studentId)).localeCompare(studentLabel(studentOf(a.studentId))));
+  const filteredRows = rows.filter((r) => {
+    if (!searchQuery) return true;
+    const s = studentOf(r.studentId);
+    return `${studentLabel(s)} ${s?.school || ''}`.toLowerCase().includes(searchQuery);
+  });
+
+  const groups = {};
+  filteredRows.forEach((r) => {
+    const schoolName = studentOf(r.studentId)?.school || '（未設定學校）';
+    (groups[schoolName] ||= []).push(r);
+  });
+  Object.values(groups).forEach((list) => list.sort((a, b) => studentLabel(studentOf(a.studentId)).localeCompare(studentLabel(studentOf(b.studentId)))));
+  const schoolNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   async function handleSave(data) {
     const payload = { ...data, amount: Number(data.amount) || 0 };
@@ -65,7 +78,7 @@ export default function ScholarshipsPage() {
       <div className="page-header">
         <div>
           <h2>{t('獎學金紀錄', lang)}</h2>
-          <div className="page-desc">{t('新增紀錄時依學生就讀學校自動帶入「學校資料建檔」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
           <input placeholder={t('搜尋學生或學校', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
@@ -74,41 +87,55 @@ export default function ScholarshipsPage() {
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                <th>{t('學生', lang)}</th><th>{t('就讀學校', lang)}</th><th>{t('獎學金金額', lang)}</th>
-                <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>{canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((r) => {
-                const s = studentOf(r.studentId);
-                const status = statusOf(r);
-                return (
-                  <tr key={r.id}>
-                    <td style={{ fontWeight: 600 }}>{studentLabel(s) || '—'}</td>
-                    <td>{s?.school || '—'}</td>
-                    <td>{(r.amount || 0).toLocaleString()}</td>
-                    <td><span className={`tag ${status.cls}`}>{t(status.label, lang)}</span></td>
-                    <td>{r.remittanceDate || '—'}</td>
-                    {canEditPage && (
-                      <td className="row-actions">
-                        <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
-                        <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 6 : 5} className="muted">{t('尚未建立獎學金紀錄', lang)}</td></tr>}
-            </tbody>
-          </table></div>
-        </div>
+        schoolNames.length === 0 ? (
+          <div className="card"><p className="muted" style={{ margin: 0 }}>{t('尚未建立獎學金紀錄', lang)}</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {schoolNames.map((schoolName) => (
+              <div className="card" key={schoolName} style={{ overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0 }}>{schoolName} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[schoolName].length} {t('筆', lang)}</span></h3>
+                <div className="table-wrap"><table>
+                  <thead>
+                    <tr>
+                      <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th>
+                      <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>{canEditPage && <th></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groups[schoolName].map((r) => {
+                      const s = studentOf(r.studentId);
+                      const status = statusOf(r);
+                      return (
+                        <tr key={r.id}>
+                          <td style={{ fontWeight: 600 }}>{studentLabel(s) || '—'}</td>
+                          <td>{(r.amount || 0).toLocaleString()}</td>
+                          <td><span className={`tag ${status.cls}`}>{t(status.label, lang)}</span></td>
+                          <td>{r.remittanceDate || '—'}</td>
+                          {canEditPage && (
+                            <td className="row-actions">
+                              <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                              <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
       )}
       {editing && (
-        <ScholarshipFormModal initial={editing} students={students} schools={schools} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />
+        <ScholarshipFormModal
+          initial={editing}
+          students={editing.id ? students : unrecordedStudents}
+          schools={schools}
+          onCancel={() => setEditing(null)}
+          onSave={handleSave}
+          lang={lang}
+        />
       )}
     </div>
   );
@@ -135,7 +162,7 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
           <div className="form-grid">
             <label>
               {t('學生', lang)}
-              <select required value={form.studentId || ''} onChange={(e) => handleStudentChange(e.target.value)}>
+              <select required disabled={!!initial.id} value={form.studentId || ''} onChange={(e) => handleStudentChange(e.target.value)}>
                 <option value="">{t('請選擇', lang)}</option>
                 {sortedStudents.map((s) => <option key={s.id} value={s.id}>{studentLabel(s)}{s.school ? `（${s.school}）` : ''}</option>)}
               </select>

@@ -1189,7 +1189,7 @@ const VI = {
   '外務人員': 'Nhân viên đối ngoại',
   '選擇或自行輸入姓名': 'Chọn hoặc tự nhập tên',
 
-  '學校資料建檔': 'Lập hồ sơ trường học',
+  '學校費用設定': 'Thiết lập chi phí trường học',
   '每所學校設定一位學校代表＋獎金月費率（給內部獎金計算用）、以及獎學金金額（給獎學金紀錄自動帶入）':
     'Mỗi trường thiết lập một đại diện trường + mức phí thưởng hàng tháng (dùng cho tính thưởng nội bộ), và số tiền học bổng (dùng để tự động điền vào hồ sơ học bổng)',
   '新增學校': 'Thêm trường học',
@@ -1203,8 +1203,8 @@ const VI = {
   '編輯學校': 'Chỉnh sửa trường học',
 
   '獎學金紀錄': 'Hồ sơ học bổng',
-  '新增紀錄時依學生就讀學校自動帶入「學校資料建檔」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案':
-    'Khi tạo hồ sơ mới, số tiền học bổng sẽ tự động điền theo thiết lập ở "Lập hồ sơ trường học" dựa trên trường của học viên (có thể điều chỉnh lại); trạng thái duyệt: chờ duyệt → đã duyệt → đã chuyển khoản (kèm ngày chuyển khoản) → kết thúc hồ sơ',
+  '新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案':
+    'Chỉ có thể tạo hồ sơ mới cho học viên đã xuất hiện ở "Lịch đưa sân bay Việt Nam" và chưa có hồ sơ; số tiền học bổng sẽ tự động điền theo thiết lập ở "Thiết lập chi phí trường học" dựa trên trường của học viên (có thể điều chỉnh lại); trạng thái duyệt: chờ duyệt → đã duyệt → đã chuyển khoản (kèm ngày chuyển khoản) → kết thúc hồ sơ',
   '搜尋學生或學校': 'Tìm theo học viên hoặc trường học',
   '新增獎學金紀錄': 'Thêm hồ sơ học bổng',
   '匯款日期': 'Ngày chuyển khoản',
@@ -1214,8 +1214,8 @@ const VI = {
   '編輯獎學金紀錄': 'Chỉnh sửa hồ sơ học bổng',
 
   '學校代表獎金': 'Tiền thưởng đại diện trường',
-  '依學校資料建檔設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。':
-    'Tính theo đại diện trường + mức phí hàng tháng thiết lập ở Lập hồ sơ trường học: số ngày tại Đài Loan trong tháng của mỗi học viên trường đó ÷ số ngày trong tháng × mức phí hàng tháng, cộng dồn cho đại diện trường tương ứng.',
+  '依學校費用設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。':
+    'Tính theo đại diện trường + mức phí hàng tháng thiết lập ở Thiết lập chi phí trường học: số ngày tại Đài Loan trong tháng của mỗi học viên trường đó ÷ số ngày trong tháng × mức phí hàng tháng, cộng dồn cho đại diện trường tương ứng.',
   '獎金': 'Tiền thưởng',
   '內部獎金支出(學校代表)': 'Chi phí thưởng nội bộ (đại diện trường)',
 
@@ -1294,11 +1294,19 @@ const VI = {
 
   // 內部獎金設定（InternalBonusRateSetupPage，依學校分類）
   '內部獎金設定': 'Thiết lập tiền thưởng nội bộ',
-  '依學校設定開發業務/行政主管/行政招募/行政簽證/外務人員每月固定費率，供「內部獎金計算」依學生就讀學校＋當月在台天數比例試算':
-    'Thiết lập mức phí cố định hàng tháng theo từng trường cho Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại, dùng để tính "Tiền thưởng nội bộ" theo trường học viên đang theo học và tỷ lệ số ngày ở Đài Loan trong tháng',
-  '依月份自動試算：依學生就讀學校在「內部獎金設定」的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0':
-    'Tự động tính theo tháng: mức phí hàng tháng ở Thiết lập tiền thưởng nội bộ theo trường học viên đang theo học ÷ số ngày trong tháng × số ngày học viên ở Đài Loan trong tháng, cộng dồn theo đơn vị thực tập (dự án + khách hàng); nguồn phí của nhân viên quản lý ký túc xá đã bị loại bỏ, số tiền hiển thị là 0',
+  '依學校設定開發業務/行政主管/行政招募/行政簽證/外務人員每月固定費率，供「內部獎金計算」依學生就讀學校一次性試算（學生安排送機後才算一次）':
+    'Thiết lập mức phí cố định hàng tháng theo từng trường cho Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại, dùng để tính một lần "Tiền thưởng nội bộ" theo trường học viên đang theo học (chỉ tính khi học viên đã được xếp lịch đưa sân bay)',
   '新增學校費率': 'Thêm mức phí trường',
   '編輯學校費率': 'Chỉnh sửa mức phí trường',
   '尚未設定任何學校的內部獎金費率。': 'Chưa thiết lập mức phí tiền thưởng nội bộ cho trường nào.',
+
+  // 內部獎金計算改為一次性（BonusPage，依送機行程名單）
+  '開發業務/行政主管/行政招募/行政簽證/外務人員：以「越南送機行程」出現過的學生名單為準，依該學生就讀學校在「內部獎金設定」的費率一次性計算，依人員加總':
+    'Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại: dựa trên danh sách học viên xuất hiện ở "Lịch đưa sân bay Việt Nam", tính một lần theo mức phí ở "Thiết lập tiền thưởng nội bộ" theo trường học viên đang theo học, cộng dồn theo người',
+  '一次性內部獎金（依人員加總）': 'Tiền thưởng nội bộ một lần (cộng dồn theo người)',
+  '開發業務/行政主管/行政招募/行政簽證/外務人員：學生安排送機後才算一次，不分月份、不按在台天數比例分攤。':
+    'Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại: chỉ tính một lần sau khi học viên được xếp lịch đưa sân bay, không phân theo tháng, không chia theo tỷ lệ số ngày ở Đài Loan.',
+  '搜尋姓名或學生': 'Tìm theo tên hoặc học viên',
+  '搜尋學校或宿舍': 'Tìm theo trường hoặc ký túc xá',
+  '內部獎金試算': 'Ước tính thưởng nội bộ',
 };

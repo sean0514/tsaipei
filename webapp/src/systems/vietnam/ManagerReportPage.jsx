@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
 import { studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
 import {
-  VN_RATE_ROLE_KEYS, computeVietnamInternalBonusForMonth, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
+  computeVietnamInternalBonusByPerson, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
 } from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
@@ -41,11 +41,12 @@ export default function ManagerReportPage() {
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
+  const { rows: departureTransport } = useCollection('vietnam_departureTransport');
   const [month, setMonth] = useState(currentMonthStr());
 
   // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓費率查找
   // 安全地找不到、金額算成 0，不用動共用計算邏輯本身。
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });
@@ -86,7 +87,7 @@ export default function ManagerReportPage() {
 
   let bonusTotal = 0;
   if (canSeeBonus) {
-    computeVietnamInternalBonusForMonth(month, ctx).forEach((r) => VN_RATE_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
+    computeVietnamInternalBonusByPerson(ctx).forEach((p) => { bonusTotal += p.total || 0; });
     computeVietnamSchoolRepBonusForMonth(month, ctx).forEach((r) => { bonusTotal += r.amount || 0; });
     computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
   }
@@ -98,7 +99,7 @@ export default function ManagerReportPage() {
         <>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
-            {canSeeBonus && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{bonusTotal.toLocaleString()}</div><div className="muted">{t('本月內部獎金試算', lang)}</div></div>}
+            {canSeeBonus && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{bonusTotal.toLocaleString()}</div><div className="muted">{t('內部獎金試算', lang)}</div></div>}
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsComplete}</div><div className="muted">{t('文件已齊全學生', lang)}</div></div>
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsPending}</div><div className="muted">{t('文件待補件學生', lang)}</div></div>
           </div>

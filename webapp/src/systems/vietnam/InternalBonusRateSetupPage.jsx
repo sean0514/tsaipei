@@ -8,11 +8,10 @@ import { t } from '../../lib/i18n';
 const RATE_FIELDS = VN_RATE_ROLE_KEYS.map((key, i) => ({ key, label: VN_RATE_ROLE_LABELS[i] }));
 
 // 內部獎金的角色費率設定——依學校分類，每所學校各自一筆開發業務/行政主管/
-// 行政招募/行政簽證/外務人員月費率，學校清單沿用「學校資料建檔」
-// (vietnam_schoolSetup) 已建檔過的學校。供「內部獎金計算」試算：每位學生
-// 依自己就讀的學校找到對應費率，再依該學生當月在台天數比例分攤（見
-// lib/vietnamBonus.js 的 computeVietnamInternalBonusForMonth/
-// computeVietnamInternalBonusByPersonForMonth）。
+// 行政招募/行政簽證/外務人員月費率，學校清單沿用「學校費用設定」
+// (vietnam_schoolSetup) 已建檔過的學校。供「內部獎金計算」試算：學生安排
+// 「越南送機行程」後，依自己就讀的學校找到對應費率，一次性計算（不分月、
+// 不按天數比例分攤，見 lib/vietnamBonus.js 的 computeVietnamInternalBonusByPerson）。
 export default function InternalBonusRateSetupPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'internalBonusRateSetup', role, overrides);
@@ -42,7 +41,7 @@ export default function InternalBonusRateSetupPage() {
       <div className="page-header">
         <div>
           <h2>{t('內部獎金設定', lang)}</h2>
-          <div className="page-desc">{t('依學校設定開發業務/行政主管/行政招募/行政簽證/外務人員每月固定費率，供「內部獎金計算」依學生就讀學校＋當月在台天數比例試算', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('依學校設定開發業務/行政主管/行政招募/行政簽證/外務人員每月固定費率，供「內部獎金計算」依學生就讀學校一次性試算（學生安排送機後才算一次）', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         {canEditPage && unratedSchools.length > 0 && (
           <button className="primary" onClick={() => setEditing({})}>+ {t('新增學校費率', lang)}</button>

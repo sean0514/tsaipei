@@ -3,15 +3,16 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { currentMonthStr } from '../../lib/bonus';
 import {
-  VN_RATE_ROLE_KEYS, VN_RATE_ROLE_LABELS,
-  computeVietnamInternalBonusForMonth, computeVietnamInternalBonusByPersonForMonth,
+  computeVietnamInternalBonusByPerson,
   computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
 } from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
 // 跟境外生實習系統（tsaipei）的 BonusPage.jsx 不同：角色清單改用越南
 // 系統專用的 6 個角色（lib/vietnamBonus.js），不是共用的 lib/bonus.js
-// 舊角色清單。
+// 舊角色清單。開發業務/行政主管/行政招募/行政簽證/外務人員這 5 個角色改成
+// 一次性計算（見 lib/vietnamBonus.js 的 computeVietnamInternalBonusByPerson），
+// 不分月份；學校代表/宿管人員維持原本按月比例分攤的算法。
 export default function BonusPage() {
   const { lang } = useOutletContext();
   const { rows: students } = useCollection('vietnam_students');
@@ -23,17 +24,18 @@ export default function BonusPage() {
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
+  const { rows: departureTransport } = useCollection('vietnam_departureTransport');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
+  const [qPerson, setQPerson] = useState('');
 
   // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓
   // lib/bonus.js 的 computeDormManagerBonusForMonth 安全地找不到費率、
   // 金額算成 0，不用動共用計算邏輯本身。
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
-  const rows = computeVietnamInternalBonusForMonth(month, ctx).filter((r) =>
-    !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.projectCode || '').toLowerCase().includes(q.toLowerCase())
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
+  const byPerson = computeVietnamInternalBonusByPerson(ctx).filter((p) =>
+    !qPerson || p.name.toLowerCase().includes(qPerson.toLowerCase()) || p.breakdown.some((b) => (b.student || '').toLowerCase().includes(qPerson.toLowerCase()))
   );
-  const byPerson = computeVietnamInternalBonusByPersonForMonth(month, ctx);
   const schoolRows = computeVietnamSchoolRepBonusForMonth(month, ctx).filter((s) =>
     !q || (s.schoolName || '').toLowerCase().includes(q.toLowerCase())
   );
@@ -43,36 +45,35 @@ export default function BonusPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('依月份自動試算：依學生就讀學校在「內部獎金設定」的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0', lang)}</div></div></div>
-      <p className="muted">{t('依月份自動試算：依學生就讀學校在「內部獎金設定」的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0。', lang)}</p>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        <input placeholder={t('搜尋客戶或專案編號', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-      </div>
+      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('開發業務/行政主管/行政招募/行政簽證/外務人員：以「越南送機行程」出現過的學生名單為準，依該學生就讀學校在「內部獎金設定」的費率一次性計算，依人員加總', lang)}</div></div></div>
+
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>{t('一次性內部獎金（依人員加總）', lang)}</h3>
+        <p className="muted" style={{ marginTop: 0 }}>{t('開發業務/行政主管/行政招募/行政簽證/外務人員：學生安排送機後才算一次，不分月份、不按在台天數比例分攤。', lang)}</p>
+        <input placeholder={t('搜尋姓名或學生', lang)} value={qPerson} onChange={(e) => setQPerson(e.target.value)} style={{ width: 220, marginBottom: 12 }} />
         <div className="table-wrap"><table>
-          <thead><tr><th>{t('客戶', lang)}</th>{VN_RATE_ROLE_LABELS.map((l) => <th key={l}>{t(l, lang)}</th>)}<th>{t('在台總天數', lang)}</th></tr></thead>
+          <thead><tr><th>{t('姓名', lang)}</th><th>{t('總額', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td><strong>{r.client || '—'}</strong><div className="muted">{r.projectCode}</div></td>
-                {VN_RATE_ROLE_KEYS.map((k) => (
-                  <td key={k}>
-                    {r.roles[k] && <div style={{ fontWeight: 600 }}>{r.roles[k]}</div>}
-                    <div className="muted">{(r.amounts[k] || 0).toLocaleString()} {t('元', lang)}</div>
-                  </td>
-                ))}
-                <td>{r.totalDays} {t('天', lang)}</td>
+            {byPerson.map((p) => (
+              <tr key={p.name}>
+                <td style={{ fontWeight: 600 }}>{p.name}</td>
+                <td>{p.total.toLocaleString()} {t('元', lang)}</td>
+                <td className="muted">{p.breakdown.map((b) => `${b.student}・${b.client}(${t(b.role, lang)}) ${b.amount.toLocaleString()}`).join('、')}</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={VN_RATE_ROLE_KEYS.length + 2} className="muted">{t('沒有資料', lang)}</td></tr>}
+            {byPerson.length === 0 && <tr><td colSpan={3} className="muted">{t('沒有資料', lang)}</td></tr>}
           </tbody>
         </table></div>
       </div>
 
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        <input placeholder={t('搜尋學校或宿舍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+      </div>
+
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>{t('學校代表獎金', lang)}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>{t('依學校資料建檔設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。', lang)}</p>
+        <p className="muted" style={{ marginTop: 0 }}>{t('依學校費用設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。', lang)}</p>
         <div className="table-wrap"><table>
           <thead><tr><th>{t('學校', lang)}</th><th>{t('學校代表', lang)}</th><th>{t('獎金', lang)}</th><th>{t('在台總天數', lang)}</th></tr></thead>
           <tbody>
@@ -89,7 +90,7 @@ export default function BonusPage() {
         </table></div>
       </div>
 
-      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+      <div className="card" style={{ overflowX: 'auto' }}>
         <h3 style={{ marginTop: 0 }}>{t('宿管人員獎金', lang)}</h3>
         <p className="muted" style={{ marginTop: 0 }}>{t('依宿舍管理設定的宿管1/宿管2計算，費率來源（內部費用建檔）已移除，金額顯示為 0。', lang)}</p>
         <div className="table-wrap"><table>
@@ -106,23 +107,6 @@ export default function BonusPage() {
               </tr>
             ))}
             {dormRows.length === 0 && <tr><td colSpan={6} className="muted">{t('沒有資料', lang)}</td></tr>}
-          </tbody>
-        </table></div>
-      </div>
-
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{t('依人員加總', lang)}</h3>
-        <div className="table-wrap"><table>
-          <thead><tr><th>{t('姓名', lang)}</th><th>{t('總額', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
-          <tbody>
-            {byPerson.map((p) => (
-              <tr key={p.name}>
-                <td>{p.name}</td>
-                <td>{p.total.toLocaleString()} {t('元', lang)}</td>
-                <td className="muted">{p.breakdown.map((b) => `${b.client}(${b.role}) ${b.amount.toLocaleString()}`).join('、')}</td>
-              </tr>
-            ))}
-            {byPerson.length === 0 && <tr><td colSpan={3} className="muted">{t('沒有資料', lang)}</td></tr>}
           </tbody>
         </table></div>
       </div>
