@@ -14,11 +14,11 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function DeparturePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'departure', role, overrides);
-  const { rows: workers, loading, update, remove } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
-  const pending = workers.filter((w) => w.visaCompleted && !w.departureCompleted);
+  const pending = workers.filter((w) => w.visaCompleted && !w.departureCompleted && !w.departureListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = pending.flatMap((w) => {
     const ids = workerEmployerIds(w);
@@ -33,6 +33,11 @@ export default function DeparturePage() {
   }
   async function handleComplete(w) {
     await update(w.id, { departureCompleted: true });
+  }
+  // 刪除：只從「出境辦理」這份名單移除，不影響移工本身的資料，也不影響
+  // 其他頁面——用 departureListRemoved 這個頁面專屬的隱藏旗標。
+  async function handleRemove(w) {
+    await update(w.id, { departureListRemoved: true });
   }
 
   return (
@@ -76,7 +81,7 @@ export default function DeparturePage() {
                           <td className="row-actions">
                             <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
                             <button className="primary" onClick={() => handleComplete(w)}>{t('已完成', lang)}</button>
-                            <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
+                            <button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button>
                           </td>
                         )}
                       </tr>

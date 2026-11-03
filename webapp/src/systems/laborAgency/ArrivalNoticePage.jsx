@@ -13,10 +13,10 @@ const UNMATCHED_EMPLOYER = '__unmatched__';
 export default function ArrivalNoticePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivalNotice', role, overrides);
-  const { rows: workers, loading, remove } = useCollection('laborAgency_workers');
+  const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
 
-  const confirmed = workers.filter((w) => w.departureCompleted);
+  const confirmed = workers.filter((w) => w.departureCompleted && !w.arrivalListRemoved);
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = confirmed.flatMap((w) => {
     const ids = workerEmployerIds(w);
@@ -24,6 +24,12 @@ export default function ArrivalNoticePage() {
   });
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
+
+  // 刪除：只從「入境通知」這份名單移除，不影響移工本身的資料，也不影響
+  // 其他頁面——用 arrivalListRemoved 這個頁面專屬的隱藏旗標。
+  async function handleRemove(w) {
+    await update(w.id, { arrivalListRemoved: true });
+  }
 
   return (
     <div className="content">
@@ -58,7 +64,7 @@ export default function ArrivalNoticePage() {
                         <td>{w.flightNumber || '—'}</td>
                         <td>{w.flightTerminal || '—'}</td>
                         <td>{w.flightTime || '—'}</td>
-                        {canEditPage && <td><button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button></td>}
+                        {canEditPage && <td><button className="danger" onClick={() => handleRemove(w)}>{t('刪除', lang)}</button></td>}
                       </tr>
                     ))}
                   </tbody>
