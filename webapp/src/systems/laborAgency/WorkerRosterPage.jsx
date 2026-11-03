@@ -103,13 +103,13 @@ function EmployerCheckboxGroup({ employers, values, onChange }) {
 // 人員也可以在這裡直接新增/編輯，表單欄位跟公開填寫頁完全一致(見
 // components/ResumeInternalFields.jsx)，另外加上工種/配對雇主/招募人員
 // 這幾個履歷表沒有、但移工名冊建檔時就需要填的欄位。護照效期改在「移工
-// 管理」(WorkersPage.jsx) 填寫，這裡的表單不重複開一個輸入框，但清單
-// 還是顯示（可能是那邊填過的）。「下載履歷表」產生排版跟紙本履歷表
-// 一樣的 Word 文件(lib/laborAgencyResumeDocx.js)，不是 Excel 表格。
+// 管理」(WorkersPage.jsx) 填寫/顯示，這裡不重複。「下載履歷表」產生排版
+// 跟紙本履歷表一樣的 Word 文件(lib/laborAgencyResumeDocx.js)，不是
+// Excel 表格。
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
   { key: 'gender', label: '性別' }, { key: 'province', label: '省份' }, { key: 'job', label: '工種' },
-  { key: 'passportExpiry', label: '護照效期' }, { key: 'note', label: '備註' },
+  { key: 'assignedRecruiter', label: '招募人員' }, { key: 'note', label: '備註' },
 ];
 
 export default function WorkerRosterPage() {
@@ -158,7 +158,7 @@ export default function WorkerRosterPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('配對雇主', lang)}</th><th>{t('護照效期', lang)}</th><th></th>
+                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('配對雇主', lang)}</th><th>{t('招募人員', lang)}</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -170,7 +170,7 @@ export default function WorkerRosterPage() {
                   <td>{w.province || '—'}</td>
                   <td>{parseJobs(w.job).map((j) => t(j, lang)).join('、') || '—'}</td>
                   <td>{workerEmployerIds(w).map((id) => employerLabel(employers, id, lang)).join('、') || t('尚未配對', lang)}</td>
-                  <td>{w.passportExpiry || '—'}</td>
+                  <td>{w.assignedRecruiter || '—'}</td>
                   <td className="row-actions">
                     <button onClick={() => downloadWorkerResumeDocx(w)}>{t('下載履歷表', lang)}</button>
                     {canEditPage && (
