@@ -18,13 +18,14 @@ const COUNTIES = [
   '新竹縣', '苗栗縣', '彰化縣', '南投縣', '雲林縣', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣',
   '澎湖縣', '金門縣', '連江縣',
 ];
-const UNSET_COUNTY = '__unset__';
+const UNSET_AGENCY = '__unset_agency__';
 
 // 基本欄位：複選/數字/單選直接用一般欄位；需求/福利各自可以自行新增項目
 // （otherRequirements/otherBenefits 各自存成 JSON 字串陣列），不是固定選項
 // 涵蓋不了的情況可以自行補充，跟 PositionsPage.jsx 的其他福利同一套做法。
 const FIELDS = [
   { key: 'name', label: '雇主名稱', required: true },
+  { key: 'agencyName', label: '仲介名稱' },
   { key: 'industry', label: '產業別', options: INDUSTRIES },
   { key: 'county', label: '工作地點（縣市）', options: COUNTIES },
   { key: 'workAddress', label: '工作地址' },
@@ -89,13 +90,13 @@ export default function EmployersPage() {
         employers.length === 0 ? (
           <div className="card"><p className="muted" style={{ margin: 0 }}>{t('還沒有雇主需求單。新增後，可在移工資料中指定雇主，這裡會自動計算已配對與缺口。', lang)}</p></div>
         ) : (
-          [...COUNTIES, UNSET_COUNTY].map((county) => {
-            const group = employers.filter((e) => (e.county || UNSET_COUNTY) === county);
+          [...new Set(employers.map((e) => e.agencyName).filter(Boolean)), UNSET_AGENCY].map((agencyName) => {
+            const group = employers.filter((e) => (e.agencyName || UNSET_AGENCY) === agencyName);
             if (group.length === 0) return null;
             return (
-              <div key={county} style={{ marginBottom: 24 }}>
+              <div key={agencyName} style={{ marginBottom: 24 }}>
                 <h3 style={{ marginBottom: 10 }}>
-                  {county === UNSET_COUNTY ? t('未填工作地點', lang) : t(county, lang)}
+                  {agencyName === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyName}
                   <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
@@ -108,7 +109,7 @@ export default function EmployersPage() {
                     return (
                       <div className="card" key={e.id}>
                         <h3 style={{ marginTop: 0 }}>{e.name}</h3>
-                        <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
+                        <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.county ? `　${t(e.county, lang)}` : ''}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
                         {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
                         <div style={{ margin: '10px 0' }}>
                           {t('已配對', lang)} <b>{matched}</b> / {t('需求', lang)} <b>{demand}</b>
