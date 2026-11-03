@@ -19,21 +19,16 @@ const FIELDS = [
   { key: 'specialNotes', label: '特殊備註' },
 ];
 
-// 內部獎金計算的角色指派——「行政主管」是唯一還留在實習單位(專案+客戶)
-// 層級指派的角色；開發業務/行政招募/行政簽證/外務人員已改成在「學生資料」
-// 頁面各自指派（見 StudentsPage.jsx 的 assignedBizDev/assignedAdminRecruit/
-// assignedAdminVisa/assignedFieldStaff），學校代表改成在「學校費用設定」
-// 依學生就讀學校指派；內部費用建檔（費率來源）已移除，這幾個角色的獎金
-// 金額一律顯示為 0（見 lib/vietnamBonus.js）。
+// 內部獎金計算的角色指派——開發業務/行政主管/行政招募/行政簽證/外務人員
+// 都已改成在「學生資料」頁面各自指派（見 StudentsPage.jsx 的
+// assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
+// assignedFieldStaff），不在這裡（實習單位/專案+客戶）層級指派；學校代表
+// 改成在「學校費用設定」依學生就讀學校指派。
 // 宿管人員1/2 維持舊有做法：依「宿舍管理」設定的宿管1/宿管2計算，不在
 // 這裡指派（見 lib/bonus.js 的 computeDormManagerBonusForMonth）。
-export const ROLE_FIELDS = [
-  { key: 'adminSupervisor', label: '行政主管' },
-];
-
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, ...FIELDS, { key: 'locationGroups', label: '實習場域/實習地點/缺額/狀態' },
-  { key: 'otherBenefits', label: '其他福利' }, { key: 'closed', label: '已結案' }, ...ROLE_FIELDS,
+  { key: 'otherBenefits', label: '其他福利' }, { key: 'closed', label: '已結案' },
 ];
 
 const POSITION_STATUS = ['開放中', '已額滿', '已結束'];
@@ -80,7 +75,6 @@ export default function PositionsPage() {
   const canEditPage = computeCanEdit(system, 'positions', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_positions', { order: ['projectCode', 'asc'] });
   const { rows: matches } = useCollection('vietnam_matches');
-  const { rows: users } = useCollection('vietnam_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
@@ -198,7 +192,7 @@ export default function PositionsPage() {
         </div>
       )}
 
-      {editing && <PositionFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <PositionFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
@@ -291,18 +285,10 @@ function BenefitsEditor({ benefits, onChange, lang }) {
   );
 }
 
-const ROLE_CUSTOM = '__custom__';
-
-function PositionFormModal({ initial, onCancel, onSave, users, lang }) {
+function PositionFormModal({ initial, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
   const groups = parseLocationGroups(form.locationGroups);
   const benefits = parseBenefits(form.otherBenefits);
-  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
-  const [customRoleFields, setCustomRoleFields] = useState(() => {
-    const s = new Set();
-    ROLE_FIELDS.forEach((f) => { if (form[f.key] && !staffOptions.includes(form[f.key])) s.add(f.key); });
-    return s;
-  });
 
   function setGroups(next) {
     setForm({ ...form, locationGroups: JSON.stringify(next) });
@@ -335,51 +321,6 @@ function PositionFormModal({ initial, onCancel, onSave, users, lang }) {
           <LocationGroupsEditor groups={groups} onChange={setGroups} lang={lang} />
           <h4>{t('其他福利', lang)}</h4>
           <BenefitsEditor benefits={benefits} onChange={setBenefits} lang={lang} />
-          <h4>{t('角色指派（內部獎金計算對照用）', lang)}</h4>
-          <div className="form-grid">
-            {ROLE_FIELDS.map((f) => {
-              const isCustom = customRoleFields.has(f.key);
-              return (
-                <label key={f.key}>
-                  {t(f.label, lang)}
-                  {isCustom ? (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        value={form[f.key] || ''}
-                        placeholder={t('自行輸入姓名', lang)}
-                        onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomRoleFields((prev) => { const next = new Set(prev); next.delete(f.key); return next; });
-                          setForm({ ...form, [f.key]: '' });
-                        }}
-                      >
-                        {t('改選清單', lang)}
-                      </button>
-                    </div>
-                  ) : (
-                    <select
-                      value={form[f.key] || ''}
-                      onChange={(e) => {
-                        if (e.target.value === ROLE_CUSTOM) {
-                          setCustomRoleFields((prev) => new Set(prev).add(f.key));
-                          setForm({ ...form, [f.key]: '' });
-                        } else {
-                          setForm({ ...form, [f.key]: e.target.value });
-                        }
-                      }}
-                    >
-                      <option value="">{t('（未設定）', lang)}</option>
-                      {staffOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                      <option value={ROLE_CUSTOM}>{t('自行輸入…', lang)}</option>
-                    </select>
-                  )}
-                </label>
-              );
-            })}
-          </div>
           <div className="row-actions">
             <button type="submit" className="primary">{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>

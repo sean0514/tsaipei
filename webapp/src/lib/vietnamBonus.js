@@ -14,25 +14,20 @@ export { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjec
 export const VN_RATE_ROLE_KEYS = ['bizDev', 'adminSupervisor', 'adminRecruit', 'adminVisa', 'fieldStaff'];
 export const VN_RATE_ROLE_LABELS = ['開發業務', '行政主管', '行政招募', '行政簽證', '外務人員'];
 
-// 這 4 個角色的負責人指派在「學生資料」（StudentsPage.jsx 的
-// assignedBizDev/assignedAdminRecruit/assignedAdminVisa/assignedFieldStaff），
-// 「行政主管」指派在「實習單位」(PositionsPage.jsx 的 adminSupervisor)。
-const VN_STUDENT_ASSIGNED_ROLE_KEYS = ['bizDev', 'adminRecruit', 'adminVisa', 'fieldStaff'];
+// 這 5 個角色的負責人都指派在「學生資料」（StudentsPage.jsx 的
+// assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
+// assignedFieldStaff）。
+const VN_STUDENT_ASSIGNED_ROLE_KEYS = ['bizDev', 'adminSupervisor', 'adminRecruit', 'adminVisa', 'fieldStaff'];
 const VN_STUDENT_FIELD_BY_ROLE_KEY = {
   bizDev: 'assignedBizDev',
+  adminSupervisor: 'assignedAdminSupervisor',
   adminRecruit: 'assignedAdminRecruit',
   adminVisa: 'assignedAdminVisa',
   fieldStaff: 'assignedFieldStaff',
 };
-const VN_POSITION_ASSIGNED_ROLE_KEY = 'adminSupervisor';
 
 function roleLabel(key) {
   return VN_RATE_ROLE_LABELS[VN_RATE_ROLE_KEYS.indexOf(key)];
-}
-
-function positionAdminSupervisor(projectCode, client, positions) {
-  const matching = (positions || []).filter((p) => (p.projectCode || '') === projectCode && p.company === client);
-  return [...new Set(matching.map((p) => p[VN_POSITION_ASSIGNED_ROLE_KEY]).filter(Boolean))].join('、');
 }
 
 // 費率依學校分類（見 InternalBonusRateSetupPage.jsx），bonusRateSetup 是
@@ -51,12 +46,11 @@ function studentFullLabel(s) {
 // 一次性內部獎金：以「越南送機行程」(vietnam_departureTransport) 出現過的
 // 學生名單為準——學生安排送機才算案件完成，這幾個角色的獎金才算一次
 // （不分月、不按天數比例分攤）。依該學生自己就讀的學校在「內部獎金設定」
-// 查對應費率：開發業務/行政招募/行政簽證/外務人員看學生自己指派的負責人
-// （StudentsPage.jsx 的 assignedBizDev/assignedAdminRecruit/assignedAdminVisa/
-// assignedFieldStaff），行政主管看學生媒合的實習單位(專案+客戶)指派的負責人
-// （PositionsPage.jsx 的 adminSupervisor），依人員加總。
+// 查對應費率，5 個角色都看學生自己指派的負責人（StudentsPage.jsx 的
+// assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
+// assignedFieldStaff），依人員加總。
 export function computeVietnamInternalBonusByPerson(ctx) {
-  const { students, positions, bonusRateSetup, departureTransport } = ctx;
+  const { students, bonusRateSetup, departureTransport } = ctx;
   const departedStudentIds = new Set((departureTransport || []).map((d) => d.studentId).filter(Boolean));
   const personTotals = {};
 
@@ -78,14 +72,6 @@ export function computeVietnamInternalBonusByPerson(ctx) {
       if (!name || !rateVal) return;
       addAmount(name, rateVal, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal });
     });
-
-    if (pair) {
-      const supName = positionAdminSupervisor(pair.projectCode, pair.client, positions);
-      const rateVal = rate ? (Number(rate[VN_POSITION_ASSIGNED_ROLE_KEY]) || 0) : 0;
-      if (supName && rateVal) {
-        addAmount(supName, rateVal, { student: studentName, client: pair.client, role: roleLabel(VN_POSITION_ASSIGNED_ROLE_KEY), amount: rateVal });
-      }
-    }
   });
 
   return Object.values(personTotals).sort((a, b) => b.total - a.total);
