@@ -5,7 +5,10 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { STAGE_KEYS, JOBS, GENDERS, REVIEW_RESULTS, stageIndex, employerLabel, workerEmployerIds } from './constants';
+import ResumeInternalFields from '../../components/ResumeInternalFields';
+import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
+import { CheckboxGroup, EmployerCheckboxGroup, parseJobs } from './WorkerRosterPage';
+import { JOBS, MATCH_STATUSES, employerLabel, workerEmployerIds, matchStatusOf, withMatchStatus } from './constants';
 
 // 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
 // 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
@@ -19,27 +22,33 @@ function jobLabel(raw, lang) {
   return t(raw, lang);
 }
 
-const FIELDS = [
-  { key: 'name', label: '姓名（越南文姓名可直接輸入）', required: true },
-  { key: 'gender', label: '性別', options: GENDERS },
-  { key: 'province', label: '家鄉省份' },
-  { key: 'job', label: '工種', options: JOBS },
-  { key: 'employerId', label: '配對雇主' },
-  { key: 'stage', label: '目前階段', options: STAGE_KEYS },
-  { key: 'reviewResult', label: '審核結果', options: REVIEW_RESULTS },
+// 案件管理專屬欄位：履歷/工種/配對雇主已經跟「移工名冊」共用同一套
+// 表單（見下面的 WorkerFormModal），這裡只列移工名冊沒有、但移工管理
+// 案件追蹤需要的欄位——護照效期跟內部獎金計算讀取的角色指派。
+const CASE_FIELDS = [
   { key: 'passportExpiry', label: '護照效期', type: 'date' },
-  // 內部獎金計算讀取的角色指派——每位移工各自指派負責人，詳見
-  // BonusPage.jsx／BonusRateSetupPage.jsx。「招募人員」的獎金金額直接在
-  // 「費用計算」(FeeSetupPage.jsx) 設定，其餘 4 個角色的獎金金額在
-  // 「內部獎金編輯」(BonusRateSetupPage.jsx) 設定固定金額。
+  // 每位移工各自指派負責人，詳見 BonusPage.jsx／BonusRateSetupPage.jsx。
+  // 「招募人員」的獎金金額直接在「費用計算」(FeeSetupPage.jsx) 設定，
+  // 其餘 4 個角色的獎金金額在「內部獎金編輯」(BonusRateSetupPage.jsx)
+  // 設定固定金額。
   { key: 'assignedRecruiter', label: '招募人員', type: 'staff' },
   { key: 'assignedAdminResume', label: '行政（履歷表）', type: 'staff' },
   { key: 'assignedAccountant', label: '會計人員', type: 'staff' },
   { key: 'assignedFieldStaff', label: '外務人員', type: 'staff' },
   { key: 'assignedSupervisor', label: '主管', type: 'staff' },
-  { key: 'note', label: '備註', type: 'textarea' },
 ];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
+const CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
+  { key: 'gender', label: '性別' }, { key: 'province', label: '省份' }, { key: 'job', label: '工種' },
+  ...CASE_FIELDS, { key: 'note', label: '備註' },
+];
+
+function parseExperience(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
 
 export default function WorkersPage() {
   const { system, role, overrides, lang } = useOutletContext();
@@ -55,15 +64,11 @@ export default function WorkersPage() {
   const searchQuery = q.trim().toLowerCase();
   const employerNames = (w) => workerEmployerIds(w).map((id) => employerLabel(employers, id, lang)).join(' ');
   const filtered = workers
-    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerNames(w)} ${w.stage || ''} ${jobLabel(w.job, lang)}`.toLowerCase().includes(searchQuery))
+    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerNames(w)} ${jobLabel(w.job, lang)}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   async function handleSave(data) {
-    const prevStage = editing?.stage || '';
-    const payload = { ...data, stage: data.stage || STAGE_KEYS[0] };
-    // 階段沒變就保留原本的 updatedAt（代表還停留在同一關），階段改變才
-    // 重新蓋成現在時間，讓「停留超過 30 天」的判斷準確。
-    payload.updatedAt = (editing?.id && prevStage === payload.stage) ? (editing.updatedAt || Date.now()) : Date.now();
+    const payload = { ...data, updatedAt: Date.now() };
     if (data.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
@@ -73,15 +78,18 @@ export default function WorkersPage() {
     setEditing(null);
   }
 
-  async function handleMoveStage(id, stage) {
-    await update(id, { stage, updatedAt: Date.now() });
+  // 目前階段每筆配對（移工×雇主）各自獨立，存在 matchStatuses（見
+  // constants.js），不是整個移工共用一個欄位，所以要帶 employerId 才能
+  // 知道是改哪一筆配對的狀態。
+  async function handleMoveStatus(worker, employerId, status) {
+    await update(worker.id, { matchStatuses: withMatchStatus(worker, employerId, status), updatedAt: Date.now() });
   }
 
   async function handleArrangeEmployer({ workerId, employerId }) {
     const worker = workers.find((w) => w.id === workerId);
     const ids = workerEmployerIds(worker || {});
     const nextIds = ids.includes(employerId) ? ids : [...ids, employerId];
-    await update(workerId, { employerIds: JSON.stringify(nextIds), stage: worker?.stage || STAGE_KEYS[0], updatedAt: Date.now() });
+    await update(workerId, { employerIds: JSON.stringify(nextIds), updatedAt: Date.now() });
     setArranging(false);
   }
 
@@ -90,17 +98,17 @@ export default function WorkersPage() {
       <div className="page-header">
         <div>
           <h2>{t('移工管理', lang)}</h2>
-          <div className="page-desc">{t('越南移工案件進度管理，列出每位移工目前所在的案件階段與配對雇主', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('越南移工案件進度管理，列出每位移工的配對雇主與各自的面試/錄取狀態（同一人配對多個雇主，狀態各自獨立）', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
-          <input placeholder={t('搜尋姓名、省份、工種、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <input placeholder={t('搜尋姓名、省份、工種、雇主', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
           {canEditPage && <button className="primary" onClick={() => setArranging(true)}>+ {t('新增雇主安排', lang)}</button>}
           {canEditPage && <button onClick={() => setEditing({})}>+ {t('新增移工', lang)}</button>}
           <ImportExportButtons rows={workers} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStage={handleMoveStage} onEdit={setEditing} lang={lang} />
+        <ProcessView workers={filtered} employers={employers} canEditPage={canEditPage} onMoveStatus={handleMoveStatus} onEdit={setEditing} lang={lang} />
       )}
       {editing && (
         <WorkerFormModal initial={editing} employers={employers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} onRemove={editing.id ? () => { remove(editing.id); setEditing(null); } : null} lang={lang} />
@@ -159,37 +167,23 @@ function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
 const UNMATCHED_EMPLOYER = '__unmatched__';
 const UNSET_AGENCY = '__unset_agency__';
 
-// 目前階段改成「流程圖勾選式」：一排階段步驟，點哪一關就直接跳到那一關
-// （不是只能往下一關），已到達（含目前這關）的步驟打勾標示，比下拉選單
-// 更直覺地看出整體進度在哪。
-function StageStepper({ stage, onChange, canEdit, lang }) {
-  const idx = stageIndex(stage);
+// 目前階段（面試/錄取/取消/未通過）每一筆配對（移工×雇主）各自獨立，
+// 不是整個移工共用一個狀態，所以用下拉選單直接改這一行的狀態，不影響
+// 同一移工在其他雇主那邊的狀態。
+function MatchStatusSelect({ status, onChange, canEdit, lang }) {
+  if (!canEdit) return t(status, lang);
   return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-      {STAGE_KEYS.map((k, i) => {
-        const done = i <= idx;
-        return (
-          <button
-            key={k}
-            type="button"
-            disabled={!canEdit}
-            onClick={() => onChange(k)}
-            className={`tag ${done ? 'tag-green' : 'tag-grey'}`}
-            style={{ cursor: canEdit ? 'pointer' : 'default', fontWeight: i === idx ? 700 : 400 }}
-          >
-            {done ? '✓ ' : ''}{t(k, lang)}
-          </button>
-        );
-      })}
-    </div>
+    <select value={status} onChange={(e) => onChange(e.target.value)}>
+      {MATCH_STATUSES.map((s) => <option key={s} value={s}>{t(s, lang)}</option>)}
+    </select>
   );
 }
 
 // 案件清單：先依仲介分組，仲介底下再依雇主分組（未配對的歸一組，排
 // 最後）；同一個移工若在移工名冊同時配對多個雇主（可複選），這裡會依
-// 雇主各自顯示一行，不是只算一筆。同一雇主底下依目前階段排序，同階段
-// 的再依姓名排序；搜尋時仍在各分組內比對姓名/工種/階段/雇主。
-function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
+// 雇主各自顯示一行，不是只算一筆，每一行的目前階段也各自獨立。同一
+// 雇主底下依姓名排序；搜尋時仍在各分組內比對姓名/工種/雇主。
+function ProcessView({ workers, employers, canEditPage, onMoveStatus, onEdit, lang }) {
   // 攤平成「移工×配對雇主」的案件列：workerEmployerIds 回傳的陣列是空的
   // 就代表尚未配對，用 null 佔一個「尚未配對」的位置。
   const rows = workers.flatMap((w) => {
@@ -216,7 +210,7 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
   function EmployerTable({ employerId }) {
     const group = rows.filter((r) => (r.employerId || UNMATCHED_EMPLOYER) === employerId);
     if (group.length === 0) return null;
-    const sorted = [...group].sort((a, b) => stageIndex(a.worker.stage) - stageIndex(b.worker.stage) || (a.worker.name || '').localeCompare(b.worker.name || ''));
+    const sorted = [...group].sort((a, b) => (a.worker.name || '').localeCompare(b.worker.name || ''));
     return (
       <div key={employerId} style={{ marginBottom: 16 }}>
         <h4 style={{ marginBottom: 8 }}>
@@ -225,14 +219,20 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
         </h4>
         <div className="card">
           <div className="table-wrap"><table>
-            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('審核結果', lang)}</th></tr></thead>
+            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th></tr></thead>
             <tbody>
-              {sorted.map(({ worker: w }) => (
+              {sorted.map(({ worker: w, employerId: rowEmployerId }) => (
                 <tr key={`${w.id}-${employerId}`}>
                   <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
                   <td>{jobLabel(w.job, lang)}</td>
-                  <td><StageStepper stage={w.stage} onChange={(stage) => onMoveStage(w.id, stage)} canEdit={canEditPage} lang={lang} /></td>
-                  <td>{t(w.reviewResult, lang) || '—'}</td>
+                  <td>
+                    <MatchStatusSelect
+                      status={matchStatusOf(w, rowEmployerId)}
+                      onChange={(status) => onMoveStatus(w, rowEmployerId, status)}
+                      canEdit={canEditPage}
+                      lang={lang}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -266,16 +266,52 @@ function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lan
   );
 }
 
+// 編輯移工表單：跟「移工名冊」(WorkerRosterPage.jsx) 共用同一套履歷/
+// 工種/配對雇主欄位（匯入它 export 的 CheckboxGroup/EmployerCheckboxGroup/
+// parseJobs，跟 ResumeInternalFields），資料自動帶入移工名冊已經填好的
+// 內容，不是另一份獨立、對不上的簡化表單；另外加上護照效期跟角色指派
+// 這幾個移工名冊沒有、案件管理才需要的欄位（CASE_FIELDS）。
 function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove, lang }) {
-  const [form, setForm] = useState(initial);
+  // 舊資料相容：舊版表單只有 name/vietnameseName 兩個姓名欄位，沒有拆成
+  // 履歷表的越文姓名/中文姓名，中文姓名欄位沒資料時退回用 name 補上。
+  const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
   const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
+  const [jobs, setJobs] = useState(() => parseJobs(initial.job));
+  const [employerIds, setEmployerIds] = useState(() => workerEmployerIds(initial));
+  const [domesticExperience, setDomesticExperience] = useState(() => {
+    const rows = parseExperience(initial.domesticExperience).map(normalizeExperienceRow);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+  const [overseasExperience, setOverseasExperience] = useState(() => {
+    const rows = parseExperience(initial.overseasExperience).map(normalizeExperienceRow);
+    return rows.length ? rows : [emptyExperienceRow()];
+  });
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave({
+      ...form,
+      name: form.chineseName || form.vietnameseName || '',
+      province: form.hometown || '',
+      note: form.specialties || '',
+      job: JSON.stringify(jobs),
+      employerIds: JSON.stringify(employerIds),
+      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
+      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
+    });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? t('編輯移工', lang) : t('新增移工', lang)}</h3>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100%' }}>
+        <h3 style={{ marginTop: 0 }}>{initial.id ? t('編輯移工', lang) : t('新增移工', lang)}</h3>
+        <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            {FIELDS.filter((f) => f.type !== 'textarea' && f.key !== 'employerId').map((f) => (
+            {CASE_FIELDS.map((f) => (
               <label key={f.key}>
                 {t(f.label, lang)}
                 {f.type === 'staff' ? (
@@ -284,35 +320,38 @@ function WorkerFormModal({ initial, employers, users, onCancel, onSave, onRemove
                       list={`${f.key}-options`}
                       value={form[f.key] || ''}
                       placeholder={t('選擇或自行輸入姓名', lang)}
-                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                      onChange={(e) => setField(f.key, e.target.value)}
                     />
                     <datalist id={`${f.key}-options`}>
                       {staffOptions.map((o) => <option key={o} value={o} />)}
                     </datalist>
                   </>
-                ) : f.options ? (
-                  <select required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    <option value="">{t('請選擇', lang)}</option>
-                    {f.options.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
-                  </select>
                 ) : (
-                  <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                  <input type={f.type || 'text'} value={form[f.key] || ''} onChange={(e) => setField(f.key, e.target.value)} />
                 )}
               </label>
             ))}
-            <label>
-              {t('配對雇主', lang)}
-              <select value={form.employerId || ''} onChange={(e) => setForm({ ...form, employerId: e.target.value })}>
-                <option value="">{t('尚未配對', lang)}</option>
-                {employers.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </select>
-            </label>
           </div>
-          <label>
-            {t('備註', lang)}
-            <textarea rows={3} value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ marginBottom: 16 }} />
+          <label style={{ display: 'block', marginBottom: 16 }}>
+            {t('工種', lang)}（{t('可複選', lang)}）
+            <CheckboxGroup options={JOBS} values={jobs} onChange={setJobs} lang={lang} />
           </label>
-          <div className="row-actions">
+          <label style={{ display: 'block', marginBottom: 16 }}>
+            {t('配對雇主', lang)}（{t('可複選', lang)}）
+            <EmployerCheckboxGroup employers={employers} values={employerIds} onChange={setEmployerIds} />
+          </label>
+
+          <ResumeInternalFields
+            form={form}
+            setField={setField}
+            lang={lang}
+            domesticExperience={domesticExperience}
+            setDomesticExperience={setDomesticExperience}
+            overseasExperience={overseasExperience}
+            setOverseasExperience={setOverseasExperience}
+          />
+
+          <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
             {onRemove && <button type="button" className="danger" onClick={onRemove}>{t('刪除', lang)}</button>}

@@ -9,10 +9,11 @@ const REQUIRED_COUNT = DOCS_CHECKLIST.filter((d) => d.required).length;
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 名單來源：審核結果「通過錄取」且文件還沒收齊完成（docsCompleted）的
-// 移工，才需要在這裡追蹤文件；標記完成後會從這份名單消失，接著自動
-// 出現在「辦理簽證」頁面。依仲介、雇主分類顯示（同一人配對多個雇主就
-// 依雇主各自顯示一行），跟移工管理的分組邏輯一致。
+// 名單來源：某一筆配對（移工×雇主）的「目前階段」＝「錄取」且文件還沒
+// 收齊完成（docsCompleted）的，才需要在這裡追蹤文件——看的是那一筆
+// 配對的狀態，不是整個移工，所以同一個移工若有多筆配對，只有錄取的那
+// 筆會出現。標記完成後會從這份名單消失，接著自動出現在「辦理簽證」
+// 頁面。依仲介、雇主分類顯示。
 export default function DocsChecklistPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'docsChecklist', role, overrides);
@@ -20,12 +21,14 @@ export default function DocsChecklistPage() {
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
 
-  const hired = workers.filter((w) => isHired(w) && !w.docsCompleted);
   const employerOf = (id) => employers.find((e) => e.id === id);
-  const rows = hired.flatMap((w) => {
-    const ids = workerEmployerIds(w);
-    return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
-  });
+  const rows = workers
+    .filter((w) => !w.docsCompleted)
+    .flatMap((w) => {
+      const ids = workerEmployerIds(w);
+      return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
+    })
+    .filter((r) => isHired(r.worker, r.employerId));
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
 
@@ -54,7 +57,7 @@ export default function DocsChecklistPage() {
               <h3 style={{ marginBottom: 10 }}>{agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}<span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span></h3>
               <div className="card" style={{ overflowX: 'auto' }}>
                 <div className="table-wrap"><table>
-                  <thead><tr><th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('階段', lang)}</th><th>{t('必備文件進度', lang)}</th>{canEditPage && <th></th>}</tr></thead>
+                  <thead><tr><th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('護照有效日期', lang)}</th><th>{t('必備文件進度', lang)}</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {group.map(({ worker: w, employerId }) => {
                       const done = requiredDocsDone(w);
@@ -62,7 +65,7 @@ export default function DocsChecklistPage() {
                         <tr key={`${w.id}-${employerId || UNMATCHED_EMPLOYER}`}>
                           <td style={{ fontWeight: 600 }}>{w.name}</td>
                           <td>{employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang)}</td>
-                          <td>{t(w.stage, lang) || '—'}</td>
+                          <td>{w.passportExpiry || '—'}</td>
                           <td>
                             <span className={`tag ${done === REQUIRED_COUNT ? 'tag-green' : done === 0 ? 'tag-grey' : 'tag-amber'}`}>
                               {done} / {REQUIRED_COUNT}
@@ -88,7 +91,7 @@ export default function DocsChecklistPage() {
         <DocsFormModal
           worker={editing}
           onCancel={() => setEditing(null)}
-          onSave={async (docsChecked) => { await update(editing.id, { docsChecked }); setEditing(null); }}
+          onSave={async (data) => { await update(editing.id, data); setEditing(null); }}
           lang={lang}
         />
       )}
@@ -98,6 +101,7 @@ export default function DocsChecklistPage() {
 
 function DocsFormModal({ worker, onCancel, onSave, lang }) {
   const [checked, setChecked] = useState(worker.docsChecked || {});
+  const [passportExpiry, setPassportExpiry] = useState(worker.passportExpiry || '');
   const requiredItems = DOCS_CHECKLIST.filter((d) => d.required);
   const optionalItems = DOCS_CHECKLIST.filter((d) => !d.required);
 
@@ -105,15 +109,24 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
     setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  // 「護照」這項必備文件額外要確認有效日期，不是只打勾——跟
+  // WorkersPage.jsx 編輯移工表單共用同一個 passportExpiry 欄位，這裡填
+  // 過那邊也會同步看到。
   function ItemList({ items }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map((d) => (
           <label key={d.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontWeight: 400 }}>
             <input type="checkbox" checked={!!checked[d.key]} onChange={() => toggle(d.key)} style={{ marginTop: 3 }} />
-            <span>
+            <span style={{ flex: 1 }}>
               <div>{t(d.label, lang)}</div>
               <div className="muted" style={{ fontSize: 12 }}>{t(d.note, lang)}</div>
+              {d.key === 'passport' && (
+                <label style={{ display: 'block', marginTop: 6, fontWeight: 400 }}>
+                  {t('護照有效日期', lang)}
+                  <input type="date" value={passportExpiry} onChange={(e) => setPassportExpiry(e.target.value)} style={{ marginLeft: 8, width: 'auto' }} />
+                </label>
+              )}
             </span>
           </label>
         ))}
@@ -130,7 +143,7 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
         <h4>{t('依個案提供', lang)}</h4>
         <ItemList items={optionalItems} />
         <div className="row-actions" style={{ marginTop: 16 }}>
-          <button type="button" className="primary" onClick={() => onSave(checked)}>{t('儲存', lang)}</button>
+          <button type="button" className="primary" onClick={() => onSave({ docsChecked: checked, passportExpiry })}>{t('儲存', lang)}</button>
           <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
         </div>
       </div>
