@@ -7,6 +7,18 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { STAGE_KEYS, JOBS, GENDERS, stageIndex, passportStatus, employerLabel } from './constants';
 
+// 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
+// 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
+// 表單自己要改的欄位（移工名冊才是維護履歷資料的地方）。
+function jobLabel(raw, lang) {
+  if (!raw) return '—';
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return arr.map((j) => t(j, lang)).join('、') || '—';
+  } catch { /* 不是 JSON，當成單一字串 */ }
+  return t(raw, lang);
+}
+
 const FIELDS = [
   { key: 'name', label: '姓名（越南文姓名可直接輸入）', required: true },
   { key: 'gender', label: '性別', options: GENDERS },
@@ -41,7 +53,7 @@ export default function WorkersPage() {
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = workers
-    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerLabel(employers, w.employerId, lang)} ${w.stage || ''}`.toLowerCase().includes(searchQuery))
+    .filter((w) => !searchQuery || `${w.name || ''} ${w.province || ''} ${employerLabel(employers, w.employerId, lang)} ${w.stage || ''} ${jobLabel(w.job, lang)}`.toLowerCase().includes(searchQuery))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   async function handleSave(data) {
@@ -74,10 +86,10 @@ export default function WorkersPage() {
       <div className="page-header">
         <div>
           <h2>{t('移工管理', lang)}</h2>
-          <div className="page-desc">{t('越南移工案件進度管理，依雇主分組呈現每位移工目前所在的案件階段', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('越南移工案件進度管理，列出每位移工目前所在的案件階段與配對雇主', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
-          <input placeholder={t('搜尋姓名、省份、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <input placeholder={t('搜尋姓名、省份、工種、雇主、階段', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
           {canEditPage && <button className="primary" onClick={() => setArranging(true)}>+ {t('新增雇主安排', lang)}</button>}
           {canEditPage && <button onClick={() => setEditing({})}>+ {t('新增移工', lang)}</button>}
           <ImportExportButtons rows={workers} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
@@ -140,47 +152,38 @@ function ArrangeEmployerModal({ workers, employers, onCancel, onSave, lang }) {
   );
 }
 
-// 流程管理：依雇主分組（而不是階段分欄）呈現進度，方便業務/行政人員一次
-// 看完某個雇主底下所有移工目前卡在哪個階段；沒有配對雇主的移工歸在最後
-// 的「尚未配對」分組。
+// 案件清單：單一平面表格（不分組），依姓名/工種/階段/雇主搜尋時結果
+// 一目了然，不用在各個雇主分組卡片裡找；依目前階段排序，同階段的再依
+// 姓名排序。
 function ProcessView({ workers, employers, canEditPage, onMoveStage, onEdit, lang }) {
-  const groups = [
-    ...employers.map((e) => ({ id: e.id, name: e.name, items: workers.filter((w) => w.employerId === e.id) })),
-    { id: '', name: t('尚未配對', lang), items: workers.filter((w) => !w.employerId) },
-  ].filter((g) => g.items.length > 0);
+  const sorted = [...workers].sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage) || (a.name || '').localeCompare(b.name || ''));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {groups.length === 0 && <p className="muted">{t('沒有案件', lang)}</p>}
-      {groups.map((g) => (
-        <div className="card" key={g.id || '__unmatched__'}>
-          <h4 style={{ marginTop: 0 }}>{g.name} <span className="muted" style={{ fontWeight: 400 }}>（{g.items.length}）</span></h4>
-          <div className="table-wrap"><table>
-            <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
-            <tbody>
-              {g.items
-                .sort((a, b) => stageIndex(a.stage) - stageIndex(b.stage))
-                .map((w) => {
-                  const ps = passportStatus(w, lang);
-                  return (
-                    <tr key={w.id}>
-                      <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
-                      <td>{t(w.job, lang) || '—'}</td>
-                      <td>
-                        {canEditPage ? (
-                          <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
-                            {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
-                          </select>
-                        ) : t(w.stage, lang)}
-                      </td>
-                      <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table></div>
-        </div>
-      ))}
+    <div className="card">
+      <div className="table-wrap"><table>
+        <thead><tr><th>{t('姓名', lang)}</th><th>{t('工種', lang)}</th><th>{t('目前階段', lang)}</th><th>{t('配對雇主', lang)}</th><th>{t('證件狀態', lang)}</th></tr></thead>
+        <tbody>
+          {sorted.map((w) => {
+            const ps = passportStatus(w, lang);
+            return (
+              <tr key={w.id}>
+                <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => onEdit(w)}>{w.name}</td>
+                <td>{jobLabel(w.job, lang)}</td>
+                <td>
+                  {canEditPage ? (
+                    <select value={w.stage} onChange={(e) => onMoveStage(w.id, e.target.value)}>
+                      {STAGE_KEYS.map((k) => <option key={k} value={k}>{t(k, lang)}</option>)}
+                    </select>
+                  ) : t(w.stage, lang)}
+                </td>
+                <td>{employerLabel(employers, w.employerId, lang)}</td>
+                <td><span className={`tag ${ps.cls}`}>{ps.label}</span></td>
+              </tr>
+            );
+          })}
+          {sorted.length === 0 && <tr><td colSpan={5} className="muted">{t('沒有案件', lang)}</td></tr>}
+        </tbody>
+      </table></div>
     </div>
   );
 }

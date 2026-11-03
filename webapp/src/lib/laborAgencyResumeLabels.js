@@ -10,7 +10,7 @@ export const RESUME_LABELS = {
   gender: { zh: '性別', vi: 'Giới tính' },
   male: { zh: '男', vi: 'Nam' },
   female: { zh: '女', vi: 'Nữ' },
-  hometown: { zh: '地區', vi: 'Địa chỉ' },
+  hometown: { zh: '省份', vi: 'Tỉnh/Thành phố' },
   birthDate: { zh: '出生日期', vi: 'Ngày sinh' },
   height: { zh: '身高(cm)', vi: 'Chiều cao (cm)' },
   weight: { zh: '體重(kg)', vi: 'Cân nặng (kg)' },
@@ -65,6 +65,13 @@ export const RESUME_LABELS = {
   leaveReason: { zh: '離職原因', vi: 'Nguyên nhân từ chức' },
   addRow: { zh: '+ 新增一筆', vi: '+ Thêm dòng' },
   removeRow: { zh: '移除', vi: 'Xóa' },
+
+  // 面試連結是內部專用欄位（公開填寫頁沒有，只有內部表單
+  // components/ResumeInternalFields.jsx 跟下載履歷表有），移工自己不會
+  // 知道面試連結，所以不跟上面履歷表的欄位放在同一個邏輯分區裡。
+  interviewLinks: { zh: '面試連結', vi: 'Liên kết phỏng vấn' },
+  interviewDate: { zh: '面試日期', vi: 'Ngày phỏng vấn' },
+  note: { zh: '備註', vi: 'Ghi chú' },
 
   specialties: { zh: '專長', vi: 'Chuyên môn' },
 
