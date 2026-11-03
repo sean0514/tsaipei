@@ -89,6 +89,40 @@ function emptyExperienceRow() {
   return { year: '', description: '', reason: '' };
 }
 
+// 獨立宣告在元件外面——原本寫在 LaborAgencyResumeApplyPage 裡面，每次
+// render 都會產生新的函式參照，React 視為不同的元件型別而整個重新掛載，
+// 導致裡面的 input 每打一個字就失焦、看起來像完全打不進去。
+function ExperienceEditor({ rows, setRows, labels }) {
+  function updateRow(i, patch) {
+    setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i) {
+    setRows(rows.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+          <label>
+            {labels.year}
+            <input type="date" value={r.year} onChange={(e) => updateRow(i, { year: e.target.value })} />
+          </label>
+          <label>
+            {labels.description}
+            <input value={r.description} onChange={(e) => updateRow(i, { description: e.target.value })} />
+          </label>
+          <label>
+            {labels.leaveReason}
+            <input value={r.reason} onChange={(e) => updateRow(i, { reason: e.target.value })} />
+          </label>
+          {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{labels.removeRow}</button>}
+        </div>
+      ))}
+      <button type="button" onClick={() => setRows([...rows, emptyExperienceRow()])}>{labels.addRow}</button>
+    </div>
+  );
+}
+
 export default function LaborAgencyResumeApplyPage() {
   const [searchParams] = useSearchParams();
   const assignedStaff = searchParams.get('ref') || '';
@@ -142,36 +176,10 @@ export default function LaborAgencyResumeApplyPage() {
     return getDownloadURL(storageRef);
   }
 
-  function ExperienceEditor({ rows, setRows }) {
-    function updateRow(i, patch) {
-      setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-    }
-    function removeRow(i) {
-      setRows(rows.filter((_, idx) => idx !== i));
-    }
-    return (
-      <div>
-        {rows.map((r, i) => (
-          <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
-            <label>
-              {L('year')}
-              <input value={r.year} onChange={(e) => updateRow(i, { year: e.target.value })} />
-            </label>
-            <label>
-              {L('description')}
-              <input value={r.description} onChange={(e) => updateRow(i, { description: e.target.value })} />
-            </label>
-            <label>
-              {L('leaveReason')}
-              <input value={r.reason} onChange={(e) => updateRow(i, { reason: e.target.value })} />
-            </label>
-            {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{L('removeRow')}</button>}
-          </div>
-        ))}
-        <button type="button" onClick={() => setRows([...rows, emptyExperienceRow()])}>{L('addRow')}</button>
-      </div>
-    );
-  }
+  const experienceLabels = {
+    year: L('year'), description: L('description'), leaveReason: L('leaveReason'),
+    removeRow: L('removeRow'), addRow: L('addRow'),
+  };
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -430,9 +438,9 @@ export default function LaborAgencyResumeApplyPage() {
 
         <h3>{L('sectionExperience')}</h3>
         <h4>{L('domesticExperience')}</h4>
-        <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} />
+        <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} />
         <h4>{L('overseasExperience')}</h4>
-        <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} />
+        <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} />
 
         <label style={{ display: 'block', marginTop: 16 }}>
           {L('specialties')}
