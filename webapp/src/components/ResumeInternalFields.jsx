@@ -3,6 +3,7 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { storage } from '../firebase';
 import { ExperienceEditor } from '../pages/LaborAgencyResumeApplyPage';
 import { t } from '../lib/i18n';
+import { useResumeTranslate } from '../lib/useResumeTranslate';
 
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
@@ -96,6 +97,7 @@ export default function ResumeInternalFields({
     year: t('年份', lang), description: t('工作內容', lang), leaveReason: t('離職原因', lang),
     removeRow: t('移除', lang), addRow: t('+ 新增一筆', lang),
   };
+  const { translateOnBlur } = useResumeTranslate(setField);
 
   return (
     <>
@@ -111,14 +113,14 @@ export default function ResumeInternalFields({
             <option value="女">{t('女', lang)}</option>
           </select>
         </label>
-        <label>{t('省份', lang)}<input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} /></label>
+        <label>{t('省份', lang)}<input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} onBlur={(e) => translateOnBlur('hometownZh', e.target.value)} /></label>
         <label>{t('電話', lang)}<input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} /></label>
         <label>{t('出生日期', lang)}<input type="date" value={form.birthDate || ''} onChange={(e) => setField('birthDate', e.target.value)} /></label>
         <label>{t('身高(cm)', lang)}<input type="number" value={form.height || ''} onChange={(e) => setField('height', e.target.value)} /></label>
         <label>{t('體重(kg)', lang)}<input type="number" value={form.weight || ''} onChange={(e) => setField('weight', e.target.value)} /></label>
         <label>{t('視力', lang)}<input value={form.eyesight || ''} onChange={(e) => setField('eyesight', e.target.value)} /></label>
-        <label>{t('宗教', lang)}<input value={form.religion || ''} onChange={(e) => setField('religion', e.target.value)} /></label>
-        <label>{t('民族', lang)}<input value={form.ethnicity || ''} onChange={(e) => setField('ethnicity', e.target.value)} /></label>
+        <label>{t('宗教', lang)}<input value={form.religion || ''} onChange={(e) => setField('religion', e.target.value)} onBlur={(e) => translateOnBlur('religionZh', e.target.value)} /></label>
+        <label>{t('民族', lang)}<input value={form.ethnicity || ''} onChange={(e) => setField('ethnicity', e.target.value)} onBlur={(e) => translateOnBlur('ethnicityZh', e.target.value)} /></label>
         <label>
           {t('慣用手', lang)}
           <select value={form.dominantHand || ''} onChange={(e) => setField('dominantHand', e.target.value)}>
@@ -171,7 +173,7 @@ export default function ResumeInternalFields({
           </select>
         </label>
         <label>{t('年齡', lang)}<input value={form.fatherAge || ''} onChange={(e) => setField('fatherAge', e.target.value)} /></label>
-        <label>{t('職業', lang)}<input value={form.fatherOccupation || ''} onChange={(e) => setField('fatherOccupation', e.target.value)} /></label>
+        <label>{t('職業', lang)}<input value={form.fatherOccupation || ''} onChange={(e) => setField('fatherOccupation', e.target.value)} onBlur={(e) => translateOnBlur('fatherOccupationZh', e.target.value)} /></label>
 
         <label>{t('母親姓名', lang)}<input value={form.motherName || ''} onChange={(e) => setField('motherName', e.target.value)} /></label>
         <label>
@@ -183,11 +185,11 @@ export default function ResumeInternalFields({
           </select>
         </label>
         <label>{t('年齡', lang)}<input value={form.motherAge || ''} onChange={(e) => setField('motherAge', e.target.value)} /></label>
-        <label>{t('職業', lang)}<input value={form.motherOccupation || ''} onChange={(e) => setField('motherOccupation', e.target.value)} /></label>
+        <label>{t('職業', lang)}<input value={form.motherOccupation || ''} onChange={(e) => setField('motherOccupation', e.target.value)} onBlur={(e) => translateOnBlur('motherOccupationZh', e.target.value)} /></label>
 
         <label>{t('配偶姓名', lang)}<input value={form.spouseName || ''} onChange={(e) => setField('spouseName', e.target.value)} /></label>
         <label>{t('年齡', lang)}<input value={form.spouseAge || ''} onChange={(e) => setField('spouseAge', e.target.value)} /></label>
-        <label>{t('職業', lang)}<input value={form.spouseOccupation || ''} onChange={(e) => setField('spouseOccupation', e.target.value)} /></label>
+        <label>{t('職業', lang)}<input value={form.spouseOccupation || ''} onChange={(e) => setField('spouseOccupation', e.target.value)} onBlur={(e) => translateOnBlur('spouseOccupationZh', e.target.value)} /></label>
 
         <label>{t('子女人數', lang)}<input type="number" value={form.childrenCount || ''} onChange={(e) => setField('childrenCount', e.target.value)} /></label>
         <label>{t('兄弟姐妹人數', lang)}<input type="number" value={form.siblingsCount || ''} onChange={(e) => setField('siblingsCount', e.target.value)} /></label>
@@ -207,7 +209,7 @@ export default function ResumeInternalFields({
 
       <h4>{t('學歷、語言', lang)}</h4>
       <div className="form-grid">
-        <label>{t('最高學歷', lang)}<input value={form.educationLevel || ''} onChange={(e) => setField('educationLevel', e.target.value)} /></label>
+        <label>{t('最高學歷', lang)}<input value={form.educationLevel || ''} onChange={(e) => setField('educationLevel', e.target.value)} onBlur={(e) => translateOnBlur('educationLevelZh', e.target.value)} /></label>
         <label>
           {t('中文程度', lang)}
           <select value={form.chineseLevel || ''} onChange={(e) => setField('chineseLevel', e.target.value)}>
@@ -231,16 +233,16 @@ export default function ResumeInternalFields({
       </div>
 
       <h4>{t('國內工作經驗', lang)}</h4>
-      <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} />
+      <ExperienceEditor rows={domesticExperience} setRows={setDomesticExperience} labels={experienceLabels} translatable />
       <h4>{t('國外工作經驗', lang)}</h4>
-      <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} />
+      <ExperienceEditor rows={overseasExperience} setRows={setOverseasExperience} labels={experienceLabels} translatable />
 
       <h4>{t('面試連結', lang)}</h4>
       <InterviewLinksEditor rows={interviewLinks} setRows={setInterviewLinks} lang={lang} />
 
       <label style={{ display: 'block', marginTop: 16 }}>
         {t('專長', lang)}
-        <textarea rows={3} value={form.specialties || ''} onChange={(e) => setField('specialties', e.target.value)} />
+        <textarea rows={3} value={form.specialties || ''} onChange={(e) => setField('specialties', e.target.value)} onBlur={(e) => translateOnBlur('specialtiesZh', e.target.value)} />
       </label>
     </>
   );

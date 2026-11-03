@@ -164,6 +164,13 @@ export default function ResumeLinksPage() {
   );
 }
 
+// 原文後面補上「（中文翻譯）」——翻譯欄位是 lib/useResumeTranslate.js
+// 自動產生的，跟原文一樣就不重複顯示。
+function withZh(raw, zh) {
+  if (!raw) return '—';
+  return zh && zh !== raw ? `${raw}（${zh}）` : raw;
+}
+
 function ViewingModal({ sub, onClose, lang }) {
   const domestic = parseExperience(sub.domesticExperience);
   const overseas = parseExperience(sub.overseasExperience);
@@ -177,13 +184,13 @@ function ViewingModal({ sub, onClose, lang }) {
           <div><strong>{t('越文姓名', lang)}：</strong>{sub.vietnameseName || '—'}</div>
           <div><strong>{t('中文姓名', lang)}：</strong>{sub.chineseName || '—'}</div>
           <div><strong>{t('性別', lang)}：</strong>{t(sub.gender, lang) || '—'}</div>
-          <div><strong>{t('省份', lang)}：</strong>{sub.hometown || '—'}</div>
+          <div><strong>{t('省份', lang)}：</strong>{withZh(sub.hometown, sub.hometownZh)}</div>
           <div><strong>{t('電話', lang)}：</strong>{sub.phone || '—'}</div>
           <div><strong>{t('出生日期', lang)}：</strong>{sub.birthDate || '—'}</div>
           <div><strong>{t('身高/體重', lang)}：</strong>{sub.height || '—'} cm / {sub.weight || '—'} kg</div>
           <div><strong>{t('視力', lang)}：</strong>{sub.eyesight || '—'}</div>
-          <div><strong>{t('宗教', lang)}：</strong>{sub.religion || '—'}</div>
-          <div><strong>{t('民族', lang)}：</strong>{sub.ethnicity || '—'}</div>
+          <div><strong>{t('宗教', lang)}：</strong>{withZh(sub.religion, sub.religionZh)}</div>
+          <div><strong>{t('民族', lang)}：</strong>{withZh(sub.ethnicity, sub.ethnicityZh)}</div>
           <div><strong>{t('慣用手', lang)}：</strong>{sub.dominantHand || '—'}</div>
           <div><strong>{t('重大手術', lang)}：</strong>{sub.majorSurgery || '—'}</div>
           <div><strong>{t('是否有刺青', lang)}：</strong>{sub.hasTattoo || '—'}</div>
@@ -204,9 +211,9 @@ function ViewingModal({ sub, onClose, lang }) {
         <div className="form-grid">
           <div><strong>{t('結婚狀況', lang)}：</strong>{sub.maritalStatus || '—'}</div>
           <div><strong>{t('緊急聯絡電話', lang)}：</strong>{sub.familyContactPhone || '—'}</div>
-          <div><strong>{t('父親', lang)}：</strong>{sub.fatherName || '—'}（{sub.fatherAlive || '—'}／{sub.fatherAge || '—'}{t('歲', lang)}／{sub.fatherOccupation || '—'}）</div>
-          <div><strong>{t('母親', lang)}：</strong>{sub.motherName || '—'}（{sub.motherAlive || '—'}／{sub.motherAge || '—'}{t('歲', lang)}／{sub.motherOccupation || '—'}）</div>
-          <div><strong>{t('配偶', lang)}：</strong>{sub.spouseName || '—'}（{sub.spouseAge || '—'}{t('歲', lang)}／{sub.spouseOccupation || '—'}）</div>
+          <div><strong>{t('父親', lang)}：</strong>{sub.fatherName || '—'}（{sub.fatherAlive || '—'}／{sub.fatherAge || '—'}{t('歲', lang)}／{withZh(sub.fatherOccupation, sub.fatherOccupationZh)}）</div>
+          <div><strong>{t('母親', lang)}：</strong>{sub.motherName || '—'}（{sub.motherAlive || '—'}／{sub.motherAge || '—'}{t('歲', lang)}／{withZh(sub.motherOccupation, sub.motherOccupationZh)}）</div>
+          <div><strong>{t('配偶', lang)}：</strong>{sub.spouseName || '—'}（{sub.spouseAge || '—'}{t('歲', lang)}／{withZh(sub.spouseOccupation, sub.spouseOccupationZh)}）</div>
           <div><strong>{t('子女人數', lang)}：</strong>{sub.childrenCount || '—'}</div>
           <div><strong>{t('兄弟姐妹', lang)}：</strong>{sub.siblingsCount || '—'}</div>
           <div><strong>{t('家中排行', lang)}：</strong>{sub.birthOrder || '—'}</div>
@@ -214,17 +221,17 @@ function ViewingModal({ sub, onClose, lang }) {
         </div>
         <h4>{t('學歷、語言', lang)}</h4>
         <div className="form-grid">
-          <div><strong>{t('最高學歷', lang)}：</strong>{sub.educationLevel || '—'}</div>
+          <div><strong>{t('最高學歷', lang)}：</strong>{withZh(sub.educationLevel, sub.educationLevelZh)}</div>
           <div><strong>{t('中文程度', lang)}：</strong>{sub.chineseLevel || '—'}</div>
           <div><strong>{t('英文程度', lang)}：</strong>{sub.englishLevel || '—'}</div>
         </div>
         <h4>{t('國內工作經驗', lang)}</h4>
         {domestic.length === 0 ? <p className="muted">—</p> : domestic.map((r, i) => (
-          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{r.description}{r.reason ? `（${t('離職原因：', lang)}${r.reason}）` : ''}</p>
+          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
         ))}
         <h4>{t('國外工作經驗', lang)}</h4>
         {overseas.length === 0 ? <p className="muted">—</p> : overseas.map((r, i) => (
-          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{r.description}{r.reason ? `（${t('離職原因：', lang)}${r.reason}）` : ''}</p>
+          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
         ))}
         <h4>{t('面試連結', lang)}</h4>
         {interviewLinks.length === 0 ? <p className="muted">—</p> : interviewLinks.map((r, i) => (
@@ -233,7 +240,7 @@ function ViewingModal({ sub, onClose, lang }) {
           </p>
         ))}
         <h4>{t('專長', lang)}</h4>
-        <p className="muted">{sub.specialties || '—'}</p>
+        <p className="muted">{withZh(sub.specialties, sub.specialtiesZh)}</p>
         <div><strong>{t('負責專員', lang)}：</strong>{sub.assignedStaff || '—'}</div>
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button onClick={onClose}>{t('關閉', lang)}</button>

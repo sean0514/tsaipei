@@ -1038,13 +1038,15 @@ service cloud.firestore {
     function isPublicLaborWorkerCreate() {
       return request.resource.data.keys().hasOnly([
         'name', 'vietnameseName', 'chineseName', 'gender', 'phone', 'province', 'photoUrl', 'note', 'stage', 'updatedAt',
-        'hometown', 'birthDate', 'height', 'weight', 'eyesight', 'religion', 'ethnicity', 'dominantHand',
+        'hometown', 'hometownZh', 'birthDate', 'height', 'weight', 'eyesight', 'religion', 'religionZh',
+        'ethnicity', 'ethnicityZh', 'dominantHand',
         'majorSurgery', 'hasTattoo', 'tattooPhotoUrl', 'lineQrPhotoUrl', 'maritalStatus', 'familyContactPhone',
-        'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation',
-        'motherName', 'motherAlive', 'motherAge', 'motherOccupation',
-        'spouseName', 'spouseAge', 'spouseOccupation',
+        'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation', 'fatherOccupationZh',
+        'motherName', 'motherAlive', 'motherAge', 'motherOccupation', 'motherOccupationZh',
+        'spouseName', 'spouseAge', 'spouseOccupation', 'spouseOccupationZh',
         'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
-        'educationLevel', 'chineseLevel', 'englishLevel', 'domesticExperience', 'overseasExperience', 'specialties'
+        'educationLevel', 'educationLevelZh', 'chineseLevel', 'englishLevel',
+        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh'
       ]) && request.resource.data.name is string && request.resource.data.name.size() > 0
         && request.resource.data.stage == '雇主確認';
     }
@@ -1095,14 +1097,16 @@ service cloud.firestore {
     // laCanEdit() 走 update。
     function isPublicLaborResumeSubmission() {
       return request.resource.data.keys().hasOnly([
-        'vietnameseName', 'chineseName', 'gender', 'phone', 'hometown', 'birthDate', 'height', 'weight', 'eyesight',
-        'religion', 'ethnicity', 'dominantHand', 'majorSurgery', 'hasTattoo', 'tattooPhotoUrl', 'lineQrPhotoUrl',
+        'vietnameseName', 'chineseName', 'gender', 'phone', 'hometown', 'hometownZh', 'birthDate', 'height', 'weight', 'eyesight',
+        'religion', 'religionZh', 'ethnicity', 'ethnicityZh', 'dominantHand', 'majorSurgery', 'hasTattoo',
+        'tattooPhotoUrl', 'lineQrPhotoUrl',
         'maritalStatus', 'familyContactPhone', 'photoUrl',
-        'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation',
-        'motherName', 'motherAlive', 'motherAge', 'motherOccupation',
-        'spouseName', 'spouseAge', 'spouseOccupation',
+        'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation', 'fatherOccupationZh',
+        'motherName', 'motherAlive', 'motherAge', 'motherOccupation', 'motherOccupationZh',
+        'spouseName', 'spouseAge', 'spouseOccupation', 'spouseOccupationZh',
         'childrenCount', 'siblingsCount', 'birthOrder', 'relativesInTaiwan', 'relativesLocation',
-        'educationLevel', 'chineseLevel', 'englishLevel', 'domesticExperience', 'overseasExperience', 'specialties',
+        'educationLevel', 'educationLevelZh', 'chineseLevel', 'englishLevel',
+        'domesticExperience', 'overseasExperience', 'specialties', 'specialtiesZh',
         'assignedStaff', 'status', 'createdAt', 'workerId'
       ]) && (request.resource.data.vietnameseName is string && request.resource.data.vietnameseName.size() > 0)
         && request.resource.data.status == '待處理';
