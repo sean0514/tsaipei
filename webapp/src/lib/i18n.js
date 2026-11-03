@@ -167,6 +167,7 @@ const VI = {
   '其他福利': 'Phúc lợi khác',
   '角色指派（內部獎金計算對照用）': 'Phân công vai trò (dùng để tính thưởng nội bộ)',
   '自行輸入姓名': 'Tự nhập tên',
+  '自行輸入學校名稱': 'Tự nhập tên trường',
   '改選清單': 'Chọn lại từ danh sách',
   '（未設定）': '(Chưa thiết lập)',
   '自行輸入…': 'Tự nhập…',
@@ -1290,4 +1291,11 @@ const VI = {
   '新增送機行程': 'Thêm lịch đưa sân bay',
   '編輯送機行程': 'Chỉnh sửa lịch đưa sân bay',
   '元凱': 'Yuankai',
+
+  // 內部獎金設定（InternalBonusRateSetupPage）
+  '內部獎金設定': 'Thiết lập tiền thưởng nội bộ',
+  '設定開發業務/行政主管/行政招募/行政簽證/外務人員每月固定費率，供「內部獎金計算」依學生當月在台天數比例試算':
+    'Thiết lập mức phí cố định hàng tháng cho Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại, dùng để tính "Tiền thưởng nội bộ" theo tỷ lệ số ngày ở Đài Loan trong tháng của học viên',
+  '依月份自動試算：內部獎金設定的月費率 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總；宿管人員費率來源已移除，金額顯示為 0':
+    'Tự động tính theo tháng: mức phí hàng tháng thiết lập ở Thiết lập tiền thưởng nội bộ ÷ số ngày trong tháng × số ngày học viên ở Đài Loan trong tháng, cộng dồn theo đơn vị thực tập (dự án + khách hàng); nguồn phí của nhân viên quản lý ký túc xá đã bị loại bỏ, số tiền hiển thị là 0',
 };

@@ -40,11 +40,13 @@ export default function ManagerReportPage() {
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
+  const { rows: bonusRateSetupRows } = useCollection('vietnam_internalBonusRateSetup');
+  const bonusRateSetup = bonusRateSetupRows.find((r) => r.id === 'default');
   const [month, setMonth] = useState(currentMonthStr());
 
-  // 內部費用建檔（費率來源）已移除，固定傳空陣列讓費率查找安全地找不到、
-  // 金額算成 0，不用動共用計算邏輯本身。
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
+  // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓費率查找
+  // 安全地找不到、金額算成 0，不用動共用計算邏輯本身。
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });

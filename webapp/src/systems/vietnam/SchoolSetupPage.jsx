@@ -15,13 +15,20 @@ const ROLE_CUSTOM = '__custom__';
 // 學校資料建檔：每所學校設定一位「學校代表」負責人＋獎金月費率（給「內部
 // 獎金計算」依學生就讀學校、在台天數比例試算），以及這所學校的「獎學金
 // 金額」（給「獎學金紀錄」新增時自動帶入）。學校名稱要跟學生資料「就讀
-// 學校」欄位的值完全一致才能對上，所以兩邊都是自由文字，不是下拉選單
-// 互相綁定（跟 client/clientFeeSetup 的配對方式一樣）。
+// 學校」欄位的值完全一致才能對上，所以學校名稱改成下拉選單，選項是學生
+// 資料「就讀學校」出現過的學校名稱＋這裡已經建檔過的學校名稱，避免兩邊
+// 打字不一致對不上；找不到想要的學校（學生資料還沒有這個學校）可以選
+// 「自行輸入…」。
 export default function SchoolSetupPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'schoolSetup', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_schoolSetup');
   const { rows: users } = useCollection('vietnam_users');
+  const { rows: students } = useCollection('vietnam_students');
+  const schoolOptions = [...new Set([
+    ...students.map((s) => s.school).filter(Boolean),
+    ...rows.map((r) => r.name).filter(Boolean),
+  ])].sort();
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_schoolSetup', CSV_FIELDS, { entityLabel: '學校資料', requiredKeys: ['name'], canEdit: canEditPage });
@@ -79,15 +86,16 @@ export default function SchoolSetupPage() {
           </table></div>
         )}
       </div>
-      {editing && <SchoolFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <SchoolFormModal initial={editing} users={users} schoolOptions={schoolOptions} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
 
-function SchoolFormModal({ initial, users, onCancel, onSave, lang }) {
+function SchoolFormModal({ initial, users, schoolOptions, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
   const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
   const [customRep, setCustomRep] = useState(() => !!(initial.schoolRep && !staffOptions.includes(initial.schoolRep)));
+  const [customName, setCustomName] = useState(() => !!(initial.name && !schoolOptions.includes(initial.name)));
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -97,7 +105,25 @@ function SchoolFormModal({ initial, users, onCancel, onSave, lang }) {
           <div className="form-grid">
             <label>
               {t('學校名稱', lang)}
-              <input required value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              {customName ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input required value={form.name || ''} placeholder={t('自行輸入學校名稱', lang)} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                  <button type="button" onClick={() => { setCustomName(false); setForm({ ...form, name: '' }); }}>{t('改選清單', lang)}</button>
+                </div>
+              ) : (
+                <select
+                  required
+                  value={form.name || ''}
+                  onChange={(e) => {
+                    if (e.target.value === ROLE_CUSTOM) { setCustomName(true); setForm({ ...form, name: '' }); }
+                    else setForm({ ...form, name: e.target.value });
+                  }}
+                >
+                  <option value="">{t('請選擇', lang)}</option>
+                  {schoolOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                  <option value={ROLE_CUSTOM}>{t('自行輸入…', lang)}</option>
+                </select>
+              )}
             </label>
             <label>
               {t('學校代表', lang)}
