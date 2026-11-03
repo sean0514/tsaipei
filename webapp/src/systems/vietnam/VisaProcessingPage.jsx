@@ -38,7 +38,10 @@ export default function VisaProcessingPage() {
   const withStudent = rows
     .map((r) => ({ ...r, student: students.find((s) => s.id === r.studentId) }))
     .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier));
-  const groups = groupByLabel(withStudent, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
+  const inProgressRows = withStudent.filter((r) => r.status !== '已完成');
+  const completedRows = withStudent.filter((r) => r.status === '已完成');
+  const inProgressGroups = groupByLabel(inProgressRows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
+  const completedGroups = groupByLabel(completedRows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
 
   // 補跑一次：這個同步機制上線前就已經存在的「越南簽證辦理」紀錄，對應的
   // 越南系統學生資料可能還沒建立（見 lib/vietnamTsaipeiStudentSync.js 的
@@ -70,6 +73,13 @@ export default function VisaProcessingPage() {
     setEditing(null);
   }
 
+  // 列表上的「已完成」快捷按鈕：不用開編輯視窗，直接把狀態改成「已完成」；
+  // 簽證完成時間還沒填的話順便帶入今天的日期（可再手動調整），已經填過
+  // 就不覆蓋。
+  async function markCompleted(r) {
+    await update(r.id, { status: '已完成', visaCompleteDate: r.visaCompleteDate || new Date().toISOString().slice(0, 10) });
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -80,43 +90,67 @@ export default function VisaProcessingPage() {
         {canEditPage && <button className="primary" onClick={() => setEditing({ status: '辦理中' })}>+ {t('新增紀錄', lang)}</button>}
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        groups.length === 0 ? (
-          <p className="muted">{t('目前沒有越南簽證辦理中的學生。', lang)}</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {groups.map((g) => (
-              <div className="card" key={g.label} style={{ overflowX: 'auto' }}>
-                <h3 style={{ marginTop: 0 }}>{g.label} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{g.rows.length} {t('位學生', lang)}</span></h3>
-                <div className="table-wrap"><table>
-                  <thead>
-                    <tr><th>{t('學生', lang)}</th><th>{t('狀態', lang)}</th><th>{t('辦理簽證時間', lang)}</th><th>{t('簽證完成時間', lang)}</th><th>{t('備註', lang)}</th>{canEditPage && <th></th>}</tr>
-                  </thead>
-                  <tbody>
-                    {g.rows.map((r) => (
-                      <tr key={r.id}>
-                        <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
-                        <td>{t(r.status, lang) || '—'}</td>
-                        <td>{r.visaStartDate || '—'}</td>
-                        <td>{r.visaCompleteDate || '—'}</td>
-                        <td className="muted">{r.note || '—'}</td>
-                        {canEditPage && (
-                          <td className="row-actions">
-                            <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
-                            <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div>
+            <h3 style={{ margin: '0 0 8px' }}>{t('辦理中', lang)} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{inProgressRows.length} {t('位學生', lang)}</span></h3>
+            {inProgressGroups.length === 0 ? (
+              <p className="muted">{t('目前沒有越南簽證辦理中的學生。', lang)}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {inProgressGroups.map((g) => (
+                  <VisaProcessingGroupTable key={g.label} group={g} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} onComplete={markCompleted} lang={lang} />
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )
+          <div>
+            <h3 style={{ margin: '0 0 8px' }}>{t('已完成', lang)} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{completedRows.length} {t('位學生', lang)}</span></h3>
+            {completedGroups.length === 0 ? (
+              <p className="muted">{t('目前沒有已完成的學生。', lang)}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {completedGroups.map((g) => (
+                  <VisaProcessingGroupTable key={g.label} group={g} canEditPage={canEditPage} onEdit={setEditing} onRemove={remove} lang={lang} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
       {editing && (
         <VisaProcessingFormModal initial={editing} students={editing.id ? students : unrecordedStudents} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />
       )}
+    </div>
+  );
+}
+
+function VisaProcessingGroupTable({ group, canEditPage, onEdit, onRemove, onComplete, lang }) {
+  return (
+    <div className="card" style={{ overflowX: 'auto' }}>
+      <h3 style={{ marginTop: 0 }}>{group.label} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{group.rows.length} {t('位學生', lang)}</span></h3>
+      <div className="table-wrap"><table>
+        <thead>
+          <tr><th>{t('學生', lang)}</th><th>{t('狀態', lang)}</th><th>{t('辦理簽證時間', lang)}</th><th>{t('簽證完成時間', lang)}</th><th>{t('備註', lang)}</th>{canEditPage && <th></th>}</tr>
+        </thead>
+        <tbody>
+          {group.rows.map((r) => (
+            <tr key={r.id}>
+              <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
+              <td>{t(r.status, lang) || '—'}</td>
+              <td>{r.visaStartDate || '—'}</td>
+              <td>{r.visaCompleteDate || '—'}</td>
+              <td className="muted">{r.note || '—'}</td>
+              {canEditPage && (
+                <td className="row-actions">
+                  {onComplete && <button onClick={() => onComplete(r)}>{t('已完成', lang)}</button>}
+                  <button onClick={() => onEdit(r)}>{t('編輯', lang)}</button>
+                  <button className="danger" onClick={() => onRemove(r.id)}>{t('刪除', lang)}</button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table></div>
     </div>
   );
 }

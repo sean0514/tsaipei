@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
@@ -86,28 +86,45 @@ async function createVietnamStudentMirror(tsaipeiStudentId, ts) {
   return ref.id;
 }
 
+// 「越南送機行程」(DepartureTransportPage.jsx) 的表格要能直接看到這位學生
+// 並填日期/航班資訊，不用工作人員自己按「+新增」——這裡確保有一筆空白
+// 紀錄（只有 studentId，日期/航班等欄位都還沒填），找不到才新建，不會
+// 建出重複的空白列。
+async function ensureDepartureTransportStub(vietnamStudentId) {
+  if (!vietnamStudentId) return;
+  const snap = await getDocs(query(collection(db, 'vietnam_departureTransport'), where('studentId', '==', vietnamStudentId)));
+  if (!snap.empty) return;
+  await addDoc(collection(db, 'vietnam_departureTransport'), { studentId: vietnamStudentId });
+}
+
 export async function ensureVietnamStudentForTsaipeiStudent(tsaipeiStudentId, ts) {
   if (!ts) return null;
   const snap = await getDocs(collection(db, 'vietnam_students'));
   const matched = findVietnamStudentMatch(snap.docs.map((d) => ({ id: d.id, ...d.data() })), ts);
-  if (matched) return matched.id;
-  return createVietnamStudentMirror(tsaipeiStudentId, ts);
+  const vietnamStudentId = matched ? matched.id : await createVietnamStudentMirror(tsaipeiStudentId, ts);
+  await ensureDepartureTransportStub(vietnamStudentId);
+  return vietnamStudentId;
 }
 
 // 補跑用：「越南辦理簽證」頁面載入時，對目前名單裡所有學生都檢查一次有沒有
-// 對應的越南系統學生資料，缺的就補建——這個同步機制上線之前就已經存在的
-// 「越南辦理簽證」紀錄（例如境外生實習系統那邊的連動曾經因為權限規則寫錯
-// 而建立失敗，後來才修好，或是手動建檔時機更早）都不會有對應紀錄，只靠
-// 新建時才同步是補不到這些舊資料的，要在這裡主動補一次。只打一次
-// getDocs(vietnam_students)，不是每位學生各自打一次，避免名單一多就很慢。
+// 對應的越南系統學生資料／送機行程空白紀錄，缺的就補建——這個同步機制上線
+// 之前就已經存在的「越南辦理簽證」紀錄（例如境外生實習系統那邊的連動曾經
+// 因為權限規則寫錯而建立失敗，後來才修好，或是手動建檔時機更早）都不會有
+// 對應紀錄，只靠新建時才同步是補不到這些舊資料的，要在這裡主動補一次。
+// 越南系統學生資料只打一次 getDocs(vietnam_students)，不是每位學生各自
+// 打一次，避免名單一多就很慢；送機行程空白紀錄仍是每位學生各自查一次
+// （where 查詢有索引，成本遠低於整個 collection 掃描）。
 export async function backfillVietnamStudentsForTsaipeiStudents(tsStudentsWithIds) {
   if (!tsStudentsWithIds.length) return;
   const snap = await getDocs(collection(db, 'vietnam_students'));
   const vietnamStudentDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   for (const { id, ...ts } of tsStudentsWithIds) {
-    if (findVietnamStudentMatch(vietnamStudentDocs, ts)) continue;
-    const newDoc = { id: `__pending_${id}`, ...ts };
-    vietnamStudentDocs.push(newDoc);
-    await createVietnamStudentMirror(id, ts);
+    let matched = findVietnamStudentMatch(vietnamStudentDocs, ts);
+    if (!matched) {
+      const newId = await createVietnamStudentMirror(id, ts);
+      matched = { id: newId, ...ts };
+      vietnamStudentDocs.push(matched);
+    }
+    await ensureDepartureTransportStub(matched.id);
   }
 }

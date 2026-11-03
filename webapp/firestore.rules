@@ -457,14 +457,24 @@ service cloud.firestore {
     // (tsaipei 系統自己的 applicationProgress 權限)，不是 vnCanEdit
     // （那檢查的是越南系統自己的 applicationProgress 模組，跟這個連動
     // 無關，放錯會讓沒有越南系統帳號的 tsaipei 人員寫入被拒絕）。
+    // delete 也放行 tsCanEdit('applicationProgress')：境外生實習系統刪除
+    // 申辦進度紀錄時，會一併刪除連動建立的這筆越南簽證辦理紀錄（見
+    // tsaipei/ApplicationProgressPage.jsx 的 handleDelete），是從 tsaipei
+    // 那邊的使用者觸發，要放行 tsaipei 系統自己的權限。
     match /vietnam_visaProcessing/{docId} {
       allow read: if vnIsMember();
       allow create: if vnCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
-      allow update, delete: if vnCanEdit('visaProcessing');
+      allow update: if vnCanEdit('visaProcessing');
+      allow delete: if vnCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
     }
+    // create 也放行 visaProcessing（越南端新增/補跑「越南辦理簽證」時，
+    // 會順便在這裡建一筆空白送機行程紀錄）跟 tsCanEdit('applicationProgress')
+    // （境外生實習系統「申辦進度追蹤」的連動也會觸發同一段邏輯，是從
+    // tsaipei 那邊的使用者寫入，要放行 tsaipei 系統自己的權限）。
     match /vietnam_departureTransport/{docId} {
       allow read: if vnIsMember();
-      allow write: if vnCanEdit('departureTransport');
+      allow create: if vnCanEdit('departureTransport') || vnCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
+      allow update, delete: if vnCanEdit('departureTransport');
     }
     // 申請表格：國外補助申請/日常支出申請/郵資費用紀錄每個分頁各自独立權限
     // （比照 tsaipei）。已核准/已匯款之後，只有系統管理員/主管/會計人員能
