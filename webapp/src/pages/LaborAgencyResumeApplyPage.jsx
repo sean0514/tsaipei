@@ -3,86 +3,17 @@ import { useSearchParams } from 'react-router-dom';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../firebase';
+import { RESUME_LABELS as LABELS } from '../lib/laborAgencyResumeLabels';
 
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
 // 公開的線上履歷填寫頁面（/apply/laborAgency?ref=專員姓名），不需要登入；
 // 欄位依使用者提供的「工廠移工人員履歷表」（中越文對照）製作，中文/越南文
 // 可用上方按鈕切換顯示（跟 JunyuCompanySitePage.jsx 的語言切換同一套做法，
-// 這裡詞彙是這張表單專用的，不進共用的 lib/i18n.js 字典）。送出後新增一筆
+// 欄位對照表是這張表單專用的，放在 lib/laborAgencyResumeLabels.js 跟移工
+// 名冊的「下載履歷表」共用，不進共用的 lib/i18n.js 字典）。送出後新增一筆
 // laborAgency_resumeSubmissions，由內部人員在「履歷表連結」頁面轉入移工
 // 資料（跟 vietnam 系統的 VietnamResumeApplyPage.jsx 同一套模式）。
-const LABELS = {
-  pageTitle: { zh: '工廠移工人員履歷表', vi: 'Sơ yếu lý lịch công nhân công xưởng' },
-  sectionBasic: { zh: '個人基本資料', vi: 'Thông tin cơ bản cá nhân' },
-  vietnameseName: { zh: '越文姓名', vi: 'Họ tên tiếng Việt' },
-  chineseName: { zh: '中文姓名', vi: 'Họ tên tiếng Trung' },
-  gender: { zh: '性別', vi: 'Giới tính' },
-  male: { zh: '男', vi: 'Nam' },
-  female: { zh: '女', vi: 'Nữ' },
-  hometown: { zh: '地區', vi: 'Địa chỉ' },
-  birthDate: { zh: '出生日期', vi: 'Ngày sinh' },
-  height: { zh: '身高(cm)', vi: 'Chiều cao (cm)' },
-  weight: { zh: '體重(kg)', vi: 'Cân nặng (kg)' },
-  eyesight: { zh: '視力', vi: 'Thị lực' },
-  religion: { zh: '宗教', vi: 'Tôn giáo' },
-  ethnicity: { zh: '民族', vi: 'Dân tộc' },
-  dominantHand: { zh: '慣用手', vi: 'Tay thuận' },
-  leftHand: { zh: '左手', vi: 'Tay trái' },
-  rightHand: { zh: '右手', vi: 'Tay phải' },
-  majorSurgery: { zh: '是否有過重大手術', vi: 'Có hay không trải qua phẫu thuật lớn' },
-  yes: { zh: '有', vi: 'Có' },
-  no: { zh: '無', vi: 'Không' },
-  hasTattoo: { zh: '是否有刺青', vi: 'Có hình xăm không' },
-  tattooPhoto: { zh: '刺青照片', vi: 'Ảnh hình xăm' },
-  photo: { zh: '照片', vi: 'Ảnh' },
-
-  sectionFamily: { zh: '家庭狀況', vi: 'Gia đình' },
-  maritalStatus: { zh: '結婚狀況', vi: 'Tình trạng hôn nhân' },
-  single: { zh: '未婚', vi: 'Độc thân' },
-  married: { zh: '已婚', vi: 'Đã kết hôn' },
-  father: { zh: '父親姓名', vi: 'Họ tên Bố' },
-  mother: { zh: '母親姓名', vi: 'Họ tên Mẹ' },
-  spouse: { zh: '配偶姓名', vi: 'Họ tên Vợ/chồng' },
-  alive: { zh: '存歿', vi: 'Còn/Mất' },
-  stillAlive: { zh: '存', vi: 'Còn' },
-  deceased: { zh: '歿', vi: 'Mất' },
-  age: { zh: '年齡', vi: 'Tuổi' },
-  occupation: { zh: '職業', vi: 'Nghề nghiệp' },
-  childrenCount: { zh: '子女人數', vi: 'Số con' },
-  siblingsCount: { zh: '兄弟姐妹人數', vi: 'Số anh chị em' },
-  birthOrder: { zh: '家中排行', vi: 'Con thứ' },
-  relativesInTaiwan: { zh: '在台親戚', vi: 'Người thân ở Đài Loan' },
-  relativesLocation: { zh: '若有，哪個縣市', vi: 'Nếu có, ở tỉnh thành nào' },
-
-  sectionEducation: { zh: '學歷、語言', vi: 'Học lực, Ngôn ngữ' },
-  educationLevel: { zh: '最高學歷', vi: 'Học lực cao nhất' },
-  chineseLevel: { zh: '中文程度', vi: 'Trình độ tiếng Trung' },
-  englishLevel: { zh: '英文程度', vi: 'Trình độ tiếng Anh' },
-  langNone: { zh: '不會', vi: 'Không biết' },
-  langLittle: { zh: '會一點', vi: 'Biết chút ít' },
-  langOk: { zh: '中等', vi: 'Trung bình' },
-  langGood: { zh: '流利', vi: 'Thành thạo' },
-
-  sectionExperience: { zh: '國內外工作經驗', vi: 'Kinh nghiệm làm việc trong, ngoài nước' },
-  domesticExperience: { zh: '國內工作經驗', vi: 'Kinh nghiệm trong nước' },
-  overseasExperience: { zh: '國外工作經驗', vi: 'Kinh nghiệm nước ngoài' },
-  year: { zh: '年份', vi: 'Năm' },
-  description: { zh: '工作內容', vi: 'Nội dung công việc' },
-  leaveReason: { zh: '離職原因', vi: 'Nguyên nhân từ chức' },
-  addRow: { zh: '+ 新增一筆', vi: '+ Thêm dòng' },
-  removeRow: { zh: '移除', vi: 'Xóa' },
-
-  specialties: { zh: '專長', vi: 'Chuyên môn' },
-
-  submit: { zh: '送出', vi: 'Gửi' },
-  submitting: { zh: '送出中…', vi: 'Đang gửi…' },
-  select: { zh: '請選擇', vi: 'Chọn' },
-  photoTooBig: { zh: '照片檔案太大（上限 3MB）', vi: 'Ảnh quá lớn (tối đa 3MB)' },
-  submitFailed: { zh: '送出失敗', vi: 'Gửi thất bại' },
-  doneTitle: { zh: '履歷已送出', vi: 'Hồ sơ đã được gửi' },
-  doneDesc: { zh: '感謝您的填寫，我們會盡快與您聯繫。', vi: 'Cảm ơn bạn đã điền thông tin, chúng tôi sẽ liên hệ sớm nhất có thể.' },
-};
 const LANGS = [{ key: 'zh', label: '中文' }, { key: 'vi', label: 'Tiếng Việt' }];
 
 function emptyExperienceRow() {
@@ -134,6 +65,8 @@ export default function LaborAgencyResumeApplyPage() {
   const [photoError, setPhotoError] = useState('');
   const [tattooPhotoFile, setTattooPhotoFile] = useState(null);
   const [tattooPhotoError, setTattooPhotoError] = useState('');
+  const [lineQrPhotoFile, setLineQrPhotoFile] = useState(null);
+  const [lineQrPhotoError, setLineQrPhotoError] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -168,6 +101,18 @@ export default function LaborAgencyResumeApplyPage() {
     setTattooPhotoFile(file);
   }
 
+  function handleLineQrPhotoChange(e) {
+    const file = e.target.files?.[0] || null;
+    setLineQrPhotoError('');
+    if (file && file.size > MAX_PHOTO_SIZE) {
+      setLineQrPhotoError(L('photoTooBig'));
+      setLineQrPhotoFile(null);
+      e.target.value = '';
+      return;
+    }
+    setLineQrPhotoFile(file);
+  }
+
   async function uploadPhoto(file, prefix) {
     if (!file) return '';
     const path = `laborAgency_resumePhotos/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
@@ -188,23 +133,15 @@ export default function LaborAgencyResumeApplyPage() {
     try {
       const photoUrl = await uploadPhoto(photoFile, 'headshot');
       const tattooPhotoUrl = await uploadPhoto(tattooPhotoFile, 'tattoo');
-      // 送出履歷時直接建立一筆工人資料（進「移工名冊」，案件
-      // 階段從「雇主確認」起算），內部人員不用再手動「轉入移工管理」。
-      const workerDoc = await addDoc(collection(db, 'laborAgency_workers'), {
-        name: form.chineseName || form.vietnameseName || '',
+      const lineQrPhotoUrl = await uploadPhoto(lineQrPhotoFile, 'lineQr');
+      // 履歷填寫的完整資料——移工名冊(laborAgency_workers)跟履歷表連結的
+      // 履歷清單(laborAgency_resumeSubmissions)都要存這整份，名冊才能顯示
+      // 跟下載完整的履歷表，不是只存精簡的幾個欄位。
+      const resumeFields = {
         vietnameseName: form.vietnameseName || '',
         chineseName: form.chineseName || '',
         gender: form.gender || '',
-        province: form.hometown || '',
-        photoUrl,
-        note: form.specialties || '',
-        stage: '雇主確認',
-        updatedAt: Date.now(),
-      });
-      await addDoc(collection(db, 'laborAgency_resumeSubmissions'), {
-        vietnameseName: form.vietnameseName || '',
-        chineseName: form.chineseName || '',
-        gender: form.gender || '',
+        phone: form.phone || '',
         hometown: form.hometown || '',
         birthDate: form.birthDate || '',
         height: form.height || '',
@@ -216,6 +153,7 @@ export default function LaborAgencyResumeApplyPage() {
         majorSurgery: form.majorSurgery || '',
         hasTattoo: form.hasTattoo || '',
         tattooPhotoUrl,
+        lineQrPhotoUrl,
         maritalStatus: form.maritalStatus || '',
         photoUrl,
         fatherName: form.fatherName || '',
@@ -240,6 +178,19 @@ export default function LaborAgencyResumeApplyPage() {
         domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
         overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
         specialties: form.specialties || '',
+      };
+      // 送出履歷時直接建立一筆工人資料（進「移工名冊」，案件
+      // 階段從「雇主確認」起算），內部人員不用再手動「轉入移工管理」。
+      const workerDoc = await addDoc(collection(db, 'laborAgency_workers'), {
+        ...resumeFields,
+        name: form.chineseName || form.vietnameseName || '',
+        province: form.hometown || '',
+        note: form.specialties || '',
+        stage: '雇主確認',
+        updatedAt: Date.now(),
+      });
+      await addDoc(collection(db, 'laborAgency_resumeSubmissions'), {
+        ...resumeFields,
         assignedStaff,
         status: '待處理',
         workerId: workerDoc.id,
@@ -297,6 +248,15 @@ export default function LaborAgencyResumeApplyPage() {
           <label>
             {L('hometown')}
             <input value={form.hometown || ''} onChange={(e) => setField('hometown', e.target.value)} />
+          </label>
+          <label>
+            {L('phone')}
+            <input value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} />
+          </label>
+          <label>
+            {L('lineQrPhoto')}
+            <input type="file" accept="image/*" onChange={handleLineQrPhotoChange} />
+            {lineQrPhotoError && <div className="error-text">{lineQrPhotoError}</div>}
           </label>
           <label>
             {L('birthDate')}

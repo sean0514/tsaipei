@@ -44,13 +44,14 @@ export default function ResumeLinksPage() {
   async function handleConvertToWorker(sub) {
     if (sub.workerId) return;
     if (!window.confirm(t('確定要把這筆履歷轉入移工管理嗎？', lang))) return;
+    // 把履歷的完整欄位都帶進移工名冊，不是只帶精簡的幾個欄位——跟
+    // pages/LaborAgencyResumeApplyPage.jsx 送出履歷時直接建立工人資料的
+    // 做法一致，這樣名冊才能顯示/下載完整履歷表。
+    const { id: _id, assignedStaff: _assignedStaff, status: _status, workerId: _workerId, createdAt: _createdAt, processedAt: _processedAt, ...resumeFields } = sub;
     const workerData = {
+      ...resumeFields,
       name: sub.chineseName || sub.vietnameseName || '',
-      vietnameseName: sub.vietnameseName || '',
-      chineseName: sub.chineseName || '',
-      gender: sub.gender || '',
       province: sub.hometown || '',
-      photoUrl: sub.photoUrl || '',
       note: sub.specialties || '',
       stage: STAGE_KEYS[0],
       updatedAt: Date.now(),
@@ -148,6 +149,7 @@ function ViewingModal({ sub, onClose, lang }) {
           <div><strong>{t('中文姓名', lang)}：</strong>{sub.chineseName || '—'}</div>
           <div><strong>{t('性別', lang)}：</strong>{t(sub.gender, lang) || '—'}</div>
           <div><strong>{t('地區', lang)}：</strong>{sub.hometown || '—'}</div>
+          <div><strong>{t('電話', lang)}：</strong>{sub.phone || '—'}</div>
           <div><strong>{t('出生日期', lang)}：</strong>{sub.birthDate || '—'}</div>
           <div><strong>{t('身高/體重', lang)}：</strong>{sub.height || '—'} cm / {sub.weight || '—'} kg</div>
           <div><strong>{t('視力', lang)}：</strong>{sub.eyesight || '—'}</div>
@@ -161,6 +163,12 @@ function ViewingModal({ sub, onClose, lang }) {
           <div style={{ marginBottom: 12 }}>
             <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{t('刺青照片', lang)}</div>
             <img src={sub.tattooPhotoUrl} alt="" style={{ width: 160, maxHeight: 160, objectFit: 'cover' }} />
+          </div>
+        )}
+        {sub.lineQrPhotoUrl && (
+          <div style={{ marginBottom: 12 }}>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>LINE</div>
+            <img src={sub.lineQrPhotoUrl} alt="" style={{ width: 160, maxHeight: 160, objectFit: 'cover' }} />
           </div>
         )}
         <h4>{t('家庭狀況', lang)}</h4>

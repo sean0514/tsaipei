@@ -5,7 +5,52 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
+import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
+import { RESUME_LABELS, RESUME_VALUE_LABEL_KEYS, RESUME_DOWNLOAD_FIELDS } from '../../lib/laborAgencyResumeLabels';
 import { JOBS, GENDERS, STAGE_KEYS } from './constants';
+
+function parseExperience(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+// 中文原文 → 越南文：履歷表的是/否、性別等選項欄位資料庫存的是中文原文，
+// 查不到對照（例如工人自己手寫的自由文字欄位）就中越文都顯示原文。
+function bilingualValue(raw) {
+  if (!raw) return { zh: '', vi: '' };
+  const labelKey = RESUME_VALUE_LABEL_KEYS[raw];
+  return { zh: raw, vi: labelKey ? RESUME_LABELS[labelKey].vi : raw };
+}
+
+// 下載履歷表：把「移工填寫的履歷」(pages/LaborAgencyResumeApplyPage.jsx)
+// 送出時帶進移工名冊(laborAgency_workers)的完整欄位整理成中越文對照的
+// Excel，欄位名稱/選項翻譯跟填寫頁共用 lib/laborAgencyResumeLabels.js，
+// 不用再手動維護第二份對照表。
+async function downloadWorkerResume(w) {
+  await downloadXlsx(`履歷表_${w.name || w.vietnameseName || w.id}.xlsx`, (workbook) => {
+    const rows = RESUME_DOWNLOAD_FIELDS.map(({ key, labelKey, prefixKey }) => {
+      const label = RESUME_LABELS[labelKey];
+      const prefix = prefixKey ? RESUME_LABELS[prefixKey].zh : '';
+      const prefixVi = prefixKey ? RESUME_LABELS[prefixKey].vi : '';
+      const { zh, vi } = bilingualValue(w[key]);
+      return [`${prefix}${label.zh} / ${prefixVi} ${label.vi}`.trim(), zh || '—', vi || '—'];
+    });
+    [['photoUrl', 'photo'], ['tattooPhotoUrl', 'tattooPhoto'], ['lineQrPhotoUrl', 'lineQrPhoto']].forEach(([key, labelKey]) => {
+      if (!w[key]) return;
+      const label = RESUME_LABELS[labelKey];
+      rows.push([`${label.zh} / ${label.vi}`, w[key], w[key]]);
+    });
+    ['domesticExperience', 'overseasExperience'].forEach((key) => {
+      const label = RESUME_LABELS[key];
+      parseExperience(w[key]).forEach((r, i) => {
+        rows.push([`${label.zh} / ${label.vi} ${i + 1}`, `${r.year || ''} ${r.description || ''} ${r.reason || ''}`.trim() || '—', '—']);
+      });
+    });
+    addTableSheet(workbook, '履歷表', ['欄位 Field / Trường thông tin', '中文 Tiếng Trung', 'Tiếng Việt'], rows);
+  });
+}
 
 // 移工名冊：跳過「移工管理」的案件階段／雇主配對等流程資訊，只看工人的
 // 基本資料（姓名/性別/省份/工種/護照效期/備註），跟「移工管理」共用同一個
@@ -67,7 +112,7 @@ export default function WorkerRosterPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('護照效期', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('省份', lang)}</th><th>{t('工種', lang)}</th><th>{t('護照效期', lang)}</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -79,15 +124,18 @@ export default function WorkerRosterPage() {
                   <td>{w.province || '—'}</td>
                   <td>{t(w.job, lang) || '—'}</td>
                   <td>{w.passportExpiry || '—'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
-                      <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
-                    </td>
-                  )}
+                  <td className="row-actions">
+                    <button onClick={() => downloadWorkerResume(w)}>{t('下載履歷表', lang)}</button>
+                    {canEditPage && (
+                      <>
+                        <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
+                        <button className="danger" onClick={() => remove(w.id)}>{t('刪除', lang)}</button>
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">{t('尚未建立工人資料', lang)}</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="muted">{t('尚未建立工人資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         </div>
