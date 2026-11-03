@@ -116,8 +116,10 @@ import VietnamStudentBillingPage from './systems/vietnam/StudentBillingPage';
 import LaborAgencyDashboardPage from './systems/laborAgency/DashboardPage';
 import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
 import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
-import LaborAgencyExpiryAlertsPage from './systems/laborAgency/ExpiryAlertsPage';
 import LaborAgencyDocsChecklistPage from './systems/laborAgency/DocsChecklistPage';
+import LaborAgencyVisaProcessingPage from './systems/laborAgency/VisaProcessingPage';
+import LaborAgencyDeparturePage from './systems/laborAgency/DeparturePage';
+import LaborAgencyArrivalNoticePage from './systems/laborAgency/ArrivalNoticePage';
 import LaborAgencyResumeLinksPage from './systems/laborAgency/ResumeLinksPage';
 import LaborAgencySalaryCalcPage from './systems/laborAgency/SalaryCalcPage';
 import LaborAgencyFeeSetupPage from './systems/laborAgency/FeeSetupPage';
@@ -293,7 +295,9 @@ const PAGES = {
     workers: LaborAgencyWorkersPage,
     employers: LaborAgencyEmployersPage,
     docsChecklist: LaborAgencyDocsChecklistPage,
-    expiryAlerts: LaborAgencyExpiryAlertsPage,
+    visaProcessing: LaborAgencyVisaProcessingPage,
+    departure: LaborAgencyDeparturePage,
+    arrivalNotice: LaborAgencyArrivalNoticePage,
     salaryCalc: LaborAgencySalaryCalcPage,
     feeSetup: LaborAgencyFeeSetupPage,
     chargeRecords: LaborAgencyChargeRecordsPage,
