@@ -1271,8 +1271,8 @@ const VI = {
 
   // 越南簽證辦理（VisaProcessingPage）
   '越南簽證辦理': 'Xử lý visa Việt Nam',
-  '境外生實習系統「申辦進度追蹤」的經濟部/交通部審核完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫':
-    'Sau khi "Theo dõi tiến độ hồ sơ" của hệ thống thực tập sinh nước ngoài hoàn tất bước Bộ Kinh tế/Bộ Giao thông duyệt, sẽ tự động tạo bản ghi "Đang xử lý"; thời gian xử lý visa/thời gian hoàn tất visa được điền thủ công tại đây',
+  '境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或發函後寄國外任一完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫':
+    'Sau khi "Theo dõi tiến độ hồ sơ" của hệ thống thực tập sinh nước ngoài hoàn tất bước Bộ Kinh tế/Bộ Giao thông duyệt hoặc Gửi công văn ra nước ngoài, sẽ tự động tạo bản ghi "Đang xử lý"; thời gian xử lý visa/thời gian hoàn tất visa được điền thủ công tại đây',
   '目前沒有越南簽證辦理中的學生。': 'Hiện không có học viên đang xử lý visa Việt Nam.',
   '辦理簽證時間': 'Thời gian xử lý visa',
   '簽證完成時間': 'Thời gian hoàn tất visa',
