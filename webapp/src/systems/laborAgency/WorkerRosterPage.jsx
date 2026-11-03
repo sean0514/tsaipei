@@ -20,7 +20,7 @@ function parseExperience(json) {
 // 工種改複選後存成 JSON 陣列字串；舊資料是單一字串（例如「製造業」），
 // 不是 JSON，parse 失敗或結果不是陣列就當成單一項目的陣列，舊資料不用
 // 遷移也能正常顯示/編輯。
-function parseJobs(raw) {
+export function parseJobs(raw) {
   if (!raw) return [];
   try {
     const arr = JSON.parse(raw);
@@ -31,7 +31,7 @@ function parseJobs(raw) {
 // 工種複選群組，同時可以自行輸入清單以外的項目——跟 vietnam 系統
 // StudentsPage.jsx 的 MultiSelectEditor 同一套做法：自訂項目額外顯示在
 // 固定選項後面，旁邊有「×」可以移除。
-function CheckboxGroup({ options, values, onChange, lang }) {
+export function CheckboxGroup({ options, values, onChange, lang }) {
   const [newItem, setNewItem] = useState('');
   const extraItems = values.filter((v) => !options.includes(v));
 
@@ -80,7 +80,7 @@ function CheckboxGroup({ options, values, onChange, lang }) {
 // employerIds（JSON 字串陣列），跟「移工管理」既有的單一 employerId
 // （「新增雇主安排」功能寫的）合併顯示，見 constants.js 的
 // workerEmployerIds()。
-function EmployerCheckboxGroup({ employers, values, onChange }) {
+export function EmployerCheckboxGroup({ employers, values, onChange }) {
   function toggle(id) {
     onChange(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
   }
@@ -105,7 +105,9 @@ function EmployerCheckboxGroup({ employers, values, onChange }) {
 // 這幾個履歷表沒有、但移工名冊建檔時就需要填的欄位。護照效期改在「移工
 // 管理」(WorkersPage.jsx) 填寫/顯示，這裡不重複。「下載履歷表」產生排版
 // 跟紙本履歷表一樣的 Word 文件(lib/laborAgencyResumeDocx.js)，不是
-// Excel 表格。
+// Excel 表格。這裡的 parseJobs/CheckboxGroup/EmployerCheckboxGroup 額外
+// export 給 WorkersPage.jsx 的「編輯移工」共用，兩邊是同一個人的同一份
+// 資料，欄位要一致，不能各自維護一份。
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
   { key: 'gender', label: '性別' }, { key: 'province', label: '省份' }, { key: 'job', label: '工種' },

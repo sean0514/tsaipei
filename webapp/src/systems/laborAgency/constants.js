@@ -73,14 +73,35 @@ export function workerEmployerIds(w) {
   return ids;
 }
 
-// 審核結果：配對後的面試/錄取結果，跟案件「目前階段」分開追蹤——階段是
-// 走到哪個行政流程，審核結果是這次配對有沒有被雇主選上。雇主需求單的
-// 「已錄取」人數、文件追蹤/辦理簽證/出境辦理等後續關卡的名單，都是從
-// 「通過錄取」的移工篩出來。
-export const REVIEW_RESULTS = ['面試中', '通過錄取', '取消', '不錄取'];
+// 移工管理的「目前階段」：面試/錄取/取消/未通過，每一筆配對（移工×雇主）
+// 各自獨立，不是整個移工共用一個狀態——同一個移工可能同時在跟雇主 A
+// 面試、被雇主 B 取消。存成 matchStatuses（JSON 物件，key 是雇主 id，
+// 「尚未配對」那筆用 UNMATCHED_MATCH_KEY 當 key），沒存過的配對預設是
+// 「面試」（MATCH_STATUSES[0]）。雇主需求單的「已錄取」人數、文件追蹤/
+// 辦理簽證/出境辦理等後續關卡的名單，都是從某一筆配對狀態＝「錄取」
+// 篩出來（看的是那一筆配對，不是整個移工）。
+export const MATCH_STATUSES = ['面試', '錄取', '取消', '未通過'];
+export const UNMATCHED_MATCH_KEY = '__unmatched__';
 
-export function isHired(w) {
-  return w.reviewResult === '通過錄取';
+function parseMatchStatuses(w) {
+  try {
+    const obj = w.matchStatuses ? JSON.parse(w.matchStatuses) : {};
+    return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+  } catch { return {}; }
+}
+
+export function matchStatusOf(w, employerId) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return parseMatchStatuses(w)[key] || MATCH_STATUSES[0];
+}
+
+export function withMatchStatus(w, employerId, status) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return JSON.stringify({ ...parseMatchStatuses(w), [key]: status });
+}
+
+export function isHired(w, employerId) {
+  return matchStatusOf(w, employerId) === '錄取';
 }
 
 // 挑到工人後的文件清單（必備 required=true／依個案可選 required=false），

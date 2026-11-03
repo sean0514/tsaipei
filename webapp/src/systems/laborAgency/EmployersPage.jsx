@@ -70,7 +70,7 @@ export default function EmployersPage() {
 
   function employerStats(employerId) {
     const matchedWorkers = workers.filter((w) => workerEmployerIds(w).includes(employerId));
-    const hired = matchedWorkers.filter(isHired).length;
+    const hired = matchedWorkers.filter((w) => isHired(w, employerId)).length;
     return { matched: matchedWorkers.length, hired };
   }
 
