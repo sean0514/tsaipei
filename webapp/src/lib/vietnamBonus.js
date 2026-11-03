@@ -7,9 +7,10 @@ import { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjec
 
 export { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjectClientPair, computeDormManagerBonusForMonth };
 
-// 有固定月費率的角色（跟 InternalBonusRateSetupPage.jsx 的 RATE_FIELDS
-// 保持一致，不含宿管人員1/2——那兩個走舊的 computeDormManagerBonusForMonth，
-// 不受這裡的角色清單影響，費率來源已移除，固定算 0）。
+// 依學校分類設定月費率的角色（跟 InternalBonusRateSetupPage.jsx 的
+// RATE_FIELDS 保持一致，不含宿管人員1/2——那兩個走舊的
+// computeDormManagerBonusForMonth，不受這裡的角色清單影響，費率來源
+// (內部費用建檔) 已移除，固定算 0）。
 export const VN_RATE_ROLE_KEYS = ['bizDev', 'adminSupervisor', 'adminRecruit', 'adminVisa', 'fieldStaff'];
 export const VN_RATE_ROLE_LABELS = ['開發業務', '行政主管', '行政招募', '行政簽證', '外務人員'];
 
@@ -34,10 +35,18 @@ function positionAdminSupervisor(projectCode, client, positions) {
   return [...new Set(matching.map((p) => p[VN_POSITION_ASSIGNED_ROLE_KEY]).filter(Boolean))].join('、');
 }
 
+// 費率依學校分類（見 InternalBonusRateSetupPage.jsx），bonusRateSetup 是
+// vietnam_internalBonusRateSetup 的所有紀錄，每筆一個學校；依學生自己
+// 就讀的學校找對應那筆費率，找不到就當沒設定（金額算 0）。
+function rateForSchool(bonusRateSetup, school) {
+  return (bonusRateSetup || []).find((r) => r.school === school);
+}
+
 // 依客戶(實習單位)分組的主表，跟 lib/bonus.js 的 computeInternalBonusForMonth
 // 形狀一致，只是「行政主管」是整組共用同一個負責人（實習單位層級指派），
 // 其餘 4 個角色組內每位學生可能各自指派不同負責人，roles[k] 用「、」接起來
-// 列出組內出現過的所有負責人名字，實際分配金額請看「依人員加總」。
+// 列出組內出現過的所有負責人名字，實際分配金額請看「依人員加總」。金額
+// 依每位學生自己就讀學校的費率分別計算再加總（同組學生可能來自不同學校）。
 export function computeVietnamInternalBonusForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
@@ -54,20 +63,27 @@ export function computeVietnamInternalBonusForMonth(monthStr, ctx) {
     g.students.push({ student: s, days });
   });
   return Object.values(groups).map((g) => {
-    const rate = bonusRateSetup;
     const roles = {};
     const amounts = {};
     VN_RATE_ROLE_KEYS.forEach((k) => {
-      const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       if (k === VN_POSITION_ASSIGNED_ROLE_KEY) {
         roles[k] = positionAdminSupervisor(g.projectCode, g.client, positions);
-        amounts[k] = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
+        amounts[k] = g.students.reduce((sum, { student, days: d }) => {
+          const rate = rateForSchool(bonusRateSetup, student.school);
+          const rateVal = rate ? (Number(rate[k]) || 0) : 0;
+          return rateVal ? sum + Math.round((rateVal / range.daysInMonth) * d) : sum;
+        }, 0);
         return;
       }
       const field = VN_STUDENT_FIELD_BY_ROLE_KEY[k];
       const names = [...new Set(g.students.map(({ student }) => student[field]).filter(Boolean))];
       roles[k] = names.join('、');
-      amounts[k] = rateVal ? g.students.reduce((sum, { student, days: d }) => (student[field] ? sum + Math.round((rateVal / range.daysInMonth) * d) : sum), 0) : 0;
+      amounts[k] = g.students.reduce((sum, { student, days: d }) => {
+        if (!student[field]) return sum;
+        const rate = rateForSchool(bonusRateSetup, student.school);
+        const rateVal = rate ? (Number(rate[k]) || 0) : 0;
+        return rateVal ? sum + Math.round((rateVal / range.daysInMonth) * d) : sum;
+      }, 0);
     });
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, roles, amounts };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
@@ -118,7 +134,7 @@ export function computeVietnamInternalBonusByPersonForMonth(monthStr, ctx) {
     const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
     if (days <= 0) return;
     const pair = studentProjectClientPair(s.id, ctx);
-    const rate = pair && bonusRateSetup;
+    const rate = pair && rateForSchool(bonusRateSetup, s.school);
 
     VN_STUDENT_ASSIGNED_ROLE_KEYS.forEach((k) => {
       const name = s[VN_STUDENT_FIELD_BY_ROLE_KEY[k]];

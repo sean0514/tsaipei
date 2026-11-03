@@ -40,8 +40,7 @@ export default function ManagerReportPage() {
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
-  const { rows: bonusRateSetupRows } = useCollection('vietnam_internalBonusRateSetup');
-  const bonusRateSetup = bonusRateSetupRows.find((r) => r.id === 'default');
+  const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
   const [month, setMonth] = useState(currentMonthStr());
 
   // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓費率查找
