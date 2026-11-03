@@ -19,14 +19,16 @@ export default function BonusPage() {
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
-  const { rows: internalFeeSetupRecords } = useCollection('vietnam_internalFeeSetup');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, schools, dormitories, housingRecords };
+  // 內部費用建檔（費率來源）已移除，這裡固定傳空陣列，讓 lib/bonus.js /
+  // lib/vietnamBonus.js 原有的費率查找邏輯安全地找不到費率、金額算成 0，
+  // 不用動共用計算邏輯本身。
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
   const rows = computeVietnamInternalBonusForMonth(month, ctx).filter((r) =>
     !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.projectCode || '').toLowerCase().includes(q.toLowerCase())
   );
@@ -40,8 +42,8 @@ export default function BonusPage() {
 
   return (
     <div className="content">
-      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('依月份自動試算：內部費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總', lang)}</div></div></div>
-      <p className="muted">{t('依月份自動試算：內部費用建檔金額 ÷ 當月天數 × 學生當月在台天數，以實習單位（專案＋客戶）加總。', lang)}</p>
+      <div className="page-header"><div><h2>{t('內部獎金計算', lang)}</h2><div className="page-desc">{t('依月份自動試算：學校代表/宿管人員獎金，開發業務/行政主管/行政招募/行政簽證/外務人員費率來源已移除，金額顯示為 0', lang)}</div></div></div>
+      <p className="muted">{t('依月份自動試算：學校代表/宿管人員獎金，開發業務/行政主管/行政招募/行政簽證/外務人員費率來源已移除，金額顯示為 0。', lang)}</p>
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         <input placeholder={t('搜尋客戶或專案編號', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
@@ -88,7 +90,7 @@ export default function BonusPage() {
 
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>{t('宿管人員獎金', lang)}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>{t('依宿舍管理設定的宿管1/宿管2計算：這個月實際住在這間宿舍的學生天數 ÷ 30 × 該學生實習單位的內部費用建檔「宿管人員1/宿管人員2」金額，加總到對應的宿管身上。', lang)}</p>
+        <p className="muted" style={{ marginTop: 0 }}>{t('依宿舍管理設定的宿管1/宿管2計算，費率來源（內部費用建檔）已移除，金額顯示為 0。', lang)}</p>
         <div className="table-wrap"><table>
           <thead><tr><th>{t('宿舍', lang)}</th><th>{t('宿管1', lang)}</th><th>{t('宿管1獎金', lang)}</th><th>{t('宿管2', lang)}</th><th>{t('宿管2獎金', lang)}</th><th>{t('住宿天數合計', lang)}</th></tr></thead>
           <tbody>

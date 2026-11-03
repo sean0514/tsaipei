@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
-import { computeClientBillingForMonth, studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
+import { studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
 import {
   VN_RATE_ROLE_KEYS, computeVietnamInternalBonusForMonth, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
 } from '../../lib/vietnamBonus';
@@ -30,22 +30,21 @@ function BarRow({ label, count, max }) {
 export default function ManagerReportPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canSeeBonus = canView(system, 'bonus', role, overrides);
-  const canSeeBilling = canView(system, 'clientBilling', role, overrides);
-  const canSeeFinance = canSeeBonus || canSeeBilling;
+  const canSeeFinance = canSeeBonus;
   const { rows: students } = useCollection('vietnam_students');
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
-  const { rows: internalFeeSetupRecords } = useCollection('vietnam_internalFeeSetup');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
-  const { rows: clientFeeSetupRecords } = useCollection('vietnam_clientFeeSetup');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const [month, setMonth] = useState(currentMonthStr());
 
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, schools, clientFeeSetupRecords, dormitories, housingRecords };
+  // 內部費用建檔（費率來源）已移除，固定傳空陣列讓費率查找安全地找不到、
+  // 金額算成 0，不用動共用計算邏輯本身。
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
 
   const statusCounts = {};
   students.forEach((s) => { const k = s.status || '未設定'; statusCounts[k] = (statusCounts[k] || 0) + 1; });
@@ -84,13 +83,12 @@ export default function ManagerReportPage() {
     if (done) docsComplete++; else docsPending++;
   });
 
-  let bonusTotal = 0, billingTotal = 0;
+  let bonusTotal = 0;
   if (canSeeBonus) {
     computeVietnamInternalBonusForMonth(month, ctx).forEach((r) => VN_RATE_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
     computeVietnamSchoolRepBonusForMonth(month, ctx).forEach((r) => { bonusTotal += r.amount || 0; });
     computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
   }
-  if (canSeeBilling) computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });
 
   return (
     <div className="content">
@@ -100,7 +98,6 @@ export default function ManagerReportPage() {
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
             {canSeeBonus && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{bonusTotal.toLocaleString()}</div><div className="muted">{t('本月內部獎金試算', lang)}</div></div>}
-            {canSeeBilling && <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{billingTotal.toLocaleString()}</div><div className="muted">{t('本月客戶請款試算', lang)}</div></div>}
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsComplete}</div><div className="muted">{t('文件已齊全學生', lang)}</div></div>
             <div className="card"><div style={{ fontSize: 24, fontWeight: 700 }}>{docsPending}</div><div className="muted">{t('文件待補件學生', lang)}</div></div>
           </div>

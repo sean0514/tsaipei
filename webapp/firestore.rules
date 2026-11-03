@@ -336,14 +336,9 @@ service cloud.firestore {
         'dormManagement': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'meetings': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'closedCases': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'clientBilling': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'studentSelfPayHousing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'studentMasterSheet': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'foreignPayment': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'dormProfitLoss': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'companyProfitLoss': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'clientFeeSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
-        'internalFeeSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'schoolSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'bonus': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
         'scholarships': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
@@ -472,19 +467,6 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('foreignSubsidyApplication');
     }
-    match /vietnam_postageFeeRecords/{docId} {
-      allow read: if vnIsMember();
-      allow write: if vnCanEdit('postageFee');
-    }
-    // create/update 額外放行 foreignSubsidyApplication：國外補助申請核准
-    // （或核准後又修改內容）時會自動在這裡帶入/同步一筆待付款紀錄，經辦人
-    // 不一定有 foreignPayment 權限。delete 仍只限 foreignPayment，避免誤刪
-    // 已維護的付款紀錄。
-    match /vietnam_foreignPayments/{docId} {
-      allow read: if vnIsMember();
-      allow create, update: if vnCanEdit('foreignPayment') || vnCanEdit('foreignSubsidyApplication');
-      allow delete: if vnCanEdit('foreignPayment');
-    }
     match /vietnam_dormitories/{docId} {
       allow read: if vnIsMember();
       allow create, delete: if vnCanEdit('dormManagement');
@@ -511,10 +493,6 @@ service cloud.firestore {
       allow read: if vnIsMember() || tsIsMember();
       allow write: if vnCanEdit('companyNameTranslations');
     }
-    match /vietnam_internalFeeSetup/{docId} {
-      allow read: if vnIsMember();
-      allow write: if vnCanEdit('internalFeeSetup');
-    }
     // 學校資料建檔：學校代表＋獎金月費率（給內部獎金計算用）、獎學金金額
     // （給獎學金紀錄新增時自動帶入）。
     match /vietnam_schoolSetup/{docId} {
@@ -525,34 +503,11 @@ service cloud.firestore {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('scholarships');
     }
-    // create 額外放行 positions：新增實習單位時會自動在這裡帶入一筆空白費率，
-    // 經辦人不一定有 clientFeeSetup 權限。
-    match /vietnam_clientFeeSetup/{docId} {
-      allow read: if vnIsMember();
-      allow create: if vnCanEdit('clientFeeSetup') || vnCanEdit('positions');
-      allow update, delete: if vnCanEdit('clientFeeSetup');
-    }
-    // 客戶請款計算：確認封存的請款紀錄快照(每個客戶/專案/月份一筆)，封存
-    // 後畫面跟下載請款單都改用這份固定資料，不再即時重算。
-    match /vietnam_clientBillingLocks/{docId} {
-      allow read: if vnIsMember();
-      allow write: if vnCanEdit('clientBilling');
-    }
     // 學生請款計算：每個學生每個月的已收款/收款日期記錄，其他金額欄位都是
     // 即時計算、不落地儲存。
     match /vietnam_studentBillingPayments/{docId} {
       allow read: if vnIsMember();
       allow write: if vnCanEdit('studentBilling');
-    }
-    // 公司損益：使用者自行新增的收入/支出項目(例如內部人員薪資、保費)，
-    // 項目本身不分年份，金額依項目+月份各存一筆。
-    match /vietnam_companyPnlCustomItems/{docId} {
-      allow read: if vnIsMember();
-      allow write: if vnCanEdit('companyProfitLoss');
-    }
-    match /vietnam_companyPnlCustomAmounts/{docId} {
-      allow read: if vnIsMember();
-      allow write: if vnCanEdit('companyProfitLoss');
     }
     // 公開線上履歷連結（/apply/vietnam?ref=...）不需要登入即可新增一筆履歷，
     // 只允許這裡列出的個人資料欄位＋assignedStaff/status/createdAt，且
