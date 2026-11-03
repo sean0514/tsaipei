@@ -7,7 +7,7 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { downloadWorkerResumeDocx } from '../../lib/laborAgencyResumeDocx';
 import ResumeInternalFields, { emptyInterviewRow } from '../../components/ResumeInternalFields';
-import { emptyExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
+import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import { JOBS } from './constants';
 
 function parseExperience(json) {
@@ -171,11 +171,11 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
   const [form, setForm] = useState({ ...initial, chineseName: initial.chineseName || initial.name || '' });
   const [jobs, setJobs] = useState(() => parseJobs(initial.job));
   const [domesticExperience, setDomesticExperience] = useState(() => {
-    const rows = parseExperience(initial.domesticExperience);
+    const rows = parseExperience(initial.domesticExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
   });
   const [overseasExperience, setOverseasExperience] = useState(() => {
-    const rows = parseExperience(initial.overseasExperience);
+    const rows = parseExperience(initial.overseasExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
   });
   const [interviewLinks, setInterviewLinks] = useState(() => {
@@ -195,8 +195,8 @@ function WorkerRosterFormModal({ initial, onCancel, onSave, lang }) {
       province: form.hometown || '',
       note: form.specialties || '',
       job: JSON.stringify(jobs),
-      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
-      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
+      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
       interviewLinks: JSON.stringify(interviewLinks.filter((r) => r.date || r.link || r.note)),
     });
   }
