@@ -4,7 +4,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { emptyExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
+import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import ResumeInternalFields, { emptyInterviewRow } from '../../components/ResumeInternalFields';
 import { STAGE_KEYS } from './constants';
 
@@ -172,8 +172,8 @@ function withZh(raw, zh) {
 }
 
 function ViewingModal({ sub, onClose, lang }) {
-  const domestic = parseExperience(sub.domesticExperience);
-  const overseas = parseExperience(sub.overseasExperience);
+  const domestic = parseExperience(sub.domesticExperience).map(normalizeExperienceRow);
+  const overseas = parseExperience(sub.overseasExperience).map(normalizeExperienceRow);
   const interviewLinks = parseExperience(sub.interviewLinks);
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -227,11 +227,11 @@ function ViewingModal({ sub, onClose, lang }) {
         </div>
         <h4>{t('國內工作經驗', lang)}</h4>
         {domestic.length === 0 ? <p className="muted">—</p> : domestic.map((r, i) => (
-          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
+          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.startDate || '—'} ~ {r.endDate || '—'}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
         ))}
         <h4>{t('國外工作經驗', lang)}</h4>
         {overseas.length === 0 ? <p className="muted">—</p> : overseas.map((r, i) => (
-          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.year}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
+          <p key={i} className="muted" style={{ margin: '4px 0' }}>{r.startDate || '—'} ~ {r.endDate || '—'}　{withZh(r.description, r.descriptionZh)}{r.reason ? `（${t('離職原因：', lang)}${withZh(r.reason, r.reasonZh)}）` : ''}</p>
         ))}
         <h4>{t('面試連結', lang)}</h4>
         {interviewLinks.length === 0 ? <p className="muted">—</p> : interviewLinks.map((r, i) => (
@@ -257,11 +257,11 @@ function ViewingModal({ sub, onClose, lang }) {
 function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
   const [form, setForm] = useState({ ...sub });
   const [domesticExperience, setDomesticExperience] = useState(() => {
-    const rows = parseExperience(sub.domesticExperience);
+    const rows = parseExperience(sub.domesticExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
   });
   const [overseasExperience, setOverseasExperience] = useState(() => {
-    const rows = parseExperience(sub.overseasExperience);
+    const rows = parseExperience(sub.overseasExperience).map(normalizeExperienceRow);
     return rows.length ? rows : [emptyExperienceRow()];
   });
   const [interviewLinks, setInterviewLinks] = useState(() => {
@@ -280,8 +280,8 @@ function EditSubmissionModal({ sub, onCancel, onSave, lang }) {
     const { id: _id, assignedStaff: _assignedStaff, status: _status, workerId: _workerId, createdAt: _createdAt, processedAt: _processedAt, ...resumeFields } = form;
     onSave({
       ...resumeFields,
-      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
-      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+      domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
+      overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
       interviewLinks: JSON.stringify(interviewLinks.filter((r) => r.date || r.link || r.note)),
     });
   }

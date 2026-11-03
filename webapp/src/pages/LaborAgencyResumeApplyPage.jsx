@@ -21,7 +21,22 @@ const LANGS = [{ key: 'zh', label: '中文' }, { key: 'vi', label: 'Tiếng Vi�
 // 匯出給 systems/laborAgency/ResumeLinksPage.jsx 的「編輯履歷」表單共用，
 // 不用重複寫一份一樣的國內外工作經驗編輯器。
 export function emptyExperienceRow() {
-  return { year: '', description: '', reason: '' };
+  return { startDate: '', endDate: '', description: '', reason: '' };
+}
+
+// 舊資料相容：欄位原本只有單一「年份」(year，YYYY-MM-DD)，改成開始/
+// 結束年月(startDate/endDate，YYYY-MM)兩個欄位後，舊資料沒有 startDate
+// 時用 year 切成 YYYY-MM 補上，沒有結束年月（舊資料本來就沒有這個概念）
+// 就留空，不用特別遷移 Firestore 既有紀錄也能正常顯示/編輯。
+export function normalizeExperienceRow(r) {
+  return {
+    startDate: r.startDate || (r.year ? r.year.slice(0, 7) : ''),
+    endDate: r.endDate || '',
+    description: r.description || '',
+    descriptionZh: r.descriptionZh || '',
+    reason: r.reason || '',
+    reasonZh: r.reasonZh || '',
+  };
 }
 
 // 獨立宣告在元件外面——原本寫在 LaborAgencyResumeApplyPage 裡面，每次
@@ -58,8 +73,12 @@ export function ExperienceEditor({ rows, setRows, labels, translatable }) {
       {rows.map((r, i) => (
         <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
           <label>
-            {labels.year}
-            <input type="date" value={r.year} onChange={(e) => updateRow(i, { year: e.target.value })} />
+            {labels.startDate}
+            <input type="month" value={r.startDate} onChange={(e) => updateRow(i, { startDate: e.target.value })} />
+          </label>
+          <label>
+            {labels.endDate}
+            <input type="month" value={r.endDate} onChange={(e) => updateRow(i, { endDate: e.target.value })} />
           </label>
           <label>
             {labels.description}
@@ -155,7 +174,7 @@ export default function LaborAgencyResumeApplyPage() {
   }
 
   const experienceLabels = {
-    year: L('year'), description: L('description'), leaveReason: L('leaveReason'),
+    startDate: L('startDate'), endDate: L('endDate'), description: L('description'), leaveReason: L('leaveReason'),
     removeRow: L('removeRow'), addRow: L('addRow'),
   };
 
@@ -216,8 +235,8 @@ export default function LaborAgencyResumeApplyPage() {
         educationLevelZh: form.educationLevelZh || '',
         chineseLevel: form.chineseLevel || '',
         englishLevel: form.englishLevel || '',
-        domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.year || r.description || r.reason)),
-        overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.year || r.description || r.reason)),
+        domesticExperience: JSON.stringify(domesticExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
+        overseasExperience: JSON.stringify(overseasExperience.filter((r) => r.startDate || r.endDate || r.description || r.reason)),
         specialties: form.specialties || '',
         specialtiesZh: form.specialtiesZh || '',
       };

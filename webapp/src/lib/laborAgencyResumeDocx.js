@@ -108,13 +108,24 @@ export async function downloadWorkerResumeDocx(w) {
     return zh && zh !== raw ? `${zh} / ${raw}` : raw;
   }
 
+  // 舊資料相容：沒有 startDate 時用舊的 year 欄位(YYYY-MM-DD)切成
+  // YYYY-MM 顯示，跟 pages/LaborAgencyResumeApplyPage.jsx 的
+  // normalizeExperienceRow 同一套規則。
+  function experienceDate(r) {
+    return r.startDate || (r.year ? r.year.slice(0, 7) : '') || '—';
+  }
+
   function experienceTable(rows) {
     const header = new TableRow({
-      children: [experienceHeaderCell('year', 20), experienceHeaderCell('description', 50), experienceHeaderCell('leaveReason', 30)],
+      children: [
+        experienceHeaderCell('startDate', 15), experienceHeaderCell('endDate', 15),
+        experienceHeaderCell('description', 40), experienceHeaderCell('leaveReason', 30),
+      ],
     });
     const body = (rows.length ? rows : [{}]).map((r) => new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph(r.year || '—')] }),
+        new TableCell({ children: [new Paragraph(experienceDate(r))] }),
+        new TableCell({ children: [new Paragraph(r.endDate || '—')] }),
         new TableCell({ children: [new Paragraph(withZh(r.description, r.descriptionZh))] }),
         new TableCell({ children: [new Paragraph(withZh(r.reason, r.reasonZh))] }),
       ],
