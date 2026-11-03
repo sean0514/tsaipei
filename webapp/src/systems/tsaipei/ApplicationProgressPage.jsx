@@ -224,6 +224,8 @@ export default function ApplicationProgressPage() {
     // 端的人員自己盯著這裡的進度手動建立；辦理簽證時間/簽證完成時間留給
     // 越南端的人員自己在那個頁面填寫，這裡不自動帶日期。existsForStudent
     // 檢查避免重複建立，所以每次存檔都檢查是安全的，不會建出重複紀錄。
+    // 如果這兩關的日期是被改回空白（修正輸入錯誤，不是本來就沒填），對應
+    // 已連動建立的「越南簽證辦理」紀錄也要移除，不留著一筆不該存在的紀錄。
     if (data.ministryReviewDate || data.sentAbroadDate) {
       await runCascadeStep('建立越南簽證辦理紀錄', async () => {
         const student = students.find((s) => s.id === data.studentId);
@@ -236,33 +238,47 @@ export default function ApplicationProgressPage() {
         // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
         await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
       });
+    } else {
+      const student = students.find((s) => s.id === data.studentId);
+      if (isAllowedSourceStudent(student)) {
+        await runCascadeStep('移除越南簽證辦理紀錄', () => removeLinkedVisaProcessing(
+          data.studentId,
+          '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，把經濟部/交通部審核、發函後寄國外的日期都清空會連同刪除越南端的紀錄，確定要清空嗎？'
+        ));
+      }
     }
     setEditing(null);
   }
 
+  // 共用：移除某位學生連動建立的「越南簽證辦理」紀錄——申辦進度整筆被
+  // 刪除、或「經濟部/交通部審核」「發函後寄國外」兩關的日期都被改回空白
+  // （修正輸入錯誤）時都會用到。越南端如果已經手動填了辦理簽證時間/簽證
+  // 完成時間，刪除前用 confirm 提醒一次，避免誤刪越南端已經在處理中的
+  // 紀錄；使用者取消就不刪除，回傳 false 讓呼叫端知道要中止後續動作。
+  async function removeLinkedVisaProcessing(studentId, confirmMessage) {
+    const snap = await getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', studentId)));
+    if (snap.empty) return true;
+    const hasVietnamProgress = snap.docs.some((d) => d.data().visaStartDate || d.data().visaCompleteDate);
+    const confirmed = !hasVietnamProgress || window.confirm(confirmMessage);
+    if (!confirmed) return false;
+    await runCascadeStep('刪除越南簽證辦理紀錄', async () => {
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'vietnam_visaProcessing', d.id))));
+    });
+    return true;
+  }
+
   // 刪除這筆申辦進度紀錄時，如果曾經連動建立過「越南簽證辦理」紀錄（這個
   // 學生來源是元凱移工事業部/越南實習生系統），那筆紀錄也要一併刪除，不
-  // 留著一筆對應不到進度紀錄的孤兒資料；越南端如果已經手動填了辦理簽證
-  // 時間/簽證完成時間，刪除前用 confirm 提醒一次，避免誤刪越南端已經在
-  // 處理中的紀錄。
+  // 留著一筆對應不到進度紀錄的孤兒資料。
   async function handleDelete(id) {
     const row = rows.find((r) => r.id === id);
     const student = row && students.find((s) => s.id === row.studentId);
     if (isAllowedSourceStudent(student)) {
-      const snap = await getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', row.studentId)));
-      if (!snap.empty) {
-        const hasVietnamProgress = snap.docs.some((d) => d.data().visaStartDate || d.data().visaCompleteDate);
-        const confirmed = !hasVietnamProgress || window.confirm(
-          '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，刪除這筆申辦進度紀錄會連同刪除越南端的紀錄，確定要刪除嗎？'
-        );
-        if (confirmed) {
-          await runCascadeStep('刪除越南簽證辦理紀錄', async () => {
-            await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'vietnam_visaProcessing', d.id))));
-          });
-        } else {
-          return;
-        }
-      }
+      const confirmed = await removeLinkedVisaProcessing(
+        row.studentId,
+        '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，刪除這筆申辦進度紀錄會連同刪除越南端的紀錄，確定要刪除嗎？'
+      );
+      if (!confirmed) return;
     }
     await remove(id);
   }
