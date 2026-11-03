@@ -35,7 +35,9 @@ export default function StudentMasterSheetPage() {
       client: pair ? pair.client : '',
       projectCode: pair ? pair.projectCode : '',
       workDays: studentDaysInTaiwanForMonth(s.id, month, inTaiwanVisaRecords),
-      billingStartDate: rate ? (rate.billingStartDate || '') : '',
+      // 計費起算日＝該學生自己的入境日（跟客戶請款計算的在台天數算法一致），
+      // 不是客戶費用建檔裡同一客戶/專案下所有學生共用的同一個手動日期。
+      billingStartDate: effectiveEntryDate(s),
       billingSettleDay: rate ? (rate.billingSettleDay || '') : '',
       billDormFee: rate ? (rate.billDormFee !== '否' ? '是' : '否') : '',
     };

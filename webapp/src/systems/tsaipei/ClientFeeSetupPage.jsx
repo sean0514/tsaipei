@@ -14,7 +14,6 @@ const COMMON_FIELDS = [
   { key: 'client', label: '客戶名稱', required: true },
   { key: 'taxId', label: '統一編號' },
   { key: 'billingType', label: '收費類型', options: BILLING_TYPES },
-  { key: 'billingStartDate', label: '計費起算日', type: 'date' },
   { key: 'billingSettleDay', label: '請款結算日' },
 ];
 
