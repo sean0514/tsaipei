@@ -9,6 +9,16 @@ import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './c
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
+// cm → Excel 的像素（圖片 ext.width/height，96dpi）與點數（列高，72dpi）
+// 換算：工人照片固定 3x3 公分，證件照片（護照/LINE/健保卡/居留證/電話卡）
+// 固定 7x7 公分。
+const cmToPx = (cm) => Math.round(cm * 37.795275591);
+const cmToPt = (cm) => Math.round(cm * 28.346456693);
+const WORKER_PHOTO_PX = cmToPx(3);
+const WORKER_PHOTO_PT = cmToPt(3) + 4;
+const DOC_PHOTO_PX = cmToPx(7);
+const DOC_PHOTO_PT = cmToPt(7) + 4;
+
 // 入境通知單可選擇帶入的證件照片類型——欄位名稱對應移工資料上的
 // photoUrl 欄位（見 ResumeInternalFields.jsx 的「文件上傳」區塊），下載
 // 時勾選哪幾種就把哪幾種嵌進 Excel。
@@ -155,45 +165,49 @@ export default function ArrivalNoticePage() {
         ]);
         row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
         row.getCell(11).alignment = { wrapText: true, vertical: 'middle' };
-        row.height = 36;
+        row.height = WORKER_PHOTO_PT;
         const photo = await fetchImageForExcel(w.photoUrl);
         if (photo) {
           const imageId = workbook.addImage({ base64: photo.base64, extension: photo.extension });
-          sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: 40, height: 40 } });
+          sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: WORKER_PHOTO_PX, height: WORKER_PHOTO_PX } });
         }
       }
       sheet.columns.forEach((col) => { col.width = 14; });
 
-      // 選擇帶入的證件照片另開一個分頁，每位移工一個區塊，標題列顯示
-      // 姓名，底下橫向排開那個人自己勾選的幾種照片（每個人各自獨立選，
-      // 不是整組共用一份），不跟主表格擠在一起。
+      // 選擇帶入的證件照片接續放在同一個分頁的主表格下方，每位移工一個
+      // 區塊，標題列顯示姓名，底下橫向排開那個人自己勾選的幾種照片
+      // （每個人各自獨立選，不是整組共用一份）——入境通知單與附件照片
+      // 都在同一頁，不再另開分頁。
       const anySelected = group.some(({ worker: w, employerId }) => {
         const sel = imageSelections[selectionKey(w.id, employerId)] || {};
         return IMAGE_TYPES.some((it) => sel[it.key]);
       });
       if (!anySelected) return;
-      const photoSheet = workbook.addWorksheet(t('附件照片', lang));
-      let row = 1;
+      sheet.addRow([]);
+      const titleRow = sheet.addRow([t('附件照片', lang)]);
+      titleRow.font = { bold: true, size: 13 };
       for (const { worker: w, employerId } of group) {
         const sel = imageSelections[selectionKey(w.id, employerId)] || {};
         const selectedTypes = IMAGE_TYPES.filter((it) => sel[it.key]);
         if (!selectedTypes.length) continue;
-        photoSheet.getCell(`A${row}`).value = w.name;
-        photoSheet.getCell(`A${row}`).font = { bold: true };
-        row += 1;
+        const nameRow = sheet.addRow([w.name]);
+        nameRow.font = { bold: true };
+        const labelRow = sheet.addRow([]);
+        for (let col = 0; col < selectedTypes.length; col += 1) {
+          labelRow.getCell(col * 3 + 1).value = t(selectedTypes[col].label, lang);
+        }
+        const imageRow = sheet.addRow([]);
+        imageRow.height = DOC_PHOTO_PT;
         for (let col = 0; col < selectedTypes.length; col += 1) {
           const type = selectedTypes[col];
           const img = await fetchImageForExcel(w[type.field]);
-          const colIndex = col * 3;
-          photoSheet.getCell(row, colIndex + 1).value = t(type.label, lang);
           if (img) {
             const imageId = workbook.addImage({ base64: img.base64, extension: img.extension });
-            photoSheet.addImage(imageId, { tl: { col: colIndex, row }, ext: { width: 150, height: 150 } });
+            sheet.addImage(imageId, { tl: { col: col * 3, row: imageRow.number - 1 }, ext: { width: DOC_PHOTO_PX, height: DOC_PHOTO_PX } });
           }
         }
-        row += 9;
+        sheet.addRow([]);
       }
-      photoSheet.columns.forEach((col) => { col.width = 20; });
     });
   }
 
