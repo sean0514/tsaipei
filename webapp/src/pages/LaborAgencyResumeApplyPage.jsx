@@ -293,7 +293,7 @@ export default function LaborAgencyResumeApplyPage() {
         <div className="form-grid">
           <label>
             {L('vietnameseName')}
-            <input required value={form.vietnameseName || ''} onChange={(e) => setField('vietnameseName', e.target.value)} />
+            <input required value={form.vietnameseName || ''} onChange={(e) => setField('vietnameseName', e.target.value)} onBlur={(e) => translateOnBlur('chineseName', e.target.value)} />
           </label>
           <label>
             {L('chineseName')}
