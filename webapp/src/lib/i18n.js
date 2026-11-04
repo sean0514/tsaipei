@@ -1298,6 +1298,7 @@ const VI = {
   '護照發照日期': 'Ngày cấp hộ chiếu',
   '護照有效日期': 'Ngày hết hạn hộ chiếu',
   '核准文號': 'Số công văn phê duyệt',
+  '核准文號：': 'Số công văn phê duyệt:',
   '台灣電話號碼': 'Số điện thoại Đài Loan',
   '機場及班機': 'Sân bay và chuyến bay',
   '抵達時間': 'Giờ đến',
@@ -1309,7 +1310,6 @@ const VI = {
     'Khi tải xuống thông báo nhập cảnh, ba thông tin này sẽ được điền vào; ngày nhập cảnh/sân bay và chuyến bay/giờ đến được tự động lấy từ thông tin chuyến bay của nhóm lao động đó.',
   '入境通知欄位': 'Thông tin nhập cảnh',
 
-  '函文編號：': 'Số công văn:',
   '是否可以接受刺青': 'Có chấp nhận hình xăm',
   '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
   '重新開啟': 'Mở lại',

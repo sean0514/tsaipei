@@ -60,16 +60,18 @@ export function employerLabel(employers, employerId, lang) {
   return employers.find((e) => e.id === employerId)?.name || t('尚未配對', lang);
 }
 
-// 函文編號是行政專用欄位，只有「行政人員」「主管」「系統管理員」能看到
-// ——雇主需求單(EmployersPage.jsx)跟各處挑選雇主的欄位(配對雇主複選，
-// 見 WorkerRosterPage.jsx/WorkersPage.jsx)共用同一套權限判斷，不能各自
-// 維護一份，不然同一個角色在不同頁面看到的範圍會不一致。
+// 核准文號（雇主需求單欄位 docNumber，原本叫「函文編號」，跟入境通知
+// 頁面的「核准文號」欄位統一用同一個名稱）是行政專用欄位，只有「行政
+// 人員」「主管」「系統管理員」能看到——雇主需求單(EmployersPage.jsx)
+// 跟各處挑選雇主的欄位(配對雇主複選，見 WorkerRosterPage.jsx/
+// WorkersPage.jsx)共用同一套權限判斷，不能各自維護一份，不然同一個
+// 角色在不同頁面看到的範圍會不一致。
 const DOC_NUMBER_ROLES = ['行政人員', '主管', '系統管理員'];
 export function canSeeDocNumber(role) {
   return DOC_NUMBER_ROLES.includes(role);
 }
 
-// 配對雇主複選清單的顯示文字：有權限看函文編號的角色，前面加函文編號
+// 配對雇主複選清單的顯示文字：有權限看核准文號的角色，前面加核准文號
 // 當分辨不同雇主需求單的依據（同一雇主名稱可能開了好幾張需求單）。
 export function employerPickerLabel(emp, role) {
   return canSeeDocNumber(role) && emp.docNumber ? `${emp.docNumber} ${emp.name}` : emp.name;
