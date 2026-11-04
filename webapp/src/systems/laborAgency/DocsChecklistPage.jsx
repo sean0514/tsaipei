@@ -121,6 +121,7 @@ export default function DocsChecklistPage() {
 function DocsFormModal({ worker, onCancel, onSave, lang }) {
   const [checked, setChecked] = useState(worker.docsChecked || {});
   const [passportExpiry, setPassportExpiry] = useState(worker.passportExpiry || '');
+  const [passportIssueDate, setPassportIssueDate] = useState(worker.passportIssueDate || '');
   const requiredItems = DOCS_CHECKLIST.filter((d) => d.required);
   const optionalItems = DOCS_CHECKLIST.filter((d) => !d.required);
 
@@ -184,9 +185,14 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
           <button type="button" onClick={markAllSubmitted}>{t('全部繳交', lang)}</button>
         </div>
         <RequiredSteps />
-        {/* 「護照」這項必備文件額外要確認有效日期，不是只打勾——跟
-            WorkersPage.jsx 編輯移工表單共用同一個 passportExpiry 欄位，
-            這裡填過那邊也會同步看到。 */}
+        {/* 「護照」這項必備文件額外要確認發照日期跟有效日期，不是只打勾
+            ——跟 WorkersPage.jsx 編輯移工表單／入境通知頁面共用同一組
+            passportIssueDate/passportExpiry 欄位，這裡填過其他頁面也會
+            同步看到。 */}
+        <label style={{ display: 'block', marginTop: 10 }}>
+          {t('護照發照日期', lang)}
+          <input type="date" value={passportIssueDate} onChange={(e) => setPassportIssueDate(e.target.value)} style={{ marginLeft: 8, width: 'auto' }} />
+        </label>
         <label style={{ display: 'block', marginTop: 10 }}>
           {t('護照有效日期', lang)}
           <input type="date" value={passportExpiry} onChange={(e) => setPassportExpiry(e.target.value)} style={{ marginLeft: 8, width: 'auto' }} />
@@ -194,7 +200,7 @@ function DocsFormModal({ worker, onCancel, onSave, lang }) {
         <h4>{t('依個案提供', lang)}</h4>
         <OptionalItemList />
         <div className="row-actions" style={{ marginTop: 16 }}>
-          <button type="button" className="primary" onClick={() => onSave({ docsChecked: checked, passportExpiry })}>{t('儲存', lang)}</button>
+          <button type="button" className="primary" onClick={() => onSave({ docsChecked: checked, passportExpiry, passportIssueDate })}>{t('儲存', lang)}</button>
           <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
         </div>
       </div>
