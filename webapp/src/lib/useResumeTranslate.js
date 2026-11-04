@@ -7,10 +7,10 @@ import { translateViToZh } from './translate';
 // （key 後面加 Zh，跟 vietnam 系統 StudentsPage.jsx 的 schoolZh/departmentZh
 // 同一套模式），原文保留不覆蓋，這樣中文人員看得懂，又不會弄丟越南文
 // 原始資料（萬一機器翻譯不準，原文還在）。同一段文字已經翻譯過就不重複
-// 呼叫 API。越文姓名→中文姓名是例外：目標欄位是 chineseName（沒有 Zh
-// 後綴，跟越文姓名 vietnameseName 不是同一組 原文/翻譯 欄位命名），但做法
-// 相同——越文姓名失焦時自動翻譯填入中文姓名，方便行政人員建檔時不用
-// 每筆都手動翻，仍可自行修改。
+// 呼叫 API。越文姓名→中文姓名不是用這套：姓名不是「詞義翻譯」，改用
+// lib/vietnameseNameToChinese.js 的漢越音字典逐字查表轉換（見
+// ResumeInternalFields.jsx／LaborAgencyResumeApplyPage.jsx 越文姓名欄位的
+// onBlur），比丟給這裡的一般文字翻譯 API 準確。
 export function useResumeTranslate(setField) {
   const lastSource = useRef({});
   const [translatingKeys, setTranslatingKeys] = useState(() => new Set());
