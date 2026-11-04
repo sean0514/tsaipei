@@ -74,15 +74,20 @@ export default function ArrivalNoticePage() {
   const [includeImages, setIncludeImages] = useState({});
 
   const employerOf = (id) => employers.find((e) => e.id === id);
-  const rows = workers
+  const allPairs = workers
     .flatMap((w) => {
       const ids = workerEmployerIds(w);
       return ids.length ? ids.map((employerId) => ({ worker: w, employerId })) : [{ worker: w, employerId: null }];
     })
     .filter((r) => getPairFlag(r.worker, 'departureCompletedMap', r.employerId)
       && !getPairFlag(r.worker, 'arrivalListRemovedMap', r.employerId));
-  const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
+  const rows = allPairs.filter((r) => !getPairFlag(r.worker, 'arrivalClosedMap', r.employerId));
+  const closedRows = allPairs.filter((r) => getPairFlag(r.worker, 'arrivalClosedMap', r.employerId));
+  const agencyKeyOf = (r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY);
+  const sortAgencyKeys = (list) => [...new Set(list.map(agencyKeyOf))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
+  const agencyKeys = sortAgencyKeys(rows);
+  const closedAgencyKeys = sortAgencyKeys(closedRows);
 
   // 刪除：只從「入境通知」這份名單移除那一筆配對，不影響移工本身的
   // 資料，也不影響其他頁面——用 arrivalListRemovedMap 這個頁面專屬、
@@ -95,6 +100,16 @@ export default function ArrivalNoticePage() {
   // 重新出現在「出境辦理」頁面——只影響那一筆配對，不影響移工本身資料。
   async function handleBack(w, employerId) {
     await update(w.id, { departureCompletedMap: withPairFlag(w, 'departureCompletedMap', employerId, false) });
+  }
+
+  // 結案：入境通知是整個流程的最後一關，結案把那一筆配對移到下面的
+  // 「已結案」列表，跟雇主需求單的結案/重新開啟同一套設計——只是換一個
+  // 旗標位置，不影響移工本身資料，也可以用「重新開啟」改回來。
+  async function handleClose(w, employerId) {
+    await update(w.id, { arrivalClosedMap: withPairFlag(w, 'arrivalClosedMap', employerId, true) });
+  }
+  async function handleReopen(w, employerId) {
+    await update(w.id, { arrivalClosedMap: withPairFlag(w, 'arrivalClosedMap', employerId, false) });
   }
 
   async function handleSaveNotice(worker, data) {
@@ -159,7 +174,30 @@ export default function ArrivalNoticePage() {
     });
   }
 
-  function AgencyTable({ group }) {
+  // 證件照片勾選框：放在每個仲介名單自己的區塊裡（不是整頁共用一份固定
+  // 在上面），比較清楚這個選擇是對應哪一組「下載入境通知單」。
+  function IncludeImagesPicker() {
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {IMAGE_TYPES.map((it) => (
+            <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+              <input
+                type="checkbox"
+                checked={!!includeImages[it.key]}
+                onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
+                style={{ width: 'auto' }}
+              />
+              {t(it.label, lang)}
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function AgencyTable({ group, closed }) {
     return (
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap"><table>
@@ -186,9 +224,16 @@ export default function ArrivalNoticePage() {
                   <td>{w.billingParty || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
-                      <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
-                      <button onClick={() => handleBack(w, rowEmployerId)}>{t('返回', lang)}</button>
-                      <button className="danger" onClick={() => handleRemove(w, rowEmployerId)}>{t('刪除', lang)}</button>
+                      {closed ? (
+                        <button onClick={() => handleReopen(w, rowEmployerId)}>{t('重新開啟', lang)}</button>
+                      ) : (
+                        <>
+                          <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
+                          <button onClick={() => handleBack(w, rowEmployerId)}>{t('返回', lang)}</button>
+                          <button className="primary" onClick={() => handleClose(w, rowEmployerId)}>{t('結案', lang)}</button>
+                          <button className="danger" onClick={() => handleRemove(w, rowEmployerId)}>{t('刪除', lang)}</button>
+                        </>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -214,41 +259,43 @@ export default function ArrivalNoticePage() {
           <label>{t('DATE', lang)}<input type="date" value={docInfo.date} onChange={(e) => setDocInfo({ ...docInfo, date: e.target.value })} /></label>
         </div>
         <p className="muted" style={{ margin: '8px 0 0' }}>{t('下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。', lang)}</p>
-        <div style={{ marginTop: 10 }}>
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {IMAGE_TYPES.map((it) => (
-              <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={!!includeImages[it.key]}
-                  onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
-                  style={{ width: 'auto' }}
-                />
-                {t(it.label, lang)}
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         rows.length === 0 ? (
           <div className="card"><p className="muted" style={{ margin: 0 }}>{t('目前沒有已確認航班的名單', lang)}</p></div>
         ) : agencyKeys.map((agencyKey) => {
-          const group = rows.filter((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY) === agencyKey);
+          const group = rows.filter((r) => agencyKeyOf(r) === agencyKey);
           return (
             <div key={agencyKey} style={{ marginBottom: 24 }}>
+              <h3 style={{ marginBottom: 10 }}>
+                {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
+                <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+              </h3>
+              <IncludeImagesPicker />
               <div className="row-actions" style={{ marginBottom: 10 }}>
-                <h3 style={{ margin: 0, flex: 1 }}>
-                  {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
-                  <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
-                </h3>
                 <button onClick={() => handleDownload(agencyKey, group)}>{t('下載入境通知單', lang)}</button>
               </div>
               <AgencyTable group={group} />
             </div>
           );
         })
+      )}
+      {closedRows.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ marginBottom: 10 }}>{t('已結案', lang)}<span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{closedRows.length}）</span></h3>
+          {closedAgencyKeys.map((agencyKey) => {
+            const group = closedRows.filter((r) => agencyKeyOf(r) === agencyKey);
+            return (
+              <div key={agencyKey} style={{ marginBottom: 24 }}>
+                <h4 style={{ marginBottom: 10 }}>
+                  {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
+                  <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+                </h4>
+                <AgencyTable group={group} closed />
+              </div>
+            );
+          })}
+        </div>
       )}
       {editing && (
         <ArrivalInfoModal
