@@ -271,6 +271,7 @@ export const SYSTEMS = {
   // 在職追蹤），比照使用者提供的參考雛型（移工案件管理）設計。
   laborAgency: {
     label: '元凱移工事業部',
+    logo: '/brand-logos/nguyen-khai.png',
     bilingual: true,
     roles: ['系統管理員', '主管', '業務人員', '行政人員'],
     modules: {

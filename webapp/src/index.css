@@ -211,6 +211,7 @@
 .theme-laborAgency .modal { border-radius: 16px; box-shadow: 0 20px 60px rgba(58,52,38,0.25); }
 .theme-laborAgency .tag { border-radius: 999px; }
 .theme-laborAgency .brand-sub { color: #9C9272; }
+.theme-laborAgency .sidebar h1.brand-mark { color: var(--sidebar-text); }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
