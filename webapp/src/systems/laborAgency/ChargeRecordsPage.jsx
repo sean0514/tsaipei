@@ -19,6 +19,7 @@ export default function ChargeRecordsPage() {
   const canEditPage = computeCanEdit(system, 'chargeRecords', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('laborAgency_chargeRecords');
   const { rows: workers } = useCollection('laborAgency_workers');
+  const { rows: feeSetups } = useCollection('laborAgency_feeSetup');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('laborAgency_chargeRecords', CSV_FIELDS, { entityLabel: '收費紀錄', requiredKeys: ['workerId'], canEdit: canEditPage });
@@ -79,14 +80,25 @@ export default function ChargeRecordsPage() {
           </table></div>
         </div>
       )}
-      {editing && <ChargeRecordFormModal initial={editing} workers={workers} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <ChargeRecordFormModal initial={editing} workers={workers} feeSetups={feeSetups} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
 
-function ChargeRecordFormModal({ initial, workers, onCancel, onSave, lang }) {
+// 新增收費紀錄時，移工選單改成帶入「費用計算」已設定好應繳費用的名單
+// （而不是整個移工名冊），選了之後自動帶入該筆設定的應繳費用當作預設
+// 金額，不用再手動對照費用計算的金額填一次。
+function ChargeRecordFormModal({ initial, workers, feeSetups, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
-  const sortedWorkers = [...workers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
+  const sortedFeeSetups = [...feeSetups].sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
+
+  function handleFeeSetupChange(feeSetupId) {
+    const fs = feeSetups.find((f) => f.id === feeSetupId);
+    if (!fs) { setForm({ ...form, workerId: '' }); return; }
+    setForm({ ...form, workerId: fs.workerId, amount: form.amount || fs.totalFee || '' });
+  }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -95,10 +107,12 @@ function ChargeRecordFormModal({ initial, workers, onCancel, onSave, lang }) {
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
-              {t('移工', lang)}
-              <select required value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
+              {t('移工', lang)}（{t('費用計算', lang)}）
+              <select required value={sortedFeeSetups.find((f) => f.workerId === form.workerId)?.id || ''} onChange={(e) => handleFeeSetupChange(e.target.value)}>
                 <option value="">{t('請選擇', lang)}</option>
-                {sortedWorkers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {sortedFeeSetups.map((f) => (
+                  <option key={f.id} value={f.id}>{workerOf(f.workerId)?.name || '—'}（{(f.totalFee || 0).toLocaleString()}）</option>
+                ))}
               </select>
             </label>
             <label>

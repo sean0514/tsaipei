@@ -1007,7 +1007,6 @@ service cloud.firestore {
         'visaProcessing': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
         'departure': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
         'arrivalNotice': {'系統管理員':'edit','主管':'edit','業務人員':'view','行政人員':'edit'},
-        'salaryCalc': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'feeSetup': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'chargeRecords': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
         'paymentRecords': {'系統管理員':'edit','主管':'edit','業務人員':'none','行政人員':'edit'},
@@ -1066,10 +1065,6 @@ service cloud.firestore {
     match /laborAgency_employers/{docId} {
       allow read: if laIsMember();
       allow write: if laCanEdit('employers');
-    }
-    match /laborAgency_salaryRecords/{docId} {
-      allow read: if laIsMember();
-      allow write: if laCanEdit('salaryCalc');
     }
     match /laborAgency_feeSetup/{docId} {
       allow read: if laIsMember();

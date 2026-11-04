@@ -5,6 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
+import { canSeeDocNumber } from './constants';
 
 const CHARGE_TARGETS = ['工人', '招募'];
 const CSV_FIELDS = [
@@ -21,6 +22,7 @@ const CSV_FIELDS = [
 export default function FeeSetupPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'feeSetup', role, overrides);
+  const showDocNumber = canSeeDocNumber(role);
   const { rows, loading, add, update, remove } = useCollection('laborAgency_feeSetup');
   const { rows: workers } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
@@ -70,7 +72,7 @@ export default function FeeSetupPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
+                <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('函文編號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
                 <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
@@ -78,6 +80,8 @@ export default function FeeSetupPage() {
               {filteredRows.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 600 }}>{workerOf(r.workerId)?.name || '—'}</td>
+                  {showDocNumber && <td>{employerOf(r.employerId)?.docNumber || '—'}</td>}
+                  <td>{workerOf(r.workerId)?.passportNo || '—'}</td>
                   <td>{employerOf(r.employerId)?.name || '—'}</td>
                   <td>{(r.totalFee || 0).toLocaleString()}</td>
                   <td>{(r.taiwanAgencyFee || 0).toLocaleString()}</td>
@@ -91,7 +95,7 @@ export default function FeeSetupPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={canEditPage ? 7 : 6} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={(showDocNumber ? 8 : 7) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
             </tbody>
           </table></div>
         </div>

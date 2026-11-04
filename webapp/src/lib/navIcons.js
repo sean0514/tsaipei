@@ -98,7 +98,6 @@ export const NAV_ICONS = {
     visaProcessing: '🛂',
     departure: '🛫',
     arrivalNotice: '🛬',
-    salaryCalc: '💰',
     feeSetup: '🧮',
     chargeRecords: '🧾',
     paymentRecords: '💸',

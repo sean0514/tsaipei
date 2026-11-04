@@ -57,7 +57,7 @@ export const IMPLEMENTED_MODULES = {
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
   vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'visaProcessing', 'internshipDocs', 'applicationProgress', 'expectedArrival', 'departureTransport', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'schoolSetup', 'bonus', 'internalBonusRateSetup', 'scholarships', 'studentMasterSheet', 'users'],
   // 元凱移工事業部：獨立的越南外勞仲介引進系統，跟 yujian 分開。
-  laborAgency: ['dashboard', 'resumeLinks', 'workerRoster', 'workers', 'employers', 'docsChecklist', 'visaProcessing', 'departure', 'arrivalNotice', 'salaryCalc', 'feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup', 'users'],
+  laborAgency: ['dashboard', 'resumeLinks', 'workerRoster', 'workers', 'employers', 'docsChecklist', 'visaProcessing', 'departure', 'arrivalNotice', 'feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup', 'users'],
 };
 
 // A permission module can cover several routes at once — each route under
@@ -139,7 +139,7 @@ const GROUP_SECTIONS = {
   laborAgency: [
     { label: '工人資料', items: ['resumeLinks', 'workerRoster'] },
     { label: '行政專用', items: ['employers', 'workers', 'docsChecklist', 'visaProcessing', 'departure', 'arrivalNotice'] },
-    { label: '財務專用', items: ['salaryCalc', 'feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup'] },
+    { label: '財務專用', items: ['feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup'] },
     { label: '資料建檔', items: ['users'] },
   ],
 };

@@ -121,7 +121,6 @@ import LaborAgencyVisaProcessingPage from './systems/laborAgency/VisaProcessingP
 import LaborAgencyDeparturePage from './systems/laborAgency/DeparturePage';
 import LaborAgencyArrivalNoticePage from './systems/laborAgency/ArrivalNoticePage';
 import LaborAgencyResumeLinksPage from './systems/laborAgency/ResumeLinksPage';
-import LaborAgencySalaryCalcPage from './systems/laborAgency/SalaryCalcPage';
 import LaborAgencyFeeSetupPage from './systems/laborAgency/FeeSetupPage';
 import LaborAgencyChargeRecordsPage from './systems/laborAgency/ChargeRecordsPage';
 import LaborAgencyPaymentRecordsPage from './systems/laborAgency/PaymentRecordsPage';
@@ -298,7 +297,6 @@ const PAGES = {
     visaProcessing: LaborAgencyVisaProcessingPage,
     departure: LaborAgencyDeparturePage,
     arrivalNotice: LaborAgencyArrivalNoticePage,
-    salaryCalc: LaborAgencySalaryCalcPage,
     feeSetup: LaborAgencyFeeSetupPage,
     chargeRecords: LaborAgencyChargeRecordsPage,
     paymentRecords: LaborAgencyPaymentRecordsPage,
