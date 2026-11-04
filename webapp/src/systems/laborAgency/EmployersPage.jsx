@@ -25,7 +25,7 @@ const UNSET_AGENCY = '__unset_agency__';
 // （otherRequirements/otherBenefits 各自存成 JSON 字串陣列），不是固定選項
 // 涵蓋不了的情況可以自行補充，跟 PositionsPage.jsx 的其他福利同一套做法。
 const FIELDS = [
-  { key: 'docNumber', label: '函文編號' },
+  { key: 'docNumber', label: '核准文號' },
   { key: 'name', label: '雇主名稱', required: true },
   { key: 'agencyName', label: '仲介名稱' },
   { key: 'industry', label: '產業別', options: INDUSTRIES },
@@ -131,7 +131,7 @@ export default function EmployersPage() {
                     return (
                       <div className="card" key={e.id}>
                         <h3 style={{ marginTop: 0 }}>{e.name}</h3>
-                        {canSeeDocNumber(role) && e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('函文編號：', lang)}{e.docNumber}</div>}
+                        {canSeeDocNumber(role) && e.docNumber && <div className="muted" style={{ fontSize: 13 }}>{t('核准文號：', lang)}{e.docNumber}</div>}
                         <div className="muted" style={{ fontSize: 13 }}>{t(e.industry, lang) || '—'}{e.county ? `　${t(e.county, lang)}` : ''}{e.contact ? `　${t('聯絡人', lang)} ${e.contact}` : ''}</div>
                         {e.workAddress && <div className="muted" style={{ fontSize: 13 }}>{t('工作地址：', lang)}{e.workAddress}</div>}
                         <div style={{ margin: '10px 0' }}>

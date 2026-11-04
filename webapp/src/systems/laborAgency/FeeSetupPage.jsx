@@ -72,7 +72,7 @@ export default function FeeSetupPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('函文編號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
+                <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('核准文號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
                 <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>

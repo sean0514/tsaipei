@@ -79,7 +79,8 @@ export default function VisaProcessingPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>
+                <th>{t('台灣電話號碼', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -103,6 +104,11 @@ export default function VisaProcessingPage() {
                     {canEditPage ? (
                       <input value={w.visaDocNumber || ''} onChange={(e) => handleField(w, 'visaDocNumber', e.target.value)} style={{ width: 120 }} />
                     ) : (w.visaDocNumber || '—')}
+                  </td>
+                  <td>
+                    {canEditPage ? (
+                      <input value={w.taiwanPhone || ''} onChange={(e) => handleField(w, 'taiwanPhone', e.target.value)} style={{ width: 120 }} />
+                    ) : (w.taiwanPhone || '—')}
                   </td>
                   {canEditPage && (
                     <td className="row-actions">
