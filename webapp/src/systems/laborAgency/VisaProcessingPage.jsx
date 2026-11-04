@@ -46,7 +46,10 @@ export default function VisaProcessingPage() {
   async function handleField(w, key, value) {
     await update(w.id, { [key]: value });
   }
+  // 完成：要求先填入簽證文號才能按——沒有簽證文號代表簽證還沒真的辦
+  // 下來，不該進入下一關「出境辦理」。
   async function handleComplete(w, employerId) {
+    if (!w.visaDocNumber) return;
     await update(w.id, { visaCompletedMap: withPairFlag(w, 'visaCompletedMap', employerId, true) });
   }
   // 刪除：只從「辦理簽證」這份名單移除那一筆配對，不影響移工本身的
@@ -54,6 +57,11 @@ export default function VisaProcessingPage() {
   // 配對獨立的隱藏旗標。
   async function handleRemove(w, employerId) {
     await update(w.id, { visaListRemovedMap: withPairFlag(w, 'visaListRemovedMap', employerId, true) });
+  }
+  // 返回：取消「文件追蹤」對那一筆配對標記的已完成，讓它從這份名單消失、
+  // 重新出現在「文件追蹤」頁面——只影響那一筆配對。
+  async function handleBack(w, employerId) {
+    await update(w.id, { docsCompletedMap: withPairFlag(w, 'docsCompletedMap', employerId, false) });
   }
 
   function EmployerTable({ employerId }) {
@@ -71,7 +79,7 @@ export default function VisaProcessingPage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -91,9 +99,15 @@ export default function VisaProcessingPage() {
                       <input type="date" value={w.visaPickupDate || ''} onChange={(e) => handleField(w, 'visaPickupDate', e.target.value)} />
                     ) : (w.visaPickupDate || '—')}
                   </td>
+                  <td>
+                    {canEditPage ? (
+                      <input value={w.visaDocNumber || ''} onChange={(e) => handleField(w, 'visaDocNumber', e.target.value)} style={{ width: 120 }} />
+                    ) : (w.visaDocNumber || '—')}
+                  </td>
                   {canEditPage && (
                     <td className="row-actions">
-                      <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                      <button className="primary" disabled={!w.visaDocNumber} title={!w.visaDocNumber ? t('需先填入簽證文號才能按完成', lang) : ''} onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                      <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
                       <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                     </td>
                   )}

@@ -1278,6 +1278,8 @@ const VI = {
   '全部繳交': 'Nộp tất cả',
   '目前沒有待收件的名單': 'Hiện chưa có danh sách chờ thu hồ sơ',
   '簽證辦理日期': 'Ngày làm visa',
+  '簽證文號': 'Số văn bản visa',
+  '需先填入簽證文號才能按完成': 'Cần điền số văn bản visa trước khi bấm hoàn tất',
   '簽證領取日期': 'Ngày nhận visa',
   '自動列出文件已收齊完成的移工，填寫簽證辦理日期、領取日期；完成後進入下一關「出境辦理」':
     'Tự động liệt kê các lao động đã thu đủ hồ sơ, điền ngày làm visa, ngày nhận visa; sau khi hoàn tất sẽ chuyển sang bước tiếp theo "Xuất cảnh"',
@@ -1311,6 +1313,7 @@ const VI = {
   '是否可以接受刺青': 'Có chấp nhận hình xăm',
   '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
   '重新開啟': 'Mở lại',
+  '返回': 'Quay lại',
   '可複選': 'có thể chọn nhiều',
   '搜尋姓名、省份、工種、雇主': 'Tìm theo tên, tỉnh, công việc, chủ sử dụng',
   '緊急聯絡電話': 'Số điện thoại liên hệ khẩn cấp',

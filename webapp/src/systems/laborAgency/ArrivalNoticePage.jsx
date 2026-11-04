@@ -51,6 +51,12 @@ export default function ArrivalNoticePage() {
     await update(w.id, { arrivalListRemovedMap: withPairFlag(w, 'arrivalListRemovedMap', employerId, true) });
   }
 
+  // 返回：取消「出境辦理」對那一筆配對標記的已完成，讓它從這份名單消失、
+  // 重新出現在「出境辦理」頁面——只影響那一筆配對，不影響移工本身資料。
+  async function handleBack(w, employerId) {
+    await update(w.id, { departureCompletedMap: withPairFlag(w, 'departureCompletedMap', employerId, false) });
+  }
+
   async function handleSaveNotice(worker, data) {
     await update(worker.id, data);
     setEditing(null);
@@ -120,6 +126,7 @@ export default function ArrivalNoticePage() {
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
+                      <button onClick={() => handleBack(w, rowEmployerId)}>{t('返回', lang)}</button>
                       <button className="danger" onClick={() => handleRemove(w, rowEmployerId)}>{t('刪除', lang)}</button>
                     </td>
                   )}

@@ -45,6 +45,11 @@ export default function DeparturePage() {
   async function handleRemove(w, employerId) {
     await update(w.id, { departureListRemovedMap: withPairFlag(w, 'departureListRemovedMap', employerId, true) });
   }
+  // 返回：取消「辦理簽證」對那一筆配對標記的已完成，讓它從這份名單消失、
+  // 重新出現在「辦理簽證」頁面——只影響那一筆配對。
+  async function handleBack(w, employerId) {
+    await update(w.id, { visaCompletedMap: withPairFlag(w, 'visaCompletedMap', employerId, false) });
+  }
 
   return (
     <div className="content">
@@ -87,6 +92,7 @@ export default function DeparturePage() {
                           <td className="row-actions">
                             <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
                             <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('已完成', lang)}</button>
+                            <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
                             <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                           </td>
                         )}
