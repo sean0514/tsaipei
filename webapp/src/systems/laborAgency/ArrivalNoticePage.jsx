@@ -9,10 +9,6 @@ import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './c
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 // 入境通知單可選擇帶入的證件照片類型——欄位名稱對應移工資料上的
 // photoUrl 欄位（見 ResumeInternalFields.jsx 的「文件上傳」區塊），下載
 // 時勾選哪幾種就把哪幾種嵌進 Excel。
@@ -65,10 +61,6 @@ export default function ArrivalNoticePage() {
   const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
-  // 紙本通知單上「TO/FROM/DATE」這幾個每次發文都可能不同的文件資訊，
-  // 不是移工資料，存在頁面上讓使用者下載前自行填寫即可，不用另開一個
-  // 集合保存。
-  const [docInfo, setDocInfo] = useState({ to: '', from: '', date: today() });
   // 下載入境通知單時每位移工各自要不要連同帶入證件照片、帶哪幾種——
   // key 是「移工id-雇主id」，每個人獨立勾選，不是整組共用一份；預設都
   // 不選，要選才會嵌圖，避免檔案不必要地變大。
@@ -139,9 +131,9 @@ export default function ArrivalNoticePage() {
       sheet.mergeCells('A1:N1');
       sheet.getCell('A1').alignment = { horizontal: 'center' };
       sheet.getCell('A1').font = { bold: true, size: 14 };
-      sheet.addRow([`TO：${docInfo.to}`]);
-      sheet.addRow([`FROM：${docInfo.from}`, '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
-      sheet.addRow([`DATE：${docInfo.date}`, '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
+      sheet.addRow(['TO：']);
+      sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
+      sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
       sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
       sheet.addRow([
         '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
@@ -263,14 +255,6 @@ export default function ArrivalNoticePage() {
           <h2>{t('入境通知', lang)}</h2>
           <div className="page-desc">{t('自動列出出境辦理已完成、航班已確認的移工，供接機與入境相關人員查看；內容/下載比照紙本入境通知單格式', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
-      </div>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="form-grid">
-          <label>{t('TO', lang)}<input value={docInfo.to} onChange={(e) => setDocInfo({ ...docInfo, to: e.target.value })} /></label>
-          <label>{t('FROM', lang)}<input value={docInfo.from} onChange={(e) => setDocInfo({ ...docInfo, from: e.target.value })} /></label>
-          <label>{t('DATE', lang)}<input type="date" value={docInfo.date} onChange={(e) => setDocInfo({ ...docInfo, date: e.target.value })} /></label>
-        </div>
-        <p className="muted" style={{ margin: '8px 0 0' }}>{t('下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。', lang)}</p>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         rows.length === 0 ? (
