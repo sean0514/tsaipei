@@ -144,6 +144,29 @@ export function withPairFlag(w, field, employerId, value) {
   return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
 }
 
+// 從其他狀態改回「錄取」，代表那一筆配對重新開始整個流程——文件追蹤/
+// 辦理簽證/出境辦理/入境通知先前留下的完成/移除/結案旗標都要清掉，
+// 不然那一筆配對會因為舊旗標還是 true，卡在原本的頁面出不來或一路
+// 被跳過到最後（例如之前已經「完成」過文件追蹤，改回錄取後本來期待
+// 它重新出現在文件追蹤，卻因為 docsCompletedMap 還是 true 而看不到）。
+// 回傳要 merge 進 update() 的欄位物件，只影響那一筆配對。
+const PIPELINE_FLAG_FIELDS = [
+  'docsCompletedMap', 'docsListRemovedMap',
+  'visaCompletedMap', 'visaListRemovedMap',
+  'departureCompletedMap', 'departureListRemovedMap',
+  'arrivalListRemovedMap', 'arrivalClosedMap',
+];
+export function resetPipelineFlags(w, employerId) {
+  let current = w;
+  const payload = {};
+  PIPELINE_FLAG_FIELDS.forEach((field) => {
+    const value = withPairFlag(current, field, employerId, false);
+    payload[field] = value;
+    current = { ...current, [field]: value };
+  });
+  return payload;
+}
+
 // 挑到工人後的文件清單（必備 required=true／依個案可選 required=false），
 // 勾選狀態存在對應 worker 文件的 docsChecked（物件，key 對照下面的 key）。
 export const DOCS_CHECKLIST = [

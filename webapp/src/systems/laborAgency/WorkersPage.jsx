@@ -8,7 +8,7 @@ import { t } from '../../lib/i18n';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import { CheckboxGroup, EmployerCheckboxGroup, parseJobs } from './WorkerRosterPage';
-import { JOBS, MATCH_STATUSES, employerLabel, workerEmployerIds, matchStatusOf, withMatchStatus } from './constants';
+import { JOBS, MATCH_STATUSES, employerLabel, workerEmployerIds, matchStatusOf, withMatchStatus, resetPipelineFlags } from './constants';
 
 // 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
 // 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
@@ -82,7 +82,13 @@ export default function WorkersPage() {
   // constants.js），不是整個移工共用一個欄位，所以要帶 employerId 才能
   // 知道是改哪一筆配對的狀態。
   async function handleMoveStatus(worker, employerId, status) {
-    await update(worker.id, { matchStatuses: withMatchStatus(worker, employerId, status), updatedAt: Date.now() });
+    const payload = { matchStatuses: withMatchStatus(worker, employerId, status), updatedAt: Date.now() };
+    // 從其他狀態改回「錄取」，等於那一筆配對重新開始整個流程，清掉下游
+    // 關卡留下的舊旗標，不然改回來後不會重新出現在文件追蹤。
+    if (status === MATCH_STATUSES[1] && matchStatusOf(worker, employerId) !== MATCH_STATUSES[1]) {
+      Object.assign(payload, resetPipelineFlags(worker, employerId));
+    }
+    await update(worker.id, payload);
   }
 
   async function handleArrangeEmployer({ workerId, employerId }) {
