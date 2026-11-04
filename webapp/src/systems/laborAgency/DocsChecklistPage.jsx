@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { DOCS_CHECKLIST, SOUTH_VIETNAM_EXTRA_NOTE, requiredDocsDone, employerLabel, workerEmployerIds, isHired, getPairFlag, withPairFlag } from './constants';
+import { DOCS_CHECKLIST, SOUTH_VIETNAM_EXTRA_NOTE, requiredDocsDone, employerLabel, workerEmployerIds, isHired, getPairFlag, withPairFlag, MATCH_STATUSES, withMatchStatus } from './constants';
 
 const REQUIRED_COUNT = DOCS_CHECKLIST.filter((d) => d.required).length;
 const UNSET_AGENCY = '__unset_agency__';
@@ -45,6 +45,14 @@ export default function DocsChecklistPage() {
     await update(w.id, { docsListRemovedMap: withPairFlag(w, 'docsListRemovedMap', employerId, true) });
   }
 
+  // 返回：這一頁的名單來源是「移工管理」的配對狀態＝「錄取」，不是靠
+  // 前一頁的完成旗標帶入，所以「返回上一頁狀態」是把那一筆配對的狀態
+  // 改回「面試」（MATCH_STATUSES[0]），讓它從這份名單消失、回到移工
+  // 管理待確認——只影響那一筆配對。
+  async function handleBack(w, employerId) {
+    await update(w.id, { matchStatuses: withMatchStatus(w, employerId, MATCH_STATUSES[0]) });
+  }
+
   return (
     <div className="content">
       <div className="page-header">
@@ -84,6 +92,7 @@ export default function DocsChecklistPage() {
                             <td className="row-actions">
                               <button onClick={() => setEditing(w)}>{t('編輯文件', lang)}</button>
                               <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                              <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
                               <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                             </td>
                           )}

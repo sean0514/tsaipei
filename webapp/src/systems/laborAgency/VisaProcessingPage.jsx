@@ -55,6 +55,11 @@ export default function VisaProcessingPage() {
   async function handleRemove(w, employerId) {
     await update(w.id, { visaListRemovedMap: withPairFlag(w, 'visaListRemovedMap', employerId, true) });
   }
+  // 返回：取消「文件追蹤」對那一筆配對標記的已完成，讓它從這份名單消失、
+  // 重新出現在「文件追蹤」頁面——只影響那一筆配對。
+  async function handleBack(w, employerId) {
+    await update(w.id, { docsCompletedMap: withPairFlag(w, 'docsCompletedMap', employerId, false) });
+  }
 
   function EmployerTable({ employerId }) {
     const group = rows.filter((r) => (r.employerId || UNMATCHED_EMPLOYER) === employerId);
@@ -94,6 +99,7 @@ export default function VisaProcessingPage() {
                   {canEditPage && (
                     <td className="row-actions">
                       <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
+                      <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
                       <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                     </td>
                   )}

@@ -1311,6 +1311,7 @@ const VI = {
   '是否可以接受刺青': 'Có chấp nhận hình xăm',
   '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
   '重新開啟': 'Mở lại',
+  '返回': 'Quay lại',
   '可複選': 'có thể chọn nhiều',
   '搜尋姓名、省份、工種、雇主': 'Tìm theo tên, tỉnh, công việc, chủ sử dụng',
   '緊急聯絡電話': 'Số điện thoại liên hệ khẩn cấp',
