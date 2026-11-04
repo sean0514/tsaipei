@@ -49,12 +49,13 @@ async function fetchImageForExcel(url) {
 // 名單來源：某一筆配對在出境辦理標記「已完成」(departureCompletedMap)
 // 的，航班已經確認，自動帶入這裡通知接機／入境相關人員；單純顯示航班
 // 資訊，不再有下一關，所以沒有「完成」按鈕。刪除只影響那一筆配對。
-// 依仲介、雇主分類顯示。欄位內容跟下載的 Excel 比照使用者提供的紙本
-// 「入境通知單」格式：編號/姓名/雇主/出生年月/國籍/性別/護照號碼/
-// 護照發照日期/護照有效日期/核准文號/婚姻狀況/台灣電話號碼，其中護照
-// 號碼/發照日期/核准文號/台灣電話號碼這幾個欄位是入境通知才需要、履歷
-// 表沒有的額外資訊，用「編輯」另外補填。國籍目前系統只處理越南移工，
-// 固定顯示「越南」，不開欄位。
+// 依仲介、雇主分類顯示。下載的 Excel 比照使用者提供的紙本「入境通知單」
+// 格式：編號/工人照片/姓名/雇主/出生年月/國籍/性別/護照號碼/護照發照
+// 日期/護照有效日期/核准文號/婚姻狀況/台灣電話號碼——工人照片直接嵌入
+// 履歷照片，姓名欄中文+越文兩行，核准文號欄核准文號(雇主需求單)＋簽證
+// 文號(辦理簽證)兩行。護照號碼/發照日期/核准文號/台灣電話號碼這幾個
+// 欄位是入境通知才需要、履歷表沒有的額外資訊，用「編輯」另外補填。
+// 國籍目前系統只處理越南移工，固定顯示「越南」，不開欄位。
 export default function ArrivalNoticePage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivalNotice', role, overrides);
@@ -139,14 +140,28 @@ export default function ArrivalNoticePage() {
         '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
         '護照發照日期', '護照有效日期', '核准文號', '婚姻狀況', '台灣電話號碼',
       ]).font = { bold: true };
-      group.forEach(({ worker: w, employerId }, i) => {
-        sheet.addRow([
-          i + 1, '', w.name || '', employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
+      // 姓名欄中文+越文兩行、核准文號欄核准文號+簽證文號兩行；工人照片欄
+      // 直接把履歷照片嵌進那一格，不是文字。
+      for (let i = 0; i < group.length; i += 1) {
+        const { worker: w, employerId } = group[i];
+        const row = sheet.addRow([
+          i + 1, '',
+          [w.name, w.vietnameseName].filter(Boolean).join('\n'),
+          employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
           w.birthDate || '', '越南', t(w.gender, lang) || '', w.passportNo || '',
-          w.passportIssueDate || '', w.passportExpiry || '', w.approvalDocNumber || '',
+          w.passportIssueDate || '', w.passportExpiry || '',
+          [w.approvalDocNumber, w.visaDocNumber].filter(Boolean).join('\n'),
           t(w.maritalStatus, lang) || '', w.taiwanPhone || '',
         ]);
-      });
+        row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
+        row.getCell(11).alignment = { wrapText: true, vertical: 'middle' };
+        row.height = 36;
+        const photo = await fetchImageForExcel(w.photoUrl);
+        if (photo) {
+          const imageId = workbook.addImage({ base64: photo.base64, extension: photo.extension });
+          sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: 40, height: 40 } });
+        }
+      }
       sheet.columns.forEach((col) => { col.width = 14; });
 
       // 選擇帶入的證件照片另開一個分頁，每位移工一個區塊，標題列顯示
