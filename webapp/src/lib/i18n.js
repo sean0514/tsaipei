@@ -1253,6 +1253,75 @@ const VI = {
   '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
 
+  // 元凱移工事業部：補漏翻譯——性別/角色等跨頁共用值，以及出境辦理/
+  // 入境通知/文件追蹤/辦理簽證頁面標題、說明文字、欄位標籤（原本漏了
+  // t(...) 對應的越南文字典項目，越南文模式下會直接顯示中文原文）
+  '男': 'Nam',
+  '女': 'Nữ',
+  '系統管理員': 'Quản trị hệ thống',
+  '業務人員': 'Nhân viên kinh doanh',
+  '行政人員': 'Nhân viên hành chính',
+  '切換系統': 'Chuyển hệ thống',
+  '預覽身分（僅畫面顯示，測試用）': 'Xem trước vai trò (chỉ hiển thị, dùng để kiểm tra)',
+  '真實身分': 'Vai trò thực tế',
+  '預覽': 'Xem trước',
+  '目前以「': 'Hiện đang xem trước màn hình với vai trò「',
+  '」身分預覽畫面——只影響畫面看得到什麼，Firestore 寫入規則仍以你的真實登入身分（':
+    '」——chỉ ảnh hưởng những gì hiển thị trên màn hình, quy tắc ghi dữ liệu Firestore vẫn thực thi theo vai trò đăng nhập thực tế của bạn (',
+  '）執行，不能用來測試實際寫入權限是否被擋下來。': '), không thể dùng để kiểm tra quyền ghi dữ liệu thực tế có bị chặn hay không.',
+  '恢復管理員檢視': 'Khôi phục chế độ xem quản trị viên',
+
+  '出境辦理': 'Xuất cảnh',
+  '入境通知': 'Thông báo nhập cảnh',
+  '自動列出審核結果為「通過錄取」的移工，需要收集的文件清單，必備（✅）與依個案提供（⭕）分開追蹤；文件收齊後按「完成」會進入下一關「辦理簽證」':
+    'Tự động liệt kê các lao động có kết quả xét duyệt "Trúng tuyển", cần thu thập hồ sơ: bắt buộc (✅) và tùy trường hợp (⭕) theo dõi riêng; sau khi thu đủ hồ sơ, bấm "Hoàn tất" sẽ chuyển sang bước tiếp theo "Làm visa"',
+  '全部繳交': 'Nộp tất cả',
+  '目前沒有待收件的名單': 'Hiện chưa có danh sách chờ thu hồ sơ',
+  '簽證辦理日期': 'Ngày làm visa',
+  '簽證領取日期': 'Ngày nhận visa',
+  '自動列出文件已收齊完成的移工，填寫簽證辦理日期、領取日期；完成後進入下一關「出境辦理」':
+    'Tự động liệt kê các lao động đã thu đủ hồ sơ, điền ngày làm visa, ngày nhận visa; sau khi hoàn tất sẽ chuyển sang bước tiếp theo "Xuất cảnh"',
+  '目前沒有待辦理簽證的名單': 'Hiện chưa có danh sách chờ làm visa',
+  '未填仲介名稱': 'Chưa điền tên công ty môi giới',
+  '出境安排': 'Sắp xếp xuất cảnh',
+  '是否列入客戶請款': 'Có tính vào hóa đơn khách hàng',
+  '自動列出簽證已完成的移工，安排出境航班與交通；完成後進入下一關「入境通知」':
+    'Tự động liệt kê các lao động đã hoàn tất visa, sắp xếp chuyến bay và phương tiện xuất cảnh; sau khi hoàn tất sẽ chuyển sang bước tiếp theo "Thông báo nhập cảnh"',
+  '目前沒有待安排出境的名單': 'Hiện chưa có danh sách chờ sắp xếp xuất cảnh',
+
+  '自動列出出境辦理已完成、航班已確認的移工，供接機與入境相關人員查看；內容/下載比照紙本入境通知單格式':
+    'Tự động liệt kê các lao động đã hoàn tất xuất cảnh, đã xác nhận chuyến bay, để nhân viên đón sân bay và nhập cảnh tra cứu; nội dung/bản tải xuống theo đúng mẫu thông báo nhập cảnh giấy',
+  '目前沒有已確認航班的名單': 'Hiện chưa có danh sách đã xác nhận chuyến bay',
+  '出生年月': 'Ngày tháng năm sinh',
+  '護照發照日期': 'Ngày cấp hộ chiếu',
+  '護照有效日期': 'Ngày hết hạn hộ chiếu',
+  '核准文號': 'Số công văn phê duyệt',
+  '台灣電話號碼': 'Số điện thoại Đài Loan',
+  '機場及班機': 'Sân bay và chuyến bay',
+  '抵達時間': 'Giờ đến',
+  'TO': 'Đến',
+  'FROM': 'Từ',
+  'DATE': 'Ngày',
+  '下載入境通知單': 'Tải xuống thông báo nhập cảnh',
+  '下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。':
+    'Khi tải xuống thông báo nhập cảnh, ba thông tin này sẽ được điền vào; ngày nhập cảnh/sân bay và chuyến bay/giờ đến được tự động lấy từ thông tin chuyến bay của nhóm lao động đó.',
+  '入境通知欄位': 'Thông tin nhập cảnh',
+
+  '函文編號：': 'Số công văn:',
+  '是否可以接受刺青': 'Có chấp nhận hình xăm',
+  '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
+  '重新開啟': 'Mở lại',
+  '可複選': 'có thể chọn nhiều',
+  '搜尋姓名、省份、工種、雇主': 'Tìm theo tên, tỉnh, công việc, chủ sử dụng',
+  '緊急聯絡電話': 'Số điện thoại liên hệ khẩn cấp',
+  '編輯履歷': 'Chỉnh sửa hồ sơ',
+  '下載履歷表': 'Tải xuống hồ sơ',
+  '面試影片連結': 'Link video phỏng vấn',
+  '越南移工案件進度管理，列出每位移工的配對雇主與各自的面試/錄取狀態（同一人配對多個雇主，狀態各自獨立）':
+    'Quản lý tiến độ hồ sơ lao động Việt Nam: liệt kê chủ sử dụng ghép đôi của từng lao động và trạng thái phỏng vấn/trúng tuyển riêng của từng cặp (một người ghép đôi nhiều chủ sử dụng thì trạng thái độc lập với nhau)',
+  '。基本工人資料在「移工名冊」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，文件收集進度在「文件追蹤」。':
+    '。Thông tin cơ bản của lao động xem ở "Danh sách lao động", tiến độ hồ sơ chi tiết xem ở "Quản lý lao động", tình trạng thiếu lao động của chủ sử dụng xem ở "Đơn yêu cầu của chủ sử dụng", tiến độ thu hồ sơ xem ở "Theo dõi hồ sơ".',
+
   // 越南簽證辦理（VisaProcessingPage）
   '越南簽證辦理': 'Xử lý visa Việt Nam',
   '境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或發函後寄國外任一完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫':

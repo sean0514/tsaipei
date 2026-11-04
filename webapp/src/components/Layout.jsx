@@ -215,8 +215,8 @@ export default function Layout() {
           <div style={{ padding: '8px 16px 12px' }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>{t('預覽身分（僅畫面顯示，測試用）', effectiveLang)}</label>
             <select value={viewAsRole} onChange={(e) => setViewAsRole(e.target.value)} style={{ width: '100%' }}>
-              <option value="">{t('真實身分', effectiveLang)}（{ADMIN_ROLE}）</option>
-              {sys.roles.filter((r) => r !== ADMIN_ROLE).map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value="">{t('真實身分', effectiveLang)}（{t(ADMIN_ROLE, effectiveLang)}）</option>
+              {sys.roles.filter((r) => r !== ADMIN_ROLE).map((r) => <option key={r} value={r}>{t(r, effectiveLang)}</option>)}
             </select>
           </div>
         )}
@@ -278,12 +278,12 @@ export default function Layout() {
       <div className="main">
         {viewAsRole && (
           <div style={{ background: '#fff3cd', color: '#7a5c00', padding: '8px 16px', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>目前以「{viewAsRole}」身分預覽畫面——只影響畫面看得到什麼，Firestore 寫入規則仍以你的真實登入身分（{ADMIN_ROLE}）執行，不能用來測試實際寫入權限是否被擋下來。</span>
-            <button onClick={() => setViewAsRole('')}>恢復管理員檢視</button>
+            <span>{t('目前以「', effectiveLang)}{t(viewAsRole, effectiveLang)}{t('」身分預覽畫面——只影響畫面看得到什麼，Firestore 寫入規則仍以你的真實登入身分（', effectiveLang)}{t(ADMIN_ROLE, effectiveLang)}{t('）執行，不能用來測試實際寫入權限是否被擋下來。', effectiveLang)}</span>
+            <button onClick={() => setViewAsRole('')}>{t('恢復管理員檢視', effectiveLang)}</button>
           </div>
         )}
         <div className="topbar">
-          <span className="muted">{profile.displayName || profile.email} · {profile.role}{viewAsRole && `（預覽：${viewAsRole}）`}</span>
+          <span className="muted">{profile.displayName || profile.email} · {t(profile.role, effectiveLang)}{viewAsRole && `（${t('預覽', effectiveLang)}：${t(viewAsRole, effectiveLang)}）`}</span>
           <button onClick={logout}>{t('登出', effectiveLang)}</button>
         </div>
         <Outlet context={{ system, role, overrides, lang: effectiveLang }} />
