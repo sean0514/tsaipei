@@ -74,7 +74,7 @@ export default function ResumeInternalFields({
     <>
       <h4>{t('個人基本資料', lang)}</h4>
       <div className="form-grid">
-        <label>{t('越文姓名', lang)}<input value={form.vietnameseName || ''} onChange={(e) => setField('vietnameseName', e.target.value)} /></label>
+        <label>{t('越文姓名', lang)}<input value={form.vietnameseName || ''} onChange={(e) => setField('vietnameseName', e.target.value)} onBlur={(e) => translateOnBlur('chineseName', e.target.value)} /></label>
         <label>{t('中文姓名', lang)}<input value={form.chineseName || ''} onChange={(e) => setField('chineseName', e.target.value)} /></label>
         <label>
           {t('性別', lang)}
