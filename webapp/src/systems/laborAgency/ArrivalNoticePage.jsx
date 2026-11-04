@@ -69,9 +69,18 @@ export default function ArrivalNoticePage() {
   // 不是移工資料，存在頁面上讓使用者下載前自行填寫即可，不用另開一個
   // 集合保存。
   const [docInfo, setDocInfo] = useState({ to: '', from: '', date: today() });
-  // 下載入境通知單時要不要連同帶入證件照片，以及帶哪幾種——預設都不選，
-  // 要選才會嵌圖，避免檔案不必要地變大。
-  const [includeImages, setIncludeImages] = useState({});
+  // 下載入境通知單時每位移工各自要不要連同帶入證件照片、帶哪幾種——
+  // key 是「移工id-雇主id」，每個人獨立勾選，不是整組共用一份；預設都
+  // 不選，要選才會嵌圖，避免檔案不必要地變大。
+  const [imageSelections, setImageSelections] = useState({});
+
+  function selectionKey(workerId, employerId) {
+    return `${workerId}-${employerId || UNMATCHED_EMPLOYER}`;
+  }
+  function toggleImageSelection(workerId, employerId, typeKey, checked) {
+    const key = selectionKey(workerId, employerId);
+    setImageSelections((prev) => ({ ...prev, [key]: { ...prev[key], [typeKey]: checked } }));
+  }
 
   const employerOf = (id) => employers.find((e) => e.id === id);
   const allPairs = workers
@@ -149,12 +158,19 @@ export default function ArrivalNoticePage() {
       sheet.columns.forEach((col) => { col.width = 14; });
 
       // 選擇帶入的證件照片另開一個分頁，每位移工一個區塊，標題列顯示
-      // 姓名，底下橫向排開勾選的幾種照片，不跟主表格擠在一起。
-      const selectedTypes = IMAGE_TYPES.filter((it) => includeImages[it.key]);
-      if (!selectedTypes.length) return;
+      // 姓名，底下橫向排開那個人自己勾選的幾種照片（每個人各自獨立選，
+      // 不是整組共用一份），不跟主表格擠在一起。
+      const anySelected = group.some(({ worker: w, employerId }) => {
+        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
+        return IMAGE_TYPES.some((it) => sel[it.key]);
+      });
+      if (!anySelected) return;
       const photoSheet = workbook.addWorksheet(t('附件照片', lang));
       let row = 1;
-      for (const { worker: w } of group) {
+      for (const { worker: w, employerId } of group) {
+        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
+        const selectedTypes = IMAGE_TYPES.filter((it) => sel[it.key]);
+        if (!selectedTypes.length) continue;
         photoSheet.getCell(`A${row}`).value = w.name;
         photoSheet.getCell(`A${row}`).font = { bold: true };
         row += 1;
@@ -170,31 +186,8 @@ export default function ArrivalNoticePage() {
         }
         row += 9;
       }
-      selectedTypes.forEach((_, i) => { photoSheet.getColumn(i * 3 + 1).width = 20; });
+      photoSheet.columns.forEach((col) => { col.width = 20; });
     });
-  }
-
-  // 證件照片勾選框：放在每個仲介名單自己的區塊裡（不是整頁共用一份固定
-  // 在上面），比較清楚這個選擇是對應哪一組「下載入境通知單」。
-  function IncludeImagesPicker() {
-    return (
-      <div style={{ marginBottom: 10 }}>
-        <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {IMAGE_TYPES.map((it) => (
-            <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
-              <input
-                type="checkbox"
-                checked={!!includeImages[it.key]}
-                onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
-                style={{ width: 'auto' }}
-              />
-              {t(it.label, lang)}
-            </label>
-          ))}
-        </div>
-      </div>
-    );
   }
 
   function AgencyTable({ group, closed }) {
@@ -206,7 +199,9 @@ export default function ArrivalNoticePage() {
                 <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('性別', lang)}</th>
                 <th>{t('護照號碼', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
                 <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
-                <th>{t('請款對象', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('請款對象', lang)}</th>
+                {!closed && canEditPage && <th>{t('下載時選擇帶入的證件照片', lang)}</th>}
+                {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -222,6 +217,23 @@ export default function ArrivalNoticePage() {
                   <td>{w.flightTime || '—'}</td>
                   <td>{w.transportFee ? (+w.transportFee).toLocaleString() : '—'}</td>
                   <td>{w.billingParty || '—'}</td>
+                  {!closed && canEditPage && (
+                    <td>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {IMAGE_TYPES.map((it) => (
+                          <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: 400, fontSize: 13 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!(imageSelections[selectionKey(w.id, rowEmployerId)] || {})[it.key]}
+                              onChange={(e) => toggleImageSelection(w.id, rowEmployerId, it.key, e.target.checked)}
+                              style={{ width: 'auto' }}
+                            />
+                            {t(it.label, lang)}
+                          </label>
+                        ))}
+                      </div>
+                    </td>
+                  )}
                   {canEditPage && (
                     <td className="row-actions">
                       {closed ? (
@@ -259,22 +271,6 @@ export default function ArrivalNoticePage() {
           <label>{t('DATE', lang)}<input type="date" value={docInfo.date} onChange={(e) => setDocInfo({ ...docInfo, date: e.target.value })} /></label>
         </div>
         <p className="muted" style={{ margin: '8px 0 0' }}>{t('下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。', lang)}</p>
-        <div style={{ marginTop: 10 }}>
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {IMAGE_TYPES.map((it) => (
-              <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={!!includeImages[it.key]}
-                  onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
-                  style={{ width: 'auto' }}
-                />
-                {t(it.label, lang)}
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         rows.length === 0 ? (
@@ -287,7 +283,6 @@ export default function ArrivalNoticePage() {
                 {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
                 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
               </h3>
-              <IncludeImagesPicker />
               <div className="row-actions" style={{ marginBottom: 10 }}>
                 <button onClick={() => handleDownload(agencyKey, group)}>{t('下載入境通知單', lang)}</button>
               </div>
