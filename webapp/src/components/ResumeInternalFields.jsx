@@ -129,7 +129,18 @@ export default function ResumeInternalFields({
         {form.hasTattoo === '有' && (
           <PhotoField label={t('刺青照片', lang)} value={form.tattooPhotoUrl} onChange={(url) => setField('tattooPhotoUrl', url)} lang={lang} />
         )}
+      </div>
+
+      {/* 文件上傳：護照／LINE／健保卡／居留證／電話卡等證件掃描檔或拍照，
+          跟照片一樣存在移工資料上，各頁（移工管理、文件追蹤…）用到的時候
+          不用再另外找紙本文件。 */}
+      <h4>{t('文件上傳', lang)}</h4>
+      <div className="form-grid">
+        <PhotoField label={t('護照', lang)} value={form.passportPhotoUrl} onChange={(url) => setField('passportPhotoUrl', url)} lang={lang} />
         <PhotoField label="LINE" value={form.lineQrPhotoUrl} onChange={(url) => setField('lineQrPhotoUrl', url)} lang={lang} />
+        <PhotoField label={t('健保卡', lang)} value={form.healthCardPhotoUrl} onChange={(url) => setField('healthCardPhotoUrl', url)} lang={lang} />
+        <PhotoField label={t('居留證', lang)} value={form.residencePermitPhotoUrl} onChange={(url) => setField('residencePermitPhotoUrl', url)} lang={lang} />
+        <PhotoField label={t('電話卡', lang)} value={form.phoneCardPhotoUrl} onChange={(url) => setField('phoneCardPhotoUrl', url)} lang={lang} />
       </div>
 
       <h4>{t('家庭狀況', lang)}</h4>
