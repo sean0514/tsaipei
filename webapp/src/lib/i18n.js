@@ -1360,6 +1360,8 @@ const VI = {
   '結束年月': 'Tháng năm kết thúc',
   '離職原因': 'Lý do nghỉ việc',
   '+ 新增一筆': '+ Thêm một dòng',
+  '自動翻譯失敗': 'Dịch tự động thất bại',
+  '重新翻譯': 'Dịch lại',
 
   // 越南簽證辦理（VisaProcessingPage）
   '越南簽證辦理': 'Xử lý visa Việt Nam',

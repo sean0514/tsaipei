@@ -76,6 +76,7 @@ export default function ResumeInternalFields({
   const experienceLabels = {
     startDate: t('開始年月', lang), endDate: t('結束年月', lang), description: t('工作內容', lang), leaveReason: t('離職原因', lang),
     removeRow: t('移除', lang), addRow: t('+ 新增一筆', lang),
+    translateFailed: t('自動翻譯失敗', lang), retryTranslate: t('重新翻譯', lang),
   };
   const { translateOnBlur } = useResumeTranslate(setField);
 
