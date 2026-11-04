@@ -66,6 +66,8 @@ export const RESUME_LABELS = {
   leaveReason: { zh: '離職原因', vi: 'Nguyên nhân từ chức' },
   addRow: { zh: '+ 新增一筆', vi: '+ Thêm dòng' },
   removeRow: { zh: '移除', vi: 'Xóa' },
+  translateFailed: { zh: '自動翻譯失敗', vi: 'Dịch tự động thất bại' },
+  retryTranslate: { zh: '重新翻譯', vi: 'Dịch lại' },
 
   interviewVideoLink: { zh: '面試影片連結', vi: 'Liên kết video phỏng vấn' },
   specialties: { zh: '專長', vi: 'Chuyên môn' },

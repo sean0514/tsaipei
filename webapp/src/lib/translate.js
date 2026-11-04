@@ -20,6 +20,13 @@ function splitIntoChunks(text) {
   return chunks.length ? chunks : [text.slice(0, CHUNK_LIMIT)];
 }
 
+// MyMemory 遇到匿名額度用完時不會回傳 HTTP 錯誤狀態碼，而是照樣回
+// responseStatus 403、translatedText 塞一句英文警告字串（例如
+// "MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR
+// TODAY..."）——如果不特別檢查，這段警告文字會被當成「翻譯結果」直接
+// 存進中文欄位，看起來比「完全沒翻譯」更令人困惑，所以這裡明確檢查
+// responseStatus 跟警告字樣，額度用完就丟出錯誤，讓呼叫端知道翻譯真的
+// 失敗了（而不是悄悄把英文警告當中文存進去）。
 async function translateChunk(text, langpair) {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
   const res = await fetch(url);
@@ -27,6 +34,12 @@ async function translateChunk(text, langpair) {
   const data = await res.json();
   const translated = data?.responseData?.translatedText;
   if (!translated) throw new Error('翻譯服務沒有回傳結果');
+  if (data?.responseStatus && data.responseStatus !== 200) {
+    throw new Error('翻譯服務額度已用完或暫時無法使用，請稍後再試');
+  }
+  if (/MYMEMORY WARNING/i.test(translated)) {
+    throw new Error('翻譯服務額度已用完，請稍後再試');
+  }
   return translated;
 }
 

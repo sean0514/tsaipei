@@ -49,6 +49,11 @@ export function normalizeExperienceRow(r) {
 // 沒辦法直接共用那個 hook）。
 export function ExperienceEditor({ rows, setRows, labels, translatable }) {
   const lastSource = useRef({});
+  // 翻譯失敗（例如免費額度用完、網路暫時不通）不再整個吞掉看不出來——
+  // 記下失敗的那一格，畫面顯示錯誤訊息＋「重新翻譯」按鈕，填寫人員可以
+  // 自己決定要不要再試一次，而不是看到中文欄位一直是空的卻不知道發生
+  // 什麼事。
+  const [failed, setFailed] = useState({});
 
   function updateRow(i, patch) {
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -56,18 +61,26 @@ export function ExperienceEditor({ rows, setRows, labels, translatable }) {
   function removeRow(i) {
     setRows(rows.filter((_, idx) => idx !== i));
   }
-  async function handleBlurTranslate(i, zhField, value) {
+  async function runTranslate(cacheKey, i, zhField, source) {
+    try {
+      const result = await translateViToZh(source);
+      updateRow(i, { [zhField]: result });
+      setFailed((f) => { const next = { ...f }; delete next[cacheKey]; return next; });
+    } catch (err) {
+      setFailed((f) => ({ ...f, [cacheKey]: err.message || String(err) }));
+    }
+  }
+  function handleBlurTranslate(i, zhField, value) {
     if (!translatable) return;
     const source = (value || '').trim();
     const cacheKey = `${i}-${zhField}`;
     if (!source || lastSource.current[cacheKey] === source) return;
     lastSource.current[cacheKey] = source;
-    try {
-      const result = await translateViToZh(source);
-      updateRow(i, { [zhField]: result });
-    } catch {
-      // 翻譯失敗就留空，不擋住繼續填寫。
-    }
+    runTranslate(cacheKey, i, zhField, source);
+  }
+  function handleRetry(i, zhField, source) {
+    const cacheKey = `${i}-${zhField}`;
+    runTranslate(cacheKey, i, zhField, source);
   }
   return (
     <div>
@@ -88,6 +101,12 @@ export function ExperienceEditor({ rows, setRows, labels, translatable }) {
               onChange={(e) => updateRow(i, { description: e.target.value })}
               onBlur={(e) => handleBlurTranslate(i, 'descriptionZh', e.target.value)}
             />
+            {translatable && failed[`${i}-descriptionZh`] && (
+              <div className="error-text" style={{ fontSize: 12 }}>
+                {labels.translateFailed}
+                <button type="button" className="small" onClick={() => handleRetry(i, 'descriptionZh', r.description)} style={{ marginLeft: 6 }}>{labels.retryTranslate}</button>
+              </div>
+            )}
           </label>
           <label>
             {labels.leaveReason}
@@ -96,6 +115,12 @@ export function ExperienceEditor({ rows, setRows, labels, translatable }) {
               onChange={(e) => updateRow(i, { reason: e.target.value })}
               onBlur={(e) => handleBlurTranslate(i, 'reasonZh', e.target.value)}
             />
+            {translatable && failed[`${i}-reasonZh`] && (
+              <div className="error-text" style={{ fontSize: 12 }}>
+                {labels.translateFailed}
+                <button type="button" className="small" onClick={() => handleRetry(i, 'reasonZh', r.reason)} style={{ marginLeft: 6 }}>{labels.retryTranslate}</button>
+              </div>
+            )}
           </label>
           {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{labels.removeRow}</button>}
         </div>
@@ -177,6 +202,7 @@ export default function LaborAgencyResumeApplyPage() {
   const experienceLabels = {
     startDate: L('startDate'), endDate: L('endDate'), description: L('description'), leaveReason: L('leaveReason'),
     removeRow: L('removeRow'), addRow: L('addRow'),
+    translateFailed: L('translateFailed'), retryTranslate: L('retryTranslate'),
   };
 
   async function handleSubmit(e) {
