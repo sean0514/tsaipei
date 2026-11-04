@@ -86,6 +86,7 @@ const FIELDS = [
   { key: 'workExperience', label: '工作經驗', type: 'textarea' },
   { key: 'workExperienceZh', label: '工作經驗（中文翻譯）', type: 'textarea', translateFrom: 'workExperience' },
   { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
+  { key: 'desiredCompany', label: '期望實習單位' },
   // 內部獎金計算讀取的角色指派——這 5 個角色改成每位學生各自指派（取代
   // 原本在「實習單位」(PositionsPage.jsx) 層級指派的做法），學生安排「越南
   // 送機行程」後，依這位學生就讀學校在「內部獎金設定」設定的月費率一次性
