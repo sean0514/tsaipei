@@ -18,7 +18,7 @@ async function uploadResumePhoto(file, prefix) {
 // 也要能補上傳或換掉這幾張圖片，不是只有移工自己填公開履歷表時才能上傳，
 // 不然下載履歷表時這幾個欄位永遠是空的（內部新建的工人資料從來沒有管道
 // 可以填圖片）。
-function PhotoField({ label, value, onChange }) {
+function PhotoField({ label, value, onChange, lang }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,12 +42,20 @@ function PhotoField({ label, value, onChange }) {
     }
   }
 
+  // 刪除：只清空這個欄位的網址，不去刪 Firebase Storage 上的檔案——跟
+  // 其他地方的刪除邏輯一致（先求安全，不做跨系統連動刪除），上傳的照片
+  // 本來就不大，留著不用不影響使用。
+  function handleRemove() {
+    onChange('');
+  }
+
   return (
     <label>
       {label}
       {value && (
-        <div style={{ margin: '4px 0' }}>
+        <div style={{ margin: '4px 0', display: 'flex', alignItems: 'flex-end', gap: 8 }}>
           <img src={value} alt="" style={{ width: 80, height: 80, objectFit: 'cover', display: 'block' }} />
+          <button type="button" className="danger" onClick={handleRemove} disabled={busy}>{t('刪除', lang)}</button>
         </div>
       )}
       <input type="file" accept="image/*" onChange={handleChange} disabled={busy} />
@@ -116,11 +124,11 @@ export default function ResumeInternalFields({
             <option value="無">{t('無', lang)}</option>
           </select>
         </label>
-        <PhotoField label={t('照片', lang)} value={form.photoUrl} onChange={(url) => setField('photoUrl', url)} />
+        <PhotoField label={t('照片', lang)} value={form.photoUrl} onChange={(url) => setField('photoUrl', url)} lang={lang} />
         {form.hasTattoo === '有' && (
-          <PhotoField label={t('刺青照片', lang)} value={form.tattooPhotoUrl} onChange={(url) => setField('tattooPhotoUrl', url)} />
+          <PhotoField label={t('刺青照片', lang)} value={form.tattooPhotoUrl} onChange={(url) => setField('tattooPhotoUrl', url)} lang={lang} />
         )}
-        <PhotoField label="LINE" value={form.lineQrPhotoUrl} onChange={(url) => setField('lineQrPhotoUrl', url)} />
+        <PhotoField label="LINE" value={form.lineQrPhotoUrl} onChange={(url) => setField('lineQrPhotoUrl', url)} lang={lang} />
       </div>
 
       <h4>{t('家庭狀況', lang)}</h4>
