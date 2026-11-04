@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -8,21 +8,54 @@ import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './c
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
 
-// 簽證文號、台灣電話號碼這兩個欄位原本直接把 value 綁 Firestore 即時
-// 資料，每打一個字就寫一次 Firestore，畫面卻要等寫入+onSnapshot 回來
-// 才會顯示——打字速度一快，中間輸入的字元會被還沒更新的舊資料蓋掉，
-// 看起來像「只能輸入一個數字」。改成輸入框自己存一份本地狀態，畫面
-// 顯示本地狀態（打字當下就看得到），背景照常非同步寫回 Firestore；
-// value 從外部變動（例如別人同時在編輯）才會同步回本地狀態。
+// 簽證文號、台灣電話號碼這兩個欄位原本每打一個字就立刻非同步寫一次
+// Firestore；打字速度一快，好幾個 updateDoc 同時在飛，網路上完成的
+// 先後順序不保證跟打字順序一樣，較舊那次（字數較少）的寫入如果比較晚
+// 完成，就會把 Firestore 上較新、字數較多的值蓋回去，連帶透過
+// onSnapshot 把畫面也蓋回去——看起來像「只能輸入一個數字」或打到一半
+// 被清空。改成：畫面永遠顯示本地狀態（打字當下就看得到，不等外部
+// 資料），輸入框還在聚焦時不接受外部資料覆蓋本地值；真正寫回 Firestore
+// 則是停止輸入 400ms 後才寫一次（debounce），失焦時立刻把還沒寫出去的
+// 值補寫一次——同一個欄位同時間只會有一次寫入在飛，不會互相搶跑蓋掉。
 function DigitsInput({ value, onChange, style }) {
   const [local, setLocal] = useState(value || '');
-  useEffect(() => { setLocal(value || ''); }, [value]);
+  const [focused, setFocused] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!focused) setLocal(value || '');
+  }, [value, focused]);
+
+  function commit(digits) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onChange(digits), 400);
+  }
+
   function handleChange(e) {
     const digits = e.target.value.replace(/\D/g, '');
     setLocal(digits);
-    onChange(digits);
+    commit(digits);
   }
-  return <input inputMode="numeric" value={local} onChange={handleChange} style={style} />;
+
+  function handleBlur() {
+    setFocused(false);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      onChange(local);
+    }
+  }
+
+  return (
+    <input
+      inputMode="numeric"
+      value={local}
+      onFocus={() => setFocused(true)}
+      onBlur={handleBlur}
+      onChange={handleChange}
+      style={style}
+    />
+  );
 }
 
 // 名單來源：某一筆配對（移工×雇主）在文件追蹤標記「完成」
