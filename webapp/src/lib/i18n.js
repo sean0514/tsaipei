@@ -800,6 +800,7 @@ const VI = {
   '是否有華語證照': 'Có chứng chỉ tiếng Trung không',
   '搜尋學生、學校、科系或國籍': 'Tìm theo học viên, trường học, khoa hoặc quốc tịch',
   '期望產業別': 'Ngành nghề mong muốn',
+  '期望實習單位': 'Đơn vị thực tập mong muốn',
   '輸入自訂項目': 'Nhập mục tự định nghĩa',
   '來源系統': 'Hệ thống nguồn',
   '境外生實習': 'Thực tập sinh nước ngoài',

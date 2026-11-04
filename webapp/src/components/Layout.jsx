@@ -198,6 +198,11 @@ export default function Layout() {
           ) : (
             <h1 className="brand-mark">🇻🇳 元凱貿易及人力資源有限公司<br />越南實習生管理系統<div className="brand-sub">Vietnam Internship Desk</div></h1>
           )
+        ) : system === 'laborAgency' ? (
+          <h1 className="brand-mark" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {sys.logo && <img src={sys.logo} alt="" style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />}
+            <span>{sys.label}<div className="brand-sub">Nguyen Khai Labor Agency</div></span>
+          </h1>
         ) : (
           <h1>{sys.label}</h1>
         )}
