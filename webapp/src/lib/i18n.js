@@ -1331,6 +1331,35 @@ const VI = {
   '。基本工人資料在「移工名冊」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，文件收集進度在「文件追蹤」。':
     '。Thông tin cơ bản của lao động xem ở "Danh sách lao động", tiến độ hồ sơ chi tiết xem ở "Quản lý lao động", tình trạng thiếu lao động của chủ sử dụng xem ở "Đơn yêu cầu của chủ sử dụng", tiến độ thu hồ sơ xem ở "Theo dõi hồ sơ".',
 
+  // 元凱移工事業部：補漏翻譯（第二輪）——移工管理的配對狀態按鈕
+  // （面試/錄取，取消/未通過已有翻譯）、編輯工人表單「個人基本資料／
+  // 家庭狀況／學歷語言／工作經驗」區塊原本漏了 t(...) 字典項目的欄位，
+  // 以及內部獎金設定用到的會計人員角色標籤。
+  '面試': 'Phỏng vấn',
+  '錄取': 'Trúng tuyển',
+  '會計人員': 'Nhân viên kế toán',
+  '個人基本資料': 'Thông tin cá nhân cơ bản',
+  '左手': 'Tay trái',
+  '右手': 'Tay phải',
+  '未婚': 'Độc thân',
+  '已婚': 'Đã kết hôn',
+  '父親姓名': 'Tên cha',
+  '存歿': 'Còn sống/Đã mất',
+  '存': 'Còn sống',
+  '歿': 'Đã mất',
+  '職業': 'Nghề nghiệp',
+  '母親姓名': 'Tên mẹ',
+  '配偶姓名': 'Tên vợ/chồng',
+  '兄弟姐妹人數': 'Số anh chị em',
+  '若有，哪個縣市': 'Nếu có, tỉnh/thành nào',
+  '會一點': 'Biết chút ít',
+  '中等': 'Trung bình',
+  '流利': 'Lưu loát',
+  '開始年月': 'Tháng năm bắt đầu',
+  '結束年月': 'Tháng năm kết thúc',
+  '離職原因': 'Lý do nghỉ việc',
+  '+ 新增一筆': '+ Thêm một dòng',
+
   // 越南簽證辦理（VisaProcessingPage）
   '越南簽證辦理': 'Xử lý visa Việt Nam',
   '境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或發函後寄國外任一完成後會自動建立「辦理中」紀錄，辦理簽證時間/簽證完成時間在這裡手動填寫':
