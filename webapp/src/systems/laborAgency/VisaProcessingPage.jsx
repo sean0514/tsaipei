@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -6,6 +7,23 @@ import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './c
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
+
+// 簽證文號、台灣電話號碼這兩個欄位原本直接把 value 綁 Firestore 即時
+// 資料，每打一個字就寫一次 Firestore，畫面卻要等寫入+onSnapshot 回來
+// 才會顯示——打字速度一快，中間輸入的字元會被還沒更新的舊資料蓋掉，
+// 看起來像「只能輸入一個數字」。改成輸入框自己存一份本地狀態，畫面
+// 顯示本地狀態（打字當下就看得到），背景照常非同步寫回 Firestore；
+// value 從外部變動（例如別人同時在編輯）才會同步回本地狀態。
+function DigitsInput({ value, onChange, style }) {
+  const [local, setLocal] = useState(value || '');
+  useEffect(() => { setLocal(value || ''); }, [value]);
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, '');
+    setLocal(digits);
+    onChange(digits);
+  }
+  return <input inputMode="numeric" value={local} onChange={handleChange} style={style} />;
+}
 
 // 名單來源：某一筆配對（移工×雇主）在文件追蹤標記「完成」
 // (docsCompletedMap) 的，自動出現在這裡辦簽證；填好辦理/領取日期後按
@@ -45,11 +63,6 @@ export default function VisaProcessingPage() {
 
   async function handleField(w, key, value) {
     await update(w.id, { [key]: value });
-  }
-  // 簽證文號、台灣電話號碼只能輸入數字，非數字字元直接過濾掉，輸入時
-  // 就擋下來，不用等儲存才發現格式錯誤。
-  async function handleDigitsField(w, key, value) {
-    await handleField(w, key, value.replace(/\D/g, ''));
   }
   // 完成：要求先填入簽證文號才能按——沒有簽證文號代表簽證還沒真的辦
   // 下來，不該進入下一關「出境辦理」。
@@ -107,12 +120,12 @@ export default function VisaProcessingPage() {
                   </td>
                   <td>
                     {canEditPage ? (
-                      <input inputMode="numeric" value={w.visaDocNumber || ''} onChange={(e) => handleDigitsField(w, 'visaDocNumber', e.target.value)} style={{ width: 120 }} />
+                      <DigitsInput value={w.visaDocNumber} onChange={(v) => handleField(w, 'visaDocNumber', v)} style={{ width: 120 }} />
                     ) : (w.visaDocNumber || '—')}
                   </td>
                   <td>
                     {canEditPage ? (
-                      <input inputMode="numeric" value={w.taiwanPhone || ''} onChange={(e) => handleDigitsField(w, 'taiwanPhone', e.target.value)} style={{ width: 120 }} />
+                      <DigitsInput value={w.taiwanPhone} onChange={(v) => handleField(w, 'taiwanPhone', v)} style={{ width: 120 }} />
                     ) : (w.taiwanPhone || '—')}
                   </td>
                   {canEditPage && (
