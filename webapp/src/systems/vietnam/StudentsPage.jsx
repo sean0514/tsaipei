@@ -86,7 +86,10 @@ const FIELDS = [
   { key: 'workExperience', label: '工作經驗', type: 'textarea' },
   { key: 'workExperienceZh', label: '工作經驗（中文翻譯）', type: 'textarea', translateFrom: 'workExperience' },
   { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
-  { key: 'desiredCompany', label: '期望實習單位' },
+  // 期望實習單位可以填多筆，沒有預設選項，純粹自行輸入多個項目——跟
+  // desiredIndustries 共用同一套 MultiSelectEditor（options 傳空陣列即可），
+  // 一樣存成 JSON 字串陣列。
+  { key: 'desiredCompany', label: '期望實習單位', type: 'multiselect', options: [] },
   // 內部獎金計算讀取的角色指派——這 5 個角色改成每位學生各自指派（取代
   // 原本在「實習單位」(PositionsPage.jsx) 層級指派的做法），學生安排「越南
   // 送機行程」後，依這位學生就讀學校在「內部獎金設定」設定的月費率一次性
@@ -253,7 +256,7 @@ export default function StudentsPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
+                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('期望實習單位', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
                       {canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -271,6 +274,7 @@ export default function StudentsPage() {
                         <td>{r.gender || '—'}</td>
                         <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
                         <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
+                        <td>{parseList(r.desiredCompany).join('、') || '—'}</td>
                         <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
                         <td className="muted">{formatCreatedAt(r)}</td>
                         {canEditPage && (
