@@ -1320,6 +1320,10 @@ const VI = {
   '編輯履歷': 'Chỉnh sửa hồ sơ',
   '下載履歷表': 'Tải xuống hồ sơ',
   '面試影片連結': 'Link video phỏng vấn',
+  '文件上傳': 'Tải lên giấy tờ',
+  '健保卡': 'Thẻ bảo hiểm y tế',
+  '居留證': 'Thẻ cư trú',
+  '電話卡': 'Thẻ điện thoại',
   '越南移工案件進度管理，列出每位移工的配對雇主與各自的面試/錄取狀態（同一人配對多個雇主，狀態各自獨立）':
     'Quản lý tiến độ hồ sơ lao động Việt Nam: liệt kê chủ sử dụng ghép đôi của từng lao động và trạng thái phỏng vấn/trúng tuyển riêng của từng cặp (một người ghép đôi nhiều chủ sử dụng thì trạng thái độc lập với nhau)',
   '。基本工人資料在「移工名冊」，詳細案件進度請到「移工管理」查看，雇主缺工狀況在「雇主需求單」，文件收集進度在「文件追蹤」。':
