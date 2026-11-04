@@ -46,6 +46,11 @@ export default function VisaProcessingPage() {
   async function handleField(w, key, value) {
     await update(w.id, { [key]: value });
   }
+  // 簽證文號、台灣電話號碼只能輸入數字，非數字字元直接過濾掉，輸入時
+  // 就擋下來，不用等儲存才發現格式錯誤。
+  async function handleDigitsField(w, key, value) {
+    await handleField(w, key, value.replace(/\D/g, ''));
+  }
   // 完成：要求先填入簽證文號才能按——沒有簽證文號代表簽證還沒真的辦
   // 下來，不該進入下一關「出境辦理」。
   async function handleComplete(w, employerId) {
@@ -102,12 +107,12 @@ export default function VisaProcessingPage() {
                   </td>
                   <td>
                     {canEditPage ? (
-                      <input value={w.visaDocNumber || ''} onChange={(e) => handleField(w, 'visaDocNumber', e.target.value)} style={{ width: 120 }} />
+                      <input inputMode="numeric" value={w.visaDocNumber || ''} onChange={(e) => handleDigitsField(w, 'visaDocNumber', e.target.value)} style={{ width: 120 }} />
                     ) : (w.visaDocNumber || '—')}
                   </td>
                   <td>
                     {canEditPage ? (
-                      <input value={w.taiwanPhone || ''} onChange={(e) => handleField(w, 'taiwanPhone', e.target.value)} style={{ width: 120 }} />
+                      <input inputMode="numeric" value={w.taiwanPhone || ''} onChange={(e) => handleDigitsField(w, 'taiwanPhone', e.target.value)} style={{ width: 120 }} />
                     ) : (w.taiwanPhone || '—')}
                   </td>
                   {canEditPage && (
