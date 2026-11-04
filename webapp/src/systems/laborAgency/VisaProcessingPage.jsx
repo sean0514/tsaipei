@@ -58,6 +58,77 @@ function DigitsInput({ value, onChange, style }) {
   );
 }
 
+// 這個表格原本是定義在 VisaProcessingPage 函式「裡面」的巢狀元件，每次
+// 父元件重新 render（包括 DigitsInput 自己 debounce 寫入 Firestore後
+// onSnapshot 觸發的那次 render）就會產生一個全新的函式物件，React 會
+// 把它當成「不同的元件類型」整個卸載重掛，連帶把 DigitsInput 的本地
+// 輸入狀態也一起清空——這才是輸入框一直打不進去、卡住的真正原因（跟
+// debounce 本身無關）。改成定義在元件外層（module 層級），元件身分
+// 穩定不會每次 render 都換掉，才不會一直被重新掛載。
+function EmployerTable({
+  employerId, rows, employers, lang, canEditPage, onField, onComplete, onBack, onRemove,
+}) {
+  const group = rows.filter((r) => (r.employerId || UNMATCHED_EMPLOYER) === employerId);
+  if (group.length === 0) return null;
+  const sorted = [...group].sort((a, b) => (a.worker.name || '').localeCompare(b.worker.name || ''));
+  return (
+    <div key={employerId} style={{ marginBottom: 16 }}>
+      <h4 style={{ marginBottom: 8 }}>
+        {employerId === UNMATCHED_EMPLOYER ? t('尚未配對', lang) : employerLabel(employers, employerId, lang)}
+        <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
+      </h4>
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <div className="table-wrap"><table>
+          <thead>
+            <tr>
+              <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
+              <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>
+              <th>{t('台灣電話號碼', lang)}</th>{canEditPage && <th></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(({ worker: w }) => (
+              <tr key={w.id}>
+                <td style={{ fontWeight: 600 }}>{w.name}</td>
+                <td>{w.vietnameseName || '—'}</td>
+                <td>{t(w.gender, lang) || '—'}</td>
+                <td>{w.province || '—'}</td>
+                <td>
+                  {canEditPage ? (
+                    <input type="date" value={w.visaProcessDate || ''} onChange={(e) => onField(w, 'visaProcessDate', e.target.value)} />
+                  ) : (w.visaProcessDate || '—')}
+                </td>
+                <td>
+                  {canEditPage ? (
+                    <input type="date" value={w.visaPickupDate || ''} onChange={(e) => onField(w, 'visaPickupDate', e.target.value)} />
+                  ) : (w.visaPickupDate || '—')}
+                </td>
+                <td>
+                  {canEditPage ? (
+                    <DigitsInput value={w.visaDocNumber} onChange={(v) => onField(w, 'visaDocNumber', v)} style={{ width: 120 }} />
+                  ) : (w.visaDocNumber || '—')}
+                </td>
+                <td>
+                  {canEditPage ? (
+                    <DigitsInput value={w.taiwanPhone} onChange={(v) => onField(w, 'taiwanPhone', v)} style={{ width: 120 }} />
+                  ) : (w.taiwanPhone || '—')}
+                </td>
+                {canEditPage && (
+                  <td className="row-actions">
+                    <button className="primary" disabled={!w.visaDocNumber} title={!w.visaDocNumber ? t('需先填入簽證文號才能按完成', lang) : ''} onClick={() => onComplete(w, employerId)}>{t('完成', lang)}</button>
+                    <button onClick={() => onBack(w, employerId)}>{t('返回', lang)}</button>
+                    <button className="danger" onClick={() => onRemove(w, employerId)}>{t('刪除', lang)}</button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  );
+}
+
 // 名單來源：某一筆配對（移工×雇主）在文件追蹤標記「完成」
 // (docsCompletedMap) 的，自動出現在這裡辦簽證；填好辦理/領取日期後按
 // 「完成」(visaCompletedMap)，那一筆會從這份名單消失，接著自動出現在
@@ -115,68 +186,6 @@ export default function VisaProcessingPage() {
     await update(w.id, { docsCompletedMap: withPairFlag(w, 'docsCompletedMap', employerId, false) });
   }
 
-  function EmployerTable({ employerId }) {
-    const group = rows.filter((r) => (r.employerId || UNMATCHED_EMPLOYER) === employerId);
-    if (group.length === 0) return null;
-    const sorted = [...group].sort((a, b) => (a.worker.name || '').localeCompare(b.worker.name || ''));
-    return (
-      <div key={employerId} style={{ marginBottom: 16 }}>
-        <h4 style={{ marginBottom: 8 }}>
-          {employerId === UNMATCHED_EMPLOYER ? t('尚未配對', lang) : employerLabel(employers, employerId, lang)}
-          <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
-        </h4>
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>
-                <th>{t('台灣電話號碼', lang)}</th>{canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map(({ worker: w }) => (
-                <tr key={w.id}>
-                  <td style={{ fontWeight: 600 }}>{w.name}</td>
-                  <td>{w.vietnameseName || '—'}</td>
-                  <td>{t(w.gender, lang) || '—'}</td>
-                  <td>{w.province || '—'}</td>
-                  <td>
-                    {canEditPage ? (
-                      <input type="date" value={w.visaProcessDate || ''} onChange={(e) => handleField(w, 'visaProcessDate', e.target.value)} />
-                    ) : (w.visaProcessDate || '—')}
-                  </td>
-                  <td>
-                    {canEditPage ? (
-                      <input type="date" value={w.visaPickupDate || ''} onChange={(e) => handleField(w, 'visaPickupDate', e.target.value)} />
-                    ) : (w.visaPickupDate || '—')}
-                  </td>
-                  <td>
-                    {canEditPage ? (
-                      <DigitsInput value={w.visaDocNumber} onChange={(v) => handleField(w, 'visaDocNumber', v)} style={{ width: 120 }} />
-                    ) : (w.visaDocNumber || '—')}
-                  </td>
-                  <td>
-                    {canEditPage ? (
-                      <DigitsInput value={w.taiwanPhone} onChange={(v) => handleField(w, 'taiwanPhone', v)} style={{ width: 120 }} />
-                    ) : (w.taiwanPhone || '—')}
-                  </td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button className="primary" disabled={!w.visaDocNumber} title={!w.visaDocNumber ? t('需先填入簽證文號才能按完成', lang) : ''} onClick={() => handleComplete(w, employerId)}>{t('完成', lang)}</button>
-                      <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
-                      <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="content">
       <div className="page-header">
@@ -201,7 +210,20 @@ export default function VisaProcessingPage() {
                 {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
                 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{count}）</span>
               </h3>
-              {employerIdsInAgency.map((employerId) => <EmployerTable key={employerId} employerId={employerId} />)}
+              {employerIdsInAgency.map((employerId) => (
+                <EmployerTable
+                  key={employerId}
+                  employerId={employerId}
+                  rows={rows}
+                  employers={employers}
+                  lang={lang}
+                  canEditPage={canEditPage}
+                  onField={handleField}
+                  onComplete={handleComplete}
+                  onBack={handleBack}
+                  onRemove={handleRemove}
+                />
+              ))}
             </div>
           );
         })
