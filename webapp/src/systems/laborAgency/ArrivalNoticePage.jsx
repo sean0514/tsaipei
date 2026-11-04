@@ -259,6 +259,22 @@ export default function ArrivalNoticePage() {
           <label>{t('DATE', lang)}<input type="date" value={docInfo.date} onChange={(e) => setDocInfo({ ...docInfo, date: e.target.value })} /></label>
         </div>
         <p className="muted" style={{ margin: '8px 0 0' }}>{t('下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。', lang)}</p>
+        <div style={{ marginTop: 10 }}>
+          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {IMAGE_TYPES.map((it) => (
+              <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+                <input
+                  type="checkbox"
+                  checked={!!includeImages[it.key]}
+                  onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
+                  style={{ width: 'auto' }}
+                />
+                {t(it.label, lang)}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         rows.length === 0 ? (
