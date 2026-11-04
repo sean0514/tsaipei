@@ -13,6 +13,43 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// 入境通知單可選擇帶入的證件照片類型——欄位名稱對應移工資料上的
+// photoUrl 欄位（見 ResumeInternalFields.jsx 的「文件上傳」區塊），下載
+// 時勾選哪幾種就把哪幾種嵌進 Excel。
+const IMAGE_TYPES = [
+  { key: 'passport', label: '護照', field: 'passportPhotoUrl' },
+  { key: 'line', label: 'LINE', field: 'lineQrPhotoUrl' },
+  { key: 'healthCard', label: '健保卡', field: 'healthCardPhotoUrl' },
+  { key: 'residencePermit', label: '居留證', field: 'residencePermitPhotoUrl' },
+  { key: 'phoneCard', label: '電話卡', field: 'phoneCardPhotoUrl' },
+];
+
+// 把圖片網址轉成 exceljs addImage 需要的 base64+副檔名；exceljs 只支援
+// jpeg/png/gif，遇到其他格式或抓取失敗就回傳 null，呼叫端直接跳過那張圖，
+// 不中斷整個下載。
+async function fetchImageForExcel(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    let extension = null;
+    if (blob.type.includes('jpeg') || blob.type.includes('jpg')) extension = 'jpeg';
+    else if (blob.type.includes('png')) extension = 'png';
+    else if (blob.type.includes('gif')) extension = 'gif';
+    if (!extension) return null;
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return { base64, extension };
+  } catch {
+    return null;
+  }
+}
+
 // 名單來源：某一筆配對在出境辦理標記「已完成」(departureCompletedMap)
 // 的，航班已經確認，自動帶入這裡通知接機／入境相關人員；單純顯示航班
 // 資訊，不再有下一關，所以沒有「完成」按鈕。刪除只影響那一筆配對。
@@ -32,6 +69,9 @@ export default function ArrivalNoticePage() {
   // 不是移工資料，存在頁面上讓使用者下載前自行填寫即可，不用另開一個
   // 集合保存。
   const [docInfo, setDocInfo] = useState({ to: '', from: '', date: today() });
+  // 下載入境通知單時要不要連同帶入證件照片，以及帶哪幾種——預設都不選，
+  // 要選才會嵌圖，避免檔案不必要地變大。
+  const [includeImages, setIncludeImages] = useState({});
 
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = workers
@@ -69,7 +109,7 @@ export default function ArrivalNoticePage() {
     const flightRow = group.find(({ worker: w }) => w.flightTime)?.worker || {};
     const [arrivalDate, arrivalTimeRaw] = (flightRow.flightTime || '').split('T');
     const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
-    await downloadXlsx(`入境通知單_${title}.xlsx`, (workbook) => {
+    await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
       const sheet = workbook.addWorksheet('入境通知單');
       sheet.addRow(['入境通知單']);
       sheet.mergeCells('A1:N1');
@@ -92,6 +132,30 @@ export default function ArrivalNoticePage() {
         ]);
       });
       sheet.columns.forEach((col) => { col.width = 14; });
+
+      // 選擇帶入的證件照片另開一個分頁，每位移工一個區塊，標題列顯示
+      // 姓名，底下橫向排開勾選的幾種照片，不跟主表格擠在一起。
+      const selectedTypes = IMAGE_TYPES.filter((it) => includeImages[it.key]);
+      if (!selectedTypes.length) return;
+      const photoSheet = workbook.addWorksheet(t('附件照片', lang));
+      let row = 1;
+      for (const { worker: w } of group) {
+        photoSheet.getCell(`A${row}`).value = w.name;
+        photoSheet.getCell(`A${row}`).font = { bold: true };
+        row += 1;
+        for (let col = 0; col < selectedTypes.length; col += 1) {
+          const type = selectedTypes[col];
+          const img = await fetchImageForExcel(w[type.field]);
+          const colIndex = col * 3;
+          photoSheet.getCell(row, colIndex + 1).value = t(type.label, lang);
+          if (img) {
+            const imageId = workbook.addImage({ base64: img.base64, extension: img.extension });
+            photoSheet.addImage(imageId, { tl: { col: colIndex, row }, ext: { width: 150, height: 150 } });
+          }
+        }
+        row += 9;
+      }
+      selectedTypes.forEach((_, i) => { photoSheet.getColumn(i * 3 + 1).width = 20; });
     });
   }
 
@@ -101,10 +165,10 @@ export default function ArrivalNoticePage() {
         <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('出生年月', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('護照號碼', lang)}</th><th>{t('護照發照日期', lang)}</th><th>{t('護照有效日期', lang)}</th>
-                <th>{t('核准文號', lang)}</th><th>{t('婚姻狀況', lang)}</th><th>{t('台灣電話號碼', lang)}</th>
-                <th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th><th>{t('班機時間', lang)}</th>{canEditPage && <th></th>}
+                <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('性別', lang)}</th>
+                <th>{t('護照號碼', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
+                <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
+                <th>{t('請款對象', lang)}</th>{canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -112,17 +176,14 @@ export default function ArrivalNoticePage() {
                 <tr key={`${w.id}-${rowEmployerId || UNMATCHED_EMPLOYER}`}>
                   <td style={{ fontWeight: 600 }}>{w.name}</td>
                   <td>{rowEmployerId ? employerLabel(employers, rowEmployerId, lang) : t('尚未配對', lang)}</td>
-                  <td>{w.birthDate || '—'}</td>
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.passportNo || '—'}</td>
-                  <td>{w.passportIssueDate || '—'}</td>
-                  <td>{w.passportExpiry || '—'}</td>
-                  <td>{w.approvalDocNumber || '—'}</td>
-                  <td>{t(w.maritalStatus, lang) || '—'}</td>
-                  <td>{w.taiwanPhone || '—'}</td>
                   <td>{w.flightAirline || '—'}</td>
                   <td>{w.flightNumber || '—'}</td>
+                  <td>{w.flightTerminal || '—'}</td>
                   <td>{w.flightTime || '—'}</td>
+                  <td>{w.transportFee ? (+w.transportFee).toLocaleString() : '—'}</td>
+                  <td>{w.billingParty || '—'}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
@@ -153,6 +214,22 @@ export default function ArrivalNoticePage() {
           <label>{t('DATE', lang)}<input type="date" value={docInfo.date} onChange={(e) => setDocInfo({ ...docInfo, date: e.target.value })} /></label>
         </div>
         <p className="muted" style={{ margin: '8px 0 0' }}>{t('下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。', lang)}</p>
+        <div style={{ marginTop: 10 }}>
+          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{t('下載時選擇帶入的證件照片', lang)}</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {IMAGE_TYPES.map((it) => (
+              <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+                <input
+                  type="checkbox"
+                  checked={!!includeImages[it.key]}
+                  onChange={(e) => setIncludeImages({ ...includeImages, [it.key]: e.target.checked })}
+                  style={{ width: 'auto' }}
+                />
+                {t(it.label, lang)}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         rows.length === 0 ? (
