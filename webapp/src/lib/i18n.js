@@ -1321,6 +1321,8 @@ const VI = {
   '下載履歷表': 'Tải xuống hồ sơ',
   '面試影片連結': 'Link video phỏng vấn',
   '文件上傳': 'Tải lên giấy tờ',
+  '附件照片': 'Ảnh đính kèm',
+  '下載時選擇帶入的證件照片': 'Chọn ảnh giấy tờ đưa vào khi tải xuống',
   '健保卡': 'Thẻ bảo hiểm y tế',
   '居留證': 'Thẻ cư trú',
   '電話卡': 'Thẻ điện thoại',
