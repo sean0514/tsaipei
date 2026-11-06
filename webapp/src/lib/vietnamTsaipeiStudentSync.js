@@ -12,10 +12,11 @@ import { db } from '../firebase';
 // 過來時改帶中文翻譯欄位 schoolZh/departmentZh（StudentsPage.jsx 離開欄位
 // 時自動翻譯填入、人員可手動微調），沒有翻譯才退回用越南文原文，不然
 // tsaipei 這邊的中文人員會看不懂學校/科系名稱。hasCert/certType/certLevel/
-// desiredIndustries 這幾個
+// desiredIndustries/birthDate 這幾個
 // 履歷表特有的欄位也原樣同步過去（tsaipei_students 的 FIELDS 新增了這幾
 // 個欄位來顯示），方便 tsaipei 這邊的使用者直接看到元凱同步過來的學生是否
-// 有華語證照、期望產業別，不用另外切到越南系統查。firestore.rules 已放行
+// 有華語證照、期望產業別、出生日期（進而算出年齡），不用另外切到越南系統查。
+// firestore.rules 已放行
 // vnCanEdit('students') 寫入這裡提到的所有 tsaipei_* 集合。
 export function tsaipeiStudentFields(vn) {
   return {
@@ -25,6 +26,7 @@ export function tsaipeiStudentFields(vn) {
     department1: vn.departmentZh || vn.department || '',
     nationality: vn.nationality || '',
     gender: vn.gender || '',
+    birthDate: vn.birthDate || '',
     passportNumber: vn.hasPassport === 'Yes' ? (vn.passportNumber || '') : '',
     langProofType: (vn.hasCert === '有' || vn.hasCert === '已考試未領取證照')
       ? (vn.certType === 'TOCFL' ? '華語' : vn.certType === 'TOEIC' ? '多益' : '') : '',
