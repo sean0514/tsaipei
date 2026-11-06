@@ -3,10 +3,25 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, getPairInfo, withPairInfo } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
+const LEGACY_VISA_FIELDS = ['visaProcessDate', 'visaPickupDate', 'visaDocNumber', 'taiwanPhone'];
+
+// 簽證辦理日期/領取日期/文號、台灣電話號碼要依配對（移工×雇主）各自
+// 獨立存放（visaInfoMap），不能像舊版那樣直接存在移工文件的扁平欄位上
+// ——否則同一個移工同時配對多個雇主時，填寫其中一筆的簽證資料會覆蓋
+// 到另一筆（例如誤判另一筆也「已完成」）。舊資料沒有 visaInfoMap 時，
+// 退回舊的扁平欄位顯示（只配對單一雇主時仍準確），一旦編輯存檔就會
+// 改存進新的 visaInfoMap。
+function visaInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'visaInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_VISA_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
 
 // 簽證文號、台灣電話號碼這兩個欄位原本每打一個字就立刻非同步寫一次
 // Firestore；打字速度一快，好幾個 updateDoc 同時在飛，網路上完成的
@@ -87,7 +102,9 @@ function EmployerTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map(({ worker: w }) => (
+            {sorted.map(({ worker: w }) => {
+              const info = visaInfoOf(w, employerId);
+              return (
               <tr key={w.id}>
                 <td style={{ fontWeight: 600 }}>{w.name}</td>
                 <td>{w.vietnameseName || '—'}</td>
@@ -95,33 +112,34 @@ function EmployerTable({
                 <td>{w.province || '—'}</td>
                 <td>
                   {canEditPage ? (
-                    <input type="date" value={w.visaProcessDate || ''} onChange={(e) => onField(w, 'visaProcessDate', e.target.value)} />
-                  ) : (w.visaProcessDate || '—')}
+                    <input type="date" value={info.visaProcessDate || ''} onChange={(e) => onField(w, employerId, 'visaProcessDate', e.target.value)} />
+                  ) : (info.visaProcessDate || '—')}
                 </td>
                 <td>
                   {canEditPage ? (
-                    <input type="date" value={w.visaPickupDate || ''} onChange={(e) => onField(w, 'visaPickupDate', e.target.value)} />
-                  ) : (w.visaPickupDate || '—')}
+                    <input type="date" value={info.visaPickupDate || ''} onChange={(e) => onField(w, employerId, 'visaPickupDate', e.target.value)} />
+                  ) : (info.visaPickupDate || '—')}
                 </td>
                 <td>
                   {canEditPage ? (
-                    <DigitsInput value={w.visaDocNumber} onChange={(v) => onField(w, 'visaDocNumber', v)} style={{ width: 120 }} />
-                  ) : (w.visaDocNumber || '—')}
+                    <DigitsInput value={info.visaDocNumber} onChange={(v) => onField(w, employerId, 'visaDocNumber', v)} style={{ width: 120 }} />
+                  ) : (info.visaDocNumber || '—')}
                 </td>
                 <td>
                   {canEditPage ? (
-                    <DigitsInput value={w.taiwanPhone} onChange={(v) => onField(w, 'taiwanPhone', v)} style={{ width: 120 }} />
-                  ) : (w.taiwanPhone || '—')}
+                    <DigitsInput value={info.taiwanPhone} onChange={(v) => onField(w, employerId, 'taiwanPhone', v)} style={{ width: 120 }} />
+                  ) : (info.taiwanPhone || '—')}
                 </td>
                 {canEditPage && (
                   <td className="row-actions">
-                    <button className="primary" disabled={!w.visaDocNumber} title={!w.visaDocNumber ? t('需先填入簽證文號才能按完成', lang) : ''} onClick={() => onComplete(w, employerId)}>{t('完成', lang)}</button>
+                    <button className="primary" disabled={!info.visaDocNumber} title={!info.visaDocNumber ? t('需先填入簽證文號才能按完成', lang) : ''} onClick={() => onComplete(w, employerId)}>{t('完成', lang)}</button>
                     <button onClick={() => onBack(w, employerId)}>{t('返回', lang)}</button>
                     <button className="danger" onClick={() => onRemove(w, employerId)}>{t('刪除', lang)}</button>
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table></div>
       </div>
@@ -165,13 +183,14 @@ export default function VisaProcessingPage() {
     if (!agencyOrder.includes(agencyKey)) agencyOrder.push(agencyKey);
   });
 
-  async function handleField(w, key, value) {
-    await update(w.id, { [key]: value });
+  async function handleField(w, employerId, key, value) {
+    const info = { ...visaInfoOf(w, employerId), [key]: value };
+    await update(w.id, { visaInfoMap: withPairInfo(w, 'visaInfoMap', employerId, info) });
   }
   // 完成：要求先填入簽證文號才能按——沒有簽證文號代表簽證還沒真的辦
   // 下來，不該進入下一關「出境辦理」。
   async function handleComplete(w, employerId) {
-    if (!w.visaDocNumber) return;
+    if (!visaInfoOf(w, employerId).visaDocNumber) return;
     await update(w.id, { visaCompletedMap: withPairFlag(w, 'visaCompletedMap', employerId, true) });
   }
   // 刪除：只從「辦理簽證」這份名單移除那一筆配對，不影響移工本身的
