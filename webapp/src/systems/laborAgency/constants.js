@@ -144,6 +144,21 @@ export function withPairFlag(w, field, employerId, value) {
   return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
 }
 
+// 跟上面的 pair flag 同樣道理，但存的不是 true/false，而是一組欄位值
+// （例如出境辦理的航班資訊、辦理簽證的日期/文號）——這些欄位內容也是
+// 每一筆配對（移工×雇主）各自獨立，不能整個移工共用一份，否則同一個
+// 移工配對多個雇主時，填寫其中一筆的資料會覆蓋到另一筆。value 是物件，
+// 整包存進去（覆蓋，不是 merge，呼叫端自己決定要不要先讀舊值 merge）。
+export function getPairInfo(w, field, employerId) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return parsePairFlags(w, field)[key] || {};
+}
+
+export function withPairInfo(w, field, employerId, value) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
+}
+
 // 從其他狀態改回「錄取」，代表那一筆配對重新開始整個流程——文件追蹤/
 // 辦理簽證/出境辦理/入境通知先前留下的完成/移除/結案旗標都要清掉，
 // 不然那一筆配對會因為舊旗標還是 true，卡在原本的頁面出不來或一路
@@ -156,11 +171,38 @@ const PIPELINE_FLAG_FIELDS = [
   'departureCompletedMap', 'departureListRemovedMap',
   'arrivalListRemovedMap', 'arrivalClosedMap',
 ];
+// 跟上面旗標一起重置，但值是空物件不是 false：重新開始流程時，上一輪
+// 配對填過的簽證/航班資料不該繼續帶著走。
+const PIPELINE_INFO_FIELDS = ['visaInfoMap', 'departureInfoMap'];
+// 整筆移除一筆配對（移工×雇主，見 WorkersPage.jsx 的 handleRemoveRow）時
+// 用：把 matchStatuses 及所有 pipeline 旗標/資訊欄位裡，這個雇主 key 的
+// 資料一併刪掉（不是設成 false/{}，是直接拿掉那個 key）——不然之後同一
+// 個移工重新配對回同一個雇主時，getPairFlag/matchStatusOf 還是會讀到
+// 這筆已經刪除的配對留下的舊資料（例如已經「錄取」「文件已完成」），
+// 新的配對會直接繼承舊狀態，不是從「面試」重新開始。
+const PAIR_SCOPED_FIELDS = ['matchStatuses', ...PIPELINE_FLAG_FIELDS, ...PIPELINE_INFO_FIELDS];
+export function clearPairData(w, employerId) {
+  const key = employerId || UNMATCHED_MATCH_KEY;
+  const payload = {};
+  PAIR_SCOPED_FIELDS.forEach((field) => {
+    const obj = field === 'matchStatuses' ? parseMatchStatuses(w) : parsePairFlags(w, field);
+    if (!(key in obj)) return;
+    const { [key]: _removed, ...rest } = obj;
+    payload[field] = JSON.stringify(rest);
+  });
+  return payload;
+}
+
 export function resetPipelineFlags(w, employerId) {
   let current = w;
   const payload = {};
   PIPELINE_FLAG_FIELDS.forEach((field) => {
     const value = withPairFlag(current, field, employerId, false);
+    payload[field] = value;
+    current = { ...current, [field]: value };
+  });
+  PIPELINE_INFO_FIELDS.forEach((field) => {
+    const value = withPairInfo(current, field, employerId, {});
     payload[field] = value;
     current = { ...current, [field]: value };
   });

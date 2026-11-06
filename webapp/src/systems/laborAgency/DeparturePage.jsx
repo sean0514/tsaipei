@@ -3,10 +3,24 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, getPairInfo, withPairInfo } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
+const LEGACY_DEPARTURE_FIELDS = ['flightAirline', 'flightNumber', 'flightTerminal', 'flightTime', 'transportFee', 'billingParty', 'includeInBilling'];
+
+// 航班/交通資訊要依配對（移工×雇主）各自獨立存放（departureInfoMap），
+// 不能像舊版那樣直接存在移工文件的扁平欄位上——否則同一個移工同時配對
+// 多個雇主時，填寫其中一筆的航班資訊會覆蓋到另一筆。舊資料沒有
+// departureInfoMap 時，退回舊的扁平欄位顯示（只配對單一雇主時仍準確），
+// 一旦透過「編輯」存檔就會改存進新的 departureInfoMap。
+function departureInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'departureInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_DEPARTURE_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
 
 // 名單來源：某一筆配對在辦理簽證標記「完成」(visaCompletedMap) 的，
 // 自動出現在這裡安排出境行程；填好航班資訊後按「已完成」
@@ -18,7 +32,7 @@ export default function DeparturePage() {
   const canEditPage = computeCanEdit(system, 'departure', role, overrides);
   const { rows: workers, loading, update } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(null); // { worker, employerId }
 
   const employerOf = (id) => employers.find((e) => e.id === id);
   const rows = workers
@@ -32,8 +46,8 @@ export default function DeparturePage() {
   const agencyKeys = [...new Set(rows.map((r) => (r.employerId ? (employerOf(r.employerId)?.agencyName || UNSET_AGENCY) : UNSET_AGENCY)))]
     .sort((a, b) => (a === UNSET_AGENCY ? 1 : b === UNSET_AGENCY ? -1 : a.localeCompare(b)));
 
-  async function handleSave(worker, data) {
-    await update(worker.id, data);
+  async function handleSave(worker, employerId, data) {
+    await update(worker.id, { departureInfoMap: withPairInfo(worker, 'departureInfoMap', employerId, data) });
     setEditing(null);
   }
   async function handleComplete(w, employerId) {
@@ -77,27 +91,30 @@ export default function DeparturePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.map(({ worker: w, employerId }) => (
+                    {group.map(({ worker: w, employerId }) => {
+                      const info = departureInfoOf(w, employerId);
+                      return (
                       <tr key={`${w.id}-${employerId || UNMATCHED_EMPLOYER}`}>
                         <td style={{ fontWeight: 600 }}>{w.name}</td>
                         <td>{employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang)}</td>
-                        <td>{w.flightAirline || '—'}</td>
-                        <td>{w.flightNumber || '—'}</td>
-                        <td>{w.flightTerminal || '—'}</td>
-                        <td>{w.flightTime || '—'}</td>
-                        <td>{w.transportFee ? (+w.transportFee).toLocaleString() : '—'}</td>
-                        <td>{w.billingParty || '—'}</td>
-                        <td>{w.includeInBilling ? t('是', lang) : t('否', lang)}</td>
+                        <td>{info.flightAirline || '—'}</td>
+                        <td>{info.flightNumber || '—'}</td>
+                        <td>{info.flightTerminal || '—'}</td>
+                        <td>{info.flightTime || '—'}</td>
+                        <td>{info.transportFee ? (+info.transportFee).toLocaleString() : '—'}</td>
+                        <td>{info.billingParty || '—'}</td>
+                        <td>{info.includeInBilling ? t('是', lang) : t('否', lang)}</td>
                         {canEditPage && (
                           <td className="row-actions">
-                            <button onClick={() => setEditing(w)}>{t('編輯', lang)}</button>
+                            <button onClick={() => setEditing({ worker: w, employerId })}>{t('編輯', lang)}</button>
                             <button className="primary" onClick={() => handleComplete(w, employerId)}>{t('已完成', lang)}</button>
                             <button onClick={() => handleBack(w, employerId)}>{t('返回', lang)}</button>
                             <button className="danger" onClick={() => handleRemove(w, employerId)}>{t('刪除', lang)}</button>
                           </td>
                         )}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table></div>
               </div>
@@ -105,25 +122,34 @@ export default function DeparturePage() {
           );
         })
       )}
-      {editing && <DepartureFormModal worker={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && (
+        <DepartureFormModal
+          worker={editing.worker}
+          employerId={editing.employerId}
+          onCancel={() => setEditing(null)}
+          onSave={handleSave}
+          lang={lang}
+        />
+      )}
     </div>
   );
 }
 
-function DepartureFormModal({ worker, onCancel, onSave, lang }) {
+function DepartureFormModal({ worker, employerId, onCancel, onSave, lang }) {
+  const initial = departureInfoOf(worker, employerId);
   const [form, setForm] = useState({
-    flightAirline: worker.flightAirline || '',
-    flightNumber: worker.flightNumber || '',
-    flightTerminal: worker.flightTerminal || '',
-    flightTime: worker.flightTime || '',
-    transportFee: worker.transportFee || '',
-    billingParty: worker.billingParty || '',
-    includeInBilling: !!worker.includeInBilling,
+    flightAirline: initial.flightAirline || '',
+    flightNumber: initial.flightNumber || '',
+    flightTerminal: initial.flightTerminal || '',
+    flightTime: initial.flightTime || '',
+    transportFee: initial.transportFee || '',
+    billingParty: initial.billingParty || '',
+    includeInBilling: !!initial.includeInBilling,
   });
 
   function handleSubmit(e) {
     e.preventDefault();
-    onSave(worker, { ...form, transportFee: Number(form.transportFee) || 0 });
+    onSave(worker, employerId, { ...form, transportFee: Number(form.transportFee) || 0 });
   }
 
   return (
