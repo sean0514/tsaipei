@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { decodeCsvFile, exportEntityCSV, parseImportRows } from './csv';
 
@@ -7,18 +7,30 @@ import { decodeCsvFile, exportEntityCSV, parseImportRows } from './csv';
 // row's own `id` if the CSV had one, otherwise generating a fresh one) —
 // same "完全覆蓋" (full overwrite) semantics here, just against a Firestore
 // collection instead of a spreadsheet tab.
+//
+// Order matters: we write all imported rows FIRST, and only delete the
+// pre-existing docs that weren't part of the import AFTER every write has
+// succeeded. If we deleted first (as a naive "replace" port of the Apps
+// Script version would), a single failed setDoc partway through
+// Promise.all (bad CSV id, transient network/quota error) would leave the
+// collection already emptied by the delete step with no way back — this
+// way a failed import leaves the original data untouched and the error
+// still reaches the caller.
 async function overwriteCollection(collectionName, importedRows) {
   const existing = await getDocs(collection(db, collectionName));
-  const deletes = existing.docs.map((d) => d.ref);
+  const keepIds = new Set(importedRows.map((row) => row.id).filter(Boolean));
+
+  await Promise.all(importedRows.map((row) => {
+    const { id, ...data } = row;
+    return id ? setDoc(doc(db, collectionName, id), data) : setDoc(doc(collection(db, collectionName)), data);
+  }));
+
+  const deletes = existing.docs.filter((d) => !keepIds.has(d.id)).map((d) => d.ref);
   for (let i = 0; i < deletes.length; i += 450) {
     const batch = writeBatch(db);
     deletes.slice(i, i + 450).forEach((ref) => batch.delete(ref));
     await batch.commit();
   }
-  await Promise.all(importedRows.map((row) => {
-    const { id, ...data } = row;
-    return id ? setDoc(doc(db, collectionName, id), data) : setDoc(doc(collection(db, collectionName)), data);
-  }));
 }
 
 export function useCsvOverwrite(collectionName, fields, { entityLabel, requiredKeys, canEdit } = {}) {

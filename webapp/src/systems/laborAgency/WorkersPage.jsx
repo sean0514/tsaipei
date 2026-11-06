@@ -8,7 +8,7 @@ import { t } from '../../lib/i18n';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import { CheckboxGroup, EmployerCheckboxGroup, parseJobs } from './WorkerRosterPage';
-import { JOBS, MATCH_STATUSES, employerLabel, workerEmployerIds, matchStatusOf, withMatchStatus, resetPipelineFlags } from './constants';
+import { JOBS, MATCH_STATUSES, employerLabel, workerEmployerIds, matchStatusOf, withMatchStatus, resetPipelineFlags, clearPairData } from './constants';
 
 // 工種在「移工名冊」(WorkerRosterPage.jsx) 已經改成可複選，存成 JSON
 // 陣列字串；這裡只顯示用，舊資料是單一字串就當成一項的陣列，不是這份
@@ -102,14 +102,16 @@ export default function WorkersPage() {
   // 刪除：這裡的清單是「移工×配對雇主」的案件列，刪除一行應該只拿掉
   // 那一筆配對（從 employerIds 移除），不是把整個移工資料刪掉——同一個
   // 移工可能還配對其他雇主，或履歷資料要留在移工名冊。「尚未配對」那
-  // 一行沒有配對雇主可以移除，才整筆刪除移工資料。
+  // 一行沒有配對雇主可以移除，才整筆刪除移工資料。連帶清掉 matchStatuses
+  // 及 pipeline 旗標/資訊裡這個雇主的資料（clearPairData），不然之後
+  // 重新配對回同一個雇主時會沿用到這筆已刪除配對留下的舊狀態。
   async function handleRemoveRow(worker, employerId) {
     if (!employerId) {
       await remove(worker.id);
       return;
     }
     const nextIds = workerEmployerIds(worker).filter((id) => id !== employerId);
-    const payload = { employerIds: JSON.stringify(nextIds), updatedAt: Date.now() };
+    const payload = { employerIds: JSON.stringify(nextIds), updatedAt: Date.now(), ...clearPairData(worker, employerId) };
     if (worker.employerId === employerId) payload.employerId = '';
     await update(worker.id, payload);
   }

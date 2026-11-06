@@ -12,6 +12,15 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
 
+// 年齡用年份直接相減估算（現在年份－出生年份），不是精確到生日當天的
+// 歲數，簡化計算、符合這裡只是列表上快速參考的用途。
+function ageFromBirthDate(birthDate) {
+  if (!birthDate) return null;
+  const birthYear = parseInt(birthDate.slice(0, 4), 10);
+  if (!birthYear) return null;
+  return new Date().getFullYear() - birthYear;
+}
+
 // 期望產業別存成 JSON 字串陣列（跟越南系統 StudentsPage.jsx 同一套存法），
 // 這裡用逗號分隔的文字輸入框編輯，存檔時再轉回 JSON 陣列；不是合法 JSON
 // 就當成一個項目處理。
@@ -33,6 +42,7 @@ const FIELDS = [
   { key: 'department2', label: '系所2' },
   { key: 'nationality', label: '國籍', options: ['', '越南', '印尼', '泰國', '菲律賓', '台灣'] },
   { key: 'gender', label: '性別', options: ['', '男', '女'] },
+  { key: 'birthDate', label: '出生日期', type: 'date' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: '電話' },
   { key: 'startDate', label: '實習開始日', type: 'date' },
@@ -186,7 +196,7 @@ export default function StudentsPage() {
           <div className="table-wrap"><table>
             <thead>
               <tr>
-                <th>姓名 / 國籍</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th><th>建立時間</th>
+                <th>姓名 / 國籍</th><th>年齡</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th><th>建立時間</th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
@@ -199,6 +209,7 @@ export default function StudentsPage() {
                       <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
                       <div className="muted" style={{ fontSize: 12 }}>{r.nationality || '—'}</div>
                     </td>
+                    <td>{ageFromBirthDate(r.birthDate) ?? '—'}</td>
                     <td>
                       {r.school || '—'}
                       <div className="muted" style={{ fontSize: 12 }}>{[r.department1, r.department2].filter(Boolean).join(' / ')}</div>
