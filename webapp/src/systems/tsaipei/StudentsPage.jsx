@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, deleteDoc, getDocs, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -72,7 +72,10 @@ const FIELDS = [
   { key: 'notes', label: '備註' },
   { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
 ];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
+// age 是依 birthDate 自動算出來存回去的衍生欄位（見 StudentsPage 裡的
+// useEffect），不放進 FIELDS（編輯表單不需要手動填），只額外補進下載
+// 用的 CSV_FIELDS，讓下載完整資料、CSV 匯出也能帶到年齡。
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'age', label: '年齡' }, { key: 'confirmedClosed', label: '結案' }];
 
 // 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
 // 不是程式漏存。
@@ -111,6 +114,19 @@ export default function StudentsPage() {
   const { rows, loading, add, update, remove } = useCollection('tsaipei_students');
   const [editing, setEditing] = useState(null); // null = closed, {} = new, {...} = editing
   const [q, setQ] = useState('');
+
+  // 年齡不只是列表上現場算一次顯示，也存回 Firestore 的 age 欄位，讓下載
+  // 完整資料／CSV 匯出能帶到；不用排程，每次打開這個頁面、資料載入時就
+  // 比對一次，跟目前算出來的值不同就補寫回去（例如跨年後第一次打開），
+  // 算出來相同就不寫，不會一直重複觸發。
+  useEffect(() => {
+    if (!canEditPage) return;
+    rows.forEach((r) => {
+      const computed = ageFromBirthDate(r.birthDate);
+      if (computed !== null && r.age !== computed) update(r.id, { age: computed });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, canEditPage]);
 
   // 依使用者要求：新增的學生排在最上面。既有（遷移進來、沒有 createdAt）的
   // 學生沒有時間戳記可比較，維持原本用中文姓名排序；新增的學生一律浮到最上面。
