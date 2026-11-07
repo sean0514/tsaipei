@@ -284,7 +284,12 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 th.sticky-col { z-index: 2; }
 /* 表頭鎖定在卷軸最上方，往下滾動時欄位名稱列不會跟著跑掉——跟
    .sticky-col（鎖左欄）同一套做法，只是鎖的是上方，加在想要這個效果
-   的 table 上（不是預設套用到所有表格，避免跟 modal 內的表格衝突）。 */
+   的 table 上（不是預設套用到所有表格，避免跟 modal 內的表格衝突）。
+   position: sticky 需要靠 .table-wrap 本身捲動才會生效（否則瀏覽器會
+   因為同一個元素已經有 overflow-x: auto，把 overflow-y 也當成 auto，
+   變成一個「從不捲動」的捲動容器，sticky 反而失效、表頭還是會被往上
+   推走），所以這裡額外限制高度並開啟縱向捲動，讓表格內容自己捲動。 */
+.table-wrap.sticky-header { max-height: 70vh; overflow-y: auto; }
 .table-wrap.sticky-header table thead th { position: sticky; top: 0; background: var(--panel); z-index: 3; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .page-header h2 { font-family: var(--heading-font); margin: 0; font-size: 20px; }
