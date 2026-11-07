@@ -43,16 +43,20 @@ function studentDaysInTaiwan(visaRecords, studentId, range) {
     + dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate);
 }
 
+// 到職日(start)固定用「實習開始1/2」(在台簽證追蹤填的，各自預設帶入
+// 第一次/第二次入台時間、可手動改成跟簽證入境時間不同的實際到職日)，
+// 依這個月請款落在第一次還是第二次在台期間決定用哪一個；還沒填實習
+// 開始1/2 的舊資料退回用對應那次入境時間顯示。
 function studentStintDates(visaRecords, studentId, range) {
   const v = visaRecords.find((x) => x.studentId === studentId);
   if (!v) return { start: '', end: '' };
   if (dateOverlapDays(range.start, range.end, v.firstEntryDate, v.firstExitDate) > 0) {
-    return { start: v.firstEntryDate || '', end: v.firstExitDate || '' };
+    return { start: v.internshipStartDate1 || v.firstEntryDate || '', end: v.firstExitDate || '' };
   }
   if (dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate) > 0) {
-    return { start: v.secondEntryDate || '', end: v.secondExitDate || '' };
+    return { start: v.internshipStartDate2 || v.secondEntryDate || '', end: v.secondExitDate || '' };
   }
-  return { start: v.firstEntryDate || '', end: v.firstExitDate || '' };
+  return { start: v.internshipStartDate1 || v.firstEntryDate || '', end: v.firstExitDate || '' };
 }
 
 function studentMatchFor(studentId, { matches, admittedList }) {
@@ -103,12 +107,9 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
       if (resolveFixedChargeMonth(feeSetup.secondChargeDate, chargeCtx) === monthStr) fixedCharge += Number(feeSetup.secondChargeAmount) || 0;
     }
     if (days <= 0 && !fixedCharge) return;
-    const stint = days > 0 ? studentStintDates(inTaiwanVisaRecords, s.id, range) : { start: v?.firstEntryDate || '', end: v?.firstExitDate || '' };
-    // 到職日固定用「實習開始日期」(在台簽證追蹤填的，預設帶入第一次入台
-    // 時間、可手動改成跟簽證入境時間不同的實際到職日)，不管這個月是落在
-    // 第一次還是第二次在台期間，到職日都是同一個、不會因為月份不同改變；
-    // 還沒填實習開始日期的舊資料退回原本用當月對應那次入境時間顯示。
-    const startDate = v?.internshipStartDate || stint.start;
+    const stint = days > 0
+      ? studentStintDates(inTaiwanVisaRecords, s.id, range)
+      : { start: v?.internshipStartDate1 || v?.firstEntryDate || '', end: v?.firstExitDate || '' };
     // 實習場域：這個學生媒合到的職缺底下實際指定的場域(matches.venue)，
     // 同一個統編底下如果有好幾個場域(例如同一間公司不同廠區)，合併帳單
     // 才能分辨每個學生是在哪個場域；沒有場域資料就留空。
@@ -125,7 +126,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
     studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
-      startDate, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue,
+      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue,
       total: serviceFee + dormManageFee + dormFee + processingFee,
     });
   });

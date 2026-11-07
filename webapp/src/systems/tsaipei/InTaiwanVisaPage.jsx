@@ -66,13 +66,14 @@ async function afterVisaSave(studentId, row) {
 // DEPARTURE_EXTRA_FIELDS），這裡的簽證追蹤列表/編輯視窗不用重複顯示。
 const FIELDS = [
   { key: 'firstEntryDate', label: '第一次入台時間', type: 'date' },
-  // 自動帶入第一次入台時間，但允許手動改成不同的日期(例如入境後過了幾天
-  // 才實際到職)；客戶請款計算的「到職日」改用這個欄位計算，跟實際簽證
-  // 入境時間脫鉤。
-  { key: 'internshipStartDate', label: '實習開始日期', type: 'date' },
+  // 自動帶入對應那次的入台時間，但允許手動改成不同的日期(例如入境後過了
+  // 幾天才實際到職)；客戶請款計算的「到職日」改用這兩個欄位計算，跟實際
+  // 簽證入境時間脫鉤。
+  { key: 'internshipStartDate1', label: '實習開始1', type: 'date' },
   { key: 'firstExitDate', label: '第一次離台時間', type: 'date' },
   { key: 'visaRenewalDate', label: '在台期間換發簽證時間', type: 'date' },
   { key: 'secondEntryDate', label: '第二次入台時間', type: 'date' },
+  { key: 'internshipStartDate2', label: '實習開始2', type: 'date' },
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
 ];
@@ -156,29 +157,37 @@ export default function InTaiwanVisaPage() {
   });
   const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
 
-  // 實習開始日期優先帶第一次入台時間，沒有第一次入台時間(例如資料填寫
-  // 順序不同，先有第二次入台時間)才退回帶第二次入台時間。
-  function defaultInternshipStartDate(row) {
-    return row.firstEntryDate || row.secondEntryDate || '';
+  // 實習開始1/2 各自對應第一次/第二次入台時間，分開帶各自的預設值，不像
+  // 之前單一欄位互相退回。舊欄位 internshipStartDate(改版前的單一「實習
+  // 開始日期」)如果已經有值，優先拿來當實習開始1的預設值，保留改版前
+  // 手動填過的資料，而不是被第一次入台時間蓋掉。
+  function defaultDatesFor(row) {
+    return {
+      internshipStartDate1: row.internshipStartDate || row.firstEntryDate || '',
+      internshipStartDate2: row.secondEntryDate || '',
+    };
   }
 
-  // 補跑：實習開始日期這個欄位是後來才加的，在那之前就已經填過第一次／
-  // 第二次入台時間的紀錄，實習開始日期一直是空的——每次打開這個頁面，對
-  // 「有入台時間但實習開始日期還空著」的紀錄自動補上；已經手動填過實習
-  // 開始日期的不會被覆蓋。
+  // 補跑：實習開始1/2 這兩個欄位是後來才加的(原本只有單一「實習開始
+  // 日期」)，每次打開這個頁面，對還空著的紀錄自動補上對應的預設值；
+  // 已經手動填過的欄位不會被覆蓋。
   useEffect(() => {
     if (!canEditPage) return;
     rows.forEach((r) => {
-      const defaultDate = defaultInternshipStartDate(r);
-      if (defaultDate && !r.internshipStartDate) update(r.id, { internshipStartDate: defaultDate });
+      const defaults = defaultDatesFor(r);
+      const patch = {};
+      if (defaults.internshipStartDate1 && !r.internshipStartDate1) patch.internshipStartDate1 = defaults.internshipStartDate1;
+      if (defaults.internshipStartDate2 && !r.internshipStartDate2) patch.internshipStartDate2 = defaults.internshipStartDate2;
+      if (Object.keys(patch).length) update(r.id, patch);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, canEditPage]);
 
   async function handleSave(data) {
     const { id, ...rest } = data;
-    const defaultDate = defaultInternshipStartDate(rest);
-    if (defaultDate && !rest.internshipStartDate) rest.internshipStartDate = defaultDate;
+    const defaults = defaultDatesFor(rest);
+    if (defaults.internshipStartDate1 && !rest.internshipStartDate1) rest.internshipStartDate1 = defaults.internshipStartDate1;
+    if (defaults.internshipStartDate2 && !rest.internshipStartDate2) rest.internshipStartDate2 = defaults.internshipStartDate2;
     await update(id, rest);
     await afterVisaSave(rest.studentId, rest);
     setEditing(null);
@@ -212,7 +221,7 @@ export default function InTaiwanVisaPage() {
       <div className="page-header">
         <div>
           <h2>在台簽證追蹤</h2>
-          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次或第二次入台時間後會自動帶入「實習開始日期」(可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次入台時間後會自動帶入「實習開始1」、填寫第二次入台時間後會自動帶入「實習開始2」(都可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
