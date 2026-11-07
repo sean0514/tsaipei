@@ -8,6 +8,7 @@ import Tag from '../../components/Tag';
 import { STUDENT_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { backfillBirthDatesFromVietnam } from '../../lib/vietnamTsaipeiStudentSync';
 
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -125,6 +126,21 @@ export default function StudentsPage() {
       const computed = ageFromBirthDate(r.birthDate);
       if (computed !== null && r.age !== computed) update(r.id, { age: computed });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, canEditPage]);
+
+  // 補跑：出生日期同步到越南系統同步欄位這件事是後來才補上的（見
+  // lib/vietnamTsaipeiStudentSync.js 的 tsaipeiStudentFields），在那之前
+  // 就已經從越南系統同步過來的學生，這裡 birthDate 一直是空的——每次打開
+  // 這個頁面，對「有 syncedFromVietnamId 但 birthDate 還空著」的學生主動
+  // 補跑一次，從越南系統對應的學生資料把出生日期帶過來；已經有值的學生
+  // 不會被覆蓋。
+  useEffect(() => {
+    if (!canEditPage) return;
+    const missing = rows
+      .filter((r) => !r.birthDate && r.syncedFromVietnamId)
+      .map((r) => ({ id: r.id, syncedFromVietnamId: r.syncedFromVietnamId }));
+    if (missing.length) backfillBirthDatesFromVietnam(missing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, canEditPage]);
 

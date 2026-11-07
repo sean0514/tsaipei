@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
@@ -128,5 +128,22 @@ export async function backfillVietnamStudentsForTsaipeiStudents(tsStudentsWithId
       vietnamStudentDocs.push(matched);
     }
     await ensureDepartureTransportStub(matched.id);
+  }
+}
+
+// 補跑用：tsaipeiStudentFields() 一開始沒有同步 birthDate（後來才補上），
+// 所以在那之前就已經同步過去的學生，境外生系統這邊 birthDate 一直是空的，
+// 不會因為補上欄位對應就自動更新——要在這裡主動把舊資料補一次。只處理
+// 「本來是從越南系統同步過來的」（有 syncedFromVietnamId）且目前 birthDate
+// 還空著的學生，不去動使用者自己在境外生系統填過的資料。
+export async function backfillBirthDatesFromVietnam(tsaipeiStudentsMissingBirthDate) {
+  if (!tsaipeiStudentsMissingBirthDate.length) return;
+  const snap = await getDocs(collection(db, 'vietnam_students'));
+  const vietnamStudentDocs = new Map(snap.docs.map((d) => [d.id, d.data()]));
+  for (const { id, syncedFromVietnamId } of tsaipeiStudentsMissingBirthDate) {
+    const vn = vietnamStudentDocs.get(syncedFromVietnamId);
+    if (vn?.birthDate) {
+      await updateDoc(doc(db, 'tsaipei_students', id), { birthDate: vn.birthDate });
+    }
   }
 }
