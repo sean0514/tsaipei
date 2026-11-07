@@ -225,7 +225,7 @@ export default function StudentsPage() {
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋姓名/學校/國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
                 <th>姓名 / 國籍</th><th>年齡</th><th>學校 / 系所</th><th>電話</th><th>入境 / 離境</th><th>文件</th><th>是否有華語證照</th><th>期望產業別</th><th>狀態</th><th>系統來源</th><th>建立時間</th>

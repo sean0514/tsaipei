@@ -282,6 +282,10 @@ th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .table-wrap { overflow-x: auto; }
 .sticky-col { position: sticky; left: 0; background: var(--panel); z-index: 1; }
 th.sticky-col { z-index: 2; }
+/* 表頭鎖定在卷軸最上方，往下滾動時欄位名稱列不會跟著跑掉——跟
+   .sticky-col（鎖左欄）同一套做法，只是鎖的是上方，加在想要這個效果
+   的 table 上（不是預設套用到所有表格，避免跟 modal 內的表格衝突）。 */
+.table-wrap.sticky-header table thead th { position: sticky; top: 0; background: var(--panel); z-index: 3; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .page-header h2 { font-family: var(--heading-font); margin: 0; font-size: 20px; }
 .page-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
