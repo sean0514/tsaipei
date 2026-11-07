@@ -99,6 +99,11 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     }
     if (days <= 0 && !fixedCharge) return;
     const stint = days > 0 ? studentStintDates(inTaiwanVisaRecords, s.id, range) : { start: v?.firstEntryDate || '', end: v?.firstExitDate || '' };
+    // 到職日固定用「實習開始日期」(在台簽證追蹤填的，預設帶入第一次入台
+    // 時間、可手動改成跟簽證入境時間不同的實際到職日)，不管這個月是落在
+    // 第一次還是第二次在台期間，到職日都是同一個、不會因為月份不同改變；
+    // 還沒填實習開始日期的舊資料退回原本用當月對應那次入境時間顯示。
+    const startDate = v?.internshipStartDate || stint.start;
 
     // 宿舍費/宿管費只能跟學生實際住「廠商代付」宿舍的天數掛鉤，不是在台
     // 天數——學生自己付宿舍費的期間，公司沒有實際付出宿舍成本，不應該再
@@ -111,7 +116,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
     studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
-      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee,
+      startDate, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee,
       total: serviceFee + dormManageFee + dormFee + processingFee,
     });
   });
