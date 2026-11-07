@@ -222,7 +222,7 @@ export default function StudentsPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有學生資料，請先下載備份再匯入。</p>}
-      <div className="card" style={{ overflowX: 'auto' }}>
+      <div className="card">
         <input placeholder="搜尋姓名/學校/國籍" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap sticky-header"><table>
