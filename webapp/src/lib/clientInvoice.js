@@ -185,3 +185,34 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
   return { rows, studentRows, expenseRows, categoryTotals, range, periodLabel, subtotal, tax, grandTotal, taxId: feeSetup?.taxId || '' };
 }
+
+// 合併帳單：同一個統一編號可能底下有好幾個專案／客戶名稱(不同實習單位
+// 分開簽約)，但開給客戶的請款單是以「統編」為單位，要合併成一張。學生
+// 明細/代墊費用明細把每個專案的列表接起來、重新編號(不要每個專案各自
+// 從1開始)，各分類金額/未稅小計/稅金/請款總額都是直接加總每個專案的
+// 數字(稅金用各自專案已經四捨五入過的值加總，不重新對合併後的課稅基礎
+// 算一次，跟各專案自己的請款單金額才會對得起來)；期數不同就用「、」接
+// 起來顯示，年月區間預期同一個月所以直接沿用第一筆。
+export function mergeClientInvoices(invoices) {
+  if (!invoices.length) return null;
+  let no = 1;
+  const studentRows = invoices.flatMap((inv) => inv.studentRows.map((r) => ({ ...r, no: no++ })));
+  const expenseRows = invoices.flatMap((inv) => inv.expenseRows.map((r) => ({ ...r, no: no++ })));
+  const categoryTotals = {};
+  Object.keys(invoices[0].categoryTotals).forEach((k) => {
+    categoryTotals[k] = invoices.reduce((sum, inv) => sum + (inv.categoryTotals[k] || 0), 0);
+  });
+  const periodLabel = [...new Set(invoices.map((inv) => inv.periodLabel))].join('、');
+  return {
+    rows: [...studentRows, ...expenseRows],
+    studentRows,
+    expenseRows,
+    categoryTotals,
+    range: invoices[0].range,
+    periodLabel,
+    subtotal: invoices.reduce((sum, inv) => sum + inv.subtotal, 0),
+    tax: invoices.reduce((sum, inv) => sum + inv.tax, 0),
+    grandTotal: invoices.reduce((sum, inv) => sum + inv.grandTotal, 0),
+    taxId: invoices[0].taxId,
+  };
+}
