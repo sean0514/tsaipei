@@ -20,6 +20,15 @@ const DESIRED_INDUSTRY_PRESETS = ['餐飲業', '旅館業', '製造業', '服務
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 const NO_INDUSTRY_KEY = '未填期望產業別';
 
+// 年齡用年份直接相減估算（現在年份－出生年份），不是精確到生日當天的
+// 歲數，跟 tsaipei 系統 StudentsPage.jsx 同一套簡化算法。
+function ageFromBirthDate(birthDate) {
+  if (!birthDate) return null;
+  const birthYear = parseInt(birthDate.slice(0, 4), 10);
+  if (!birthYear) return null;
+  return new Date().getFullYear() - birthYear;
+}
+
 // 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
 // 不是程式漏存。
 function formatCreatedAt(r) {
@@ -256,7 +265,7 @@ export default function StudentsPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('期望實習單位', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
+                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('年齡', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('期望實習單位', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
                       {canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -267,6 +276,7 @@ export default function StudentsPage() {
                           <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
                           <div className="muted" style={{ fontSize: 12 }}>{[r.vietnameseName, r.nationality].filter(Boolean).join(' · ') || '—'}</div>
                         </td>
+                        <td>{ageFromBirthDate(r.birthDate) ?? '—'}</td>
                         <td>
                           {r.school || '—'}{r.schoolZh ? `（${r.schoolZh}）` : ''}
                           <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}{r.departmentZh ? `（${r.departmentZh}）` : ''}</div>
