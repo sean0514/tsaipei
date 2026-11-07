@@ -126,7 +126,7 @@ export default function ExpectedArrivalPage() {
     const extraFields = showArrivalExtras ? ARRIVAL_EXTRA_FIELDS : showDepartureExtras ? DEPARTURE_EXTRA_FIELDS : [];
     const colCount = 4 + extraFields.length + (showArrivalExtras ? 2 : 0) + (canEditPage ? 1 : 0);
     return (
-      <div className="table-wrap">
+      <div className="table-wrap sticky-header">
         <table>
           <thead>
             <tr>

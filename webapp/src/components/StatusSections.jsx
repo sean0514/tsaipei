@@ -14,7 +14,7 @@ export default function StatusSections({ statuses, tagMap, rows, statusKey = 'st
             <h3 style={{ marginTop: 0 }}>
               <Tag value={status} map={tagMap} /> <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {items.length} 筆</span>
             </h3>
-            <div className="table-wrap">
+            <div className="table-wrap sticky-header">
               <table>
                 <thead><tr>{headerCells}</tr></thead>
                 <tbody>

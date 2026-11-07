@@ -224,7 +224,7 @@ export default function InternshipDocsPage() {
                 {inProgressCompanies.map((company) => (
                   <div className="card" key={company}>
                     <h4 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{inProgressByCompany[company].length} 位學生</span></h4>
-                    <div className="table-wrap">
+                    <div className="table-wrap sticky-header">
                       <table>
                         <thead><tr><th>學生</th><th>已繳交文件</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
                         <tbody>
@@ -239,7 +239,7 @@ export default function InternshipDocsPage() {
           </div>
           <div className="card">
             <h3 style={{ marginTop: 0 }}>已完成 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {completed.length} 位學生</span></h3>
-            <div className="table-wrap">
+            <div className="table-wrap sticky-header">
               <table>
                 <thead><tr><th>學生</th><th>已繳交文件</th><th>完成日期</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>

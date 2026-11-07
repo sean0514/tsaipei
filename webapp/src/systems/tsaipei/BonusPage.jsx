@@ -173,7 +173,7 @@ export default function BonusPage() {
           : <button className="primary" onClick={handleConfirmArchive}>封存本月</button>)}
       </div>
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
-        <div className="table-wrap"><table>
+        <div className="table-wrap sticky-header"><table>
           <thead><tr><th>客戶</th>{PROJECT_CLIENT_BONUS_ROLE_LABELS.map((l) => <th key={l}>{l}</th>)}<th>在台總天數</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {rows.map((r, i) => {
@@ -220,7 +220,7 @@ export default function BonusPage() {
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>宿管人員獎金</h3>
         <p className="muted" style={{ marginTop: 0 }}>依宿舍管理設定的宿管1/宿管2計算：這個月實際住在這間宿舍的學生天數 ÷ 30 × 該學生實習單位的內部費用建檔「宿管人員1/宿管人員2」金額，加總到對應的宿管身上。</p>
-        <div className="table-wrap"><table>
+        <div className="table-wrap sticky-header"><table>
           <thead><tr><th>宿舍</th><th>宿管1</th><th>宿管1獎金</th><th>宿管2</th><th>宿管2獎金</th><th>住宿天數合計</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
             {dormRows.map((d) => {
@@ -261,7 +261,7 @@ export default function BonusPage() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>依人員加總</h3>
-        <div className="table-wrap"><table>
+        <div className="table-wrap sticky-header"><table>
           <thead><tr><th>姓名</th><th>總額</th><th>明細</th></tr></thead>
           <tbody>
             {byPerson.map((p) => (

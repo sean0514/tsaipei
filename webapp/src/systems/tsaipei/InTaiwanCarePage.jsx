@@ -79,7 +79,7 @@ export default function InTaiwanCarePage() {
             {companies.map((company) => (
               <div className="card" key={company}>
                 <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆紀錄</span></h3>
-                <div className="table-wrap">
+                <div className="table-wrap sticky-header">
                   <table>
                     <thead><tr><th>學生</th><th>關懷時間</th><th>內容</th><th>狀態</th><th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
                     <tbody>

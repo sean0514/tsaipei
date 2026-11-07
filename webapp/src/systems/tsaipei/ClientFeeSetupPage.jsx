@@ -176,7 +176,7 @@ export default function ClientFeeSetupPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
               <h3 style={{ margin: '0 0 8px' }}>待審核 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups.待審核.length} 筆</span></h3>
-              <div className="table-wrap"><table>
+              <div className="table-wrap sticky-header"><table>
                 <thead><tr><th>專案編號</th><th>客戶名稱</th><th>統一編號</th><th>收費類型</th><th>其他費用</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups.待審核.map((r) => (
@@ -204,7 +204,7 @@ export default function ClientFeeSetupPage() {
               return (
                 <div key={type}>
                   <h3 style={{ margin: '0 0 8px' }}>{type} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[type].length} 筆</span></h3>
-                  <div className="table-wrap"><table>
+                  <div className="table-wrap sticky-header"><table>
                     <thead><tr>{tableFields.map((f) => <th key={f.key}>{f.label}</th>)}{showOtherFees && <th>其他費用</th>}{showBillDormFee && <th>是否請款住宿費</th>}{canEditPage && <th></th>}</tr></thead>
                     <tbody>
                       {groups[type].map((r) => (

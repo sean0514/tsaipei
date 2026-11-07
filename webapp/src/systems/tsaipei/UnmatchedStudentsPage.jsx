@@ -132,7 +132,7 @@ export default function UnmatchedStudentsPage() {
                   {sortedIndustryKeys(groups[key].byIndustry).map((ind) => (
                     <div key={ind}>
                       <h4 style={{ margin: '0 0 8px' }}>{ind} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>{groups[key].byIndustry[ind].length} 位學生</span></h4>
-                      <div className="table-wrap"><table>
+                      <div className="table-wrap sticky-header"><table>
                         <thead><tr><th>學生姓名</th><th>性別</th><th>國外供應商</th><th>就讀學校</th><th>科系</th><th>期望產業別</th><th>狀態</th><th>實習開始日</th><th>電話</th><th>實習場域(媒合中)</th><th>媒合日期</th><th>來台方案</th><th>媒合備註</th><th>建立日期</th></tr></thead>
                         <tbody>
                           {groups[key].byIndustry[ind].map((s) => {

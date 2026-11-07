@@ -69,7 +69,7 @@ export default function TranslatorContactsPage() {
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋地區/名字/電話/可配合區域" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
                 <th>地區</th><th>名字</th><th>性別</th><th>身份</th><th>電話</th><th>LINE ID</th><th>交通方式</th><th>可配合區域</th>

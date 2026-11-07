@@ -45,7 +45,7 @@ function availableYears(ctx) {
 
 function PnlTable({ monthly, yearTotal }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap sticky-header">
       <table>
         <thead>
           <tr><th>損益細項</th>{MONTH_LABELS.map((l) => <th key={l}>{l}</th>)}<th>合計</th></tr>

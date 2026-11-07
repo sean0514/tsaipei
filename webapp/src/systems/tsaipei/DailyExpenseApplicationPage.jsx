@@ -134,7 +134,7 @@ export default function DailyExpenseApplicationPage() {
           {STATUSES.map((status) => (
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
-              <div className="table-wrap"><table>
+              <div className="table-wrap sticky-header"><table>
                 <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>宿舍</th><th>金額</th><th>是否開立發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
@@ -191,7 +191,7 @@ export default function DailyExpenseApplicationPage() {
       {!loading && showClosed && (
         <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已結案／已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{closedList.length} 筆</span></h3>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>金額</th><th>狀態</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {closedList.map((r) => (

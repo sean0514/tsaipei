@@ -123,7 +123,7 @@ export default function DormManagementPage() {
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
                 <th>宿舍名稱</th><th>地點</th><th>宿舍性別</th><th>房間數</th><th>起租日</th><th>退租日</th><th>可住人數</th><th>已住人數</th>

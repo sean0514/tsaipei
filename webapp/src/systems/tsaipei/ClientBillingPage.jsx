@@ -176,7 +176,7 @@ export default function ClientBillingPage() {
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ marginBottom: 12 }} />
       <ClientBillingChart rows={rows} />
       <div className="card" style={{ overflowX: 'auto' }}>
-        <div className="table-wrap"><table>
+        <div className="table-wrap sticky-header"><table>
           <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>代收代付(水電瓦斯)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {

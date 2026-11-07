@@ -42,7 +42,7 @@ export default function PositionBenefitsPage() {
       <input placeholder="搜尋專案編號、公司或福利項目" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 280 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card" style={{ overflowX: 'auto' }}>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr><th>來源系統</th><th>專案編號</th><th>公司名稱</th><th>職務名稱</th><th>實習津貼金額</th><th>膳宿費扣款金額</th><th>其他福利</th></tr></thead>
             <tbody>
               {rows.map((r) => (

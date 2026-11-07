@@ -106,7 +106,7 @@ export default function HousingPage() {
 
   function renderTable(list, label) {
     return (
-      <div className="table-wrap"><table>
+      <div className="table-wrap sticky-header"><table>
         <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>水電瓦斯付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (

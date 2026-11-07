@@ -151,7 +151,7 @@ export default function CustomerServicePendingPage() {
           <div>
             <h3 style={{ margin: '0 0 12px' }}>預計入台/離台 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingArrivals.length} 筆</span></h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead><tr><th>學生</th><th>客戶</th><th>日期</th><th>項目</th><th>已體檢</th><th>已送工</th></tr></thead>
                   <tbody>
@@ -182,7 +182,7 @@ export default function CustomerServicePendingPage() {
           <div>
             <h3 style={{ margin: '0 0 12px' }}>開戶進度追蹤 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingBankAccounts.length} 位學生</span></h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead><tr><th>學生</th><th>客戶</th><th>入台日期</th><th>銀行帳戶</th></tr></thead>
                   <tbody>
@@ -207,7 +207,7 @@ export default function CustomerServicePendingPage() {
           <div>
             <h3 style={{ margin: '0 0 12px' }}>住宿安排 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingHousing.length} 位學生</span></h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead><tr><th>學生</th><th>分店</th></tr></thead>
                   <tbody>
@@ -229,7 +229,7 @@ export default function CustomerServicePendingPage() {
               <input type="month" value={utilMonth} onChange={(e) => setUtilMonth(e.target.value)} style={{ fontWeight: 400, fontSize: 13 }} />
             </h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead><tr><th>宿舍名稱</th><th>地點</th>{canEditDorm && <th></th>}</tr></thead>
                   <tbody>
