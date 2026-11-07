@@ -80,7 +80,7 @@ export default function AdminPendingPage() {
 
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card">
-          <div className="table-wrap">
+          <div className="table-wrap sticky-header">
             <table>
               <thead>
                 <tr>

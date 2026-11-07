@@ -71,7 +71,7 @@ export default function VisaReminderPage() {
             {companies.map(({ company, items }) => (
               <div className="card" key={company}>
                 <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{items.length} 位學生</span></h3>
-                <div className="table-wrap">
+                <div className="table-wrap sticky-header">
                   <table>
                     <thead><tr><th>學生</th></tr></thead>
                     <tbody>

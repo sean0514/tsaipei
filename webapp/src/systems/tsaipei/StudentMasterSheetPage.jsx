@@ -79,7 +79,7 @@ export default function StudentMasterSheetPage() {
       </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
                 <th>廠商</th><th>專案類別</th><th>姓名</th><th>護照</th><th>性別</th><th>入境日</th><th>離境日</th>

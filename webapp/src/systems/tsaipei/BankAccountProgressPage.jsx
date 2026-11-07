@@ -123,7 +123,7 @@ export default function BankAccountProgressPage() {
 
   function ProgressTable({ items, showConfirm }) {
     return (
-      <div className="table-wrap">
+      <div className="table-wrap sticky-header">
         <table>
           <thead>
             <tr>

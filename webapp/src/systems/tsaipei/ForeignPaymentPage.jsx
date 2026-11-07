@@ -98,7 +98,7 @@ export default function ForeignPaymentPage() {
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card">
           <h3 style={{ marginTop: 0 }}>已匯款 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filtered.length} 筆</span></h3>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr><th>單位名稱</th><th>付款時間</th><th>學生</th><th>金額</th><th>國外回款1</th><th>國外回款2</th><th>國外回款3</th><th>剩餘金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filtered.map((r) => (
@@ -133,7 +133,7 @@ export default function ForeignPaymentPage() {
       {!loading && showArchived && (
         <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{archivedList.length} 筆</span></h3>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr><th>單位名稱</th><th>付款時間</th><th>學生</th><th>金額</th><th>剩餘金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {archivedList.map((r) => (

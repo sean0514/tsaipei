@@ -93,7 +93,7 @@ export default function PostageFeeRecordPage() {
           {STATUSES.map((status) => (
             <div className="card" key={status} style={{ overflowX: 'auto' }}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
-              <div className="table-wrap"><table>
+              <div className="table-wrap sticky-header"><table>
                 <thead><tr>
                   <th>編號</th><th>寄件日期</th><th>寄件編號</th><th>寄件人</th><th>電話</th>
                   <th>收件人</th><th>電話</th><th>地址</th><th>文件內容</th><th>金額</th>{canEditPage && <th></th>}
@@ -150,7 +150,7 @@ export default function PostageFeeRecordPage() {
       {!loading && showClosed && (
         <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已結案／已封存 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{closedList.length} 筆</span></h3>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr>
               <th>編號</th><th>寄件日期</th><th>寄件編號</th><th>寄件人</th><th>收件人</th><th>文件內容</th><th>金額</th><th>狀態</th>{canEditPage && <th></th>}
             </tr></thead>

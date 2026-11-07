@@ -172,7 +172,7 @@ export default function VehiclePickupPage() {
           <div>
             <h3 style={{ margin: '0 0 12px' }}>待安排 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {pendingList.length} 筆</span></h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead>
                     <tr><th>學生</th><th>客戶</th><th>日期</th><th>項目</th><th>建議類型</th>{canEditPage && <th></th>}</tr>
@@ -206,7 +206,7 @@ export default function VehiclePickupPage() {
           <div>
             <h3 style={{ margin: '0 0 12px' }}>已安排 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {arrangedList.length} 筆</span></h3>
             <div className="card">
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead>
                     <tr>

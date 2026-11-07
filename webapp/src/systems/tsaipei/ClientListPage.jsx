@@ -87,7 +87,7 @@ export default function ClientListPage() {
                   {key === NO_CONTRACT_STATUS_KEY ? key : <Tag value={key} map={CONTRACT_STATUS_TAG} />}{' '}
                   <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 間客戶</span>
                 </h3>
-                <div className="table-wrap"><table>
+                <div className="table-wrap sticky-header"><table>
                   <thead>
                     <tr>
                       <th>客戶名稱</th><th>統一編號</th><th>產業別</th><th>收費類型</th><th>實習津貼金額</th><th>膳宿費扣款金額</th><th>其他福利</th>

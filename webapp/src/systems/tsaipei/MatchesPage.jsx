@@ -136,7 +136,7 @@ export default function MatchesPage() {
           {nationalityKeys.filter((nat) => byNationality[nat]?.length).map((nat) => (
             <div className="card" key={nat}>
               <h3 style={{ marginTop: 0 }}>{nat} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>共 {byNationality[nat].length} 筆</span></h3>
-              <div className="table-wrap">
+              <div className="table-wrap sticky-header">
                 <table>
                   <thead><tr><th>學生</th><th>職缺</th><th>實習場域</th><th>狀態</th><th>媒合日期</th><th>來台方案</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>

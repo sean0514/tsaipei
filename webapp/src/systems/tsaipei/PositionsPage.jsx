@@ -204,7 +204,7 @@ export default function PositionsPage() {
       <div className="card" style={{ overflowX: 'auto' }}>
         <input placeholder="搜尋專案編號/公司/職務" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">載入中…</p> : (
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
                 <th>專案編號</th><th>函文編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>
@@ -222,7 +222,7 @@ export default function PositionsPage() {
       {closed.length > 0 && (
         <div className="card" style={{ marginTop: 16, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0 }}>已結案</h3>
-          <div className="table-wrap"><table>
+          <div className="table-wrap sticky-header"><table>
             <thead><tr><th>專案編號</th><th>函文編號</th><th>公司名稱</th><th>職務名稱</th><th>實習場域/地點/缺額/狀態</th><th>已媒合/總名額</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>{renderRows(closed)}</tbody>
           </table></div>

@@ -100,7 +100,7 @@ export default function ClosedCasesPage() {
             {sourceLabels.map((label) => (
               <div className="card" key={label} style={{ overflowX: 'auto' }}>
                 <h4 style={{ marginTop: 0 }}>{label} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[label].length} 筆</span></h4>
-                <div className="table-wrap"><table>
+                <div className="table-wrap sticky-header"><table>
                   <thead><tr><th>名稱</th>{canEditPage && <th></th>}</tr></thead>
                   <tbody>
                     {groups[label].map((item) => (

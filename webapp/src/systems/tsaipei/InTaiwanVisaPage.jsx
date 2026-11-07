@@ -90,7 +90,7 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
 
 function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove, onToggleDeparture }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap sticky-header">
       <table>
         <thead><tr><th>學生</th>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>

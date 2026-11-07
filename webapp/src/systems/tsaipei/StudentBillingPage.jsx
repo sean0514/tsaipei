@@ -562,7 +562,7 @@ export default function StudentBillingPage() {
                 {groupKeys.map((key) => (
                   <div className="card" key={key}>
                     <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
-                    <div className="table-wrap"><table>
+                    <div className="table-wrap sticky-header"><table>
                       <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th><th>確認繳款人</th>{canEditPage && <th></th>}</tr></thead>
                       <tbody>
                         {groups[key].map((h) => {
@@ -664,7 +664,7 @@ export default function StudentBillingPage() {
           {loading ? <p className="muted">載入中…</p> : (
             <div className="card" style={{ overflowX: 'auto' }}>
               <h3 style={{ marginTop: 0 }}>{year}年未繳總表 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{filteredUnpaid.length} 位學生，合計 {unpaidGrandTotal.toLocaleString()} 元{canEditPage && '（點金額可直接標記該月全額付清；先繳部分的差額要到分月明細填寫）'}</span></h3>
-              <div className="table-wrap"><table>
+              <div className="table-wrap sticky-header"><table>
                 <thead><tr><th>學生</th><th>實習單位</th><th>核准人</th>{MONTH_NUMS.map((m) => <th key={m}>{m}月</th>)}<th>總計</th></tr></thead>
                 <tbody>
                   {filteredUnpaid.map((r) => {
