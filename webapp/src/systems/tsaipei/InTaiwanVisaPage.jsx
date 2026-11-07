@@ -156,21 +156,29 @@ export default function InTaiwanVisaPage() {
   });
   const companies = Object.keys(byCompany).sort((a, b) => a.localeCompare(b));
 
-  // 補跑：實習開始日期這個欄位是後來才加的，在那之前就已經填過第一次
-  // 入台時間的紀錄，實習開始日期一直是空的——每次打開這個頁面，對「有
-  // 第一次入台時間但實習開始日期還空著」的紀錄自動補上(帶入第一次入台
-  // 時間)；已經手動填過實習開始日期的不會被覆蓋。
+  // 實習開始日期優先帶第一次入台時間，沒有第一次入台時間(例如資料填寫
+  // 順序不同，先有第二次入台時間)才退回帶第二次入台時間。
+  function defaultInternshipStartDate(row) {
+    return row.firstEntryDate || row.secondEntryDate || '';
+  }
+
+  // 補跑：實習開始日期這個欄位是後來才加的，在那之前就已經填過第一次／
+  // 第二次入台時間的紀錄，實習開始日期一直是空的——每次打開這個頁面，對
+  // 「有入台時間但實習開始日期還空著」的紀錄自動補上；已經手動填過實習
+  // 開始日期的不會被覆蓋。
   useEffect(() => {
     if (!canEditPage) return;
     rows.forEach((r) => {
-      if (r.firstEntryDate && !r.internshipStartDate) update(r.id, { internshipStartDate: r.firstEntryDate });
+      const defaultDate = defaultInternshipStartDate(r);
+      if (defaultDate && !r.internshipStartDate) update(r.id, { internshipStartDate: defaultDate });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, canEditPage]);
 
   async function handleSave(data) {
     const { id, ...rest } = data;
-    if (rest.firstEntryDate && !rest.internshipStartDate) rest.internshipStartDate = rest.firstEntryDate;
+    const defaultDate = defaultInternshipStartDate(rest);
+    if (defaultDate && !rest.internshipStartDate) rest.internshipStartDate = defaultDate;
     await update(id, rest);
     await afterVisaSave(rest.studentId, rest);
     setEditing(null);
@@ -204,7 +212,7 @@ export default function InTaiwanVisaPage() {
       <div className="page-header">
         <div>
           <h2>在台簽證追蹤</h2>
-          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次入台時間後會自動帶入「實習開始日期」(可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次或第二次入台時間後會自動帶入「實習開始日期」(可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
