@@ -94,17 +94,18 @@ export default function ClientBillingPage() {
     const key = `merged:${mergeGroup.taxId}`;
     setBusyKey(key);
     try {
-      const invoices = mergeGroup.group
+      const entries = mergeGroup.group
         .map((row) => {
           const lock = lockFor(row);
-          return lock?.invoice ? parseJson(lock.invoice, null) : computeClientInvoice(row.projectCode, row.client, month, ctx);
+          const invoice = lock?.invoice ? parseJson(lock.invoice, null) : computeClientInvoice(row.projectCode, row.client, month, ctx);
+          return invoice ? { client: row.client, invoice } : null;
         })
         .filter(Boolean);
-      if (!invoices.length) {
+      if (!entries.length) {
         alert('這個統編底下的專案在該月份都沒有可計算的學生資料，請確認在台簽證追蹤與客戶費用建檔是否都已設定。');
         return;
       }
-      const merged = mergeClientInvoices(invoices);
+      const merged = mergeClientInvoices(entries);
       await downloadClientInvoiceXlsx(mergeGroup.clients, merged);
     } finally {
       setBusyKey(null);

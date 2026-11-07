@@ -126,6 +126,10 @@ function buildSummarySheet(workbook, client, invoice) {
 // 小計)，不再混在同一張表裡用「備註」欄硬塞項目名稱。
 function buildDetailSheet(workbook, invoice) {
   const { studentRows, expenseRows } = invoice;
+  // 合併帳單(同統編、不同客戶名稱/實習單位)才會有 site；單一專案的請款單
+  // 本來就只有一個客戶，不需要這欄，所以欄位跟著 site 有沒有值動態增減，
+  // 不影響原本單一專案下載請款單的明細版面。
+  const hasSite = studentRows.some((r) => r.site) || expenseRows.some((r) => r.site);
   const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, grandTotal } = taxBreakdown(invoice);
   const sheet = workbook.addWorksheet('明細');
   sheet.columns = Array.from({ length: 6 }, () => ({ width: 14 }));
@@ -163,25 +167,30 @@ function buildDetailSheet(workbook, invoice) {
     if (isGrandTotal) valueCell.fill = TOTAL_FILL;
   });
 
-  const studentHeaders = ['編號', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額'];
+  const studentHeaders = hasSite
+    ? ['編號', '實習場域', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額']
+    : ['編號', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額'];
   headerRowCells(sheet.getRow(r), studentHeaders, 1);
   r += 1;
   const studentStartRow = r;
+  const studentNumericStartIdx = hasSite ? 7 : 6;
   studentRows.forEach((row) => {
-    [row.no, row.name, row.passport, row.startDate, row.endDate, row.days, row.serviceFee, row.dormManageFee, row.dormFee, row.processingFee, row.total]
-      .forEach((v, i) => {
-        const cell = sheet.getRow(r).getCell(1 + i);
-        cell.value = v;
-        cell.border = THIN_BORDER;
-        if (i >= 6) cell.numFmt = '#,##0';
-      });
+    const values = hasSite
+      ? [row.no, row.site || '', row.name, row.passport, row.startDate, row.endDate, row.days, row.serviceFee, row.dormManageFee, row.dormFee, row.processingFee, row.total]
+      : [row.no, row.name, row.passport, row.startDate, row.endDate, row.days, row.serviceFee, row.dormManageFee, row.dormFee, row.processingFee, row.total];
+    values.forEach((v, i) => {
+      const cell = sheet.getRow(r).getCell(1 + i);
+      cell.value = v;
+      cell.border = THIN_BORDER;
+      if (i >= studentNumericStartIdx) cell.numFmt = '#,##0';
+    });
     r += 1;
   });
   if (studentRows.length) {
     const subtotalRow = sheet.getRow(r);
     subtotalRow.getCell(1).value = '小計';
     subtotalRow.getCell(1).font = { bold: true };
-    [7, 8, 9, 10, 11].forEach((col) => {
+    (hasSite ? [8, 9, 10, 11, 12] : [7, 8, 9, 10, 11]).forEach((col) => {
       const colLetter = sheet.getColumn(col).letter;
       const cell = subtotalRow.getCell(col);
       cell.value = { formula: `SUM(${colLetter}${studentStartRow}:${colLetter}${r - 1})` };
@@ -198,25 +207,30 @@ function buildDetailSheet(workbook, invoice) {
     sheet.getCell(r, 1).value = '代墊費用明細（日常支出申請）';
     sheet.getCell(r, 1).font = { bold: true, size: 12 };
     r += 1;
-    const expenseHeaders = ['編號', '項目', '學生／備註', '日期', '發票類別', '金額'];
+    const expenseHeaders = hasSite
+      ? ['編號', '實習場域', '項目', '學生／備註', '日期', '發票類別', '金額']
+      : ['編號', '項目', '學生／備註', '日期', '發票類別', '金額'];
     headerRowCells(sheet.getRow(r), expenseHeaders, 1);
     r += 1;
     const expenseStartRow = r;
+    const expenseAmountCol = hasSite ? 7 : 6;
     expenseRows.forEach((row) => {
-      [row.no, row.item || '', row.name, row.startDate, row.invoiceType || '', row.total]
-        .forEach((v, i) => {
-          const cell = sheet.getRow(r).getCell(1 + i);
-          cell.value = v;
-          cell.border = THIN_BORDER;
-          if (i === 5) cell.numFmt = '#,##0';
-        });
+      const values = hasSite
+        ? [row.no, row.site || '', row.item || '', row.name, row.startDate, row.invoiceType || '', row.total]
+        : [row.no, row.item || '', row.name, row.startDate, row.invoiceType || '', row.total];
+      values.forEach((v, i) => {
+        const cell = sheet.getRow(r).getCell(1 + i);
+        cell.value = v;
+        cell.border = THIN_BORDER;
+        if (i === expenseAmountCol - 1) cell.numFmt = '#,##0';
+      });
       r += 1;
     });
     const subtotalRow = sheet.getRow(r);
     subtotalRow.getCell(1).value = '小計';
     subtotalRow.getCell(1).font = { bold: true };
-    const col6Letter = sheet.getColumn(6).letter;
-    const totalCell = subtotalRow.getCell(6);
+    const col6Letter = sheet.getColumn(expenseAmountCol).letter;
+    const totalCell = subtotalRow.getCell(expenseAmountCol);
     totalCell.value = { formula: `SUM(${col6Letter}${expenseStartRow}:${col6Letter}${r - 1})` };
     totalCell.numFmt = '#,##0';
     totalCell.font = { bold: true };
