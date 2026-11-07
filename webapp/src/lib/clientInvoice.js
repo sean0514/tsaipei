@@ -55,15 +55,20 @@ function studentStintDates(visaRecords, studentId, range) {
   return { start: v.firstEntryDate || '', end: v.firstExitDate || '' };
 }
 
-function studentPositionFor(studentId, { matches, admittedList, positions }) {
+function studentMatchFor(studentId, { matches, admittedList }) {
   const a = admittedList.find((x) => {
     const m = matches.find((mm) => mm.id === x.matchId);
     return m && m.studentId === studentId;
   });
   let m = a ? matches.find((mm) => mm.id === a.matchId) : null;
   if (!m) m = matches.find((mm) => mm.studentId === studentId);
+  return m || null;
+}
+
+function studentPositionFor(studentId, ctx) {
+  const m = studentMatchFor(studentId, ctx);
   if (!m) return null;
-  return positions.find((pp) => pp.id === m.positionId) || null;
+  return ctx.positions.find((pp) => pp.id === m.positionId) || null;
 }
 
 export function computeClientInvoice(projectCode, client, monthStr, ctx) {
@@ -104,6 +109,10 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     // 第一次還是第二次在台期間，到職日都是同一個、不會因為月份不同改變；
     // 還沒填實習開始日期的舊資料退回原本用當月對應那次入境時間顯示。
     const startDate = v?.internshipStartDate || stint.start;
+    // 實習場域：這個學生媒合到的職缺底下實際指定的場域(matches.venue)，
+    // 同一個統編底下如果有好幾個場域(例如同一間公司不同廠區)，合併帳單
+    // 才能分辨每個學生是在哪個場域；沒有場域資料就留空。
+    const venue = studentMatchFor(s.id, ctx)?.venue || '';
 
     // 宿舍費/宿管費只能跟學生實際住「廠商代付」宿舍的天數掛鉤，不是在台
     // 天數——學生自己付宿舍費的期間，公司沒有實際付出宿舍成本，不應該再
@@ -116,7 +125,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
     studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
-      startDate, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee,
+      startDate, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue,
       total: serviceFee + dormManageFee + dormFee + processingFee,
     });
   });
@@ -194,15 +203,17 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 // 合併帳單：同一個統一編號可能底下有好幾個專案／客戶名稱(不同實習單位
 // 分開簽約)，但開給客戶的請款單是以「統編」為單位，要合併成一張。學生
 // 明細/代墊費用明細把每個專案的列表接起來、重新編號(不要每個專案各自
-// 從1開始)，各列加上來源的客戶名稱(site)方便在明細表分辨是哪個實習場域
-// 的學生/費用；各分類金額/未稅小計/稅金/請款總額都是直接加總每個專案的
-// 數字(稅金用各自專案已經四捨五入過的值加總，不重新對合併後的課稅基礎
-// 算一次，跟各專案自己的請款單金額才會對得起來)；期數不同就用「、」接
-// 起來顯示，年月區間預期同一個月所以直接沿用第一筆。
+// 從1開始)；學生列的「實習場域」(site)優先用這個學生自己媒合到的實習
+// 單位場域(studentRows 的 venue，同一個統編底下可能好幾個場域)，沒有
+// 場域資料才退回顯示客戶名稱；代墊費用明細不是個別學生的場域資訊，一律
+// 顯示客戶名稱。各分類金額/未稅小計/稅金/請款總額都是直接加總每個專案
+// 的數字(稅金用各自專案已經四捨五入過的值加總，不重新對合併後的課稅
+// 基礎算一次，跟各專案自己的請款單金額才會對得起來)；期數不同就用「、」
+// 接起來顯示，年月區間預期同一個月所以直接沿用第一筆。
 export function mergeClientInvoices(entries) {
   if (!entries.length) return null;
   let no = 1;
-  const studentRows = entries.flatMap(({ client, invoice }) => invoice.studentRows.map((r) => ({ ...r, no: no++, site: client })));
+  const studentRows = entries.flatMap(({ client, invoice }) => invoice.studentRows.map((r) => ({ ...r, no: no++, site: r.venue || client })));
   const expenseRows = entries.flatMap(({ client, invoice }) => invoice.expenseRows.map((r) => ({ ...r, no: no++, site: client })));
   const invoices = entries.map((e) => e.invoice);
   const categoryTotals = {};
