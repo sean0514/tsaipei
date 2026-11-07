@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { computeClientBillingForMonth, currentMonthStr } from '../../lib/bonus';
-import { computeClientInvoice } from '../../lib/clientInvoice';
+import { computeClientInvoice, mergeClientInvoices } from '../../lib/clientInvoice';
 import { downloadClientInvoiceXlsx } from '../../lib/clientInvoiceXlsx';
 import { downloadFilledXlsxTemplate } from '../../lib/xlsxExport';
 import { fillInvoiceTemplate, parseCellMap, base64ToArrayBuffer } from '../../lib/clientInvoiceTemplate';
@@ -60,6 +60,56 @@ export default function ClientBillingPage() {
     if (!lock) return { ...r, locked: false };
     return { ...r, ...parseJson(lock.billingRow, {}), locked: true, lockId: lock.id };
   });
+
+  // 合併帳單：同一個統一編號(客戶費用建檔裡的統編)底下可能有好幾個專案／
+  // 客戶名稱(不同實習單位分開簽約)，但客戶是以統編收款，這裡把表格上的
+  // 列依統編分組，只有真的有兩筆以上對應到同一個統編的才需要合併(沒填
+  // 統編的不分組，各自獨立)。
+  function taxIdFor(row) {
+    return clientFeeSetupRecords.find((r) => (r.projectCode || '') === (row.projectCode || '') && r.client === row.client)?.taxId || '';
+  }
+  const taxIdGroups = {};
+  rows.forEach((r) => {
+    const taxId = taxIdFor(r);
+    if (!taxId) return;
+    (taxIdGroups[taxId] ||= []).push(r);
+  });
+  const mergeGroups = Object.entries(taxIdGroups)
+    .filter(([, group]) => group.length > 1)
+    .map(([taxId, group]) => ({
+      taxId,
+      group,
+      clients: [...new Set(group.map((r) => r.client))].join('、'),
+      projectCodes: group.map((r) => r.projectCode).filter(Boolean).join('、'),
+      totalDays: group.reduce((sum, r) => sum + (r.totalDays || 0), 0),
+      total: group.reduce((sum, r) => sum + (r.total || 0), 0),
+    }))
+    .sort((a, b) => a.taxId.localeCompare(b.taxId));
+
+  // 同一統編底下每個專案各自的請款單明細(已封存的用封存當下存的明細，
+  // 沒封存的即時算)接起來合併成一張，跟單一專案下載請款單同一套邏輯，
+  // 只是改成輸出合併後的 invoice；套版請款單(invoiceTemplateData)是綁
+  // 單一專案的版面，合併帳單一律用標準格式輸出。
+  async function handleDownloadMerged(mergeGroup) {
+    const key = `merged:${mergeGroup.taxId}`;
+    setBusyKey(key);
+    try {
+      const invoices = mergeGroup.group
+        .map((row) => {
+          const lock = lockFor(row);
+          return lock?.invoice ? parseJson(lock.invoice, null) : computeClientInvoice(row.projectCode, row.client, month, ctx);
+        })
+        .filter(Boolean);
+      if (!invoices.length) {
+        alert('這個統編底下的專案在該月份都沒有可計算的學生資料，請確認在台簽證追蹤與客戶費用建檔是否都已設定。');
+        return;
+      }
+      const merged = mergeClientInvoices(invoices);
+      await downloadClientInvoiceXlsx(mergeGroup.clients, merged);
+    } finally {
+      setBusyKey(null);
+    }
+  }
 
   async function handleDownload(row) {
     const key = `${row.projectCode}||${row.client}`;
@@ -238,6 +288,31 @@ export default function ClientBillingPage() {
           </tbody>
         </table></div>
       </div>
+
+      {mergeGroups.length > 0 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <h3 style={{ marginTop: 0 }}>合併帳單（同一統一編號）</h3>
+          <p className="muted">以下客戶在客戶費用建檔填了同一個統一編號，底下的不同專案／客戶名稱合併成一張請款單下載（學生明細/代墊費用明細接起來重新編號，各項金額、合計總額直接加總）。</p>
+          <div className="table-wrap sticky-header"><table>
+            <thead><tr><th>統一編號</th><th>客戶名稱</th><th>專案編號</th><th>合計總額</th><th>在台總天數</th><th></th></tr></thead>
+            <tbody>
+              {mergeGroups.map((g) => {
+                const key = `merged:${g.taxId}`;
+                return (
+                  <tr key={g.taxId}>
+                    <td>{g.taxId}</td>
+                    <td>{g.clients}</td>
+                    <td>{g.projectCodes}</td>
+                    <td>{g.total.toLocaleString()}</td>
+                    <td>{g.totalDays} 天</td>
+                    <td><button disabled={busyKey === key} onClick={() => handleDownloadMerged(g)}>{busyKey === key ? '產生中…' : '下載合併請款單'}</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table></div>
+        </div>
+      )}
     </div>
   );
 }
