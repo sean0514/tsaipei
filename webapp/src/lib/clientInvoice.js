@@ -36,11 +36,14 @@ function dateOverlapDays(rangeStart, rangeEnd, entryStr, exitStr) {
   return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
 }
 
+// 任職天數起算日改用「實習開始1/2」(沒填的舊資料退回對應那次入台時間)，
+// 不是簽證入境當天——入境到實際開始實習之間可能還有幾天(例如體檢/報到
+// 流程)，這幾天不算任職天數，服務費/辦件費依比例分攤時才不會多算。
 function studentDaysInTaiwan(visaRecords, studentId, range) {
   const v = visaRecords.find((x) => x.studentId === studentId);
   if (!v) return 0;
-  return dateOverlapDays(range.start, range.end, v.firstEntryDate, v.firstExitDate)
-    + dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate);
+  return dateOverlapDays(range.start, range.end, v.internshipStartDate1 || v.firstEntryDate, v.firstExitDate)
+    + dateOverlapDays(range.start, range.end, v.internshipStartDate2 || v.secondEntryDate, v.secondExitDate);
 }
 
 // 到職日(start)固定用「實習開始1/2」(在台簽證追蹤填的，各自預設帶入
@@ -50,10 +53,10 @@ function studentDaysInTaiwan(visaRecords, studentId, range) {
 function studentStintDates(visaRecords, studentId, range) {
   const v = visaRecords.find((x) => x.studentId === studentId);
   if (!v) return { start: '', end: '' };
-  if (dateOverlapDays(range.start, range.end, v.firstEntryDate, v.firstExitDate) > 0) {
+  if (dateOverlapDays(range.start, range.end, v.internshipStartDate1 || v.firstEntryDate, v.firstExitDate) > 0) {
     return { start: v.internshipStartDate1 || v.firstEntryDate || '', end: v.firstExitDate || '' };
   }
-  if (dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate) > 0) {
+  if (dateOverlapDays(range.start, range.end, v.internshipStartDate2 || v.secondEntryDate, v.secondExitDate) > 0) {
     return { start: v.internshipStartDate2 || v.secondEntryDate || '', end: v.secondExitDate || '' };
   }
   return { start: v.internshipStartDate1 || v.firstEntryDate || '', end: v.firstExitDate || '' };
