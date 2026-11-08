@@ -16,11 +16,12 @@ function parseJson(json, fallback) {
 // 算出來的，不開放直接改。
 const EDITABLE_AMOUNT_FIELDS = [
   'monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee', 'dormOtherFeeCharge',
-  'dailyExpenseChargeJunyu', 'dailyExpenseChargeSupplier', 'dormUtilityPassThrough',
+  'dailyExpenseChargeJunyu', 'dailyExpenseChargeSupplier', 'dormUtilityPassThrough', 'collectedDormFee',
 ];
-// 稅金只對這幾項課徵(不含代墊費用供應商、代收代付這兩筆不計稅的代墊性質
-// 項目)，跟 lib/bonus.js computeClientBillingForMonth 的稅金公式一致。
-const NOT_TAXABLE_FIELDS = ['dailyExpenseChargeSupplier', 'dormUtilityPassThrough'];
+// 稅金只對這幾項課徵(不含代墊費用供應商、代收代付、代收宿舍費這幾筆不
+// 計稅的代墊性質項目)，跟 lib/bonus.js computeClientBillingForMonth 的
+// 稅金公式一致。
+const NOT_TAXABLE_FIELDS = ['dailyExpenseChargeSupplier', 'dormUtilityPassThrough', 'collectedDormFee'];
 const TAXABLE_AMOUNT_FIELDS = EDITABLE_AMOUNT_FIELDS.filter((k) => !NOT_TAXABLE_FIELDS.includes(k));
 
 export default function ClientBillingPage() {
@@ -180,6 +181,7 @@ export default function ClientBillingPage() {
       dailyExpenseChargeJunyu: row.amounts.dailyExpenseChargeJunyu || 0,
       dailyExpenseChargeSupplier: row.amounts.dailyExpenseChargeSupplier || 0,
       dormUtilityPassThrough: row.amounts.dormUtilityPassThrough || 0,
+      collectedDormFee: row.amounts.collectedDormFee || 0,
     });
   }
 
@@ -199,7 +201,7 @@ export default function ClientBillingPage() {
     EDITABLE_AMOUNT_FIELDS.forEach((k) => { amounts[k] = Number(v[k]) || 0; });
     const taxableAmount = TAXABLE_AMOUNT_FIELDS.reduce((s, k) => s + amounts[k], 0);
     const tax = Math.round(taxableAmount * 0.05);
-    const total = taxableAmount + tax + amounts.dailyExpenseChargeSupplier + amounts.dormUtilityPassThrough;
+    const total = taxableAmount + tax + amounts.dailyExpenseChargeSupplier + amounts.dormUtilityPassThrough + amounts.collectedDormFee;
     const billingRow = { amounts, tax, total, totalDays: Number(v.totalDays) || 0 };
     try {
       const lock = lockFor(row);
@@ -228,7 +230,7 @@ export default function ClientBillingPage() {
       <ClientBillingChart rows={rows} />
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap sticky-header"><table>
-          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代墊費用(供應商)</th><th>代收代付(水電瓦斯)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代收宿舍費</th><th>代墊費用(供應商)</th><th>代收代付(水電瓦斯)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
@@ -247,6 +249,7 @@ export default function ClientBillingPage() {
                     <td><input type="number" value={v.dormOtherFeeCharge} onChange={setField('dormOtherFeeCharge')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.dailyExpenseChargeJunyu} onChange={setField('dailyExpenseChargeJunyu')} style={{ width: 90 }} /></td>
                     <td className="muted">自動計算</td>
+                    <td><input type="number" value={v.collectedDormFee} onChange={setField('collectedDormFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.dailyExpenseChargeSupplier} onChange={setField('dailyExpenseChargeSupplier')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.dormUtilityPassThrough} onChange={setField('dormUtilityPassThrough')} style={{ width: 90 }} /></td>
                     <td className="muted">自動計算</td>
@@ -270,6 +273,7 @@ export default function ClientBillingPage() {
                   <td>{(r.amounts.dormOtherFeeCharge || 0).toLocaleString()}</td>
                   <td>{(r.amounts.dailyExpenseChargeJunyu || 0).toLocaleString()}</td>
                   <td>{(r.tax || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.collectedDormFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.dailyExpenseChargeSupplier || 0).toLocaleString()}</td>
                   <td>{(r.amounts.dormUtilityPassThrough || 0).toLocaleString()}</td>
                   <td>{r.total.toLocaleString()}</td>
@@ -285,7 +289,7 @@ export default function ClientBillingPage() {
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td colSpan={15} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={16} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
@@ -328,6 +332,7 @@ const CATEGORY_TOTALS = [
   { key: 'dormOtherFeeCharge', label: '宿舍其他費用(廠商代付未稅)', fromAmounts: true },
   { key: 'dailyExpenseChargeJunyu', label: '代墊費用(鈞羽未稅)', fromAmounts: true },
   { key: 'tax', label: '稅金5%', fromAmounts: false },
+  { key: 'collectedDormFee', label: '代收宿舍費', fromAmounts: true },
   { key: 'dailyExpenseChargeSupplier', label: '代墊費用(供應商)', fromAmounts: true },
   { key: 'dormUtilityPassThrough', label: '代收代付(水電瓦斯)', fromAmounts: true },
   { key: 'total', label: '合計總額', fromAmounts: false },

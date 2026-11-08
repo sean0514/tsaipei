@@ -220,6 +220,13 @@ export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
 const CLIENT_FEE_KEYS = ['monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee'];
 const DORM_FEE_KEYS = ['monthlyDormFee', 'monthlyDormManageFee'];
 
+// 宿舍費(monthlyDormFee)改成代收代付性質(鈞羽收到客戶這筆錢後原封不動付給
+// 宿舍，不是公司服務收入，不計稅)，不再併入服務費/宿管費那些未稅項目算
+// 稅——只有客戶名稱包含「鼎泰豐」維持舊制，宿舍費仍照原本方式計稅。
+export function isDormFeePassThroughClient(client) {
+  return !(client || '').includes('鼎泰豐');
+}
+
 // 日常支出申請選了「須請款(實習單位)」且已核准/已匯款的「支出」類型紀錄，
 // 併入該實習單位當月的客戶請款裡：開「鈞羽發票」的要算稅(跟服務費/宿舍費/
 // 宿管費一起算5%)，開「供應商發票」或「無須發票」的不計稅，直接加進合計
@@ -417,12 +424,19 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     // 比照代墊費用(供應商)不計稅，直接算進合計總額。
     const dormUtilityPassThrough = vendorUtilityCharges[key] || 0;
     amounts.dormUtilityPassThrough = dormUtilityPassThrough;
-    // 辦件費/服務費/宿舍費/宿管費/宿舍其他費用(廠商代付)都是未稅金額，稅金
-    // 算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」「代收代付」
-    // 不計稅。合計＝以上未稅項目加總 + 稅金 + 代墊費用(供應商) + 代收代付。
+    // 代收宿舍費：宿舍費(monthlyDormFee)改成代收代付性質，鈞羽原封不動轉付
+    // 給宿舍，不計稅，不算進服務費/宿管費那些未稅項目；鼎泰豐維持舊制，
+    // 宿舍費仍留在 amounts.monthlyDormFee 裡照原本方式計稅。
+    const collectedDormFee = isDormFeePassThroughClient(g.client) ? amounts.monthlyDormFee : 0;
+    if (collectedDormFee) amounts.monthlyDormFee = 0;
+    amounts.collectedDormFee = collectedDormFee;
+    // 辦件費/服務費/宿舍費(鼎泰豐)/宿管費/宿舍其他費用(廠商代付)都是未稅
+    // 金額，稅金算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」
+    // 「代收代付」「代收宿舍費」不計稅。合計＝以上未稅項目加總 + 稅金 +
+    // 代墊費用(供應商) + 代收代付 + 代收宿舍費。
     const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dormOtherFeeCharge + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
-    const total = taxableAmount + tax + dailyExpenseSupplier + dormUtilityPassThrough;
+    const total = taxableAmount + tax + dailyExpenseSupplier + dormUtilityPassThrough + collectedDormFee;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };
   }).sort((a, b) => (a.client || '').localeCompare(b.client || ''));
 }

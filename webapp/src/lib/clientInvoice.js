@@ -3,7 +3,7 @@
 
 import {
   resolveFixedChargeMonth, studentAdmitDate, buildDailyExpenseChargeTotals, studentForeignPaidDormDaysForMonth,
-  buildMonthlyProjectClientVendorOtherFeeTotals, buildMonthlyProjectClientVendorUtilityTotals,
+  buildMonthlyProjectClientVendorOtherFeeTotals, buildMonthlyProjectClientVendorUtilityTotals, isDormFeePassThroughClient,
 } from './bonus';
 
 export const COMPANY_INFO = {
@@ -124,12 +124,18 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     const dormDays = studentForeignPaidDormDaysForMonth(s.id, monthStr, housingRecords);
     const serviceFee = feeSetup?.monthlyServiceFee ? Math.round((Number(feeSetup.monthlyServiceFee) / range.daysInMonth) * days) : 0;
     const dormManageFee = feeSetup?.monthlyDormManageFee ? Math.round((Number(feeSetup.monthlyDormManageFee) / range.daysInMonth) * dormDays) : 0;
-    const dormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * dormDays) : 0;
+    const rawDormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * dormDays) : 0;
+    // 宿舍費改成代收代付性質，鈞羽原封不動轉付給宿舍、不計稅、不算進這個
+    // 學生的「請款金額」小計，另外獨立一欄「代收宿舍費」；鼎泰豐維持舊制，
+    // 宿舍費仍計稅、算進請款金額，跟 computeClientBillingForMonth 一致。
+    const dormFeePassThrough = isDormFeePassThroughClient(client);
+    const dormFee = dormFeePassThrough ? 0 : rawDormFee;
+    const collectedDormFee = dormFeePassThrough ? rawDormFee : 0;
     const processingFee = isFixed ? fixedCharge : (feeSetup?.monthlyProcessingFee ? Math.round((Number(feeSetup.monthlyProcessingFee) / range.daysInMonth) * days) : 0);
 
     studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
-      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue,
+      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue, collectedDormFee,
       total: serviceFee + dormManageFee + dormFee + processingFee,
     });
   });
@@ -189,14 +195,16 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     dailyExpenseSupplier: expenseRows.filter((r) => !r.taxable).reduce((sum, r) => sum + r.total, 0),
     dormOtherFee: dormOtherFeeAmount,
     dormUtility: dormUtilityAmount,
+    collectedDormFee: studentRows.reduce((sum, r) => sum + (r.collectedDormFee || 0), 0),
   };
 
-  // 辦件費/服務費/宿管費/宿舍費/宿舍其他費用(廠商代付)、開鈞羽發票的代墊
-  // 費用都是未稅金額，稅金算這些的 5%；代墊費用(供應商發票/無須發票)、
-  // 代收代付(水電瓦斯)不計稅。小計(subtotal)是所有項目的未稅總額，請款
-  // 總額＝小計＋稅金。
+  // 辦件費/服務費/宿管費/宿舍費(鼎泰豐)/宿舍其他費用(廠商代付)、開鈞羽
+  // 發票的代墊費用都是未稅金額，稅金算這些的 5%；代墊費用(供應商發票/
+  // 無須發票)、代收代付(水電瓦斯)、代收宿舍費不計稅。學生列的 total 不含
+  // 代收宿舍費(宿舍費已經代收代付化的學生 dormFee=0)，所以小計(subtotal)
+  // 要另外把 collectedDormFee 加回來，請款總額＝小計＋稅金。
   const rows = [...studentRows, ...expenseRows, ...dormOtherFeeRows, ...dormUtilityRows];
-  const subtotal = rows.reduce((sum, r) => sum + r.total, 0);
+  const subtotal = rows.reduce((sum, r) => sum + r.total, 0) + categoryTotals.collectedDormFee;
   const taxableSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dormOtherFee + categoryTotals.dailyExpenseJunyu;
   const tax = Math.round(taxableSubtotal * 0.05);
   const grandTotal = subtotal + tax;

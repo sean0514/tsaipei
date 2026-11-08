@@ -15,6 +15,7 @@ export const SUMMARY_MAP_FIELDS = [
   { key: 'daysInMonth', label: '當月天數' },
   { key: 'subtotal', label: '銷售額小計' },
   { key: 'tax', label: '營業稅' },
+  { key: 'collectedDormFee', label: '代收宿舍費總額' },
   { key: 'grandTotal', label: '請款總額' },
 ];
 
@@ -30,6 +31,7 @@ export const DETAIL_MAP_FIELDS = [
   { key: 'dormFee', label: '宿舍費用' },
   { key: 'processingFee', label: '辦件費' },
   { key: 'total', label: '請款金額' },
+  { key: 'collectedDormFee', label: '代收宿舍費' },
 ];
 
 export function emptyCellMap() {
@@ -73,6 +75,7 @@ export function fillInvoiceTemplate(workbook, invoice, client, projectCode, cell
     client, taxId: invoice.taxId || '', projectCode, periodLabel: invoice.periodLabel || '',
     yearMonthLabel: `${yearRoc}.${mm2}`, daysInMonth: invoice.range.daysInMonth,
     subtotal: invoice.subtotal, tax: invoice.tax, grandTotal: invoice.grandTotal,
+    collectedDormFee: invoice.categoryTotals?.collectedDormFee || 0,
   };
   Object.entries(cellMap.summary || {}).forEach(([key, cellRef]) => {
     if (!cellRef) return;
