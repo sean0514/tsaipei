@@ -30,6 +30,7 @@ function taxBreakdown(invoice) {
     untaxedSubtotal, taxedTotal, grandTotal,
     supplierExpense: categoryTotals.dailyExpenseSupplier,
     utilityPassThrough: categoryTotals.dormUtility || 0,
+    collectedDormFee: categoryTotals.collectedDormFee || 0,
   };
 }
 
@@ -39,7 +40,7 @@ function taxBreakdown(invoice) {
 // 核對含不含稅。
 function buildSummarySheet(workbook, client, invoice) {
   const { range, periodLabel, taxId, categoryTotals } = invoice;
-  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, grandTotal } = taxBreakdown(invoice);
+  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, collectedDormFee, grandTotal } = taxBreakdown(invoice);
   const yearRoc = range.year - 1911;
   const mm2 = String(range.month).padStart(2, '0');
 
@@ -66,10 +67,13 @@ function buildSummarySheet(workbook, client, invoice) {
   const headerRow = 12;
   headerRowCells(sheet.getRow(headerRow), ['項目', '金額']);
 
+  // 宿舍費改成代收代付性質(鼎泰豐除外)，不再是未稅服務項目——這個客戶
+  // 如果宿舍費是代收代付(categoryTotals.dormFee 為 0)，「宿舍費(未稅)」
+  // 這一列就整列不列出，不是列出來顯示 0，跟鈞羽未稅服務項目區分開來。
   const categoryRows = [
     ['辦件費(未稅)', categoryTotals.processingFee],
     ['服務費(未稅)', categoryTotals.serviceFee],
-    ['宿舍費(未稅)', categoryTotals.dormFee],
+    ...(categoryTotals.dormFee ? [['宿舍費(未稅)', categoryTotals.dormFee]] : []),
     ['宿管費(未稅)', categoryTotals.dormManageFee],
     ['宿舍其他費用(廠商代付未稅)', categoryTotals.dormOtherFee || 0],
     ['代墊費用(鈞羽未稅)', categoryTotals.dailyExpenseJunyu],
@@ -90,6 +94,7 @@ function buildSummarySheet(workbook, client, invoice) {
     ['未稅金額(小計)', untaxedSubtotal],
     ['營業稅5%', invoice.tax],
     ['含稅金額', taxedTotal],
+    ['代收宿舍費', collectedDormFee],
     ['代墊費用(供應商)', supplierExpense],
     ['代收代付(水電瓦斯)', utilityPassThrough],
     ['請款總金額', grandTotal],
@@ -130,7 +135,7 @@ function buildDetailSheet(workbook, invoice) {
   // 本來就只有一個客戶，不需要這欄，所以欄位跟著 site 有沒有值動態增減，
   // 不影響原本單一專案下載請款單的明細版面。
   const hasSite = studentRows.some((r) => r.site) || expenseRows.some((r) => r.site);
-  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, grandTotal } = taxBreakdown(invoice);
+  const { untaxedSubtotal, taxedTotal, supplierExpense, utilityPassThrough, collectedDormFee, grandTotal } = taxBreakdown(invoice);
   const sheet = workbook.addWorksheet('明細');
   sheet.columns = Array.from({ length: 6 }, () => ({ width: 14 }));
   sheet.getColumn(14).width = 16;
@@ -143,12 +148,14 @@ function buildDetailSheet(workbook, invoice) {
   r += 1;
 
   // 右側(N/O欄)對齊學生明細表格頭部，放一份跟「請款單」頁簽一樣的未稅
-  // 金額(小計)/營業稅5%/含稅金額/代墊費用(供應商)/請款總金額，方便在明細
-  // 頁簽就能核對總額，不用切回請款單頁簽。
+  // 金額(小計)/營業稅5%/含稅金額/代收宿舍費/代墊費用(供應商)/代收代付
+  // (水電瓦斯)/請款總金額，方便在明細頁簽就能核對總額，不用切回請款單
+  // 頁簽。
   const summaryRows = [
     ['未稅金額(小計)', untaxedSubtotal],
     ['營業稅5%', invoice.tax],
     ['含稅金額', taxedTotal],
+    ['代收宿舍費', collectedDormFee],
     ['代墊費用(供應商)', supplierExpense],
     ['代收代付(水電瓦斯)', utilityPassThrough],
     ['請款總金額', grandTotal],
@@ -167,22 +174,36 @@ function buildDetailSheet(workbook, invoice) {
     if (isGrandTotal) valueCell.fill = TOTAL_FILL;
   });
 
-  const studentHeaders = hasSite
-    ? ['編號', '實習場域', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額']
-    : ['編號', '姓名', '護照號碼', '到職日', '離職日', '任職天數', '服務費用', '宿管費用', '宿舍費用', '辦件費', '請款金額'];
-  headerRowCells(sheet.getRow(r), studentHeaders, 1);
+  // 宿舍費改成代收代付性質(鼎泰豐除外)之後，「宿舍費用」欄跟「代收宿舍費」
+  // 欄都改成有資料才出現，不是固定欄位——鼎泰豐這種還在用舊制的客戶看到
+  // 「宿舍費用」欄(沒有代收宿舍費)，其他客戶看到「代收宿舍費」欄(宿舍費用
+  // 欄不出現，因為已經代收代付化、不會有值)。
+  const hasDormFee = studentRows.some((row) => row.dormFee);
+  const hasCollectedDormFee = studentRows.some((row) => row.collectedDormFee);
+  const studentColumns = [
+    { key: 'no', label: '編號' },
+    ...(hasSite ? [{ key: 'site', label: '實習場域' }] : []),
+    { key: 'name', label: '姓名' },
+    { key: 'passport', label: '護照號碼' },
+    { key: 'startDate', label: '到職日' },
+    { key: 'endDate', label: '離職日' },
+    { key: 'days', label: '任職天數' },
+    { key: 'serviceFee', label: '服務費用', numeric: true },
+    { key: 'dormManageFee', label: '宿管費用', numeric: true },
+    ...(hasDormFee ? [{ key: 'dormFee', label: '宿舍費用', numeric: true }] : []),
+    { key: 'processingFee', label: '辦件費', numeric: true },
+    { key: 'total', label: '請款金額', numeric: true },
+    ...(hasCollectedDormFee ? [{ key: 'collectedDormFee', label: '代收宿舍費', numeric: true }] : []),
+  ];
+  headerRowCells(sheet.getRow(r), studentColumns.map((c) => c.label), 1);
   r += 1;
   const studentStartRow = r;
-  const studentNumericStartIdx = hasSite ? 7 : 6;
   studentRows.forEach((row) => {
-    const values = hasSite
-      ? [row.no, row.site || '', row.name, row.passport, row.startDate, row.endDate, row.days, row.serviceFee, row.dormManageFee, row.dormFee, row.processingFee, row.total]
-      : [row.no, row.name, row.passport, row.startDate, row.endDate, row.days, row.serviceFee, row.dormManageFee, row.dormFee, row.processingFee, row.total];
-    values.forEach((v, i) => {
+    studentColumns.forEach((c, i) => {
       const cell = sheet.getRow(r).getCell(1 + i);
-      cell.value = v;
+      cell.value = c.key === 'site' ? (row.site || '') : row[c.key];
       cell.border = THIN_BORDER;
-      if (i >= studentNumericStartIdx) cell.numFmt = '#,##0';
+      if (c.numeric) cell.numFmt = '#,##0';
     });
     r += 1;
   });
@@ -190,7 +211,9 @@ function buildDetailSheet(workbook, invoice) {
     const subtotalRow = sheet.getRow(r);
     subtotalRow.getCell(1).value = '小計';
     subtotalRow.getCell(1).font = { bold: true };
-    (hasSite ? [8, 9, 10, 11, 12] : [7, 8, 9, 10, 11]).forEach((col) => {
+    studentColumns.forEach((c, i) => {
+      if (!c.numeric) return;
+      const col = i + 1;
       const colLetter = sheet.getColumn(col).letter;
       const cell = subtotalRow.getCell(col);
       cell.value = { formula: `SUM(${colLetter}${studentStartRow}:${colLetter}${r - 1})` };
