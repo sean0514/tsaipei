@@ -581,7 +581,7 @@ export default function StudentBillingPage() {
                               <td>{b.gasFee.toLocaleString()}</td>
                               <td>{b.otherFees.toLocaleString()}</td>
                               <td style={{ fontWeight: 600 }}>{b.total.toLocaleString()}</td>
-                              <td>{b.locked ? <span className="tag tag-green">已封存</span> : <span className="muted">即時試算</span>}</td>
+                              <td>{b.locked ? <span className="tag tag-green">已封存</span> : <span className="muted status-text">即時試算</span>}</td>
                               <td>
                                 <select
                                   value={p.status}

@@ -248,6 +248,13 @@ input, select, textarea {
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: top; }
 th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+/* 「即時試算」這類沒有空白可斷行的短狀態字串，欄寬被旁邊的操作按鈕欄
+   擠壓變窄時，瀏覽器會允許在 CJK 文字的每個字中間斷行，變成一字一行、
+   表格看起來「沒有切齊」(.tag 本來就有 nowrap 不受影響，只有沒套 .tag
+   的狀態文字會這樣)；用這個 class 標記這類短狀態文字，讓它維持單行，
+   欄位改成真的超出寬度、交給 .table-wrap 的 overflow-x: auto 處理水平
+   捲動，不要被拆成一字一行。 */
+.status-text { white-space: nowrap; }
 
 .app-shell { display: flex; min-height: 100vh; background: var(--bg); }
 .sidebar {

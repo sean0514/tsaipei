@@ -44,6 +44,21 @@ export function studentDaysInTaiwanForMonth(studentId, monthStr, inTaiwanVisaRec
     + dateOverlapDays(range.start, range.end, v.secondEntryDate, v.secondExitDate);
 }
 
+// 客戶請款計算專用的「在台天數」：起算日改用實習開始1/2(沒填的舊資料
+// 退回對應那次入台時間)，跟 lib/clientInvoice.js computeClientInvoice
+// 算單一學生請款明細的「任職天數」用同一套公式，客戶請款計算頁面上的
+// 合計總額/在台總天數才會跟下載的請款單明細加總起來一致。只有客戶請款
+// 計算用這個版本，內部獎金計算等其他用到 studentDaysInTaiwanForMonth
+// 的地方維持原本以簽證入境日起算，不受影響。
+export function studentBillableDaysInTaiwanForMonth(studentId, monthStr, inTaiwanVisaRecords) {
+  const range = monthRange(monthStr);
+  if (!range) return 0;
+  const v = inTaiwanVisaRecords.find((x) => x.studentId === studentId);
+  if (!v) return 0;
+  return dateOverlapDays(range.start, range.end, v.internshipStartDate1 || v.firstEntryDate, v.firstExitDate)
+    + dateOverlapDays(range.start, range.end, v.internshipStartDate2 || v.secondEntryDate, v.secondExitDate);
+}
+
 // 學生這個月「廠商代付」住宿紀錄的天數——客戶請款計算的宿舍費/宿管費只能
 // 跟學生實際住「廠商代付」宿舍的天數掛鉤。學生自己付宿舍費（payer 是
 // 「學生自付」）的期間，公司沒有實際付出宿舍成本，不應該再跟客戶收這筆
@@ -109,13 +124,14 @@ export function rolesForProjectClient(projectCode, client, positions) {
   return roles;
 }
 
-export function buildMonthlyProjectClientDayTotals(monthStr, ctx) {
+export function buildMonthlyProjectClientDayTotals(monthStr, ctx, { billable = false } = {}) {
   const { students, inTaiwanVisaRecords } = ctx;
+  const daysFn = billable ? studentBillableDaysInTaiwanForMonth : studentDaysInTaiwanForMonth;
   const groups = {};
   students.forEach((s) => {
     const pair = studentProjectClientPair(s.id, ctx);
     if (!pair) return;
-    const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
+    const days = daysFn(s.id, monthStr, inTaiwanVisaRecords);
     if (days <= 0) return;
     const key = `${pair.projectCode}||${pair.client}`;
     (groups[key] ||= { projectCode: pair.projectCode, client: pair.client, totalDays: 0 }).totalDays += days;
@@ -358,7 +374,7 @@ export function computeClientBillingForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
   const { clientFeeSetupRecords } = ctx;
-  const groups = buildMonthlyProjectClientDayTotals(monthStr, ctx);
+  const groups = buildMonthlyProjectClientDayTotals(monthStr, ctx, { billable: true });
   const dormDayGroups = buildMonthlyProjectClientDormDayTotals(monthStr, ctx);
   const fixedCharges = buildFixedChargeTotals(monthStr, ctx);
   const dailyExpenseCharges = buildDailyExpenseChargeTotals(monthStr, ctx);

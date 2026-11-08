@@ -274,7 +274,7 @@ export default function ClientBillingPage() {
                   <td>{(r.amounts.dormUtilityPassThrough || 0).toLocaleString()}</td>
                   <td>{r.total.toLocaleString()}</td>
                   <td>{r.totalDays} 天</td>
-                  <td>{r.locked ? <span className="tag tag-green">已封存</span> : <span className="muted">即時試算</span>}</td>
+                  <td>{r.locked ? <span className="tag tag-green">已封存</span> : <span className="muted status-text">即時試算</span>}</td>
                   <td className="row-actions">
                     <button disabled={busyKey === key} onClick={() => handleDownload(r)}>{busyKey === key ? '產生中…' : '下載請款單'}</button>
                     {canEditPage && <button onClick={() => handleStartEdit(r)}>編輯</button>}
