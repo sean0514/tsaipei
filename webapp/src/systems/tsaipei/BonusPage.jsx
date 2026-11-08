@@ -167,7 +167,7 @@ export default function BonusPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center' }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         <input placeholder="搜尋客戶或專案編號" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-        {archive ? <span className="tag tag-green">已封存</span> : <span className="muted">即時試算</span>}
+        {archive ? <span className="tag tag-green">已封存</span> : <span className="muted status-text">即時試算</span>}
         {canEditPage && (archive
           ? <button onClick={handleUnlockArchive}>取消封存</button>
           : <button className="primary" onClick={handleConfirmArchive}>封存本月</button>)}
