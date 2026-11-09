@@ -139,7 +139,7 @@ export default function LaborAgencyResumeApplyPage() {
   const [overseasExperience, setOverseasExperience] = useState([emptyExperienceRow(), emptyExperienceRow()]);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoError, setPhotoError] = useState('');
-  const [tattooPhotoFile, setTattooPhotoFile] = useState(null);
+  const [tattooPhotoFiles, setTattooPhotoFiles] = useState([]);
   const [tattooPhotoError, setTattooPhotoError] = useState('');
   const [lineQrPhotoFile, setLineQrPhotoFile] = useState(null);
   const [lineQrPhotoError, setLineQrPhotoError] = useState('');
@@ -167,16 +167,25 @@ export default function LaborAgencyResumeApplyPage() {
     setPhotoFile(file);
   }
 
+  // 刺青照片可以選很多張刺青分開拍，所以可以一次選多個檔案、也可以分
+  // 好幾次選擇繼續補加——每次選擇的檔案都加進既有清單，不是整批取代，
+  // 選完整批超過大小限制才整批拒絕（比逐張各自判斷更不容易讓使用者
+  // 搞不清楚哪一張被拒絕）。
   function handleTattooPhotoChange(e) {
-    const file = e.target.files?.[0] || null;
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
     setTattooPhotoError('');
-    if (file && file.size > MAX_PHOTO_SIZE) {
+    const tooBig = files.find((f) => f.size > MAX_PHOTO_SIZE);
+    if (tooBig) {
       setTattooPhotoError(L('photoTooBig'));
-      setTattooPhotoFile(null);
-      e.target.value = '';
       return;
     }
-    setTattooPhotoFile(file);
+    setTattooPhotoFiles((prev) => [...prev, ...files]);
+  }
+
+  function removeTattooPhotoFile(index) {
+    setTattooPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleLineQrPhotoChange(e) {
@@ -199,6 +208,10 @@ export default function LaborAgencyResumeApplyPage() {
     return getDownloadURL(storageRef);
   }
 
+  async function uploadPhotos(files, prefix) {
+    return Promise.all(files.map((file) => uploadPhoto(file, prefix)));
+  }
+
   const experienceLabels = {
     startDate: L('startDate'), endDate: L('endDate'), description: L('description'), leaveReason: L('leaveReason'),
     removeRow: L('removeRow'), addRow: L('addRow'),
@@ -211,7 +224,7 @@ export default function LaborAgencyResumeApplyPage() {
     setBusy(true);
     try {
       const photoUrl = await uploadPhoto(photoFile, 'headshot');
-      const tattooPhotoUrl = await uploadPhoto(tattooPhotoFile, 'tattoo');
+      const tattooPhotoUrls = await uploadPhotos(tattooPhotoFiles, 'tattoo');
       const lineQrPhotoUrl = await uploadPhoto(lineQrPhotoFile, 'lineQr');
       // 履歷填寫的完整資料——移工名冊(laborAgency_workers)跟履歷表連結的
       // 履歷清單(laborAgency_resumeSubmissions)都要存這整份，名冊才能顯示
@@ -234,7 +247,7 @@ export default function LaborAgencyResumeApplyPage() {
         dominantHand: form.dominantHand || '',
         majorSurgery: form.majorSurgery || '',
         hasTattoo: form.hasTattoo || '',
-        tattooPhotoUrl,
+        tattooPhotoUrls: JSON.stringify(tattooPhotoUrls),
         lineQrPhotoUrl,
         maritalStatus: form.maritalStatus || '',
         familyContactPhone: form.familyContactPhone || '',
@@ -398,7 +411,17 @@ export default function LaborAgencyResumeApplyPage() {
           {form.hasTattoo === '有' && (
             <label>
               {L('tattooPhoto')}
-              <input type="file" accept="image/*" onChange={handleTattooPhotoChange} />
+              {tattooPhotoFiles.length > 0 && (
+                <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
+                  {tattooPhotoFiles.map((f, i) => (
+                    <li key={`${f.name}-${i}`} style={{ fontSize: 13 }}>
+                      {f.name}
+                      <button type="button" className="small" onClick={() => removeTattooPhotoFile(i)} style={{ marginLeft: 6 }}>{L('removeRow')}</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input type="file" accept="image/*" multiple onChange={handleTattooPhotoChange} />
               {tattooPhotoError && <div className="error-text">{tattooPhotoError}</div>}
             </label>
           )}

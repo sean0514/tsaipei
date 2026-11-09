@@ -5,6 +5,7 @@ import { ExperienceEditor } from '../pages/LaborAgencyResumeApplyPage';
 import { t } from '../lib/i18n';
 import { useResumeTranslate } from '../lib/useResumeTranslate';
 import { suggestChineseName } from '../lib/vietnameseNameToChinese';
+import { tattooPhotoUrlsOf } from '../lib/resumePhotos';
 
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 
@@ -60,6 +61,57 @@ function PhotoField({ label, value, onChange, lang }) {
         </div>
       )}
       <input type="file" accept="image/*" onChange={handleChange} disabled={busy} />
+      {error && <div className="error-text">{error}</div>}
+    </label>
+  );
+}
+
+// 刺青照片可以有很多張（跟公開填寫頁 pages/LaborAgencyResumeApplyPage.jsx
+// 一樣可以一次選多張、分好幾次補加），用陣列存，不是單一網址，所以不能
+// 直接共用上面的 PhotoField——這個版本 value/onChange 傳的是網址陣列。
+function PhotoListField({ label, value, onChange, lang }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleAdd(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    setError('');
+    const tooBig = files.find((f) => f.size > MAX_PHOTO_SIZE);
+    if (tooBig) {
+      setError('照片檔案太大（上限 3MB）');
+      return;
+    }
+    setBusy(true);
+    try {
+      const urls = await Promise.all(files.map((f) => uploadResumePhoto(f, 'internal')));
+      onChange([...(value || []), ...urls]);
+    } catch (err) {
+      setError(`上傳失敗：${err.message || err}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleRemove(i) {
+    onChange((value || []).filter((_, idx) => idx !== i));
+  }
+
+  return (
+    <label>
+      {label}
+      {(value || []).length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '4px 0' }}>
+          {value.map((url, i) => (
+            <div key={`${url}-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <img src={url} alt="" style={{ width: 80, height: 80, objectFit: 'cover', display: 'block' }} />
+              <button type="button" className="danger" onClick={() => handleRemove(i)} disabled={busy}>{t('刪除', lang)}</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <input type="file" accept="image/*" multiple onChange={handleAdd} disabled={busy} />
       {error && <div className="error-text">{error}</div>}
     </label>
   );
@@ -126,9 +178,14 @@ export default function ResumeInternalFields({
             <option value="無">{t('無', lang)}</option>
           </select>
         </label>
-        <PhotoField label={t('照片', lang)} value={form.photoUrl} onChange={(url) => setField('photoUrl', url)} lang={lang} />
+        <PhotoField label={t('自己照片', lang)} value={form.photoUrl} onChange={(url) => setField('photoUrl', url)} lang={lang} />
         {form.hasTattoo === '有' && (
-          <PhotoField label={t('刺青照片', lang)} value={form.tattooPhotoUrl} onChange={(url) => setField('tattooPhotoUrl', url)} lang={lang} />
+          <PhotoListField
+            label={t('刺青照片', lang)}
+            value={tattooPhotoUrlsOf(form)}
+            onChange={(urls) => setField('tattooPhotoUrls', JSON.stringify(urls))}
+            lang={lang}
+          />
         )}
       </div>
 

@@ -1097,6 +1097,7 @@ const VI = {
   '身分證（CCCD）': 'Chứng minh nhân dân (CCCD)',
   '提供清晰影本／掃描檔': 'Cung cấp bản sao/bản scan rõ nét',
   '照片': 'Ảnh',
+  '自己照片': 'Ảnh cá nhân',
   '符合簽證申請規定之照片': 'Ảnh đúng quy định xin visa',
   '個人履歷表／履歷資料': 'Sơ yếu lý lịch/hồ sơ cá nhân',
   '完整填寫，並確認各項資料一致': 'Điền đầy đủ và xác nhận các thông tin khớp nhau',
