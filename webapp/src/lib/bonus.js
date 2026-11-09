@@ -227,10 +227,12 @@ export function isDormFeePassThroughClient(client) {
   return !(client || '').includes('鼎泰豐');
 }
 
-// 日常支出申請選了「須請款(實習單位)」且已核准/已匯款的「支出」類型紀錄，
-// 併入該實習單位當月的客戶請款裡：開「鈞羽發票」的要算稅(跟服務費/宿舍費/
-// 宿管費一起算5%)，開「供應商發票」或「無須發票」的不計稅，直接加進合計
-// 總額；「收入」類型的紀錄是向學生收的錢，不是代墊給客戶的費用，不計入。
+// 日常支出申請選了「須請款(實習單位)」且已核准/已匯款的紀錄，不分「支出」
+// 「收入」類型，都併入該實習單位當月的客戶請款裡：開「鈞羽發票」的要算稅
+// (跟服務費/宿舍費/宿管費一起算5%)，開「供應商發票」或「無須發票」的不
+// 計稅，直接加進合計總額。「須請款(實習單位)」沒有選企業(=不須請款)的
+// 「收入」類型紀錄，才是真的要向學生收的錢，不計入客戶請款，改計入學生
+// 請款計算(見 StudentBillingPage.jsx 的 studentIncomeTotal)。
 export const NOT_BILLABLE = '不須請款';
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
 const JUNYU_INVOICE_TYPE = '鈞羽發票';
@@ -239,7 +241,6 @@ export function buildDailyExpenseChargeTotals(monthStr, ctx) {
   const { dailyExpenseApplications, positions } = ctx;
   const totals = {};
   (dailyExpenseApplications || []).forEach((app) => {
-    if ((app.type || '支出') === '收入') return;
     if (!app.billToCompany || app.billToCompany === NOT_BILLABLE) return;
     if (!DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status)) return;
     if ((app.date || '').slice(0, 7) !== monthStr) return;

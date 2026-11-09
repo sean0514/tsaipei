@@ -7,7 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth,
   computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
-  monthRange, dateOverlapDays, currentYear,
+  monthRange, dateOverlapDays, currentYear, NOT_BILLABLE,
 } from '../../lib/bonus';
 import { exportEntityCSV } from '../../lib/csv';
 
@@ -156,11 +156,13 @@ function CustomItemsTable({ items, amounts, year, canEditPage, onChangeAmount, o
 }
 
 // 日常支出申請：項目=宿舍設備的已經併入「宿舍收入/成本」(沿用宿舍損益頁面
-// 算法)，這裡不再算一次。其餘的不分是否須請款客戶都算進來——「收入」類
-// 一律是公司自己收到的錢(須請款的客戶請款計算完全不會算到收入類)；「支出」
-// 類是公司實際花出去的錢，即使最後跟客戶請款收回來也是真的花了這筆錢，
-// 請款收回來的部分另外算進「代墊費用收入」，不能因為會收回來就不算支出，
-// 否則這筆錢會整個從損益表中消失。
+// 算法)，這裡不再算一次。「支出」類不分是否須請款客戶都算進來——公司實際
+// 花出去的錢，即使最後跟客戶請款收回來也是真的花了這筆錢，請款收回來的
+// 部分另外算進「代墊費用收入」，不能因為會收回來就不算支出，否則這筆錢
+// 會整個從損益表中消失。「收入」類只有「須請款(實習單位)」沒選企業(=不
+// 須請款、跟學生收)的才算這裡的公司收入；有選企業的已經改成跟那家企業
+// 收(算進客戶請款計算的「代墊費用收入」)，這裡要排除掉，不然同一筆錢會
+// 在損益表上被算兩次收入。
 function otherDailyExpenseTotals(monthStr, dailyExpenseApplications) {
   let otherIncome = 0;
   let otherExpense = 0;
@@ -170,7 +172,9 @@ function otherDailyExpenseTotals(monthStr, dailyExpenseApplications) {
     if ((app.date || '').slice(0, 7) !== monthStr) return;
     const amount = Number(app.amount) || 0;
     if (!amount) return;
-    if ((app.type || '支出') === '收入') otherIncome += amount; else otherExpense += amount;
+    const isIncome = (app.type || '支出') === '收入';
+    if (isIncome && app.billToCompany && app.billToCompany !== NOT_BILLABLE) return;
+    if (isIncome) otherIncome += amount; else otherExpense += amount;
   });
   return { otherIncome, otherExpense };
 }
