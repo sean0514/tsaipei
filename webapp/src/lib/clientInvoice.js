@@ -38,7 +38,7 @@ function dateOverlapDays(rangeStart, rangeEnd, entryStr, exitStr) {
 
 // 任職天數起算日改用「實習開始1/2」(沒填的舊資料退回對應那次入台時間)，
 // 不是簽證入境當天——入境到實際開始實習之間可能還有幾天(例如體檢/報到
-// 流程)，這幾天不算任職天數，服務費/辦件費依比例分攤時才不會多算。
+// 流程)，這幾天不算任職天數，服務費/文件費依比例分攤時才不會多算。
 function studentDaysInTaiwan(visaRecords, studentId, range) {
   const v = visaRecords.find((x) => x.studentId === studentId);
   if (!v) return 0;
@@ -98,7 +98,7 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
     const days = studentDaysInTaiwan(inTaiwanVisaRecords, s.id, range);
 
-    // 固定制的辦件費是一次性款項，依第一次/第二次收費時間規則各自落在某一
+    // 固定制的文件費是一次性款項，依第一次/第二次收費時間規則各自落在某一
     // 個月整筆收取，不是按月比例分攤；這筆費用可能落在學生當月在台天數為
     // 0 的月份（例如確認錄取當月就先收第一筆款項），所以要獨立判斷是否要
     // 把這個學生留在這份請款明細裡。
@@ -123,6 +123,8 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     // 跟客戶收這筆錢，跟 computeClientBillingForMonth 一致。
     const dormDays = studentForeignPaidDormDaysForMonth(s.id, monthStr, housingRecords);
     const serviceFee = feeSetup?.monthlyServiceFee ? Math.round((Number(feeSetup.monthlyServiceFee) / range.daysInMonth) * days) : 0;
+    const airfareFee = feeSetup?.monthlyAirfareFee ? Math.round((Number(feeSetup.monthlyAirfareFee) / range.daysInMonth) * days) : 0;
+    const medicalCheckFee = feeSetup?.monthlyMedicalCheckFee ? Math.round((Number(feeSetup.monthlyMedicalCheckFee) / range.daysInMonth) * days) : 0;
     const dormManageFee = feeSetup?.monthlyDormManageFee ? Math.round((Number(feeSetup.monthlyDormManageFee) / range.daysInMonth) * dormDays) : 0;
     const rawDormFee = feeSetup?.monthlyDormFee ? Math.round((Number(feeSetup.monthlyDormFee) / range.daysInMonth) * dormDays) : 0;
     // 宿舍費改成代收代付性質，鈞羽原封不動轉付給宿舍、不計稅、不算進這個
@@ -135,8 +137,8 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
     studentRows.push({
       no: no++, name: s.originalName || s.chineseName || '', passport: s.passportNumber || '',
-      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, venue, collectedDormFee,
-      total: serviceFee + dormManageFee + dormFee + processingFee,
+      startDate: stint.start, endDate: stint.end, days, serviceFee, dormManageFee, dormFee, processingFee, airfareFee, medicalCheckFee, venue, collectedDormFee,
+      total: serviceFee + dormManageFee + dormFee + processingFee + airfareFee + medicalCheckFee,
     });
   });
 
@@ -188,6 +190,8 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
 
   const categoryTotals = {
     processingFee: studentRows.reduce((sum, r) => sum + r.processingFee, 0),
+    airfareFee: studentRows.reduce((sum, r) => sum + r.airfareFee, 0),
+    medicalCheckFee: studentRows.reduce((sum, r) => sum + r.medicalCheckFee, 0),
     serviceFee: studentRows.reduce((sum, r) => sum + r.serviceFee, 0),
     dormFee: studentRows.reduce((sum, r) => sum + r.dormFee, 0),
     dormManageFee: studentRows.reduce((sum, r) => sum + r.dormManageFee, 0),
@@ -198,14 +202,15 @@ export function computeClientInvoice(projectCode, client, monthStr, ctx) {
     collectedDormFee: studentRows.reduce((sum, r) => sum + (r.collectedDormFee || 0), 0),
   };
 
-  // 辦件費/服務費/宿管費/宿舍費(鼎泰豐)/宿舍其他費用(廠商代付)、開鈞羽
+  // 文件費/服務費/宿管費/宿舍費(鼎泰豐)/宿舍其他費用(廠商代付)、開鈞羽
   // 發票的代墊費用都是未稅金額，稅金算這些的 5%；代墊費用(供應商發票/
   // 無須發票)、代收代付(水電瓦斯)、代收宿舍費不計稅。學生列的 total 不含
   // 代收宿舍費(宿舍費已經代收代付化的學生 dormFee=0)，所以小計(subtotal)
   // 要另外把 collectedDormFee 加回來，請款總額＝小計＋稅金。
   const rows = [...studentRows, ...expenseRows, ...dormOtherFeeRows, ...dormUtilityRows];
   const subtotal = rows.reduce((sum, r) => sum + r.total, 0) + categoryTotals.collectedDormFee;
-  const taxableSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dormOtherFee + categoryTotals.dailyExpenseJunyu;
+  const taxableSubtotal = categoryTotals.processingFee + categoryTotals.airfareFee + categoryTotals.medicalCheckFee
+    + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + categoryTotals.dormOtherFee + categoryTotals.dailyExpenseJunyu;
   const tax = Math.round(taxableSubtotal * 0.05);
   const grandTotal = subtotal + tax;
 

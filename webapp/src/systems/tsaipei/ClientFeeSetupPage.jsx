@@ -24,14 +24,15 @@ const CHARGE_TIMING_OPTIONS = [
 ];
 
 // 服務費/宿舍費/宿管費是每月固定產生的費用，固定制、月費制都要收；
-// 辦件費固定制已經包含在第一次/第二次收費裡，所以只有月費制才有「每月辦件費」。
+// 文件費固定制已經包含在第一次/第二次收費裡，所以只有月費制才有「每月文件費」；
+// 機票費/體檢費是月費制專屬的每月費用，固定制沒有這兩項。
 const MONTHLY_RECURRING_FIELDS = [
   { key: 'monthlyServiceFee', label: '每月服務費', type: 'number' },
   { key: 'monthlyDormFee', label: '每月宿舍費', type: 'number' },
   { key: 'monthlyDormManageFee', label: '每月宿管費', type: 'number' },
 ];
 
-// 固定制：辦件費一次性收兩筆款項，各自有金額跟收費時間規則，不是按月比例
+// 固定制：文件費一次性收兩筆款項，各自有金額跟收費時間規則，不是按月比例
 // 分攤；服務費/宿舍費/宿管費仍是每月費用。
 const FIXED_FIELDS = [
   { key: 'firstChargeAmount', label: '第一次收費金額', type: 'number' },
@@ -42,7 +43,9 @@ const FIXED_FIELDS = [
 ];
 
 const MONTHLY_FIELDS = [
-  { key: 'monthlyProcessingFee', label: '每月辦件費', type: 'number' },
+  { key: 'monthlyProcessingFee', label: '每月文件費', type: 'number' },
+  { key: 'monthlyAirfareFee', label: '每月機票費', type: 'number' },
+  { key: 'monthlyMedicalCheckFee', label: '每月體檢費', type: 'number' },
   ...MONTHLY_RECURRING_FIELDS,
 ];
 
@@ -54,7 +57,8 @@ const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, ...COMMON_FIELDS,
   { key: 'firstChargeAmount', label: '第一次收費金額' }, { key: 'firstChargeDate', label: '第一次收費時間' },
   { key: 'secondChargeAmount', label: '第二次收費金額' }, { key: 'secondChargeDate', label: '第二次收費時間' },
-  { key: 'monthlyProcessingFee', label: '每月辦件費' }, ...MONTHLY_RECURRING_FIELDS,
+  { key: 'monthlyProcessingFee', label: '每月文件費' }, { key: 'monthlyAirfareFee', label: '每月機票費' }, { key: 'monthlyMedicalCheckFee', label: '每月體檢費' },
+  ...MONTHLY_RECURRING_FIELDS,
   { key: 'billDormFee', label: '是否請款住宿費' }, { key: 'otherFees', label: '其他費用(JSON)' }, { key: 'reviewStatus', label: '審核狀態' },
 ];
 
