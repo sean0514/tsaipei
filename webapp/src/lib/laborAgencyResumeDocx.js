@@ -5,6 +5,7 @@
 // 點下載才會載入，不進主要 bundle（跟 xlsxExport.js 動態載入 exceljs
 // 同一套做法）。
 import { RESUME_LABELS, RESUME_VALUE_LABEL_KEYS, RESUME_DOWNLOAD_FIELDS } from './laborAgencyResumeLabels';
+import { tattooPhotoUrlsOf } from './resumePhotos';
 
 function parseExperience(json) {
   try {
@@ -138,18 +139,19 @@ export async function downloadWorkerResumeDocx(w) {
 
   const domestic = parseExperience(w.domesticExperience);
   const overseas = parseExperience(w.overseasExperience);
+  const tattooUrls = w.hasTattoo === '有' ? tattooPhotoUrlsOf(w) : [];
   const photoResult = await fetchImage(w.photoUrl);
-  const tattooResult = w.hasTattoo === '有' ? await fetchImage(w.tattooPhotoUrl) : { data: null, error: null };
+  const tattooResults = await Promise.all(tattooUrls.map((url) => fetchImage(url)));
   const lineResult = await fetchImage(w.lineQrPhotoUrl);
   const photo = photoResult.data;
-  const tattooPhoto = tattooResult.data;
+  const tattooPhotos = tattooResults.map((r) => r.data).filter(Boolean);
   const linePhoto = lineResult.data;
 
   // 照片欄位有網址但抓不到（跟「根本沒上傳過」不同）才提醒，不然每個
   // 沒填照片的工人下載履歷表都會跳警告，太吵。
   const fetchWarnings = [
     w.photoUrl && photoResult.error && `${RESUME_LABELS.photo.zh}：${photoResult.error}`,
-    w.tattooPhotoUrl && tattooResult.error && `${RESUME_LABELS.tattooPhoto.zh}：${tattooResult.error}`,
+    ...tattooResults.filter((r) => r.error).map((r) => `${RESUME_LABELS.tattooPhoto.zh}：${r.error}`),
     w.lineQrPhotoUrl && lineResult.error && `LINE：${lineResult.error}`,
   ].filter(Boolean);
   if (fetchWarnings.length) {
@@ -185,9 +187,11 @@ export async function downloadWorkerResumeDocx(w) {
     children.push(heading('interviewVideoLink'), new Paragraph(w.interviewVideoLink));
   }
   children.push(heading('specialties'), new Paragraph(fieldValueText(w, { key: 'specialties', translatable: true })));
-  if (tattooPhoto) {
+  if (tattooPhotos.length) {
     children.push(heading('tattooPhoto'));
-    children.push(new Paragraph({ children: [new ImageRun({ data: tattooPhoto.buffer, type: tattooPhoto.type, transformation: { width: 160, height: 160 } })] }));
+    tattooPhotos.forEach((tattooPhoto) => {
+      children.push(new Paragraph({ children: [new ImageRun({ data: tattooPhoto.buffer, type: tattooPhoto.type, transformation: { width: 160, height: 160 } })] }));
+    });
   }
   if (linePhoto) {
     children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 }, children: [new TextRun({ text: 'LINE', bold: true })] }));

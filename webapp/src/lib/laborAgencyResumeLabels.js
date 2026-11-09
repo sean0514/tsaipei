@@ -25,7 +25,7 @@ export const RESUME_LABELS = {
   no: { zh: '無', vi: 'Không' },
   hasTattoo: { zh: '是否有刺青', vi: 'Có hình xăm không' },
   tattooPhoto: { zh: '刺青照片', vi: 'Ảnh hình xăm' },
-  photo: { zh: '照片', vi: 'Ảnh' },
+  photo: { zh: '自己照片', vi: 'Ảnh cá nhân' },
   phone: { zh: '聯絡電話', vi: 'Số điện thoại liên lạc' },
   lineQrPhoto: { zh: 'LINE(上傳圖片)', vi: 'LINE (Tải ảnh lên)' },
 

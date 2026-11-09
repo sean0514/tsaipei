@@ -6,6 +6,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import { emptyExperienceRow, normalizeExperienceRow } from '../../pages/LaborAgencyResumeApplyPage';
 import ResumeInternalFields from '../../components/ResumeInternalFields';
+import { tattooPhotoUrlsOf } from '../../lib/resumePhotos';
 import { STAGE_KEYS } from './constants';
 
 function copyLink(url, lang) {
@@ -194,10 +195,14 @@ function ViewingModal({ sub, onClose, lang }) {
           <div><strong>{t('重大手術', lang)}：</strong>{sub.majorSurgery || '—'}</div>
           <div><strong>{t('是否有刺青', lang)}：</strong>{sub.hasTattoo || '—'}</div>
         </div>
-        {sub.tattooPhotoUrl && (
+        {tattooPhotoUrlsOf(sub).length > 0 && (
           <div style={{ marginBottom: 12 }}>
             <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{t('刺青照片', lang)}</div>
-            <img src={sub.tattooPhotoUrl} alt="" style={{ width: 160, maxHeight: 160, objectFit: 'cover' }} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {tattooPhotoUrlsOf(sub).map((url, i) => (
+                <img key={`${url}-${i}`} src={url} alt="" style={{ width: 160, maxHeight: 160, objectFit: 'cover' }} />
+              ))}
+            </div>
           </div>
         )}
         {sub.lineQrPhotoUrl && (
