@@ -12,10 +12,10 @@ function parseJson(json, fallback) {
   try { return json ? JSON.parse(json) : fallback; } catch { return fallback; }
 }
 
-// 可以直接手動修改的金額欄位（辦件費～代墊費用供應商），稅金/合計總額是
+// 可以直接手動修改的金額欄位（文件費～代墊費用供應商），稅金/合計總額是
 // 算出來的，不開放直接改。
 const EDITABLE_AMOUNT_FIELDS = [
-  'monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee', 'dormOtherFeeCharge',
+  'monthlyProcessingFee', 'monthlyAirfareFee', 'monthlyMedicalCheckFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee', 'dormOtherFeeCharge',
   'dailyExpenseChargeJunyu', 'dailyExpenseChargeSupplier', 'dormUtilityPassThrough', 'collectedDormFee',
 ];
 // 稅金只對這幾項課徵(不含代墊費用供應商、代收代付、代收宿舍費這幾筆不
@@ -174,6 +174,8 @@ export default function ClientBillingPage() {
     setEditValues({
       totalDays: row.totalDays,
       monthlyProcessingFee: row.amounts.monthlyProcessingFee || 0,
+      monthlyAirfareFee: row.amounts.monthlyAirfareFee || 0,
+      monthlyMedicalCheckFee: row.amounts.monthlyMedicalCheckFee || 0,
       monthlyServiceFee: row.amounts.monthlyServiceFee || 0,
       monthlyDormFee: row.amounts.monthlyDormFee || 0,
       monthlyDormManageFee: row.amounts.monthlyDormManageFee || 0,
@@ -230,7 +232,7 @@ export default function ClientBillingPage() {
       <ClientBillingChart rows={rows} />
       <div className="card" style={{ overflowX: 'auto' }}>
         <div className="table-wrap sticky-header"><table>
-          <thead><tr><th>客戶</th><th>專案編號</th><th>辦件費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代收宿舍費</th><th>代墊費用(供應商)</th><th>代收代付(水電瓦斯)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th>客戶</th><th>專案編號</th><th>文件費(未稅)</th><th>機票費(未稅)</th><th>體檢費(未稅)</th><th>服務費(未稅)</th><th>宿舍費(未稅)</th><th>宿管費(未稅)</th><th>宿舍其他費用(廠商代付未稅)</th><th>代墊費用(鈞羽未稅)</th><th>稅金5%</th><th>代收宿舍費</th><th>代墊費用(供應商)</th><th>代收代付(水電瓦斯)</th><th>合計總額</th><th>在台總天數</th><th>狀態</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const key = `${r.projectCode}||${r.client}`;
@@ -243,6 +245,8 @@ export default function ClientBillingPage() {
                     <td>{r.client || '—'}</td>
                     <td>{r.projectCode}</td>
                     <td><input type="number" value={v.monthlyProcessingFee} onChange={setField('monthlyProcessingFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.monthlyAirfareFee} onChange={setField('monthlyAirfareFee')} style={{ width: 90 }} /></td>
+                    <td><input type="number" value={v.monthlyMedicalCheckFee} onChange={setField('monthlyMedicalCheckFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.monthlyServiceFee} onChange={setField('monthlyServiceFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.monthlyDormFee} onChange={setField('monthlyDormFee')} style={{ width: 90 }} /></td>
                     <td><input type="number" value={v.monthlyDormManageFee} onChange={setField('monthlyDormManageFee')} style={{ width: 90 }} /></td>
@@ -267,6 +271,8 @@ export default function ClientBillingPage() {
                   <td>{r.client || '—'}</td>
                   <td>{r.projectCode}</td>
                   <td>{(r.amounts.monthlyProcessingFee || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.monthlyAirfareFee || 0).toLocaleString()}</td>
+                  <td>{(r.amounts.monthlyMedicalCheckFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyServiceFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormFee || 0).toLocaleString()}</td>
                   <td>{(r.amounts.monthlyDormManageFee || 0).toLocaleString()}</td>
@@ -289,7 +295,7 @@ export default function ClientBillingPage() {
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td colSpan={16} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={18} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
@@ -322,10 +328,12 @@ export default function ClientBillingPage() {
   );
 }
 
-// 不畫圖，只把表格裡的每個金額欄位(辦件費/服務費/.../代墊費用供應商)
+// 不畫圖，只把表格裡的每個金額欄位(文件費/服務費/.../代墊費用供應商)
 // 跨所有客戶加總，顯示當月各分類的總額數字。
 const CATEGORY_TOTALS = [
-  { key: 'monthlyProcessingFee', label: '辦件費(未稅)', fromAmounts: true },
+  { key: 'monthlyProcessingFee', label: '文件費(未稅)', fromAmounts: true },
+  { key: 'monthlyAirfareFee', label: '機票費(未稅)', fromAmounts: true },
+  { key: 'monthlyMedicalCheckFee', label: '體檢費(未稅)', fromAmounts: true },
   { key: 'monthlyServiceFee', label: '服務費(未稅)', fromAmounts: true },
   { key: 'monthlyDormFee', label: '宿舍費(未稅)', fromAmounts: true },
   { key: 'monthlyDormManageFee', label: '宿管費(未稅)', fromAmounts: true },

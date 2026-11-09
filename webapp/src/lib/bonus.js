@@ -62,7 +62,7 @@ export function studentBillableDaysInTaiwanForMonth(studentId, monthStr, inTaiwa
 // 學生這個月「廠商代付」住宿紀錄的天數——客戶請款計算的宿舍費/宿管費只能
 // 跟學生實際住「廠商代付」宿舍的天數掛鉤。學生自己付宿舍費（payer 是
 // 「學生自付」）的期間，公司沒有實際付出宿舍成本，不應該再跟客戶收這筆
-// 錢，所以宿舍費/宿管費不能像辦件費/服務費一樣直接用在台天數算。同一個
+// 錢，所以宿舍費/宿管費不能像文件費/服務費一樣直接用在台天數算。同一個
 // 學生這個月如果有多筆廠商代付住宿紀錄（例如搬宿舍）天數直接加總。
 export function studentForeignPaidDormDaysForMonth(studentId, monthStr, housingRecords) {
   const range = monthRange(monthStr);
@@ -103,7 +103,7 @@ function addMonthsToYearMonth(dateStr, months) {
 
 const CHARGE_TIMING_SHIFT_MONTHS = { '入境3個月收取': 3, '入境6個月收取': 6, '入境9個月收取': 9, '入境12個月收取': 12 };
 
-// 固定制的辦件費分兩筆一次性款項，各自有收費時間規則（相對學生入境或錄取
+// 固定制的文件費分兩筆一次性款項，各自有收費時間規則（相對學生入境或錄取
 // 時間點），不是按月比例分攤；回傳該規則落在哪個月份（YYYY-MM），沒有對應
 // 日期或規則就回傳 null（該月不收取）。
 export function resolveFixedChargeMonth(timing, { firstEntryDate, secondEntryDate, admitDate } = {}) {
@@ -217,7 +217,7 @@ export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
   return Object.values(personTotals).sort((a, b) => b.total - a.total);
 }
 
-const CLIENT_FEE_KEYS = ['monthlyProcessingFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee'];
+const CLIENT_FEE_KEYS = ['monthlyProcessingFee', 'monthlyAirfareFee', 'monthlyMedicalCheckFee', 'monthlyServiceFee', 'monthlyDormFee', 'monthlyDormManageFee'];
 const DORM_FEE_KEYS = ['monthlyDormFee', 'monthlyDormManageFee'];
 
 // 宿舍費(monthlyDormFee)改成代收代付性質(鈞羽收到客戶這筆錢後原封不動付給
@@ -264,12 +264,12 @@ export function buildDailyExpenseChargeTotals(monthStr, ctx) {
   return totals;
 }
 
-// 固定制的辦件費不是按月比例分攤，是依「第一次收費時間／第二次收費時間」
+// 固定制的文件費不是按月比例分攤，是依「第一次收費時間／第二次收費時間」
 // 規則各自落在某一個月整筆收取（預設是第一次入境當月、第二次入境當月，
 // 也可以設定成入境滿 3/6/9/12 個月或確認錄取即收取）；這裡把每個學生自己
 // 符合這個月份的那一筆（或兩筆）固定收費加總進對應的實習單位群組，跟服務
 // 費/宿舍費/宿管費那種每月比例分攤的費用分開算，最後合併顯示在同一個
-// 「辦件費」欄位（amounts.monthlyProcessingFee）。
+// 「文件費」欄位（amounts.monthlyProcessingFee）。
 function buildFixedChargeTotals(monthStr, ctx) {
   const { students, inTaiwanVisaRecords, clientFeeSetupRecords } = ctx;
   const totals = {};
@@ -361,7 +361,7 @@ export function buildMonthlyProjectClientVendorUtilityTotals(monthStr, ctx) {
   return totals;
 }
 
-// 宿舍費/宿管費的請款天數跟辦件費/服務費的「在台天數」脫鉤——只計算學生
+// 宿舍費/宿管費的請款天數跟文件費/服務費的「在台天數」脫鉤——只計算學生
 // 這個月「廠商代付」住宿紀錄的天數（見 studentForeignPaidDormDaysForMonth），
 // 學生自己付宿舍費的期間不跟客戶收這筆錢。
 function buildMonthlyProjectClientDormDayTotals(monthStr, ctx) {
@@ -431,11 +431,12 @@ export function computeClientBillingForMonth(monthStr, ctx) {
     const collectedDormFee = isDormFeePassThroughClient(g.client) ? amounts.monthlyDormFee : 0;
     if (collectedDormFee) amounts.monthlyDormFee = 0;
     amounts.collectedDormFee = collectedDormFee;
-    // 辦件費/服務費/宿舍費(鼎泰豐)/宿管費/宿舍其他費用(廠商代付)都是未稅
-    // 金額，稅金算這些加上「代墊費用(鈞羽未稅)」的 5%；「代墊費用(供應商)」
-    // 「代收代付」「代收宿舍費」不計稅。合計＝以上未稅項目加總 + 稅金 +
-    // 代墊費用(供應商) + 代收代付 + 代收宿舍費。
-    const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dormOtherFeeCharge + dailyExpenseJunyu;
+    // 文件費/機票費/體檢費/服務費/宿舍費(鼎泰豐)/宿管費/宿舍其他費用(廠商
+    // 代付)都是未稅金額，稅金算這些加上「代墊費用(鈞羽未稅)」的 5%；
+    // 「代墊費用(供應商)」「代收代付」「代收宿舍費」不計稅。合計＝以上
+    // 未稅項目加總 + 稅金 + 代墊費用(供應商) + 代收代付 + 代收宿舍費。
+    const taxableAmount = amounts.monthlyProcessingFee + amounts.monthlyAirfareFee + amounts.monthlyMedicalCheckFee
+      + amounts.monthlyServiceFee + amounts.monthlyDormFee + amounts.monthlyDormManageFee + dormOtherFeeCharge + dailyExpenseJunyu;
     const tax = Math.round(taxableAmount * 0.05);
     const total = taxableAmount + tax + dailyExpenseSupplier + dormUtilityPassThrough + collectedDormFee;
     return { projectCode: g.projectCode, client: g.client, totalDays: g.totalDays, amounts, tax, total, dailyExpenseItems: dailyExpenseCharges[key]?.items || [] };

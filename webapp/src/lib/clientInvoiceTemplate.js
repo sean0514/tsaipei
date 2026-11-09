@@ -29,7 +29,9 @@ export const DETAIL_MAP_FIELDS = [
   { key: 'serviceFee', label: '服務費用' },
   { key: 'dormManageFee', label: '宿管費用' },
   { key: 'dormFee', label: '宿舍費用' },
-  { key: 'processingFee', label: '辦件費' },
+  { key: 'processingFee', label: '文件費' },
+  { key: 'airfareFee', label: '機票費' },
+  { key: 'medicalCheckFee', label: '體檢費' },
   { key: 'total', label: '請款金額' },
   { key: 'collectedDormFee', label: '代收宿舍費' },
 ];

@@ -15,16 +15,16 @@ function headerRowCells(row, values, startCol = 2) {
   });
 }
 
-// 未稅金額(小計)＝辦件費/服務費/宿舍費/宿管費/宿舍其他費用(廠商代付)/
-// 代墊費用(鈞羽未稅)六項加總，不含代墊費用(供應商)；含稅金額＝未稅金額
-// (小計)+營業稅5%；請款總金額＝含稅金額+代墊費用(供應商)，跟
+// 未稅金額(小計)＝文件費/機票費/體檢費/服務費/宿舍費/宿管費/宿舍其他費用
+// (廠商代付)/代墊費用(鈞羽未稅)八項加總，不含代墊費用(供應商)；含稅金額
+// ＝未稅金額(小計)+營業稅5%；請款總金額＝含稅金額+代墊費用(供應商)，跟
 // computeClientInvoice 算出的 grandTotal 是同一個數字，只是攤開顯示計算
 // 過程，這裡直接從 categoryTotals 重算，不需要 computeClientInvoice 額外
 // 回傳中間值。
 function taxBreakdown(invoice) {
   const { categoryTotals, tax, grandTotal } = invoice;
-  const untaxedSubtotal = categoryTotals.processingFee + categoryTotals.serviceFee + categoryTotals.dormFee
-    + categoryTotals.dormManageFee + (categoryTotals.dormOtherFee || 0) + categoryTotals.dailyExpenseJunyu;
+  const untaxedSubtotal = categoryTotals.processingFee + (categoryTotals.airfareFee || 0) + (categoryTotals.medicalCheckFee || 0)
+    + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + (categoryTotals.dormOtherFee || 0) + categoryTotals.dailyExpenseJunyu;
   const taxedTotal = untaxedSubtotal + tax;
   return {
     untaxedSubtotal, taxedTotal, grandTotal,
@@ -34,7 +34,7 @@ function taxBreakdown(invoice) {
   };
 }
 
-// Sheet1「請款單」：依類別(辦件費/服務費/宿舍費/宿管費/宿舍其他費用廠商
+// Sheet1「請款單」：依類別(文件費/服務費/宿舍費/宿管費/宿舍其他費用廠商
 // 代付/代墊費用鈞羽)分行列出未稅金額，再列未稅金額(小計)/營業稅5%/含稅
 // 金額，最後加上不計稅的代墊費用(供應商)算出請款總金額，方便客戶對帳跟
 // 核對含不含稅。
@@ -71,7 +71,9 @@ function buildSummarySheet(workbook, client, invoice) {
   // 如果宿舍費是代收代付(categoryTotals.dormFee 為 0)，「宿舍費(未稅)」
   // 這一列就整列不列出，不是列出來顯示 0，跟鈞羽未稅服務項目區分開來。
   const categoryRows = [
-    ['辦件費(未稅)', categoryTotals.processingFee],
+    ['文件費(未稅)', categoryTotals.processingFee],
+    ['機票費(未稅)', categoryTotals.airfareFee || 0],
+    ['體檢費(未稅)', categoryTotals.medicalCheckFee || 0],
     ['服務費(未稅)', categoryTotals.serviceFee],
     ...(categoryTotals.dormFee ? [['宿舍費(未稅)', categoryTotals.dormFee]] : []),
     ['宿管費(未稅)', categoryTotals.dormManageFee],
@@ -191,7 +193,9 @@ function buildDetailSheet(workbook, invoice) {
     { key: 'serviceFee', label: '服務費用', numeric: true },
     { key: 'dormManageFee', label: '宿管費用', numeric: true },
     ...(hasDormFee ? [{ key: 'dormFee', label: '宿舍費用', numeric: true }] : []),
-    { key: 'processingFee', label: '辦件費', numeric: true },
+    { key: 'processingFee', label: '文件費', numeric: true },
+    { key: 'airfareFee', label: '機票費', numeric: true },
+    { key: 'medicalCheckFee', label: '體檢費', numeric: true },
     { key: 'total', label: '請款金額', numeric: true },
     ...(hasCollectedDormFee ? [{ key: 'collectedDormFee', label: '代收宿舍費', numeric: true }] : []),
   ];
