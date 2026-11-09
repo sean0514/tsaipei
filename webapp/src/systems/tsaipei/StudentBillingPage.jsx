@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { useSystemProfile } from '../../auth/useSystemAccess';
-import { studentProjectClientPair, currentYear } from '../../lib/bonus';
+import { studentProjectClientPair, currentYear, NOT_BILLABLE } from '../../lib/bonus';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -254,12 +254,16 @@ export default function StudentBillingPage() {
   }
 
   // 其他費用除了宿舍共用的分攤之外，還要加上這個學生自己名下、日常支出
-  // 申請裡類型=收入、已核准/已匯款、日期落在這個月的金額加總。
+  // 申請裡類型=收入、已核准/已匯款、日期落在這個月的金額加總——但「須請款
+  // (實習單位)」有選企業的，改跟那家企業收(算進客戶請款計算，見
+  // lib/bonus.js buildDailyExpenseChargeTotals)，不算進學生自己要繳的
+  // 金額，避免同一筆錢跟學生、客戶各收一次。
   function studentIncomeTotal(studentId, monthStr) {
     if (!studentId) return 0;
     return dailyExpenseApplications
       .filter((app) => app.studentId === studentId)
       .filter((app) => (app.type || '支出') === '收入')
+      .filter((app) => !app.billToCompany || app.billToCompany === NOT_BILLABLE)
       .filter((app) => DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status))
       .filter((app) => (app.date || '').slice(0, 7) === monthStr)
       .reduce((sum, app) => sum + (Number(app.amount) || 0), 0);
