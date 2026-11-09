@@ -21,7 +21,7 @@ function headerRowCells(row, values, startCol = 2) {
 // computeClientInvoice 算出的 grandTotal 是同一個數字，只是攤開顯示計算
 // 過程，這裡直接從 categoryTotals 重算，不需要 computeClientInvoice 額外
 // 回傳中間值。
-function taxBreakdown(invoice) {
+export function taxBreakdown(invoice) {
   const { categoryTotals, tax, grandTotal } = invoice;
   const untaxedSubtotal = categoryTotals.processingFee + (categoryTotals.airfareFee || 0) + (categoryTotals.medicalCheckFee || 0)
     + categoryTotals.serviceFee + categoryTotals.dormFee + categoryTotals.dormManageFee + (categoryTotals.dormOtherFee || 0) + categoryTotals.dailyExpenseJunyu;

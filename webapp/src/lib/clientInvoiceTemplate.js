@@ -5,6 +5,7 @@
 // a sheet from scratch. Student rows (variable count) start at a chosen
 // row and go down one row per student, one column per field — matching
 // how most client-supplied invoice templates are laid out.
+import { taxBreakdown } from './clientInvoiceXlsx';
 
 export const SUMMARY_MAP_FIELDS = [
   { key: 'client', label: '客戶名稱' },
@@ -13,9 +14,21 @@ export const SUMMARY_MAP_FIELDS = [
   { key: 'periodLabel', label: '期別' },
   { key: 'yearMonthLabel', label: '年月（例如 115.09）' },
   { key: 'daysInMonth', label: '當月天數' },
-  { key: 'subtotal', label: '銷售額小計' },
+  { key: 'processingFee', label: '文件費(未稅)' },
+  { key: 'airfareFee', label: '機票費(未稅)' },
+  { key: 'medicalCheckFee', label: '體檢費(未稅)' },
+  { key: 'serviceFee', label: '服務費(未稅)' },
+  { key: 'dormFee', label: '宿舍費(未稅)（鼎泰豐等舊制客戶才會有值）' },
+  { key: 'dormManageFee', label: '宿管費(未稅)' },
+  { key: 'dormOtherFee', label: '宿舍其他費用(廠商代付未稅)' },
+  { key: 'dailyExpenseJunyu', label: '代墊費用(鈞羽未稅)' },
+  { key: 'untaxedSubtotal', label: '未稅金額(小計)' },
   { key: 'tax', label: '營業稅' },
+  { key: 'taxedTotal', label: '含稅金額' },
   { key: 'collectedDormFee', label: '代收宿舍費總額' },
+  { key: 'dailyExpenseSupplier', label: '代墊費用(供應商)總額' },
+  { key: 'dormUtility', label: '代收代付(水電瓦斯)總額' },
+  { key: 'subtotal', label: '銷售額小計(含所有未稅/不計稅項目加總，不含稅金)' },
   { key: 'grandTotal', label: '請款總額' },
 ];
 
@@ -73,11 +86,24 @@ export function fillInvoiceTemplate(workbook, invoice, client, projectCode, cell
 
   const yearRoc = invoice.range.year - 1911;
   const mm2 = String(invoice.range.month).padStart(2, '0');
+  const categoryTotals = invoice.categoryTotals || {};
+  const { untaxedSubtotal, taxedTotal } = taxBreakdown(invoice);
   const summaryValues = {
     client, taxId: invoice.taxId || '', projectCode, periodLabel: invoice.periodLabel || '',
     yearMonthLabel: `${yearRoc}.${mm2}`, daysInMonth: invoice.range.daysInMonth,
-    subtotal: invoice.subtotal, tax: invoice.tax, grandTotal: invoice.grandTotal,
-    collectedDormFee: invoice.categoryTotals?.collectedDormFee || 0,
+    processingFee: categoryTotals.processingFee || 0,
+    airfareFee: categoryTotals.airfareFee || 0,
+    medicalCheckFee: categoryTotals.medicalCheckFee || 0,
+    serviceFee: categoryTotals.serviceFee || 0,
+    dormFee: categoryTotals.dormFee || 0,
+    dormManageFee: categoryTotals.dormManageFee || 0,
+    dormOtherFee: categoryTotals.dormOtherFee || 0,
+    dailyExpenseJunyu: categoryTotals.dailyExpenseJunyu || 0,
+    untaxedSubtotal, tax: invoice.tax, taxedTotal,
+    collectedDormFee: categoryTotals.collectedDormFee || 0,
+    dailyExpenseSupplier: categoryTotals.dailyExpenseSupplier || 0,
+    dormUtility: categoryTotals.dormUtility || 0,
+    subtotal: invoice.subtotal, grandTotal: invoice.grandTotal,
   };
   Object.entries(cellMap.summary || {}).forEach(([key, cellRef]) => {
     if (!cellRef) return;
