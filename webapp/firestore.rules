@@ -1041,7 +1041,8 @@ service cloud.firestore {
         'name', 'vietnameseName', 'chineseName', 'gender', 'phone', 'province', 'photoUrl', 'note', 'stage', 'updatedAt',
         'hometown', 'hometownZh', 'birthDate', 'height', 'weight', 'eyesight', 'religion', 'religionZh',
         'ethnicity', 'ethnicityZh', 'dominantHand',
-        'majorSurgery', 'hasTattoo', 'tattooPhotoUrl', 'lineQrPhotoUrl', 'maritalStatus', 'familyContactPhone',
+        'majorSurgery', 'hasTattoo', 'tattooPhotoUrl', 'tattooPhotoUrls', 'lineQrPhotoUrl', 'residencePermitPhotoUrl',
+        'maritalStatus', 'familyContactPhone',
         'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation', 'fatherOccupationZh',
         'motherName', 'motherAlive', 'motherAge', 'motherOccupation', 'motherOccupationZh',
         'spouseName', 'spouseAge', 'spouseOccupation', 'spouseOccupationZh',
@@ -1097,7 +1098,7 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'vietnameseName', 'chineseName', 'gender', 'phone', 'hometown', 'hometownZh', 'birthDate', 'height', 'weight', 'eyesight',
         'religion', 'religionZh', 'ethnicity', 'ethnicityZh', 'dominantHand', 'majorSurgery', 'hasTattoo',
-        'tattooPhotoUrl', 'lineQrPhotoUrl',
+        'tattooPhotoUrl', 'tattooPhotoUrls', 'lineQrPhotoUrl', 'residencePermitPhotoUrl',
         'maritalStatus', 'familyContactPhone', 'photoUrl',
         'fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation', 'fatherOccupationZh',
         'motherName', 'motherAlive', 'motherAge', 'motherOccupation', 'motherOccupationZh',
