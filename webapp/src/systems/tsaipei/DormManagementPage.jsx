@@ -79,11 +79,30 @@ export default function DormManagementPage() {
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !q || [r.name, r.location].some((v) => v?.includes(q)));
 
+  // 找出既有資料裡已經重複的宿舍名稱（含結案的，不然看不到問題在哪），
+  // 在畫面上提醒——這種重複會讓水電費/其他費用對應錯宿舍，住宿安排/
+  // 學生請款計算查不到對應紀錄，算出來的水電費/其他費用會是 0，但不會
+  // 跳任何錯誤訊息，必須主動檢查才找得到。
+  const duplicateDormNames = [...new Set(
+    rows.filter((r) => r.name && rows.some((other) => other.id !== r.id && other.name === r.name)).map((r) => r.name)
+  )].sort();
+
   function utilityFor(dormId) {
     return utilities.find((u) => u.dormitoryId === dormId && u.month === month);
   }
 
+  // 宿舍名稱不能重複：住宿安排/學生請款計算是用「宿舍名稱」這個字串去找
+  // 對應的宿舍（不是用 ID），如果兩筆宿舍紀錄同名，水電費填在其中一筆，
+  // 學生請款計算卻可能比對到另一筆（陣列裡排序在前的那筆），查不到水電
+  // 費紀錄，算出來的水電費就會是 0——而且不會跳錯誤，表面上看起來只是
+  // 某幾間宿舍「輸入水電費後沒有算進學生請款」，很難直接看出原因，所以
+  // 新增/改名時先擋掉重複名稱。
   async function handleSave(data) {
+    const duplicate = rows.some((r) => r.id !== data.id && r.name === data.name);
+    if (duplicate) {
+      alert(`已經有一筆宿舍名稱是「${data.name}」了，宿舍名稱不能重複（名稱重複會導致水電費/其他費用對應錯宿舍，學生請款計算算不出正確金額）。請改用不同名稱，或是直接編輯既有的那一筆。`);
+      return;
+    }
     if (data.id) {
       const { id, ...rest } = data;
       await update(id, rest);
@@ -117,6 +136,11 @@ export default function DormManagementPage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有宿舍紀錄，請先下載備份再匯入。水費/電費/瓦斯費/其他費用請改用清單上的「填寫其他費用」依月份個別輸入。</p>}
+      {duplicateDormNames.length > 0 && (
+        <p className="split-note" style={{ color: 'var(--danger)' }}>
+          ⚠ 發現重複的宿舍名稱：{duplicateDormNames.join('、')}。住宿安排/學生請款計算是用宿舍名稱去對應，名稱重複會讓水電費/其他費用算到錯的那一筆、學生請款計算查不到紀錄變成 0，而且不會跳錯誤訊息。請把其中一筆改成不同名稱（例如加註地址），或是合併成同一筆。
+        </p>
+      )}
       <div className="card">
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <input placeholder="搜尋名稱/地點" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
