@@ -115,6 +115,10 @@ const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
 
 // 電費每人每月固定加收 200 元，加在宿舍管理填寫的實際電費平分金額之上。
 const ELECTRICITY_FLAT_FEE_PER_HEAD = 200;
+// 南投竹山宿舍的電費每人每月要再額外加收 500 元，疊加在上面全宿舍共通的
+// 200 元之上（這間宿舍的學生電費=平分金額+200+500）。
+const NANTOU_ZHUSHAN_DORM_NAME = '南投竹山';
+const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
 
 // 先繳部分明細：可以分好幾筆填(每筆金額+日期各自一列)，輸入框用
 // defaultValue+key(依內容變化)而不是 controlled value，避免打字打到一半
@@ -313,8 +317,10 @@ export default function StudentBillingPage() {
     // buildMonthlyProjectClientVendorUtilityTotals 分流)。
     const waterFee = perHead(u?.waterFee);
     // 電費固定每人每月加收 200 元，加在宿舍管理填寫的實際電費平分金額之上，
-    // 沒有填實際電費的月份也會有這筆 200。
-    const electricityFee = perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD;
+    // 沒有填實際電費的月份也會有這筆 200；南投竹山宿舍的學生電費另外再
+    // 額外加收 500 元(疊加在這 200 元之上，不是取代)。
+    const electricitySurcharge = h.type === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+    const electricityFee = perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD + electricitySurcharge;
     const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees;
@@ -540,7 +546,7 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
               : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
           </div>
         </div>
