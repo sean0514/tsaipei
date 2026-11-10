@@ -106,10 +106,11 @@ function nextMonthStr(monthStr) {
 }
 
 // 學生請款計算：只要當月有住宿舍（不論廠商代付或學生自付）都列進來計算；
-// 自付宿舍費只有「學生自付」才試算（廠商代付的宿舍費不跟學生收），水費/
-// 電費/瓦斯費/其他費用則不分付款方式，取自 宿舍管理「填寫其他費用」當月
-// 整間宿舍的紀錄，依「這個月住過這間宿舍的人數」平分到每個人身上，再跟
-// 自付宿舍費加總成這個學生這個月要付的總金額。
+// 自付宿舍費只有「學生自付」才試算（廠商代付的宿舍費不跟學生收）；水費/
+// 電費/瓦斯費取自 宿舍管理「填寫其他費用」當月整間宿舍的紀錄，不分付款
+// 方式，一律依「這個月住過這間宿舍的人數」平分到每個人身上；其他費用則
+// 只有非「廠商代付」的項目才平分給學生，跟水電瓦斯費不同套規則；平分
+// 後的金額再跟自付宿舍費加總成這個學生這個月要付的總金額。
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
 
 // 電費每人每月固定加收 200 元，加在宿舍管理填寫的實際電費平分金額之上。
@@ -305,20 +306,16 @@ export default function StudentBillingPage() {
       .filter((f) => f.payer !== '廠商代付')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     const perHead = (amount) => (residentCount > 0 ? Math.round((Number(amount) || 0) / residentCount) : 0);
-    // 水電瓦斯費是整間宿舍共用的費用，每人應攤金額照樣是「總金額 ÷ 當月
-    // 住過這間宿舍的所有人數」(分母不分付款方式)；但這筆住宿紀錄如果在
-    // 「住宿安排」標「廠商代付」，這個學生自己這份就不跟他收，改計入客戶
-    // 請款計算的「代收代付」(見 lib/bonus.js
-    // buildMonthlyProjectClientVendorUtilityTotals，用同一套每人應攤金額)。
-    // 水電瓦斯的付款方式獨立於租金/宿舍費的付款方式(utilityPayer)，沒填
-    // 的話(舊資料)才退回跟租金同一個付款方式。
-    const utilityIsVendorPaid = (h.utilityPayer || h.payer) === '廠商代付';
-    const waterFee = utilityIsVendorPaid ? 0 : perHead(u?.waterFee);
-    // 電費固定每人每月加收 200 元（加在宿舍管理填寫的實際電費平分金額之上，
-    // 沒有填實際電費的月份也會有這筆 200；廠商代付則不跟學生收，同其他
-    // 水電項目）。
-    const electricityFee = utilityIsVendorPaid ? 0 : perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD;
-    const gasFee = utilityIsVendorPaid ? 0 : perHead(u?.gasFee);
+    // 水電瓦斯費是整間宿舍共用的費用，每人應攤金額是「總金額 ÷ 當月住過
+    // 這間宿舍的所有人數」，不論這筆住宿紀錄的付款方式(學生自付/廠商代付)
+    // 一律由住這間宿舍的學生平分，不會因為標「廠商代付」就改成跟客戶
+    // 請款計算收(不再透過 lib/bonus.js
+    // buildMonthlyProjectClientVendorUtilityTotals 分流)。
+    const waterFee = perHead(u?.waterFee);
+    // 電費固定每人每月加收 200 元，加在宿舍管理填寫的實際電費平分金額之上，
+    // 沒有填實際電費的月份也會有這筆 200。
+    const electricityFee = perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD;
+    const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees;
     const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, total };
