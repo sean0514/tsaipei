@@ -329,36 +329,13 @@ export function buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx) {
   return totals;
 }
 
-// 水電瓦斯費是整間宿舍共用的費用，用「這個月住過這間宿舍的所有人數」當
-// 分母算出每人每月應攤的金額(跟 StudentBillingPage 的 perHead 同一套算
-// 法)，再依每筆住宿紀錄自己的「水電瓦斯付款方式」分流(沒填的話退回跟
-// 「付款方式」(租金/宿舍費)同一個欄位，兩者可以獨立設定不同)：標「學生
-// 自付」的份額維持跟學生收(學生請款計算)；標「廠商代付」的份額不跟學生
-// 收(見 StudentBillingPage 排除)，改跟這個學生的實習單位(專案+客戶)請款，
-// 當「代收代付」——純代墊、不加公司服務的費用，不計稅，比照代墊費用
-// (供應商)直接加進合計總額、不計入未稅金額(小計)。
-export function buildMonthlyProjectClientVendorUtilityTotals(monthStr, ctx) {
-  const { dormitories, housingRecords, dormitoryUtilities } = ctx;
-  const range = monthRange(monthStr);
-  if (!range) return {};
-  const totals = {};
-  (dormitories || []).forEach((d) => {
-    const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
-    if (!u) return;
-    const utilityTotal = (Number(u.waterFee) || 0) + (Number(u.electricityFee) || 0) + (Number(u.gasFee) || 0);
-    if (!utilityTotal) return;
-    const allResidents = (housingRecords || []).filter((h) =>
-      h.type === d.name && dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0);
-    if (!allResidents.length) return;
-    const perHead = Math.round(utilityTotal / allResidents.length);
-    allResidents.filter((h) => (h.utilityPayer || h.payer) === '廠商代付').forEach((h) => {
-      const pair = studentProjectClientPair(h.studentId, ctx);
-      if (!pair) return;
-      const key = `${pair.projectCode}||${pair.client}`;
-      totals[key] = (totals[key] || 0) + perHead;
-    });
-  });
-  return totals;
+// 水電瓦斯費一律由住這間宿舍的學生平分負擔(見 StudentBillingPage 的
+// perHead)，不論這筆住宿紀錄的付款方式(學生自付/廠商代付)——不會因為標
+// 「廠商代付」就改跟這個學生的實習單位(專案+客戶)請款。這個函式保留只是
+// 讓「客戶請款計算」「代收代付(水電瓦斯)」這個欄位繼續存在(可以手動填
+// 其他代墊項目)，但水電瓦斯費本身不會再自動算出任何金額到這裡。
+export function buildMonthlyProjectClientVendorUtilityTotals() {
+  return {};
 }
 
 // 宿舍費/宿管費的請款天數跟文件費/服務費的「在台天數」脫鉤——只計算學生
