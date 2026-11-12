@@ -23,6 +23,7 @@ export default function DepositTrackingPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'depositTracking', role, overrides);
   const { rows: applications, loading, update } = useCollection('tsaipei_dailyExpenseApplications');
+  const { rows: dormitories, loading: dormLoading, update: updateDorm } = useCollection('tsaipei_dormitories');
   const { rows: students } = useCollection('tsaipei_students');
   const [q, setQ] = useState('');
 
@@ -36,10 +37,31 @@ export default function DepositTrackingPage() {
 
   const total = deposits.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
+  // 宿舍管理裡「押金金額」有填、還沒填「退還押金日期」的，表示押金還沒退回來，
+  // 一併列進來追蹤（這筆是公司付給房東的租賃押金，跟日常支出申請的押金是兩種來源）。
+  const dormDeposits = dormitories
+    .filter((d) => Number(d.deposit) > 0 && !d.depositRefundDate)
+    .filter((d) => !searchQuery || `${d.name || ''} ${d.location || ''}`.toLowerCase().includes(searchQuery))
+    .sort((a, b) => (b.leaseStart || '').localeCompare(a.leaseStart || ''));
+
+  const dormTotal = dormDeposits.reduce((sum, d) => sum + (Number(d.deposit) || 0), 0);
+
   async function handleRecovered(r) {
     if (!window.confirm(`確定「${r.item || '押金'}」(${r.currency || '台幣'} ${Number(r.amount || 0).toLocaleString()}) 這筆押金已經收回了嗎？結案後會從這份清單消失（已結案名單仍可復原）。`)) return;
     try {
       await update(r.id, { confirmedClosed: true });
+    } catch (err) {
+      alert(`結案失敗：${err.message || err}`);
+    }
+  }
+
+  async function handleDormDepositRecovered(d) {
+    const amountStr = window.prompt(`「${d.name}」押金 ${Number(d.deposit).toLocaleString()} 元已退還多少？`, String(d.deposit));
+    if (amountStr === null) return;
+    const amount = Number(amountStr);
+    if (!Number.isFinite(amount) || amount < 0) { alert('請輸入有效的金額。'); return; }
+    try {
+      await updateDorm(d.id, { depositRefundAmount: amount, depositRefundDate: new Date().toISOString().slice(0, 10) });
     } catch (err) {
       alert(`結案失敗：${err.message || err}`);
     }
@@ -64,19 +86,34 @@ export default function DepositTrackingPage() {
     ], '押金追蹤');
   }
 
+  function handleDownloadDorm() {
+    const rows = dormDeposits.map((d) => ({
+      name: d.name || '',
+      location: d.location || '',
+      leaseStart: d.leaseStart || '',
+      deposit: Number(d.deposit) || 0,
+    }));
+    exportEntityCSV(rows, [
+      { key: 'name', label: '宿舍名稱' }, { key: 'location', label: '地點' },
+      { key: 'leaseStart', label: '起租日' }, { key: 'deposit', label: '押金金額' },
+    ], '宿舍租賃押金追蹤');
+  }
+
   return (
     <div className="content">
       <div className="page-header">
         <div>
           <h2>押金追蹤</h2>
-          <div className="page-desc">從日常支出申請自動挑出項目名稱包含「押金」的支出類紀錄（例如宿舍押金），列成單獨清單方便追蹤；按「已收回押金」結案後從這裡消失（跟日常支出申請的「結案」共用同一套機制，已結案名單可復原）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">自動列出兩種還沒收回的押金：日常支出申請裡項目名稱包含「押金」的支出類紀錄（例如宿舍押金），以及宿舍管理裡填了「押金金額」但還沒填「退還押金日期」的租賃押金。按「已收回押金」結案後從這裡消失（已結案名單/宿舍管理仍可查到或復原）{!canEditPage && '（唯讀）'}</div>
         </div>
-        <button onClick={handleDownload}>下載清單</button>
       </div>
-      <input placeholder="搜尋申請人、學生、項目或用途說明" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <input placeholder="搜尋申請人、學生、項目、用途說明或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 280 }} />
       {loading ? <p className="muted">載入中…</p> : (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>尚未收回的押金 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{deposits.length} 筆，合計 {total.toLocaleString()} 元</span></h3>
+          <div className="page-header">
+            <h3 style={{ marginTop: 0 }}>日常支出申請押金 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{deposits.length} 筆，合計 {total.toLocaleString()} 元</span></h3>
+            <button onClick={handleDownload}>下載清單</button>
+          </div>
           <div className="table-wrap sticky-header"><table>
             <thead><tr><th>申請人</th><th>學生姓名</th><th>項目</th><th>日期</th><th>金額</th><th>用途說明</th><th>審核狀態</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
@@ -93,6 +130,29 @@ export default function DepositTrackingPage() {
                 </tr>
               ))}
               {deposits.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">{searchQuery ? '沒有符合搜尋條件的紀錄。' : '目前沒有尚未收回的押金。'}</td></tr>}
+            </tbody>
+          </table></div>
+        </div>
+      )}
+      {dormLoading ? <p className="muted">載入中…</p> : (
+        <div className="card">
+          <div className="page-header">
+            <h3 style={{ marginTop: 0 }}>宿舍租賃押金 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{dormDeposits.length} 筆，合計 {dormTotal.toLocaleString()} 元</span></h3>
+            <button onClick={handleDownloadDorm}>下載清單</button>
+          </div>
+          <div className="table-wrap sticky-header"><table>
+            <thead><tr><th>宿舍名稱</th><th>地點</th><th>起租日</th><th>押金金額</th>{canEditPage && <th></th>}</tr></thead>
+            <tbody>
+              {dormDeposits.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.name || '—'}</td>
+                  <td>{d.location || '—'}</td>
+                  <td>{d.leaseStart || '—'}</td>
+                  <td>{Number(d.deposit).toLocaleString()}</td>
+                  {canEditPage && <td><button className="primary" onClick={() => handleDormDepositRecovered(d)}>已收回押金</button></td>}
+                </tr>
+              ))}
+              {dormDeposits.length === 0 && <tr><td colSpan={canEditPage ? 5 : 4} className="muted">{searchQuery ? '沒有符合搜尋條件的紀錄。' : '目前沒有尚未收回的宿舍租賃押金。'}</td></tr>}
             </tbody>
           </table></div>
         </div>
