@@ -56,8 +56,15 @@ export default function DashboardPage() {
   const total = students.length;
   // 改用申辦進度追蹤的實際進度（跟在台簽證追蹤/預計入台離台同一套判斷），
   // 不用學生資料的「狀態」欄位——那個欄位全系統沒有任何地方會自動更新，
-  // 純手動維護，容易忘記改而跟實際進度脫節。
-  const active = applicationProgress.filter((r) => r.arrivalDate && r.arrivalDate <= today).length;
+  // 純手動維護，容易忘記改而跟實際進度脫節。入台日期已到了之外，還要排除
+  // 已經離台的學生（在台簽證追蹤存檔時會同步寫回學生資料的離境日期欄位，
+  // 跟 InTaiwanVisaPage「在台中」清單同一套判斷），不然實習已結束的學生
+  // 還是會一直算在「已入台實習」裡。
+  const active = applicationProgress.filter((r) => {
+    if (!(r.arrivalDate && r.arrivalDate <= today)) return false;
+    const exitDate = effectiveExitDate(students.find((s) => s.id === r.studentId) || {});
+    return !(exitDate && exitDate <= today);
+  }).length;
   // 媒合中／已媒合都直接依媒合紀錄本身的狀態計算，跟媒合紀錄頁面看到的
   // 狀態一致。
   const matching = matches.filter((m) => m.status === '媒合中').length;
