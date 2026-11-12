@@ -6,11 +6,12 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import { workerLabel } from './WorkersPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 // 彙整各分頁按下「已結案」後被隱藏的紀錄，依國外仲介分類，並提供「復原」
 // 按鈕把 confirmedClosed 改回 false，讓那筆紀錄回到原本分頁的清單裡。
 export default function ClosedCasesPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'closedCases', role, overrides);
   const canViewPage = computeCanView(system, 'closedCases', role, overrides);
   const { rows: workers, loading: l1 } = useCollection('yujian_workers');
@@ -39,41 +40,52 @@ export default function ClosedCasesPage() {
     return `${workerName(m.workerId)} · ${employerName(m.employerId)}`;
   }
 
-  // 每種來源各自解析「識別名稱」與「國外仲介」，統一成同一組資料結構，
-  // 才能一起依國外仲介分組顯示。
+  // 每種來源各自解析「識別名稱」「國外仲介」與「台仲」，統一成同一組資料
+  // 結構，才能一起依國外仲介分組顯示、依台仲篩選。台仲大部分來源要透過
+  // matchId 查媒合紀錄；看護/家事人員資料本身沒有單一台仲（可能跟多個
+  // 台仲的雇主媒合過），改用這個工人所有媒合紀錄關聯到的台仲清單。
   const closedItems = [
     ...workers.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_workers', sourceLabel: '看護/家事人員資料',
       name: workerLabel(r), foreignAgency: r.foreignAgency,
+      taiwanAgencies: matches.filter((m) => m.workerId === r.id).map((m) => m.taiwanAgency),
     })),
     ...employers.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_employers', sourceLabel: '雇主家庭/需求單',
-      name: r.employerName || '(未設定)', foreignAgency: '',
+      name: r.employerName || '(未設定)', foreignAgency: '', taiwanAgencies: [r.taiwanAgency],
     })),
     ...matches.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_matches', sourceLabel: '媒合紀錄',
       name: `${workerName(r.workerId)} · ${employerName(r.employerId)}`, foreignAgency: workers.find((w) => w.id === r.workerId)?.foreignAgency,
+      taiwanAgencies: [r.taiwanAgency],
     })),
     ...secondInterviews.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_secondInterviews', sourceLabel: '二面進度',
       name: matchLabel(r.matchId), foreignAgency: workerForMatch(r.matchId)?.foreignAgency,
+      taiwanAgencies: [matches.find((m) => m.id === r.matchId)?.taiwanAgency],
     })),
     ...admittedList.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_admittedList', sourceLabel: '錄取名單',
       name: matchLabel(r.matchId), foreignAgency: workerForMatch(r.matchId)?.foreignAgency,
+      taiwanAgencies: [matches.find((m) => m.id === r.matchId)?.taiwanAgency],
     })),
     ...applicationProgress.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_applicationProgress', sourceLabel: '申辦進度追蹤',
       name: `${r.employerName || '(未設定)'}${r.caseNo ? ` #${r.caseNo}` : ''}`, foreignAgency: r.foreignAgency,
+      taiwanAgencies: [r.taiwanAgency],
     })),
     ...arrivedList.filter((r) => r.confirmedClosed).map((r) => ({
       id: r.id, collectionName: 'yujian_arrivedList', sourceLabel: '已入台名單',
       name: `${r.employerName || '(未設定)'}${r.caseNo ? ` #${r.caseNo}` : ''}`, foreignAgency: r.foreignAgency,
+      taiwanAgencies: [r.taiwanAgency],
     })),
   ];
 
+  // 業務人員只看得到跟自己台仲有關聯的已結案紀錄。
+  const scopedClosedItems = scopeByTaiwanAgency(closedItems, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgencies });
+
   const searchQuery = q.trim().toLowerCase();
-  const filtered = closedItems.filter((r) => !searchQuery || `${r.name} ${r.sourceLabel}`.toLowerCase().includes(searchQuery));
+  const filtered = scopedClosedItems.filter((r) => !searchQuery || `${r.name} ${r.sourceLabel}`.toLowerCase().includes(searchQuery));
 
   const groups = {};
   filtered.forEach((r) => {

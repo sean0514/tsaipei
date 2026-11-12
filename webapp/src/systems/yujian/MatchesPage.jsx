@@ -13,6 +13,7 @@ import { MATCH_TAG } from '../../lib/tags';
 import { workerLabel, WORKER_STATUS } from './WorkersPage';
 import { ensureAdmittedRecord } from '../../lib/yujianCascade';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 const STATUSES = ['媒合中', '已媒合', '已錄取', '取消'];
 // 工人可能同時/先後有多筆媒合紀錄（例如先媒合雇主 A 後取消，再媒合雇主 B
@@ -49,10 +50,11 @@ const COLUMNS = [
 ];
 
 export default function MatchesPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'matches', role, overrides);
   const canViewPage = computeCanView(system, 'matches', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_matches');
+  const { rows: allRows, loading, add, update, remove } = useCollection('yujian_matches');
+  const rows = scopeByTaiwanAgency(allRows, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);
@@ -161,10 +163,17 @@ export default function MatchesPage() {
 function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
 
-  // 選擇雇主時，台仲同步帶入該雇主的國內仲介（仍可手動修改）。
+  // 選擇雇主時，台仲同步帶入該雇主的國內仲介（仍可手動修改）。改選回
+  // 「無雇主」時，狀態一併更正回「媒合中」——沒有雇主就不該停在已媒合/
+  // 已錄取/取消這些跟某個雇主綁在一起的狀態。
   function handleEmployerChange(id) {
     const e = employers.find((x) => x.id === id);
-    setForm({ ...form, employerId: id, taiwanAgency: e?.taiwanAgency || form.taiwanAgency });
+    setForm({
+      ...form,
+      employerId: id,
+      taiwanAgency: e?.taiwanAgency || form.taiwanAgency,
+      status: id ? form.status : '媒合中',
+    });
   }
 
   return (
@@ -182,8 +191,8 @@ function MatchFormModal({ initial, workers, employers, onCancel, onSave }) {
             </label>
             <label>
               雇主
-              <select required value={form.employerId || ''} onChange={(e) => handleEmployerChange(e.target.value)}>
-                <option value="" disabled>請選擇</option>
+              <select value={form.employerId || ''} onChange={(e) => handleEmployerChange(e.target.value)}>
+                <option value="">無雇主</option>
                 {employers.map((e2) => <option key={e2.id} value={e2.id}>{e2.employerName}</option>)}
               </select>
             </label>

@@ -291,7 +291,7 @@ export default function Layout() {
           <span className="muted">{profile.displayName || profile.email} · {t(profile.role, effectiveLang)}{viewAsRole && `（${t('預覽', effectiveLang)}：${t(viewAsRole, effectiveLang)}）`}</span>
           <button onClick={logout}>{t('登出', effectiveLang)}</button>
         </div>
-        <Outlet context={{ system, role, overrides, lang: effectiveLang }} />
+        <Outlet context={{ system, role, overrides, lang: effectiveLang, userTaiwanAgency: profile?.taiwanAgency }} />
       </div>
     </div>
   );

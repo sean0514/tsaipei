@@ -10,6 +10,7 @@ import { FIELDS, INFO_FIELDS, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, P
 import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 import { workerLabel } from './WorkersPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
@@ -23,10 +24,11 @@ const ARRIVED_LIST_COLUMNS = (() => {
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 export default function ArrivedListPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivedList', role, overrides);
   const canViewPage = computeCanView(system, 'arrivedList', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_arrivedList');
+  const { rows: allRows, loading, add, update, remove } = useCollection('yujian_arrivedList');
+  const rows = scopeByTaiwanAgency(allRows, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
@@ -62,15 +64,19 @@ export default function ArrivedListPage() {
   // 只要案件顯示在「已接離/轉出中/已轉出/已離台」清單中，就必須同步出現在
   // 安置中名單（不只在這裡手動編輯時觸發，資料一載入、或從申辦進度追蹤同步
   // 過來的紀錄本來就帶有轉出狀態時也要補建立，ensurePlacementRecord 本身會
-  // 先查詢是否已存在，重複呼叫不會建立重複紀錄）。
+  // 先查詢是否已存在，重複呼叫不會建立重複紀錄）。這個自動連動不能因為目前
+  // 登入者（業務人員）只看得到自己台仲的資料，就漏掉別的台仲——所以用完整、
+  // 沒套用台仲篩選的 allRows 判斷，不是上面給畫面顯示用的 transferring。
   useEffect(() => {
     if (loading || !canViewPage) return;
-    transferring.forEach((r) => {
-      const workerId = resolveWorkerId(r);
-      if (workerId) ensurePlacementRecord(workerId);
-    });
+    allRows
+      .filter((r) => !r.confirmedClosed && hasTransferStatus(r, TRANSFER_STEP_STATUS))
+      .forEach((r) => {
+        const workerId = resolveWorkerId(r);
+        if (workerId) ensurePlacementRecord(workerId);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, rows, matches]);
+  }, [loading, allRows, matches]);
 
   // 這裡的編輯不會回寫到申辦進度追蹤，但轉出/離境的連動要跟申辦進度追蹤一致：
   // 進度狀態或轉出/離境紀錄清單裡任一筆變成「已接離／轉出中／已轉出／已離台」

@@ -10,6 +10,7 @@ import { deleteEmployerCascade } from '../../lib/yujianCascade';
 import { WORK_TYPES } from './WorkersPage';
 import { NATIONALITIES } from './ApplicationProgressPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
 
@@ -28,10 +29,13 @@ const FIELDS = [
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 export default function EmployersPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'employers', role, overrides);
   const canViewPage = computeCanView(system, 'employers', role, overrides);
-  const { rows, loading, add, update } = useCollection('yujian_employers');
+  const { rows: allRows, loading, add, update } = useCollection('yujian_employers');
+  // 業務人員只看得到自己所屬台仲的雇主；CSV 匯出也要用這份篩選過的資料，
+  // 不能讓「下載完整資料」繞過這層限制看到別的台仲。
+  const rows = scopeByTaiwanAgency(allRows, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_employers', CSV_FIELDS, { entityLabel: '雇主家庭/需求單', requiredKeys: ['employerName'], canEdit: canEditPage });
