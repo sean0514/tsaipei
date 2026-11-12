@@ -209,12 +209,42 @@ export default function StudentsPage() {
     }
   }
 
+  // 結案時同步把跟這個學生相關、同樣用「結案」機制隱藏列表的其他分頁紀錄
+  // 一起標記結案（媒合紀錄/二面進度/錄取名單/申辦進度追蹤/日常支出申請），
+  // 不用每個分頁各自手動點一次按鈕；住宿安排/在台簽證追蹤/在台關懷紀錄/
+  // 開戶進度追蹤已經各自有自己的「完成/確認離台」機制(不是用這個標記)，
+  // 不在這次同步範圍內，維持原本各自的流程。
+  async function handleCloseCase(studentId) {
+    try {
+      const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', studentId)));
+      const matchIds = matchesSnap.docs.map((d) => d.id);
+      const dependentSnaps = await Promise.all([
+        matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'tsaipei_dailyExpenseApplications'), where('studentId', '==', studentId))),
+      ]);
+      const refs = [
+        ...matchesSnap.docs.map((d) => d.ref),
+        ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+      ];
+      for (let i = 0; i < refs.length; i += 450) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + 450).forEach((ref) => batch.update(ref, { confirmedClosed: true }));
+        await batch.commit();
+      }
+      await update(studentId, { confirmedClosed: true });
+    } catch (err) {
+      alert(`結案失敗：${err.message || err}`);
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-header">
         <div>
           <h2>學生資料</h2>
-          <div className="page-desc">管理來台實習之國際學生基本資料與狀態{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">管理來台實習之國際學生基本資料與狀態；按「結案」會同步把這個學生的媒合紀錄/二面進度/錄取名單/申辦進度追蹤/日常支出申請一起標記結案(住宿安排/在台簽證追蹤/在台關懷紀錄/開戶進度追蹤各自有自己的完成機制，不受影響){!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>+ 新增學生</button>}
@@ -259,7 +289,7 @@ export default function StudentsPage() {
                         <div className="row-actions">
                           <button onClick={() => setEditing(r)}>編輯</button>
                           <button className="danger" onClick={() => handleDelete(r.id)}>刪除</button>
-                          <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
+                          <button onClick={() => handleCloseCase(r.id)}>結案</button>
                         </div>
                       </td>
                     )}
