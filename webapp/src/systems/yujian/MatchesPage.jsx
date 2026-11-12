@@ -3,17 +3,32 @@ import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import StatusSections from '../../components/StatusSections';
 import { MATCH_TAG } from '../../lib/tags';
-import { workerLabel } from './WorkersPage';
+import { workerLabel, WORKER_STATUS } from './WorkersPage';
 import { ensureAdmittedRecord } from '../../lib/yujianCascade';
+import NoAccess from '../../components/NoAccess';
 
 const STATUSES = ['媒合中', '已媒合', '已錄取', '取消'];
+// 工人可能同時/先後有多筆媒合紀錄（例如先媒合雇主 A 後取消，再媒合雇主 B
+// 並已在職），這裡依 WORKER_STATUS 的先後順序建立排名，只在媒合紀錄的新
+// 狀態「不會讓工人退回更早階段」時才回寫工人狀態，避免事後補登/修正一筆
+// 舊的媒合紀錄時，把工人目前真實的狀態蓋回去。
+const WORKER_STATUS_RANK = Object.fromEntries(WORKER_STATUS.filter((s) => s !== '取消').map((s, i) => [s, i]));
+const ADMITTED_RANK = WORKER_STATUS_RANK['已錄取'];
+
+function shouldSyncWorkerStatus(newStatus, currentWorkerStatus) {
+  const currentRank = WORKER_STATUS_RANK[currentWorkerStatus];
+  if (currentRank === undefined) return true;
+  if (newStatus === '取消') return currentRank <= ADMITTED_RANK;
+  const newRank = WORKER_STATUS_RANK[newStatus];
+  return newRank === undefined || newRank >= currentRank;
+}
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '人員ID' }, { key: 'employerId', label: '雇主ID' },
   { key: 'status', label: '狀態' }, { key: 'matchDate', label: '媒合日期' }, { key: 'admittedDate', label: '錄取時間' },
@@ -29,6 +44,7 @@ const COLUMNS = [
 export default function MatchesPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'matches', role, overrides);
+  const canViewPage = computeCanView(system, 'matches', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');
@@ -47,6 +63,8 @@ export default function MatchesPage() {
   const filtered = rows
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || `${workerName(r.workerId)} ${employerName(r.employerId)}`.toLowerCase().includes(searchQuery));
+
+  if (!canViewPage) return <NoAccess />;
 
   // 狀態變成「已媒合」時自動建立一筆二面進度（待安排），比照境外實習生系統
   // 媒合紀錄→二面進度的自動連動。
@@ -67,8 +85,12 @@ export default function MatchesPage() {
     }
     // 媒合紀錄狀態變動時，同步更新工人本身的狀態欄位，讓各分頁顯示的「工人
     // 狀態」跟著即時反映（媒合中/已媒合/已錄取/取消都直接對應同名的工人狀態）。
+    // 只在不會讓工人退回更早階段時才回寫，見 shouldSyncWorkerStatus 說明。
     if (data.status && data.status !== prevStatus && data.workerId) {
-      await updateDoc(doc(db, 'yujian_workers', data.workerId), { status: data.status });
+      const worker = workers.find((w) => w.id === data.workerId);
+      if (shouldSyncWorkerStatus(data.status, worker?.status)) {
+        await updateDoc(doc(db, 'yujian_workers', data.workerId), { status: data.status });
+      }
     }
     if (data.status === '已媒合' && !wasMatched) {
       await addDoc(collection(db, 'yujian_secondInterviews'), { matchId, status: '待安排' });

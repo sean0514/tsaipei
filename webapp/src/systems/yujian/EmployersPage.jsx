@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
@@ -9,6 +9,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { deleteEmployerCascade } from '../../lib/yujianCascade';
 import { WORK_TYPES } from './WorkersPage';
 import { NATIONALITIES } from './ApplicationProgressPage';
+import NoAccess from '../../components/NoAccess';
 
 const EMPLOYER_STATUS = ['待媒合', '已媒合', '取消'];
 
@@ -29,6 +30,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClos
 export default function EmployersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'employers', role, overrides);
+  const canViewPage = computeCanView(system, 'employers', role, overrides);
   const { rows, loading, add, update } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
@@ -50,6 +52,8 @@ export default function EmployersPage() {
     (groups[agency] ||= []).push(r);
   });
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  if (!canViewPage) return <NoAccess />;
 
   async function handleSave(data) {
     if (data.id) {

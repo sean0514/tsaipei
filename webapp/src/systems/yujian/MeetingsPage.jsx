@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import NoAccess from '../../components/NoAccess';
 
 const LIST_COLUMNS = [
   { key: 'date', label: '日期' }, { key: 'title', label: '主題' }, { key: 'host', label: '主持人' }, { key: 'attendees', label: '出席人員' },
@@ -26,6 +27,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS];
 export default function MeetingsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'meetings', role, overrides);
+  const canViewPage = computeCanView(system, 'meetings', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_meetings', { order: ['date', 'desc'] });
   const [editing, setEditing] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -37,6 +39,8 @@ export default function MeetingsPage() {
   const filteredRows = rows.filter((r) => !searchQuery || `${r.title || ''} ${r.host || ''} ${r.attendees || ''}`.toLowerCase().includes(searchQuery));
   const columns = LIST_COLUMNS.filter((c) => visibleKeys.has(c.key));
   const selected = rows.find((r) => r.id === selectedId) || null;
+
+  if (!canViewPage) return <NoAccess />;
 
   async function handleSave(data) {
     if (data.id) {

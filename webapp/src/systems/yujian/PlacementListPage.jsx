@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
+import NoAccess from '../../components/NoAccess';
 
 // 還沒有正式雇主、先安排在其他地方（宿舍/訓練中心等）待命的看護/家事人員名單。
 const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '已離台', '其他'];
@@ -26,6 +27,7 @@ const COLUMNS = [
 export default function PlacementListPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'placementList', role, overrides);
+  const canViewPage = computeCanView(system, 'placementList', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_placementList');
   const { rows: workers } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
@@ -44,6 +46,8 @@ export default function PlacementListPage() {
     .filter((r) => !searchQuery || `${workerName(r.workerId)} ${r.placementLocation || ''}`.toLowerCase().includes(searchQuery));
   const departed = filtered.filter((r) => r.status === '已就業' || r.status === '已離境' || r.status === '已離台');
   const inPlacement = filtered.filter((r) => !departed.includes(r));
+
+  if (!canViewPage) return <NoAccess />;
 
   async function handleSave(data) {
     if (data.id) {

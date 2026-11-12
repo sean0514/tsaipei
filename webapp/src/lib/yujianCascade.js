@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // 案件（申辦進度追蹤／已入台名單）的進度狀態，或轉出/離境紀錄清單裡任一筆
@@ -52,35 +52,60 @@ export async function ensureAdmittedRecord(match, { admitDate, status, workers, 
 // 刪除看護/家事人員資料或雇主家庭/需求單時，把相關聯的媒合紀錄（以及媒合
 // 紀錄再往下自動連動出去的二面進度/錄取名單/申辦進度追蹤/已入台名單）一併
 // 清掉，避免留下指向已刪除人員/雇主的孤兒紀錄。
+//
+// 做法是先把所有要刪的文件參考收集起來，最後才一次用 writeBatch 送出，
+// 不要邊收集邊逐筆 await deleteDoc：逐筆刪除如果中途失敗（例如斷線），
+// 會留下刪了一半的狀態（例如二面進度刪掉了，但同一筆媒合紀錄底下的錄取
+// 名單、申辦進度追蹤還留著，變成無法從畫面上發現、也沒有清楚方法修復的
+// 孤兒資料）。改成收集完才一起送出，一次刪除動作要刪的所有相關紀錄會
+// 一起成功或一起失敗。
 
-async function deleteAllWhere(collectionName, field, value) {
+async function collectRefsWhere(collectionName, field, value) {
   const snap = await getDocs(query(collection(db, collectionName), where(field, '==', value)));
-  for (const d of snap.docs) await deleteDoc(d.ref);
-  return snap.docs.map((d) => d.id);
+  return snap.docs.map((d) => d.ref);
 }
 
-async function deleteApplicationProgressCascade(progressId) {
-  await deleteAllWhere('yujian_arrivedList', 'sourceCaseId', progressId);
-  await deleteDoc(doc(db, 'yujian_applicationProgress', progressId));
+async function collectApplicationProgressCascadeRefs(progressId) {
+  const refs = await collectRefsWhere('yujian_arrivedList', 'sourceCaseId', progressId);
+  refs.push(doc(db, 'yujian_applicationProgress', progressId));
+  return refs;
 }
 
-async function deleteMatchCascade(matchId) {
-  await deleteAllWhere('yujian_secondInterviews', 'matchId', matchId);
-  await deleteAllWhere('yujian_admittedList', 'matchId', matchId);
+async function collectMatchCascadeRefs(matchId) {
+  const refs = [
+    ...(await collectRefsWhere('yujian_secondInterviews', 'matchId', matchId)),
+    ...(await collectRefsWhere('yujian_admittedList', 'matchId', matchId)),
+  ];
   const progressSnap = await getDocs(query(collection(db, 'yujian_applicationProgress'), where('matchId', '==', matchId)));
-  for (const d of progressSnap.docs) await deleteApplicationProgressCascade(d.id);
-  await deleteDoc(doc(db, 'yujian_matches', matchId));
+  for (const d of progressSnap.docs) refs.push(...(await collectApplicationProgressCascadeRefs(d.id)));
+  refs.push(doc(db, 'yujian_matches', matchId));
+  return refs;
+}
+
+// Firestore 單個 batch 上限 500 個操作，一般使用情境下一位工人/雇主關聯到
+// 的紀錄數遠低於這個量；真的超過才分批送出（分批之間就不是同一個原子
+// 操作了，但仍遠優於逐筆個別 await deleteDoc）。
+async function commitDeletes(refs) {
+  for (let i = 0; i < refs.length; i += 450) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
 }
 
 export async function deleteWorkerCascade(workerId) {
   const matchSnap = await getDocs(query(collection(db, 'yujian_matches'), where('workerId', '==', workerId)));
-  for (const d of matchSnap.docs) await deleteMatchCascade(d.id);
-  await deleteAllWhere('yujian_placementList', 'workerId', workerId);
-  await deleteDoc(doc(db, 'yujian_workers', workerId));
+  const refs = [];
+  for (const d of matchSnap.docs) refs.push(...(await collectMatchCascadeRefs(d.id)));
+  refs.push(...(await collectRefsWhere('yujian_placementList', 'workerId', workerId)));
+  refs.push(doc(db, 'yujian_workers', workerId));
+  await commitDeletes(refs);
 }
 
 export async function deleteEmployerCascade(employerId) {
   const matchSnap = await getDocs(query(collection(db, 'yujian_matches'), where('employerId', '==', employerId)));
-  for (const d of matchSnap.docs) await deleteMatchCascade(d.id);
-  await deleteDoc(doc(db, 'yujian_employers', employerId));
+  const refs = [];
+  for (const d of matchSnap.docs) refs.push(...(await collectMatchCascadeRefs(d.id)));
+  refs.push(doc(db, 'yujian_employers', employerId));
+  await commitDeletes(refs);
 }
