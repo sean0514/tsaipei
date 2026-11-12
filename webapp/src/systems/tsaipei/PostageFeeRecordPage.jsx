@@ -10,6 +10,15 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
+// 編號大多是數字，但畢竟是自由輸入的文字欄位，數字格式不一致時退回用
+// 字串比較，不會因為格式問題整批排序失敗。
+function compareBySerialNumber(a, b) {
+  const an = Number(a.serialNumber);
+  const bn = Number(b.serialNumber);
+  if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+  return (a.serialNumber || '').localeCompare(b.serialNumber || '');
+}
+
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 // 已匯款之後的「封存」只開放財務人員（跟系統管理員）能按，跟日常支出
 // 申請／國外補助申請同一套規則。
@@ -53,11 +62,11 @@ export default function PostageFeeRecordPage() {
     .filter((r) => !searchQuery || `${r.trackingNumber || ''} ${r.senderName || ''} ${r.recipientName || ''} ${r.documentContent || ''}`.toLowerCase().includes(searchQuery));
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
-  STATUSES.forEach((s) => groups[s].sort((a, b) => (b.shipDate || '').localeCompare(a.shipDate || '')));
+  STATUSES.forEach((s) => groups[s].sort(compareBySerialNumber));
 
   // 結案/封存後從上面分類清單隱藏，但不是完全查不到——「顯示已結案/封存」
   // 收合區塊點開才會渲染，不用下載完整資料 CSV 再自己篩選。
-  const closedList = rows.filter((r) => r.confirmedClosed || r.archived).sort((a, b) => (b.shipDate || '').localeCompare(a.shipDate || ''));
+  const closedList = rows.filter((r) => r.confirmedClosed || r.archived).sort(compareBySerialNumber);
 
   async function handleSave(data) {
     if (data.id) {
