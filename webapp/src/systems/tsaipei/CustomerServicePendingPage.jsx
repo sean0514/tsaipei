@@ -97,17 +97,28 @@ export default function CustomerServicePendingPage() {
   pendingArrivals.sort((a, b) => b.date.localeCompare(a.date));
 
   // 開戶進度追蹤：已入台、還沒按「確認完成」、且還沒勾「銀行帳戶」的，跟
-  // BankAccountProgressPage 的「未開戶」同一套邏輯。
+  // BankAccountProgressPage 的「未開戶」同一套邏輯；依入台日期新到舊排序，
+  // 跟預計入台/離台同一個方向。
   const bankProgressByStudent = {};
   bankProgress.forEach((p) => { bankProgressByStudent[p.studentId] = p; });
   const pendingBankAccounts = visaRecords.filter((v) => (
     v.firstEntryDate
     && !bankProgressByStudent[v.studentId]?.confirmedDone
     && !bankProgressByStudent[v.studentId]?.bankAccountReceived
-  ));
+  )).sort((a, b) => (b.firstEntryDate || '').localeCompare(a.firstEntryDate || ''));
 
-  // 住宿安排：還沒填入住日的，跟 HousingPage 的「未安排」同一套邏輯。
-  const pendingHousing = housingRecords.filter((r) => !r.completed && !r.checkIn);
+  // 住宿安排：還沒填入住日的，跟 HousingPage 的「未安排」同一套邏輯；這張
+  // 紀錄本身沒有日期可排序（還沒填入住日），改用該學生在「在台簽證追蹤」
+  // 的入台日期排序（跟上面兩項同一個日期來源），沒有入台日期的排最後面。
+  const visaByStudent = {};
+  visaRecords.forEach((v) => { visaByStudent[v.studentId] = v; });
+  const pendingHousing = housingRecords
+    .filter((r) => !r.completed && !r.checkIn)
+    .sort((a, b) => {
+      const da = visaByStudent[a.studentId]?.firstEntryDate || '';
+      const db = visaByStudent[b.studentId]?.firstEntryDate || '';
+      return db.localeCompare(da);
+    });
 
   // 宿舍管理：這個月還沒填「其他費用」（水費/電費/瓦斯費/自訂其他費用）的
   // 宿舍，跟 DormManagementPage 判斷「這個月有沒有填過」同一套邏輯。
@@ -209,15 +220,16 @@ export default function CustomerServicePendingPage() {
             <div className="card">
               <div className="table-wrap sticky-header">
                 <table>
-                  <thead><tr><th>學生</th><th>分店</th></tr></thead>
+                  <thead><tr><th>學生</th><th>分店</th><th>入台日期</th></tr></thead>
                   <tbody>
                     {pendingHousing.map((r) => (
                       <tr key={r.id}>
                         <td>{studentFullLabel(studentById(r.studentId))}</td>
                         <td>{studentVenueLabel(r.studentId, ctx)}</td>
+                        <td>{visaByStudent[r.studentId]?.firstEntryDate || '—'}</td>
                       </tr>
                     ))}
-                    {pendingHousing.length === 0 && <tr><td colSpan={2} className="muted">目前沒有未完成的項目。</td></tr>}
+                    {pendingHousing.length === 0 && <tr><td colSpan={3} className="muted">目前沒有未完成的項目。</td></tr>}
                   </tbody>
                 </table>
               </div>
