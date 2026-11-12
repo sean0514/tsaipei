@@ -44,6 +44,7 @@ import StudentBillingPage from './systems/tsaipei/StudentBillingPage';
 import DormProfitLossPage from './systems/tsaipei/DormProfitLossPage';
 import CompanyProfitLossPage from './systems/tsaipei/CompanyProfitLossPage';
 import StudentSelfPayHousingPage from './systems/tsaipei/StudentSelfPayHousingPage';
+import DepositTrackingPage from './systems/tsaipei/DepositTrackingPage';
 import StudentMasterSheetPage from './systems/tsaipei/StudentMasterSheetPage';
 import ForeignPaymentPage from './systems/tsaipei/ForeignPaymentPage';
 import ForeignSubsidyApplicationPage from './systems/tsaipei/ForeignSubsidyApplicationPage';
@@ -200,6 +201,7 @@ const PAGES = {
     dormProfitLoss: DormProfitLossPage,
     companyProfitLoss: CompanyProfitLossPage,
     studentSelfPayHousing: StudentSelfPayHousingPage,
+    depositTracking: DepositTrackingPage,
     studentMasterSheet: StudentMasterSheetPage,
     foreignPayment: ForeignPaymentPage,
   },

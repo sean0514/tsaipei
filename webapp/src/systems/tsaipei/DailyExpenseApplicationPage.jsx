@@ -13,7 +13,10 @@ function currentMonthStr() {
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 
-const ITEM_OPTIONS = ['體檢費', '機票費', '車資費用', '宿舍設備', '水費', '電費', '瓦斯費'];
+// 項目名稱包含「押金」的支出類紀錄會自動列進「押金追蹤」頁面(見
+// DepositTrackingPage.jsx)，加「宿舍押金」這個固定選項，避免工作人員
+// 自行輸入時打成不同的字串(例如漏字、全半形不同)，導致抓不到。
+const ITEM_OPTIONS = ['體檢費', '機票費', '車資費用', '宿舍押金', '宿舍設備', '水費', '電費', '瓦斯費'];
 const ITEM_CUSTOM = '__custom__';
 
 const CURRENCIES = ['台幣', '美金'];
