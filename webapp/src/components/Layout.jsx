@@ -121,7 +121,7 @@ const GROUP_SECTIONS = {
     { label: '職缺媒合', items: ['positions', 'matches', 'secondInterview', 'admitted', 'visaReminder'] },
     { label: '實習在台追蹤', items: ['inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup'] },
     { label: '聯絡資訊', items: ['translatorContacts', 'dormManagerContacts'] },
-    { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'dormProfitLoss', 'companyProfitLoss'] },
+    { label: '會計專用', items: ['clientBilling', 'studentBilling', 'studentSelfPayHousing', 'depositTracking', 'studentMasterSheet', 'foreignPayment', 'dormProfitLoss', 'companyProfitLoss'] },
     { label: '資料建檔', items: ['clientList', 'clientFeeSetup', 'internalFeeSetup', 'bonus'] },
     { label: '申請表格', items: ['foreignSubsidyApplication', 'dailyExpenseApplication', 'postageFee'] },
   ],
