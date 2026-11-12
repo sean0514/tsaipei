@@ -199,7 +199,8 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow create, delete: if tsCanEdit('dormManagement');
       // closedCases 也放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
-      allow update: if tsCanEdit('dormManagement') || tsCanEdit('closedCases');
+      // depositTracking 也放行：押金追蹤頁面的「已收回押金」按鈕要能寫入 depositRefundAmount/depositRefundDate。
+      allow update: if tsCanEdit('dormManagement') || tsCanEdit('closedCases') || tsCanEdit('depositTracking');
     }
     match /tsaipei_dormitoryUtilities/{docId} {
       allow read: if tsIsMember();
