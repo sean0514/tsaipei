@@ -11,12 +11,19 @@ function currentMonthStr() {
 }
 
 // 編號大多是數字，但畢竟是自由輸入的文字欄位，數字格式不一致時退回用
-// 字串比較，不會因為格式問題整批排序失敗。
+// 字串比較，不會因為格式問題整批排序失敗。依編號從大到小排序。
 function compareBySerialNumber(a, b) {
   const an = Number(a.serialNumber);
   const bn = Number(b.serialNumber);
-  if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
-  return (a.serialNumber || '').localeCompare(b.serialNumber || '');
+  if (Number.isFinite(an) && Number.isFinite(bn)) return bn - an;
+  return (b.serialNumber || '').localeCompare(a.serialNumber || '');
+}
+
+// 新增紀錄時自動帶入「目前最大編號+1」，不用自己翻清單找下一號；沒有任何
+// 數字編號時從 1 開始。還是可以在表單裡手動改掉，不是鎖死的唯讀欄位。
+function nextSerialNumber(rows) {
+  const nums = rows.map((r) => Number(r.serialNumber)).filter((n) => Number.isFinite(n));
+  return nums.length ? Math.max(...nums) + 1 : 1;
 }
 
 const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
@@ -86,7 +93,7 @@ export default function PostageFeeRecordPage() {
           <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的紀錄可以按「結案」歸檔，已匯款的紀錄可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增紀錄</button>}
+          {canEditPage && <button className="primary" onClick={() => setEditing({ serialNumber: String(nextSerialNumber(rows)) })}>+ 新增紀錄</button>}
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
           <button onClick={handleDownloadMonth}>下載此月份資料</button>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
