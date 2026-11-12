@@ -428,8 +428,8 @@ export function currentYear() {
   return new Date().getFullYear();
 }
 
-const DORM_EQUIPMENT_ITEM = '宿舍設備';
-const DORM_PNL_BILLABLE_STATUSES = ['已核准', '已匯款'];
+export const DORM_EQUIPMENT_ITEM = '宿舍設備';
+export const DORM_PNL_BILLABLE_STATUSES = ['已核准', '已匯款'];
 const DORM_PROFIT_SHARE_RATE = 0.2;
 
 // 損益細項欄位：收入(住宿費收入、宿舍設備收入)、成本(租金、房仲費、水費、

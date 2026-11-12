@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear } from '../../lib/bonus';
+import { computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear, DORM_EQUIPMENT_ITEM, DORM_PNL_BILLABLE_STATUSES } from '../../lib/bonus';
 import { exportEntityCSV } from '../../lib/csv';
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
@@ -83,6 +83,18 @@ export default function DormProfitLossPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const [year, setYear] = useState(currentYear());
+  const [detailDorm, setDetailDorm] = useState(null);
+
+  // 「宿舍設備支出(日常支出申請)」這一項的明細：跟 bonus.js 算 dormItemCost/
+  // dormItemIncome 用同一套篩選條件（項目=宿舍設備、綁定這間宿舍、已核准/
+  // 已匯款），只是這裡列出單筆紀錄而不是加總。
+  function dormItemEntriesFor(dormId) {
+    return dailyExpenseApplications
+      .filter((app) => app.item === DORM_EQUIPMENT_ITEM && app.dormId === dormId)
+      .filter((app) => (app.date || '').slice(0, 4) === String(year))
+      .filter((app) => DORM_PNL_BILLABLE_STATUSES.includes(app.status))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
 
   const ctx = {
     dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications,
@@ -153,7 +165,10 @@ export default function DormProfitLossPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {g.dorms.map((d) => (
                     <div className="card" key={d.dormId} style={{ overflowX: 'auto' }}>
-                      <h4 style={{ marginTop: 0 }}>{d.dormName} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>年合計 利潤 {fmt(d.yearTotal.profit)}／分紅 {fmt(d.yearTotal.bonus)}</span></h4>
+                      <h4 style={{ marginTop: 0 }}>
+                        {d.dormName} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>年合計 利潤 {fmt(d.yearTotal.profit)}／分紅 {fmt(d.yearTotal.bonus)}</span>
+                        <button style={{ marginLeft: 10 }} onClick={() => setDetailDorm(d)}>宿舍設備收支明細</button>
+                      </h4>
                       <PnlTable monthly={d.monthly} yearTotal={d.yearTotal} />
                     </div>
                   ))}
@@ -163,6 +178,46 @@ export default function DormProfitLossPage() {
           </div>
         )
       )}
+      {detailDorm && (
+        <DormItemDetailModal
+          dorm={detailDorm}
+          year={year}
+          entries={dormItemEntriesFor(detailDorm.dormId)}
+          onClose={() => setDetailDorm(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DormItemDetailModal({ dorm, year, entries, onClose }) {
+  const incomeTotal = entries.filter((e) => (e.type || '支出') === '收入').reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const costTotal = entries.filter((e) => (e.type || '支出') !== '收入').reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{dorm.dormName} · {year}年 宿舍設備收支明細</h3>
+        <p className="muted">日常支出申請裡項目＝宿舍設備、綁定這間宿舍、審核狀態＝已核准/已匯款的紀錄（跟損益表「宿舍設備收入/支出」的加總是同一批）。收入合計 {fmt(incomeTotal)}，支出合計 {fmt(costTotal)}。</p>
+        <div className="table-wrap"><table>
+          <thead><tr><th>日期</th><th>類型</th><th>金額</th><th>申請人</th><th>用途說明</th><th>審核狀態</th></tr></thead>
+          <tbody>
+            {entries.map((e) => (
+              <tr key={e.id}>
+                <td>{e.date || '—'}</td>
+                <td>{(e.type || '支出') === '收入' ? '收入' : '支出'}</td>
+                <td>{e.amount ? `${e.currency || '台幣'} ${Number(e.amount).toLocaleString()}` : '—'}</td>
+                <td>{e.applicant || '—'}</td>
+                <td>{e.purpose || '—'}</td>
+                <td>{e.status || '—'}</td>
+              </tr>
+            ))}
+            {entries.length === 0 && <tr><td colSpan={6} className="muted">這一年沒有符合條件的紀錄。</td></tr>}
+          </tbody>
+        </table></div>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button type="button" onClick={onClose}>關閉</button>
+        </div>
+      </div>
     </div>
   );
 }
