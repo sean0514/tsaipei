@@ -38,7 +38,7 @@ export const IMPLEMENTED_MODULES = {
     'dashboard', 'unmatchedStudents', 'students', 'positions', 'matches', 'secondInterview', 'admitted', 'visaReminder',
     'internshipDocs', 'applicationProgress', 'inTaiwanVisa', 'inTaiwanCare', 'expectedArrival', 'bankAccountProgress', 'vehiclePickup', 'housing',
     'dormManagement', 'customerServicePending', 'adminPending', 'translatorContacts', 'dormManagerContacts', 'benefits', 'meetings', 'closedCases', 'foreignSubsidyApplication', 'dailyExpenseApplication', 'users', 'bonus', 'clientList', 'clientFeeSetup', 'internalFeeSetup', 'managerReport', 'clientBilling', 'studentBilling', 'dormProfitLoss', 'companyProfitLoss',
-    'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee',
+    'studentSelfPayHousing', 'studentMasterSheet', 'foreignPayment', 'postageFee', 'depositTracking',
   ],
   foodfactory: [
     'inventory', 'stock', 'suppliers', 'purchases', 'products', 'customers', 'production', 'shipments',
