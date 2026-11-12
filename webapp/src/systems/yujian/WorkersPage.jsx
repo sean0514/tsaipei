@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
-import { deleteWorkerCascade } from '../../lib/yujianCascade';
+import { deleteWorkerCascade, ensurePlacementRecord } from '../../lib/yujianCascade';
 import { fileToDataUrl, viewFile, downloadFile } from '../../lib/fileAttachment';
+import NoAccess from '../../components/NoAccess';
 
 // 上限抓 700KB 避免超過 Firestore 單一文件 1MB 的限制。
 const MAX_RESUME_SIZE = 700 * 1024;
@@ -22,7 +23,7 @@ export function workerLabel(w) {
 }
 const NATIONALITIES = ['印尼', '菲律賓', '越南', '泰國'];
 export const WORK_TYPES = ['家庭看護工', '家庭幫傭'];
-export const RECRUIT_TYPES = ['國內承接', '海外引進', '指定工', '回鍋工'];
+export const RECRUIT_TYPES = ['國內承接', '海外引進', '指定工', '回鍋工', '續聘工'];
 
 const FIELDS = [
   { key: 'workerNo', label: '工人編號', required: true },
@@ -48,6 +49,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClos
 export default function WorkersPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'workers', role, overrides);
+  const canViewPage = computeCanView(system, 'workers', role, overrides);
   const { rows, loading, add, update } = useCollection('yujian_workers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
@@ -70,16 +72,14 @@ export default function WorkersPage() {
   });
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
+  if (!canViewPage) return <NoAccess />;
+
   // 新增人員完成後自動在媒合紀錄建立一筆待指定雇主的紀錄，不用再手動去
   // 媒合紀錄那邊重新建一筆。入境日期第一次填入時，狀態如果還停留在媒合
   // 階段（待媒合/媒合中/已媒合），自動帶成「在職中」，兩者不用分開手動改。
-  // 狀態變成「轉出中」時自動在安置中名單建立一筆紀錄，不用再手動去那邊新增。
-  async function ensurePlacementRecord(workerId) {
-    const existing = await getDocs(query(collection(db, 'yujian_placementList'), where('workerId', '==', workerId)));
-    if (!existing.empty) return;
-    await addDoc(collection(db, 'yujian_placementList'), { workerId, status: '安置中' });
-  }
-
+  // 狀態變成「轉出中」時自動在安置中名單建立一筆紀錄（ensurePlacementRecord
+  // 來自 lib/yujianCascade.js，跟 ApplicationProgressPage/ArrivedListPage
+  // 共用同一份實作，不要各自維護一份避免兩邊行為日後兜不起來）。
   async function handleSave(data) {
     const payload = { ...data };
     const prevEntryDate = editing?.entryDate || '';

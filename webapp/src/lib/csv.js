@@ -3,10 +3,25 @@
 // containing a comma/quote/newline, BOM-prefixed UTF-8) so a file downloaded
 // from here or the old Sheets version round-trips the same way.
 
+// 儲存格以 =/+/-/@ 開頭時，Excel/Google Sheets 開啟 CSV 會把它當成公式執行
+// （例如 =HYPERLINK(...)），而這些欄位的內容常常是可以自由輸入的備註/姓名
+// 欄位，等於允許任何能編輯資料的人對之後打開這份 CSV 的同事下公式注入。
+// 前面加一個單引號強制當文字，跟 Excel 自己「儲存格格式設為文字」的慣例一樣；
+// parseImportRows 匯入時會把這個引號拿掉還原，所以自己匯出的檔案再匯入
+// 不會多出這個符號。
+const FORMULA_TRIGGER = /^[=+\-@]/;
+
 export function csvEscape(val) {
-  const str = val === undefined || val === null ? '' : String(val);
+  let str = val === undefined || val === null ? '' : String(val);
+  if (FORMULA_TRIGGER.test(str)) str = `'${str}`;
   if (/[",\r\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
   return str;
+}
+
+// 只拿掉我們自己匯出時加上去的那個引號（引號後面緊接 =/+/-/@ 才算），使用者
+// 本來就打算輸入的開頭單引號（例如備註寫「'tis a note」）不受影響。
+function stripFormulaGuard(cell) {
+  return cell.length > 1 && cell[0] === "'" && FORMULA_TRIGGER.test(cell.slice(1)) ? cell.slice(1) : cell;
 }
 
 export function exportEntityCSV(rows, fields, filenamePrefix) {
@@ -116,7 +131,7 @@ export function parseImportRows(text, fields, requiredKeys = []) {
     header.forEach((h, idx) => {
       const key = labelToKey[h];
       if (!key) return;
-      const cell = r[idx] !== undefined ? r[idx] : '';
+      const cell = stripFormulaGuard(r[idx] !== undefined ? r[idx] : '');
       obj[key] = dateKeys.has(key) ? normalizeDateCell(cell) : cell;
     });
     const valid = requiredKeys.every((k) => (obj[k] || '').trim());

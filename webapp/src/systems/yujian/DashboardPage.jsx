@@ -1,8 +1,11 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
+import { canView } from '../../lib/permissions';
+import NoAccess from '../../components/NoAccess';
 
 export default function DashboardPage() {
-  useOutletContext();
+  const { system, role, overrides } = useOutletContext();
+  const canViewPage = canView(system, 'dashboard', role, overrides);
   const { rows: workers, loading } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');
   const { rows: matches } = useCollection('yujian_matches');
@@ -13,6 +16,8 @@ export default function DashboardPage() {
   const pendingEmployers = employers.filter((e) => e.status === '待媒合').length;
   const matchedEmployers = employers.filter((e) => e.status === '已媒合').length;
   const inService = workers.filter((w) => w.status === '在職中').length;
+
+  if (!canViewPage) return <NoAccess />;
 
   return (
     <div className="content">

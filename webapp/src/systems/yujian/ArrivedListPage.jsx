@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
@@ -9,6 +9,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { FIELDS, INFO_FIELDS, CASE_STATUS, TRANSFER_STEP_STATUS, LIST_COLUMNS, ProgressPipeline, MilestoneFields, newNoteId } from './ApplicationProgressPage';
 import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 import { workerLabel } from './WorkersPage';
+import NoAccess from '../../components/NoAccess';
 
 // 格式與「申辦進度追蹤」相同（同一組欄位、同一套進度圖示），差別只在於這裡
 // 是「送工時間」已經填寫的案件（申辦進度追蹤第一次填入送工時間時會自動
@@ -24,6 +25,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClos
 export default function ArrivedListPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'arrivedList', role, overrides);
+  const canViewPage = computeCanView(system, 'arrivedList', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_arrivedList');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
@@ -62,7 +64,7 @@ export default function ArrivedListPage() {
   // 過來的紀錄本來就帶有轉出狀態時也要補建立，ensurePlacementRecord 本身會
   // 先查詢是否已存在，重複呼叫不會建立重複紀錄）。
   useEffect(() => {
-    if (loading) return;
+    if (loading || !canViewPage) return;
     transferring.forEach((r) => {
       const workerId = resolveWorkerId(r);
       if (workerId) ensurePlacementRecord(workerId);
@@ -86,6 +88,8 @@ export default function ArrivedListPage() {
     }
     setEditing(null);
   }
+
+  if (!canViewPage) return <NoAccess />;
 
   return (
     <div className="content">

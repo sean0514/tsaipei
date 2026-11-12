@@ -3,14 +3,16 @@ import { useOutletContext } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import { workerLabel } from './WorkersPage';
+import NoAccess from '../../components/NoAccess';
 
 // 彙整各分頁按下「已結案」後被隱藏的紀錄，依國外仲介分類，並提供「復原」
 // 按鈕把 confirmedClosed 改回 false，讓那筆紀錄回到原本分頁的清單裡。
 export default function ClosedCasesPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'closedCases', role, overrides);
+  const canViewPage = computeCanView(system, 'closedCases', role, overrides);
   const { rows: workers, loading: l1 } = useCollection('yujian_workers');
   const { rows: employers, loading: l2 } = useCollection('yujian_employers');
   const { rows: matches, loading: l3 } = useCollection('yujian_matches');
@@ -79,6 +81,8 @@ export default function ClosedCasesPage() {
     (groups[agency] ||= []).push(r);
   });
   const agencyNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  if (!canViewPage) return <NoAccess />;
 
   async function handleRestore(item) {
     try {

@@ -2,6 +2,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
 import { workerLabel } from './WorkersPage';
+import NoAccess from '../../components/NoAccess';
 
 function daysBetween(dateStr, today) {
   return Math.abs((new Date(dateStr) - new Date(today)) / 86400000);
@@ -43,6 +44,8 @@ export default function ExpectedArrivalPage() {
   arrivals.sort((a, b) => a.date.localeCompare(b.date));
   departures.sort((a, b) => a.date.localeCompare(b.date));
 
+  if (!canSee) return <NoAccess />;
+
   function ListTable({ items }) {
     return (
       <div className="table-wrap">
@@ -72,7 +75,7 @@ export default function ExpectedArrivalPage() {
       <div className="page-header">
         <div>
           <h2>預計入台名單</h2>
-          <div className="page-desc">申辦進度追蹤裡填有入境時間、或轉出/離境紀錄有「已離台」日期，且落在今天前後兩個月內的案件，超過兩個月自動從清單移除{!canSee && '（唯讀）'}</div>
+          <div className="page-desc">申辦進度追蹤裡填有入境時間、或轉出/離境紀錄有「已離台」日期，且落在今天前後兩個月內的案件，超過兩個月自動從清單移除</div>
         </div>
       </div>
       {loading ? <p className="muted">載入中…</p> : (

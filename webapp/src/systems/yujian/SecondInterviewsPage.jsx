@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import StatusSections from '../../components/StatusSections';
@@ -12,6 +12,7 @@ import { SECOND_INTERVIEW_TAG } from '../../lib/tags';
 import { workerLabel } from './WorkersPage';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import NoAccess from '../../components/NoAccess';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
@@ -24,6 +25,7 @@ const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label
 export default function SecondInterviewsPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'secondInterview', role, overrides);
+  const canViewPage = computeCanView(system, 'secondInterview', role, overrides);
   const { rows, loading, update, remove } = useCollection('yujian_secondInterviews');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
@@ -53,6 +55,8 @@ export default function SecondInterviewsPage() {
   const filteredRows = rows
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+
+  if (!canViewPage) return <NoAccess />;
 
   // 狀態變成「通過」時自動建立錄取名單（通過二面），比照境外實習生系統；
   // 確認日期直接帶入媒合紀錄的錄取時間（如果有填），下游申辦進度追蹤的

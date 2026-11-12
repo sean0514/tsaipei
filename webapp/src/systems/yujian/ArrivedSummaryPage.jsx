@@ -2,14 +2,17 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
+import { canView } from '../../lib/permissions';
 import { FIELDS } from './ApplicationProgressPage';
+import NoAccess from '../../components/NoAccess';
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 // 已入台名單依「入境時間」區間篩選、下載總表用的獨立頁面（跟已入台名單本身
 // 的清單畫面分開，這裡只做區間篩選＋預覽＋下載）。
 export default function ArrivedSummaryPage() {
-  useOutletContext();
+  const { system, role, overrides } = useOutletContext();
+  const canViewPage = canView(system, 'arrivedSummary', role, overrides);
   const { rows, loading } = useCollection('yujian_arrivedList');
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
@@ -24,6 +27,8 @@ export default function ArrivedSummaryPage() {
   function handleDownload() {
     exportEntityCSV(rangeRows, CSV_FIELDS, `已入台名單_總表_${rangeStart || '起'}~${rangeEnd || '訖'}`);
   }
+
+  if (!canViewPage) return <NoAccess />;
 
   return (
     <div className="content">

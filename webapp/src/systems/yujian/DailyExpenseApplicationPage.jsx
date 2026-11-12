@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { exportEntityCSV } from '../../lib/csv';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import NoAccess from '../../components/NoAccess';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -28,6 +29,7 @@ const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', labe
 export default function DailyExpenseApplicationPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'dailyExpenseApplication', role, overrides);
+  const canViewPage = computeCanView(system, 'dailyExpenseApplication', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_dailyExpenseApplications');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
@@ -46,6 +48,8 @@ export default function DailyExpenseApplicationPage() {
   const groups = { 待審核: [], 已核准: [], 已匯款: [], 退回: [] };
   filtered.forEach((r) => groups[STATUSES.includes(r.status) ? r.status : '待審核'].push(r));
   STATUSES.forEach((s) => groups[s].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+
+  if (!canViewPage) return <NoAccess />;
 
   async function handleSave(data) {
     if (data.id) {

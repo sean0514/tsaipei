@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import { ADMITTED_TAG } from '../../lib/tags';
 import { workerLabel } from './WorkersPage';
 import { ensureApplicationProgressFromMatch } from '../../lib/yujianCascade';
@@ -11,6 +11,7 @@ import StatusSections from '../../components/StatusSections';
 import SegmentedControl from '../../components/SegmentedControl';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
+import NoAccess from '../../components/NoAccess';
 
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
@@ -22,6 +23,7 @@ const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label
 export default function AdmittedListPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'admitted', role, overrides);
+  const canViewPage = computeCanView(system, 'admitted', role, overrides);
   const { rows, loading, update, remove } = useCollection('yujian_admittedList');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
@@ -51,6 +53,8 @@ export default function AdmittedListPage() {
   const filteredRows = rows
     .filter((r) => !r.confirmedClosed)
     .filter((r) => !searchQuery || matchLabel(r.matchId).toLowerCase().includes(searchQuery));
+
+  if (!canViewPage) return <NoAccess />;
 
   // 狀態變成「確認錄取」時自動建立申辦進度追蹤案件（以雇主為單位），比照境外實習生系統。
   async function handleSave(data) {

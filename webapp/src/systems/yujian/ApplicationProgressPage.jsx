@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { addDoc, collection, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
-import { canEdit as computeCanEdit } from '../../lib/permissions';
+import { canEdit as computeCanEdit, canView as computeCanView } from '../../lib/permissions';
 import { ensurePlacementRecord, hasTransferStatus } from '../../lib/yujianCascade';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
@@ -11,6 +11,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
 import { uploadAttachment, deleteAttachmentFile, viewFile, downloadFile, MAX_ATTACHMENT_SIZE } from '../../lib/fileAttachment';
+import NoAccess from '../../components/NoAccess';
 
 // 附件存在 Firebase Storage（不是 Firestore 文件本身），單檔上限 4MB；
 // AttachmentData 欄位存的是 Storage 下載連結（舊資料是搬去 Storage 之前上傳
@@ -271,6 +272,7 @@ export function ProgressPipeline({ p }) {
 export default function ApplicationProgressPage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'applicationProgress', role, overrides);
+  const canViewPage = computeCanView(system, 'applicationProgress', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
@@ -352,6 +354,8 @@ export default function ApplicationProgressPage() {
     }
     setEditing(null);
   }
+
+  if (!canViewPage) return <NoAccess />;
 
   return (
     <div className="content">
