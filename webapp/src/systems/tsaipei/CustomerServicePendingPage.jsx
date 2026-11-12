@@ -94,7 +94,7 @@ export default function CustomerServicePendingPage() {
       pendingArrivals.push({ v, date: withinMonth.date, label: withinMonth.label });
     }
   });
-  pendingArrivals.sort((a, b) => a.date.localeCompare(b.date));
+  pendingArrivals.sort((a, b) => b.date.localeCompare(a.date));
 
   // 開戶進度追蹤：已入台、還沒按「確認完成」、且還沒勾「銀行帳戶」的，跟
   // BankAccountProgressPage 的「未開戶」同一套邏輯。
