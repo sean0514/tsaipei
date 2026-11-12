@@ -22,11 +22,18 @@ const STATUSES = ['媒合中', '已媒合', '已錄取', '取消'];
 const WORKER_STATUS_RANK = Object.fromEntries(WORKER_STATUS.filter((s) => s !== '取消').map((s, i) => [s, i]));
 const ADMITTED_RANK = WORKER_STATUS_RANK['已錄取'];
 
-function shouldSyncWorkerStatus(newStatus, currentWorkerStatus) {
+// 媒合紀錄被取消時，工人應該變成「待媒合」（可以重新安排新雇主），不是
+// 「取消」——「取消」是工人本身整個案件終止用的狀態，跟單純這筆媒合被
+// 雇主取消、工人還能再媒合是不同事。
+function nextWorkerStatus(matchStatus) {
+  return matchStatus === '取消' ? '待媒合' : matchStatus;
+}
+
+function shouldSyncWorkerStatus(newMatchStatus, currentWorkerStatus) {
   const currentRank = WORKER_STATUS_RANK[currentWorkerStatus];
   if (currentRank === undefined) return true;
-  if (newStatus === '取消') return currentRank <= ADMITTED_RANK;
-  const newRank = WORKER_STATUS_RANK[newStatus];
+  if (newMatchStatus === '取消') return currentRank <= ADMITTED_RANK;
+  const newRank = WORKER_STATUS_RANK[nextWorkerStatus(newMatchStatus)];
   return newRank === undefined || newRank >= currentRank;
 }
 const CSV_FIELDS = [
@@ -84,12 +91,13 @@ export default function MatchesPage() {
       savedMatch = { id: matchId, ...data };
     }
     // 媒合紀錄狀態變動時，同步更新工人本身的狀態欄位，讓各分頁顯示的「工人
-    // 狀態」跟著即時反映（媒合中/已媒合/已錄取/取消都直接對應同名的工人狀態）。
-    // 只在不會讓工人退回更早階段時才回寫，見 shouldSyncWorkerStatus 說明。
+    // 狀態」跟著即時反映（媒合中/已媒合/已錄取直接對應同名的工人狀態；取消
+    // 則回到「待媒合」，見 nextWorkerStatus 說明）。只在不會讓工人退回更早
+    // 階段時才回寫，見 shouldSyncWorkerStatus 說明。
     if (data.status && data.status !== prevStatus && data.workerId) {
       const worker = workers.find((w) => w.id === data.workerId);
       if (shouldSyncWorkerStatus(data.status, worker?.status)) {
-        await updateDoc(doc(db, 'yujian_workers', data.workerId), { status: data.status });
+        await updateDoc(doc(db, 'yujian_workers', data.workerId), { status: nextWorkerStatus(data.status) });
       }
     }
     if (data.status === '已媒合' && !wasMatched) {
