@@ -5,15 +5,17 @@ import { exportEntityCSV } from '../../lib/csv';
 import { canView } from '../../lib/permissions';
 import { FIELDS } from './ApplicationProgressPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '已結案' }];
 
 // 已入台名單依「入境時間」區間篩選、下載總表用的獨立頁面（跟已入台名單本身
 // 的清單畫面分開，這裡只做區間篩選＋預覽＋下載）。
 export default function ArrivedSummaryPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canViewPage = canView(system, 'arrivedSummary', role, overrides);
-  const { rows, loading } = useCollection('yujian_arrivedList');
+  const { rows: allRows, loading } = useCollection('yujian_arrivedList');
+  const rows = scopeByTaiwanAgency(allRows, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
 

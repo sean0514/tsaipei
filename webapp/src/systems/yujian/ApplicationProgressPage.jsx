@@ -12,6 +12,7 @@ import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
 import { uploadAttachment, deleteAttachmentFile, viewFile, downloadFile, MAX_ATTACHMENT_SIZE } from '../../lib/fileAttachment';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 // 附件存在 Firebase Storage（不是 Firestore 文件本身），單檔上限 4MB；
 // AttachmentData 欄位存的是 Storage 下載連結（舊資料是搬去 Storage 之前上傳
@@ -270,10 +271,11 @@ export function ProgressPipeline({ p }) {
 }
 
 export default function ApplicationProgressPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'applicationProgress', role, overrides);
   const canViewPage = computeCanView(system, 'applicationProgress', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
+  const { rows: allRows, loading, add, update, remove } = useCollection('yujian_applicationProgress');
+  const rows = scopeByTaiwanAgency(allRows, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const { rows: matches } = useCollection('yujian_matches');
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');

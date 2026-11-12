@@ -12,6 +12,7 @@ import SegmentedControl from '../../components/SegmentedControl';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 const STATUSES = ['通過二面', '確認錄取'];
 const CSV_FIELDS = [
@@ -21,11 +22,15 @@ const CSV_FIELDS = [
 const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'admitDate', label: '確認日期' }];
 
 export default function AdmittedListPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'admitted', role, overrides);
   const canViewPage = computeCanView(system, 'admitted', role, overrides);
-  const { rows, loading, update, remove } = useCollection('yujian_admittedList');
+  const { rows: allRows, loading, update, remove } = useCollection('yujian_admittedList');
   const { rows: matches } = useCollection('yujian_matches');
+  // 錄取名單本身沒存台仲，要透過媒合紀錄的 matchId 查對應台仲。
+  const rows = scopeByTaiwanAgency(allRows, {
+    role, userTaiwanAgency, getAgencies: (r) => matches.find((m) => m.id === r.matchId)?.taiwanAgency,
+  });
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);

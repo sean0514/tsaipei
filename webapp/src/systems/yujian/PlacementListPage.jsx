@@ -8,6 +8,7 @@ import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import { workerLabel } from './WorkersPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 // 還沒有正式雇主、先安排在其他地方（宿舍/訓練中心等）待命的看護/家事人員名單。
 const PLACEMENT_STATUS = ['安置中', '已就業', '已離境', '已離台', '其他'];
@@ -25,11 +26,17 @@ const COLUMNS = [
 ];
 
 export default function PlacementListPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'placementList', role, overrides);
   const canViewPage = computeCanView(system, 'placementList', role, overrides);
-  const { rows, loading, add, update, remove } = useCollection('yujian_placementList');
+  const { rows: allRows, loading, add, update, remove } = useCollection('yujian_placementList');
   const { rows: workers } = useCollection('yujian_workers');
+  const { rows: matches } = useCollection('yujian_matches');
+  // 安置中名單本身沒存台仲（已經沒有現職雇主），改用這個工人過去所有媒合
+  // 紀錄關聯到的台仲——只要其中任一個是業務人員自己的台仲，就看得到。
+  const rows = scopeByTaiwanAgency(allRows, {
+    role, userTaiwanAgency, getAgencies: (r) => matches.filter((m) => m.workerId === r.workerId).map((m) => m.taiwanAgency),
+  });
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('yujian_placementList', CSV_FIELDS, { entityLabel: '安置中名單', requiredKeys: ['workerId'], canEdit: canEditPage });

@@ -13,6 +13,7 @@ import { workerLabel } from './WorkersPage';
 import { useColumnVisibility } from '../../lib/useColumnVisibility';
 import ColumnPicker from '../../components/ColumnPicker';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 const STATUSES = ['待安排', '已安排', '通過', '未通過'];
 const CSV_FIELDS = [
@@ -23,11 +24,15 @@ const CSV_FIELDS = [
 const COLUMNS = [{ key: 'match', label: '媒合' }, { key: 'workerStatus', label: '工人狀態' }, { key: 'date', label: '面談日期' }, { key: 'method', label: '面談方式' }];
 
 export default function SecondInterviewsPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'secondInterview', role, overrides);
   const canViewPage = computeCanView(system, 'secondInterview', role, overrides);
-  const { rows, loading, update, remove } = useCollection('yujian_secondInterviews');
+  const { rows: allRows, loading, update, remove } = useCollection('yujian_secondInterviews');
   const { rows: matches } = useCollection('yujian_matches');
+  // 二面進度本身沒存台仲，要透過媒合紀錄的 matchId 查對應台仲。
+  const rows = scopeByTaiwanAgency(allRows, {
+    role, userTaiwanAgency, getAgencies: (r) => matches.find((m) => m.id === r.matchId)?.taiwanAgency,
+  });
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: employers } = useCollection('yujian_employers');
   const [editing, setEditing] = useState(null);

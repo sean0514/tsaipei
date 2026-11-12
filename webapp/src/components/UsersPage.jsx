@@ -24,9 +24,11 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(null);
 
   async function createUser(data) {
-    await setDoc(doc(db, `${system}_users`, data.uid), {
-      email: data.email, displayName: data.displayName, department: data.department || '', role: data.role,
-    });
+    const payload = { email: data.email, displayName: data.displayName, department: data.department || '', role: data.role };
+    // 台仲（國內仲介）只有聿見外勞仲介系統在用：業務人員只看得到自己所屬
+    // 台仲的資料（見 lib/agencyScope.js），這裡是指定業務人員台仲的地方。
+    if (system === 'yujian') payload.taiwanAgency = data.taiwanAgency || '';
+    await setDoc(doc(db, `${system}_users`, data.uid), payload);
     setEditing(null);
   }
 
@@ -61,10 +63,11 @@ export default function UsersPage() {
         <p className="muted" style={{ marginTop: 0 }}>
           帳號本身（登入 email/密碼）要先在 Firebase Console → Authentication 建立，
           複製它的 UID 貼在這裡，才能指定這個人在本系統的角色。
+          {system === 'yujian' && '業務人員設定了「台仲」之後，只會看到跟這個台仲有關聯的雇主/媒合/案件資料；台仲留空則不受限制，看得到全部資料。'}
         </p>
         {loading ? <p className="muted">載入中…</p> : (
           <div className="table-wrap sticky-header"><table>
-            <thead><tr><th>Email</th><th>姓名</th><th>部門</th><th>角色</th>{system === 'dispatch' && <th></th>}{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>Email</th><th>姓名</th><th>部門</th><th>角色</th>{system === 'yujian' && <th>台仲</th>}{system === 'dispatch' && <th></th>}{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
@@ -82,11 +85,18 @@ export default function UsersPage() {
                       </select>
                     ) : r.role}
                   </td>
+                  {system === 'yujian' && (
+                    <td>
+                      {canEditPage ? (
+                        <DepartmentInput value={r.taiwanAgency || ''} onSave={(v) => update(r.id, { taiwanAgency: v })} />
+                      ) : (r.taiwanAgency || '—')}
+                    </td>
+                  )}
                   {system === 'dispatch' && <td><button onClick={() => handleCopyApplyLink(r)}>複製履歷連結</button></td>}
                   {canEditPage && <td><button className="danger" onClick={() => remove(r.id)}>移除</button></td>}
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={system === 'dispatch' ? 6 : 5} className="muted">沒有資料</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5 + (system === 'yujian' ? 1 : 0) + (system === 'dispatch' ? 1 : 0)} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -122,7 +132,7 @@ export default function UsersPage() {
         </table></div>
       </div>
 
-      {editing && <UserFormModal roles={sys.roles} onCancel={() => setEditing(null)} onSave={createUser} />}
+      {editing && <UserFormModal roles={sys.roles} system={system} onCancel={() => setEditing(null)} onSave={createUser} />}
     </div>
   );
 }
@@ -142,7 +152,7 @@ function DepartmentInput({ value, onSave }) {
   );
 }
 
-function UserFormModal({ roles, onCancel, onSave }) {
+function UserFormModal({ roles, system, onCancel, onSave }) {
   const [form, setForm] = useState({ role: roles[0] });
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -172,6 +182,12 @@ function UserFormModal({ roles, onCancel, onSave }) {
                 {roles.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </label>
+            {system === 'yujian' && (
+              <label>
+                台仲
+                <input value={form.taiwanAgency || ''} onChange={(e) => setForm({ ...form, taiwanAgency: e.target.value })} />
+              </label>
+            )}
           </div>
           <div className="row-actions">
             <button type="submit" className="primary">建立</button>

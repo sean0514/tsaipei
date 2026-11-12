@@ -3,6 +3,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
 import { workerLabel } from './WorkersPage';
 import NoAccess from '../../components/NoAccess';
+import { scopeByTaiwanAgency } from '../../lib/agencyScope';
 
 function daysBetween(dateStr, today) {
   return Math.abs((new Date(dateStr) - new Date(today)) / 86400000);
@@ -19,9 +20,10 @@ function resolveWorkerId(r, matches) {
 // 自動列入對應清單；超過兩個月（不論過去還是未來）自動從清單消失，不需要
 // 另外維護。
 export default function ExpectedArrivalPage() {
-  const { system, role, overrides } = useOutletContext();
+  const { system, role, overrides, userTaiwanAgency } = useOutletContext();
   const canSee = canView(system, 'expectedArrival', role, overrides);
-  const { rows: cases, loading } = useCollection('yujian_applicationProgress');
+  const { rows: allCases, loading } = useCollection('yujian_applicationProgress');
+  const cases = scopeByTaiwanAgency(allCases, { role, userTaiwanAgency, getAgencies: (r) => r.taiwanAgency });
   const { rows: workers } = useCollection('yujian_workers');
   const { rows: matches } = useCollection('yujian_matches');
 
