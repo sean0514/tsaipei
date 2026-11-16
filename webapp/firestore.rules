@@ -1091,9 +1091,14 @@ service cloud.firestore {
       allow read: if laIsMember();
       allow write: if laCanEdit('employers');
     }
+    // create 也放行 workers 編輯者：移工管理把一筆配對改成「錄取」時，
+    // 會自動在這裡補一筆空白費用設定（見 WorkersPage.jsx 的
+    // ensureFeeSetupForHire），經辦人不一定有費用計算的編輯權限；
+    // update/delete 仍只限費用計算編輯者，避免誤改/誤刪已維護的設定。
     match /laborAgency_feeSetup/{docId} {
       allow read: if laIsMember();
-      allow write: if laCanEdit('feeSetup');
+      allow create: if laCanEdit('feeSetup') || laCanEdit('workers');
+      allow update, delete: if laCanEdit('feeSetup');
     }
     match /laborAgency_chargeRecords/{docId} {
       allow read: if laIsMember();
