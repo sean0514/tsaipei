@@ -10,6 +10,10 @@ import {
   VISIT_METHODS, WORK_ITEMS, WORK_RATING_OPTIONS, LIFE_ITEMS, LIFE_RATING_OPTIONS,
   RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord,
 } from '../../lib/monthlyVisitRecord';
+import {
+  AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
+  TEMPLATE_FILE_BY_LANG, LANG_LABEL, downloadInternshipCertificate,
+} from '../../lib/internshipCertificate';
 
 const STATUSES = ['良好', '待關心', '預計離台'];
 const CSV_FIELDS = [
@@ -31,7 +35,7 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
   return [p.projectCode, p.company, m.venue].filter(Boolean).join(' ') || '未指定客戶';
 }
 
-// 每月訪視紀錄表要用到的「實習企業/部門」「實習分店」，跟
+// 每月訪視紀錄表／實習證明書要用到的「實習企業/部門」「實習分店」，跟
 // studentCompanyLabel 同一套比對邏輯，只是回傳完整物件/match。
 function studentPosition(studentId, { matches, admittedList, positions }) {
   const admitted = admittedList.find((a) => {
@@ -53,6 +57,15 @@ function studentMatch(studentId, { matches, admittedList }) {
   return m || null;
 }
 
+// 跟 DashboardPage 同一套「有第二次入台/離台就用第二次，否則用第一次」
+// 判斷，實習證明書預設帶入這個區間。
+function effectiveEntryDate(s) {
+  return s?.secondEntryDate || s?.firstEntryDate || '';
+}
+function effectiveExitDate(s) {
+  return s?.secondExitDate || s?.firstExitDate || '';
+}
+
 export default function InTaiwanCarePage() {
   const { system, role, overrides } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'inTaiwanCare', role, overrides);
@@ -62,8 +75,10 @@ export default function InTaiwanCarePage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const { rows: visitRecords, add: addVisit, update: updateVisit, remove: removeVisit } = useCollection('tsaipei_monthlyVisitRecords');
+  const { rows: applicationProgress } = useCollection('tsaipei_applicationProgress');
   const [editing, setEditing] = useState(null);
   const [visiting, setVisiting] = useState(null); // studentId managing monthly visit records for, or null
+  const [generatingCert, setGeneratingCert] = useState(null); // studentId generating a certificate for, or null
   const [showDeparted, setShowDeparted] = useState(false);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanCare', CSV_FIELDS, { entityLabel: '在台關懷紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -92,7 +107,7 @@ export default function InTaiwanCarePage() {
       <div className="page-header">
         <div>
           <h2>在台關懷紀錄</h2>
-          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
@@ -127,6 +142,7 @@ export default function InTaiwanCarePage() {
                               <div className="row-actions">
                                 <button onClick={() => setEditing(r)}>編輯</button>
                                 <button onClick={() => setVisiting(r.studentId)}>每月訪視紀錄</button>
+                                <button onClick={() => setGeneratingCert(r.studentId)}>產生證明書</button>
                                 <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                               </div>
                             </td>
@@ -153,6 +169,15 @@ export default function InTaiwanCarePage() {
           onUpdate={updateVisit}
           onRemove={removeVisit}
           onClose={() => setVisiting(null)}
+        />
+      )}
+      {generatingCert && (
+        <CertificateGeneratorModal
+          student={students.find((s) => s.id === generatingCert)}
+          studentLabel={studentName(generatingCert)}
+          position={studentPosition(generatingCert, ctx)}
+          progress={applicationProgress.find((r) => r.studentId === generatingCert) || null}
+          onClose={() => setGeneratingCert(null)}
         />
       )}
     </div>
@@ -381,3 +406,112 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
   );
 }
 
+
+// 實習證明書產生器：國籍決定要用哪個語言版本（越南/印尼各自有專屬範本，
+// 其餘國籍統一用英文版），其餘欄位從學生資料/實習單位/申辦進度追蹤自動
+// 帶入，沒有資料的欄位留空，產生出來的證明書會用底線標示方便補填。
+function CertificateGeneratorModal({ student, studentLabel, position, progress, onClose }) {
+  const [form, setForm] = useState(() => ({
+    nationality: student?.nationality || '',
+    studentNameEn: student?.originalName || '',
+    passportNumber: student?.passportNumber || '',
+    agency: guessApprovalAgency(position?.industry),
+    approvalDate: progress?.ministryReviewDate || '',
+    letterNo: position?.letterNo || '',
+    startDate: effectiveEntryDate(student),
+    endDate: effectiveExitDate(student),
+    hotelName: position?.company || '',
+    department: position?.title || '',
+    issuingAuthority: position?.company || '',
+  }));
+  const [lang, setLang] = useState(certificateLangFor(student?.nationality));
+  const [downloading, setDownloading] = useState(false);
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const totalDays = totalInternshipDays(form.startDate, form.endDate);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadInternshipCertificate(`${studentLabel}_實習證明書_${LANG_LABEL[lang]}.docx`, lang, { ...form, totalDays });
+    } catch (err) {
+      alert(`產生失敗：${err.message || err}`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
+        <h3 style={{ marginTop: 0 }}>{studentLabel} · 產生實習證明書</h3>
+        <p className="muted">欄位已盡量從學生資料/實習單位/申辦進度追蹤自動帶入，請核對後再下載；核准函日期/文號若還沒登記，要自己補上。</p>
+        <div className="form-grid">
+          <label>
+            證明書語言版本
+            <select value={lang} onChange={(e) => setLang(e.target.value)}>
+              {Object.keys(LANG_LABEL).map((l) => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}
+            </select>
+          </label>
+          <label>
+            國籍
+            <input value={form.nationality} onChange={(e) => setField('nationality', e.target.value)} />
+          </label>
+          <label>
+            英文姓名(護照姓名)
+            <input value={form.studentNameEn} onChange={(e) => setField('studentNameEn', e.target.value)} />
+          </label>
+          <label>
+            護照號碼
+            <input value={form.passportNumber} onChange={(e) => setField('passportNumber', e.target.value)} />
+          </label>
+          <label>
+            核准機關
+            <select value={form.agency} onChange={(e) => setField('agency', e.target.value)}>
+              {AGENCY_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
+          <label>
+            核准函日期
+            <input type="date" value={form.approvalDate} onChange={(e) => setField('approvalDate', e.target.value)} />
+          </label>
+          <label>
+            核准函文號
+            <input value={form.letterNo} onChange={(e) => setField('letterNo', e.target.value)} />
+          </label>
+          <label>
+            實習起日
+            <input type="date" value={form.startDate} onChange={(e) => setField('startDate', e.target.value)} />
+          </label>
+          <label>
+            實習迄日
+            <input type="date" value={form.endDate} onChange={(e) => setField('endDate', e.target.value)} />
+          </label>
+          <label>
+            旅館/公司名稱
+            <input value={form.hotelName} onChange={(e) => setField('hotelName', e.target.value)} />
+          </label>
+          <label>
+            部門/職務
+            <input value={form.department} onChange={(e) => setField('department', e.target.value)} />
+          </label>
+          <label>
+            發證單位
+            <input value={form.issuingAuthority} onChange={(e) => setField('issuingAuthority', e.target.value)} />
+          </label>
+        </div>
+        <p className="muted">共計 {totalDays != null ? `${totalDays} 天` : '—(請填實習起訖日)'}</p>
+        <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
+          <a href={TEMPLATE_FILE_BY_LANG[lang]} target="_blank" rel="noreferrer">下載空白範例範本（{LANG_LABEL[lang]}）</a>
+          <div className="row-actions">
+            <button className="primary" onClick={handleDownload} disabled={downloading}>{downloading ? '產生中…' : '下載已帶入資料的證明書'}</button>
+            <button onClick={onClose}>關閉</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
