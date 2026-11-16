@@ -14,6 +14,21 @@ export const LIFE_RATING_OPTIONS = ['良好', '普通', '待協助'];
 
 export const RESULT_OPTIONS = ['表現良好，持續追蹤', '需加強專業技能訓練', '需加強生活輔導', '需安排後續輔導會談', '其他'];
 
+// 文件 ID 固定用「學生ID_月份」，不用亂數 ID——這樣學生/企業主管填寫連結
+// (/apply/visitRecord/:studentId/:month/:role) 才能只靠這兩個資訊直接
+// get 到對應那一筆，不需要先查詢（Firestore 規則可以放行「get 單一文件」
+// 但不放行「list 整個集合」，避免公開連結被拿來枚舉其他學生的紀錄）。
+export function visitRecordDocId(studentId, month) {
+  return `${studentId}_${month}`;
+}
+
+// 線上填寫連結各自只能改自己負責的欄位，跟 firestore.rules 的
+// tsIsPublicVisitFieldUpdate() 保持一致：學生填「生活適應情況」評核表
+// 跟自己的意見，企業主管填「實習狀況」評核表跟主管意見，其餘欄位（訪視
+// 日期/方式/人員、本月學習成果、訪視結果）只有內部人員能動。
+export const STUDENT_PUBLIC_FIELDS = ['studentComment', 'lifeRatings', 'lifeNotes'];
+export const MANAGER_PUBLIC_FIELDS = ['managerComment', 'workRatings', 'workNotes'];
+
 export function blankRatings(items) {
   const obj = {};
   items.forEach((k) => { obj[k] = ''; });

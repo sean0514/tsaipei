@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import DispatchApplyPage from './pages/DispatchApplyPage';
 import VietnamResumeApplyPage from './pages/VietnamResumeApplyPage';
 import LaborAgencyResumeApplyPage from './pages/LaborAgencyResumeApplyPage';
+import MonthlyVisitFormPage from './pages/MonthlyVisitFormPage';
 import JunyuCompanySitePage from './pages/JunyuCompanySitePage';
 import CompanyPicker from './pages/CompanyPicker';
 import CompanyHomePage from './pages/CompanyHomePage';
@@ -346,6 +347,7 @@ export default function App() {
         <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
         <Route path="/apply/vietnam" element={<VietnamResumeApplyPage />} />
         <Route path="/apply/laborAgency" element={<LaborAgencyResumeApplyPage />} />
+        <Route path="/apply/visitRecord/:studentId/:month/:role" element={<MonthlyVisitFormPage />} />
         <Route path="/about" element={<JunyuCompanySitePage />} />
         <Route path="/" element={<RequireAuth><CompanyPicker /></RequireAuth>} />
         <Route path="/company/:companyKey" element={<RequireAuth><CompanyHomePage /></RequireAuth>} />
