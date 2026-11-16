@@ -1077,13 +1077,15 @@ service cloud.firestore {
     // 文件追蹤頁面只會更新 docsChecked 欄位（勾選清單），所以 update 也
     // 放行 docsChecklist；履歷表連結轉入移工資料時也會新增一筆，所以
     // create 也放行 resumeLinks；移工名冊（跳過案件階段/雇主的簡化名冊）
-    // 共用同一個集合，也放行 workerRoster。
+    // 共用同一個集合，也放行 workerRoster；費用計算新增/編輯費用設定時
+    // 會自動把那一筆配對的狀態改成「錄取」，帶入文件追蹤名單，所以
+    // update 也放行 feeSetup（見 FeeSetupPage.jsx 的 ensureHiredForFee）。
     match /laborAgency_workers/{docId} {
       allow read: if laIsMember();
       allow create: if laCanEdit('workers') || laCanEdit('resumeLinks') || laCanEdit('workerRoster') || isPublicLaborWorkerCreate();
       allow delete: if laCanEdit('workers') || laCanEdit('workerRoster');
       allow update: if laCanEdit('workers') || laCanEdit('docsChecklist') || laCanEdit('workerRoster')
-        || laCanEdit('visaProcessing') || laCanEdit('departure') || laCanEdit('arrivalNotice');
+        || laCanEdit('visaProcessing') || laCanEdit('departure') || laCanEdit('arrivalNotice') || laCanEdit('feeSetup');
     }
     match /laborAgency_employers/{docId} {
       allow read: if laIsMember();

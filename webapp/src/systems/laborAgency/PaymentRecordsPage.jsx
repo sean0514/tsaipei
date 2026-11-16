@@ -19,6 +19,7 @@ export default function PaymentRecordsPage() {
   const canEditPage = computeCanEdit(system, 'paymentRecords', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('laborAgency_paymentRecords');
   const { rows: workers } = useCollection('laborAgency_workers');
+  const { rows: feeSetups } = useCollection('laborAgency_feeSetup');
   const { rows: users } = useCollection('laborAgency_users');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
@@ -81,15 +82,29 @@ export default function PaymentRecordsPage() {
           </table></div>
         </div>
       )}
-      {editing && <PaymentRecordFormModal initial={editing} workers={workers} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && <PaymentRecordFormModal initial={editing} workers={workers} feeSetups={feeSetups} users={users} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
     </div>
   );
 }
 
-function PaymentRecordFormModal({ initial, workers, users, onCancel, onSave, lang }) {
+// 對應移工選單改成帶入「費用計算」已設定好的名單（而不是整個移工
+// 名冊），比照收費紀錄(ChargeRecordsPage.jsx)的做法；選了之後若款項
+// 類別是「招募者獎金」且金額還沒填，自動帶入該筆設定的招募者獎金當作
+// 預設金額，不用再手動對照費用計算的金額填一次。「其他支出」這類不
+// 對應特定移工的款項，仍保留「（無）」選項。
+function PaymentRecordFormModal({ initial, workers, feeSetups, users, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
-  const sortedWorkers = [...workers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
+  const sortedFeeSetups = [...feeSetups].sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
   const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
+
+  function handleFeeSetupChange(feeSetupId) {
+    const fs = feeSetups.find((f) => f.id === feeSetupId);
+    if (!fs) { setForm({ ...form, workerId: '' }); return; }
+    const isRecruiterBonus = form.category === '招募者獎金';
+    setForm({ ...form, workerId: fs.workerId, amount: isRecruiterBonus ? (form.amount || fs.recruiterBonus || '') : form.amount });
+  }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -118,10 +133,12 @@ function PaymentRecordFormModal({ initial, workers, users, onCancel, onSave, lan
               </select>
             </label>
             <label>
-              {t('對應移工', lang)}
-              <select value={form.workerId || ''} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
+              {t('對應移工', lang)}（{t('費用計算', lang)}）
+              <select value={sortedFeeSetups.find((f) => f.workerId === form.workerId)?.id || ''} onChange={(e) => handleFeeSetupChange(e.target.value)}>
                 <option value="">{t('（無）', lang)}</option>
-                {sortedWorkers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {sortedFeeSetups.map((f) => (
+                  <option key={f.id} value={f.id}>{workerOf(f.workerId)?.name || '—'}（{(f.recruiterBonus || 0).toLocaleString()}）</option>
+                ))}
               </select>
             </label>
             <label>

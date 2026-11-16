@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { canSeeDocNumber } from './constants';
+import { canSeeDocNumber, matchStatusOf, withMatchStatus, MATCH_STATUSES } from './constants';
 
 const CHARGE_TARGETS = ['工人', '招募'];
 const CSV_FIELDS = [
@@ -24,7 +24,7 @@ export default function FeeSetupPage() {
   const canEditPage = computeCanEdit(system, 'feeSetup', role, overrides);
   const showDocNumber = canSeeDocNumber(role);
   const { rows, loading, add, update, remove } = useCollection('laborAgency_feeSetup');
-  const { rows: workers } = useCollection('laborAgency_workers');
+  const { rows: workers, update: updateWorker } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
@@ -37,6 +37,19 @@ export default function FeeSetupPage() {
   const filteredRows = rows
     .filter((r) => !searchQuery || (workerOf(r.workerId)?.name || '').toLowerCase().includes(searchQuery))
     .sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
+
+  // 新增/編輯費用設定時，順便把那一筆配對（移工×雇主）的狀態改成
+  // 「錄取」（會先建費用設定，代表這筆案件已經確定成立，不用再回
+  // 「移工管理」手動改一次狀態）——文件追蹤名單就是自動列出狀態＝
+  // 「錄取」的配對，這樣費用設定存檔後會自動帶入文件追蹤名單。已經是
+  // 「錄取」就不用再寫一次；只有配對了雇主（employerId 有值）才處理，
+  // 「尚未配對」沒有這個概念。
+  async function ensureHiredForFee(workerId, employerId) {
+    if (!employerId) return;
+    const worker = workerOf(workerId);
+    if (!worker || matchStatusOf(worker, employerId) === MATCH_STATUSES[1]) return;
+    await updateWorker(workerId, { matchStatuses: withMatchStatus(worker, employerId, MATCH_STATUSES[1]) });
+  }
 
   async function handleSave(data) {
     const payload = {
@@ -51,6 +64,7 @@ export default function FeeSetupPage() {
     } else {
       await add(payload);
     }
+    await ensureHiredForFee(payload.workerId, payload.employerId);
     setEditing(null);
   }
 
@@ -60,6 +74,7 @@ export default function FeeSetupPage() {
         <div>
           <h2>{t('費用計算', lang)}</h2>
           <div className="page-desc">{t('每位移工一筆費用設定：應繳費用為總金額，台仲收費為其中元凱自己抽的部分，招募者獎金直接填固定金額，收費對象記錄向工人本人或向招募人員收取', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('儲存後，若已選擇雇主，會自動將該配對狀態設為「錄取」，列入文件追蹤名單', lang)}</div>
         </div>
         <div className="row-actions">
           <input placeholder={t('搜尋姓名', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
