@@ -22,7 +22,15 @@ export default function ChargeRecordsPage() {
   const { rows: feeSetups } = useCollection('laborAgency_feeSetup');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
-  const { handleExport, handleImport } = useCsvOverwrite('laborAgency_chargeRecords', CSV_FIELDS, { entityLabel: '收費紀錄', requiredKeys: ['workerId'], canEdit: canEditPage });
+  // 移工ID欄位如果填了一個查不到對應移工的 ID，畫面上的姓名就會顯示
+  // 「—」，看起來像這筆資料是空的——擋掉這種查無對應移工的列，不讓它
+  // 匯入進來（比照費用計算 FeeSetupPage.jsx 的同一套檢查）。
+  const { handleExport, handleImport } = useCsvOverwrite('laborAgency_chargeRecords', CSV_FIELDS, {
+    entityLabel: '收費紀錄',
+    requiredKeys: ['workerId'],
+    validateRow: (row) => workers.some((w) => w.id === row.workerId),
+    canEdit: canEditPage,
+  });
 
   function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
 

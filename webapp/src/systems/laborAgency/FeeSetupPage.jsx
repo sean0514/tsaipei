@@ -28,7 +28,16 @@ export default function FeeSetupPage() {
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
-  const { handleExport, handleImport } = useCsvOverwrite('laborAgency_feeSetup', CSV_FIELDS, { entityLabel: '費用計算', requiredKeys: ['workerId'], canEdit: canEditPage });
+  // 移工ID欄位如果填了一個查不到對應移工的 ID（打錯、複製到舊的 ID、
+  // 移工後來被刪除…），畫面上的姓名/護照號碼/雇主就會全部顯示「—」，
+  // 看起來像「這筆資料是空的」——這裡連同雇主ID一併擋掉，不要讓這種
+  // 查無對應資料的列匯入進來。
+  const { handleExport, handleImport } = useCsvOverwrite('laborAgency_feeSetup', CSV_FIELDS, {
+    entityLabel: '費用計算',
+    requiredKeys: ['workerId'],
+    validateRow: (row) => workers.some((w) => w.id === row.workerId) && (!row.employerId || employers.some((e) => e.id === row.employerId)),
+    canEdit: canEditPage,
+  });
 
   function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
   function employerOf(employerId) { return employers.find((e) => e.id === employerId); }
