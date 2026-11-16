@@ -81,6 +81,7 @@ export default function InTaiwanCarePage() {
   const [editing, setEditing] = useState(null);
   const [visiting, setVisiting] = useState(null); // studentId managing monthly visit records for, or null
   const [generatingCert, setGeneratingCert] = useState(null); // studentId generating a certificate for, or null
+  const [linking, setLinking] = useState(null); // studentId getting online fill-in links for, or null
   const [showDeparted, setShowDeparted] = useState(false);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanCare', CSV_FIELDS, { entityLabel: '在台關懷紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -109,7 +110,7 @@ export default function InTaiwanCarePage() {
       <div className="page-header">
         <div>
           <h2>在台關懷紀錄</h2>
-          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「訪視連結」可取得學生/企業主管的線上填寫連結、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
@@ -144,6 +145,7 @@ export default function InTaiwanCarePage() {
                               <div className="row-actions">
                                 <button onClick={() => setEditing(r)}>編輯</button>
                                 <button onClick={() => setVisiting(r.studentId)}>每月訪視紀錄</button>
+                                <button onClick={() => setLinking(r.studentId)}>訪視連結</button>
                                 <button onClick={() => setGeneratingCert(r.studentId)}>產生證明書</button>
                                 <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                               </div>
@@ -178,6 +180,16 @@ export default function InTaiwanCarePage() {
           position={studentPosition(generatingCert, ctx)}
           progress={applicationProgress.find((r) => r.studentId === generatingCert) || null}
           onClose={() => setGeneratingCert(null)}
+        />
+      )}
+      {linking && (
+        <VisitLinksModal
+          student={students.find((s) => s.id === linking)}
+          studentLabel={studentName(linking)}
+          position={studentPosition(linking, ctx)}
+          match={studentMatch(linking, ctx)}
+          records={visitRecords.filter((r) => r.studentId === linking)}
+          onClose={() => setLinking(null)}
         />
       )}
     </div>
@@ -274,8 +286,6 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
   const [loadedMonth, setLoadedMonth] = useState(month);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [gettingLinks, setGettingLinks] = useState(false);
-  const [copyHint, setCopyHint] = useState('');
 
   if (month !== loadedMonth) {
     const existing = records.find((r) => r.month === month);
@@ -332,30 +342,6 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
     await onRemove(existing.id);
     setForm({ ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
   }
-
-  // 連結需要先確保這個月的紀錄已經存在（公開填寫頁面只能「更新」既有
-  // 文件，不能自己新建，避免開放公開新增文件），所以按「取得填寫連結」
-  // 會先存檔一次目前畫面上的內容，再組出連結。
-  async function handleGetLinks() {
-    setGettingLinks(true);
-    try {
-      await handleSave();
-    } finally {
-      setGettingLinks(false);
-    }
-  }
-
-  async function handleCopy(url, label) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopyHint(`已複製${label}連結`);
-    } catch {
-      setCopyHint(`複製失敗，請手動選取上面的連結文字`);
-    }
-  }
-
-  const studentLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/student`;
-  const managerLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/manager`;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -421,29 +407,6 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
           ))}
         </div>
 
-        <h4>線上填寫連結</h4>
-        <p className="muted">按下去會先存檔目前畫面上的內容，才能讓對方打開連結看得到資料；學生只能改「生活適應情況」評核表跟自己的意見，企業主管只能改「實習狀況」評核表跟主管意見，其餘欄位對方改不了。連結不用登入，知道連結的人就看得到這份紀錄的全部內容，請透過私訊/email 等方式一對一傳送，不要公開張貼。</p>
-        <div className="form-grid" style={{ marginBottom: 12 }}>
-          <label>
-            學生填寫連結
-            <div className="row-actions">
-              <input readOnly value={studentLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
-              <button type="button" onClick={() => handleCopy(studentLink, '學生')}>複製</button>
-            </div>
-          </label>
-          <label>
-            企業主管填寫連結
-            <div className="row-actions">
-              <input readOnly value={managerLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
-              <button type="button" onClick={() => handleCopy(managerLink, '企業主管')}>複製</button>
-            </div>
-          </label>
-        </div>
-        <div className="row-actions" style={{ marginBottom: 12 }}>
-          <button type="button" onClick={handleGetLinks} disabled={gettingLinks}>{gettingLinks ? '存檔中…' : existing ? '更新連結內容' : '儲存並啟用連結'}</button>
-          {copyHint && <span className="muted">{copyHint}</span>}
-        </div>
-
         <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
           <div className="row-actions">
             {existing && <button className="danger" onClick={handleRemove}>刪除這個月的紀錄</button>}
@@ -459,6 +422,90 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
   );
 }
 
+// 訪視連結：不用先打開「每月訪視紀錄」整張表單，直接在在台關懷紀錄主畫面
+// 選月份就能取得該月學生/企業主管的線上填寫連結。連結需要先確保這個月
+// 的紀錄已經存在（公開填寫頁面只能「更新」既有文件，不能自己新建），
+// 所以按「建立/更新連結」會先存檔一次（既有紀錄只刷新學生/實習單位
+// 基本資料快照，不會動到已經填的訪視內容；還沒有紀錄就建立一筆空白的）。
+function VisitLinksModal({ student, studentLabel, position, match, records, onClose }) {
+  const header = {
+    studentName: studentLabel,
+    passportNumber: student?.passportNumber || '',
+    nationality: student?.nationality || '',
+    company: position?.company || '',
+    venue: match?.venue || '',
+    department: position?.title || '',
+  };
+  const [month, setMonth] = useState(currentMonthStr());
+  const [saving, setSaving] = useState(false);
+  const [linksReady, setLinksReady] = useState(false);
+  const [copyHint, setCopyHint] = useState('');
+
+  const existing = records.find((r) => r.month === month);
+  const studentLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/student`;
+  const managerLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/manager`;
+
+  async function handleGetLinks() {
+    setSaving(true);
+    try {
+      const payload = existing ? { ...header } : { ...blankVisitForm(), ...header, visitDate: new Date().toISOString().slice(0, 10) };
+      await setDoc(doc(db, 'tsaipei_monthlyVisitRecords', visitRecordDocId(student.id, month)), { studentId: student.id, month, ...payload }, { merge: true });
+      setLinksReady(true);
+    } catch (err) {
+      alert(`建立連結失敗：${err.message || err}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCopy(url, label) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyHint(`已複製${label}連結`);
+    } catch {
+      setCopyHint('複製失敗，請手動選取上面的連結文字');
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 560 }}>
+        <h3 style={{ marginTop: 0 }}>{studentLabel} · 訪視連結</h3>
+        <p className="muted">學生只能改「生活適應情況」評核表跟自己的意見，企業主管只能改「實習狀況」評核表跟主管意見，其餘欄位對方改不了。連結不用登入，知道連結的人就看得到這份紀錄的全部內容，請透過私訊/email 等方式一對一傳送，不要公開張貼。</p>
+        <label>
+          月份
+          <input type="month" value={month} onChange={(e) => { setMonth(e.target.value); setLinksReady(false); }} />
+        </label>
+        {existing && <span className="tag tag-blue" style={{ marginLeft: 8 }}>這個月已有紀錄</span>}
+        <div className="row-actions" style={{ margin: '12px 0' }}>
+          <button onClick={handleGetLinks} disabled={saving}>{saving ? '存檔中…' : existing ? '更新連結內容' : '建立並取得連結'}</button>
+          {copyHint && <span className="muted">{copyHint}</span>}
+        </div>
+        {(linksReady || existing) && (
+          <div className="form-grid" style={{ marginBottom: 12 }}>
+            <label>
+              學生填寫連結
+              <div className="row-actions">
+                <input readOnly value={studentLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                <button type="button" onClick={() => handleCopy(studentLink, '學生')}>複製</button>
+              </div>
+            </label>
+            <label>
+              企業主管填寫連結
+              <div className="row-actions">
+                <input readOnly value={managerLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                <button type="button" onClick={() => handleCopy(managerLink, '企業主管')}>複製</button>
+              </div>
+            </label>
+          </div>
+        )}
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button onClick={onClose}>關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // 實習證明書產生器：國籍決定要用哪個語言版本（越南/印尼各自有專屬範本，
 // 其餘國籍統一用英文版），其餘欄位從學生資料/實習單位/申辦進度追蹤自動
