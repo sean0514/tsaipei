@@ -11,10 +11,6 @@ import {
   AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
   TEMPLATE_FILE_BY_LANG, LANG_LABEL, downloadInternshipCertificate,
 } from '../../lib/internshipCertificate';
-import {
-  VISIT_METHODS, WORK_ITEMS, WORK_RATING_OPTIONS, LIFE_ITEMS, LIFE_RATING_OPTIONS,
-  RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord,
-} from '../../lib/monthlyVisitRecord';
 
 export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '實習契約', '實習證明書', '護照影本', '其他'];
 const STATUSES = ['未提供', '已收到', '審核中', '已核准', '需補件', '不適用'];
@@ -100,18 +96,6 @@ function studentPosition(studentId, { matches, admittedList, positions }) {
   return positions.find((pp) => pp.id === m.positionId) || null;
 }
 
-// 每月訪視紀錄表要用到的「實習分店」，match 上才有(positions 只有公司層級)，
-// 跟 studentPosition 同一套比對邏輯，回傳對應的 match。
-function studentMatch(studentId, { matches, admittedList }) {
-  const admitted = admittedList.find((a) => {
-    const m = matches.find((mm) => mm.id === a.matchId);
-    return m && m.studentId === studentId;
-  });
-  let m = admitted ? matches.find((mm) => mm.id === admitted.matchId) : null;
-  if (!m) m = matches.find((x) => x.studentId === studentId);
-  return m || null;
-}
-
 // 跟 DashboardPage 同一套「有第二次入台/離台就用第二次，否則用第一次」
 // 判斷，實習證明書預設帶入這個區間。
 function effectiveEntryDate(s) {
@@ -147,11 +131,9 @@ export default function InternshipDocsPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const { rows: applicationProgress } = useCollection('tsaipei_applicationProgress');
-  const { rows: visitRecords, add: addVisit, update: updateVisit, remove: removeVisit } = useCollection('tsaipei_monthlyVisitRecords');
   const [q, setQ] = useState('');
   const [managing, setManaging] = useState(null); // studentId being managed, or null
   const [generatingCert, setGeneratingCert] = useState(null); // studentId generating a certificate for, or null
-  const [visiting, setVisiting] = useState(null); // studentId managing monthly visit records for, or null
   const [backfilling, setBackfilling] = useState(false);
 
   const ctx = { matches, admittedList, positions };
@@ -237,7 +219,6 @@ export default function InternshipDocsPage() {
           <td>
             <div className="row-actions">
               <button onClick={() => setManaging(sid)}>管理</button>
-              <button onClick={() => setVisiting(sid)}>每月訪視紀錄</button>
               <button className="danger" onClick={() => Promise.all(docs.map((d) => remove(d.id)))}>刪除</button>
             </div>
           </td>
@@ -251,7 +232,7 @@ export default function InternshipDocsPage() {
       <div className="page-header">
         <div>
           <h2>實習文件追蹤</h2>
-          <div className="page-desc">追蹤每位學生的實習相關文件收件狀況（學生確認錄取後會自動加入此清單）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">追蹤每位學生的實習相關文件收件狀況（學生確認錄取後會自動加入此清單）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button onClick={() => handleBackfillDocType('實習契約')} disabled={backfilling}>{backfilling ? '補齊中…' : '幫既有學生補上「實習契約」'}</button>}
@@ -319,19 +300,6 @@ export default function InternshipDocsPage() {
           position={studentPosition(generatingCert, ctx)}
           progress={applicationProgress.find((r) => r.studentId === generatingCert) || null}
           onClose={() => setGeneratingCert(null)}
-        />
-      )}
-      {visiting && (
-        <MonthlyVisitModal
-          student={studentById(visiting)}
-          studentLabel={studentFullLabel(studentById(visiting))}
-          position={studentPosition(visiting, ctx)}
-          match={studentMatch(visiting, ctx)}
-          records={visitRecords.filter((r) => r.studentId === visiting)}
-          onAdd={(data) => addVisit({ studentId: visiting, ...data })}
-          onUpdate={updateVisit}
-          onRemove={removeVisit}
-          onClose={() => setVisiting(null)}
         />
       )}
     </div>
@@ -405,196 +373,6 @@ function DocsManageModal({ studentId, docs, studentLabel, canEditPage, onUpdate,
         </div>
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button onClick={onClose}>關閉</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function currentMonthStr() {
-  return new Date().toISOString().slice(0, 7);
-}
-
-function blankVisitForm() {
-  return {
-    visitDate: '', visitMethod: '', visitPersonnel: '',
-    workRatings: blankRatings(WORK_ITEMS), workNotes: blankNotes(WORK_ITEMS),
-    lifeRatings: blankRatings(LIFE_ITEMS), lifeNotes: blankNotes(LIFE_ITEMS),
-    managerComment: '', studentComment: '',
-    monthlyWorkDone: '', monthlyLearning: '', difficulties: '', nextMonthGoals: '',
-    result: [], resultOther: '',
-  };
-}
-
-function RatingTable({ title, items, options, group, notesGroup, values, notes, onRate, onNote }) {
-  return (
-    <div className="table-wrap" style={{ marginBottom: 12 }}>
-      <table>
-        <thead><tr><th>{title}</th>{options.map((o) => <th key={o}>{o}</th>)}<th>備註</th></tr></thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item}>
-              <td>{item}</td>
-              {options.map((o) => (
-                <td key={o}>
-                  <input type="radio" name={`${group}-${item}`} checked={values[item] === o} onChange={() => onRate(group, item, o)} />
-                </td>
-              ))}
-              <td><input value={notes[item] || ''} onChange={(e) => onNote(notesGroup, item, e.target.value)} style={{ width: 140 }} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// 每月訪視紀錄表：學生姓名/護照號碼/國籍/實習企業/分店/部門這些「跟月份
-// 無關」的基本資料每次都直接讀目前的學生/實習單位資料（不逐月存一份），
-// 切換月份只影響訪視內容本身；該月已經存過紀錄就帶入既有內容，沒有就是
-// 空白表單，訪視日期預設今天。
-function MonthlyVisitModal({ student, studentLabel, position, match, records, onAdd, onUpdate, onRemove, onClose }) {
-  const header = {
-    studentName: studentLabel,
-    passportNumber: student?.passportNumber || '',
-    nationality: student?.nationality || '',
-    company: position?.company || '',
-    venue: match?.venue || '',
-    department: position?.title || '',
-  };
-  const existingMonths = records.map((r) => r.month).sort().reverse();
-
-  const [month, setMonth] = useState(currentMonthStr());
-  const [form, setForm] = useState(() => records.find((r) => r.month === month) || { ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
-  const [loadedMonth, setLoadedMonth] = useState(month);
-  const [saving, setSaving] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-
-  if (month !== loadedMonth) {
-    const existing = records.find((r) => r.month === month);
-    setForm(existing || { ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
-    setLoadedMonth(month);
-  }
-
-  const existing = records.find((r) => r.month === month);
-
-  function setField(key, value) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
-  function setRating(group, item, value) {
-    setForm((f) => ({ ...f, [group]: { ...f[group], [item]: value } }));
-  }
-  function setNote(group, item, value) {
-    setForm((f) => ({ ...f, [group]: { ...f[group], [item]: value } }));
-  }
-  function toggleResult(option) {
-    setForm((f) => ({ ...f, result: f.result.includes(option) ? f.result.filter((o) => o !== option) : [...f.result, option] }));
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      const { id: _id, studentId: _studentId, ...rest } = form;
-      if (existing) await onUpdate(existing.id, { month, ...rest });
-      else await onAdd({ month, ...rest });
-    } catch (err) {
-      alert(`儲存失敗：${err.message || err}`);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDownload() {
-    setDownloading(true);
-    try {
-      await downloadMonthlyVisitRecord(`${studentLabel}_${month}_每月訪視紀錄表.docx`, { ...header, ...form });
-    } catch (err) {
-      alert(`產生失敗：${err.message || err}`);
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  async function handleRemove() {
-    if (!existing) return;
-    if (!window.confirm(`確定要刪除 ${month} 這筆訪視紀錄嗎？`)) return;
-    await onRemove(existing.id);
-    setForm({ ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
-  }
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 760 }}>
-        <h3 style={{ marginTop: 0 }}>{studentLabel} · 每月訪視紀錄</h3>
-        <p className="muted">國籍/護照號碼/實習企業/分店/部門直接讀取目前的學生與實習單位資料，自動帶入；已有紀錄的月份：{existingMonths.length ? existingMonths.join('、') : '（無）'}</p>
-        <div className="row-actions" style={{ marginBottom: 12 }}>
-          <label>
-            月份
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-          </label>
-          {existing && <span className="tag tag-blue">這個月已有紀錄</span>}
-        </div>
-        <div className="form-grid" style={{ marginBottom: 12 }}>
-          <label>學生姓名<input value={header.studentName} disabled /></label>
-          <label>護照號碼<input value={header.passportNumber} disabled /></label>
-          <label>國籍<input value={header.nationality} disabled /></label>
-          <label>實習企業<input value={header.company} disabled /></label>
-          <label>實習分店<input value={header.venue} disabled /></label>
-          <label>實習部門<input value={header.department} disabled /></label>
-          <label>
-            訪視日期
-            <input type="date" value={form.visitDate} onChange={(e) => setField('visitDate', e.target.value)} />
-          </label>
-          <label>
-            訪視方式
-            <select value={form.visitMethod} onChange={(e) => setField('visitMethod', e.target.value)}>
-              <option value="">（未選擇）</option>
-              {VISIT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
-          <label>
-            訪視人員
-            <input value={form.visitPersonnel} onChange={(e) => setField('visitPersonnel', e.target.value)} />
-          </label>
-        </div>
-
-        <h4>實習狀況</h4>
-        <RatingTable title="訪視項目" items={WORK_ITEMS} options={WORK_RATING_OPTIONS} group="workRatings" notesGroup="workNotes" values={form.workRatings} notes={form.workNotes} onRate={setRating} onNote={setNote} />
-        <label>企業主管意見<textarea rows={2} value={form.managerComment} onChange={(e) => setField('managerComment', e.target.value)} style={{ width: '100%' }} /></label>
-
-        <h4>生活適應情況</h4>
-        <RatingTable title="訪視項目" items={LIFE_ITEMS} options={LIFE_RATING_OPTIONS} group="lifeRatings" notesGroup="lifeNotes" values={form.lifeRatings} notes={form.lifeNotes} onRate={setRating} onNote={setNote} />
-        <label>學生意見<textarea rows={2} value={form.studentComment} onChange={(e) => setField('studentComment', e.target.value)} style={{ width: '100%' }} /></label>
-
-        <h4>本月學習成果</h4>
-        <div className="form-grid">
-          <label style={{ gridColumn: '1 / -1' }}>本月完成之工作內容<textarea rows={2} value={form.monthlyWorkDone} onChange={(e) => setField('monthlyWorkDone', e.target.value)} style={{ width: '100%' }} /></label>
-          <label style={{ gridColumn: '1 / -1' }}>本月學習收穫<textarea rows={2} value={form.monthlyLearning} onChange={(e) => setField('monthlyLearning', e.target.value)} style={{ width: '100%' }} /></label>
-          <label style={{ gridColumn: '1 / -1' }}>遇到之困難<textarea rows={2} value={form.difficulties} onChange={(e) => setField('difficulties', e.target.value)} style={{ width: '100%' }} /></label>
-          <label style={{ gridColumn: '1 / -1' }}>下月學習目標<textarea rows={2} value={form.nextMonthGoals} onChange={(e) => setField('nextMonthGoals', e.target.value)} style={{ width: '100%' }} /></label>
-        </div>
-
-        <h4>訪視結果</h4>
-        <div style={{ marginBottom: 12 }}>
-          {RESULT_OPTIONS.map((o) => (
-            <label key={o} style={{ display: 'block' }}>
-              <input type="checkbox" checked={form.result.includes(o)} onChange={() => toggleResult(o)} /> {o}
-              {o === '其他' && form.result.includes('其他') && (
-                <input value={form.resultOther} onChange={(e) => setField('resultOther', e.target.value)} style={{ marginLeft: 8, width: 240 }} />
-              )}
-            </label>
-          ))}
-        </div>
-
-        <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
-          <div className="row-actions">
-            {existing && <button className="danger" onClick={handleRemove}>刪除這個月的紀錄</button>}
-          </div>
-          <div className="row-actions">
-            <button className="primary" onClick={handleSave} disabled={saving}>{saving ? '儲存中…' : '儲存'}</button>
-            <button onClick={handleDownload} disabled={downloading}>{downloading ? '產生中…' : '下載本月紀錄表'}</button>
-            <button onClick={onClose}>關閉</button>
-          </div>
         </div>
       </div>
     </div>

@@ -159,10 +159,10 @@ service cloud.firestore {
       allow update: if tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students') || vnCanEdit('students');
     }
-    // 每月訪視紀錄：一位學生一個月一筆，從實習文件追蹤頁面建立/編輯。
+    // 每月訪視紀錄：一位學生一個月一筆，從在台關懷紀錄頁面建立/編輯。
     match /tsaipei_monthlyVisitRecords/{docId} {
       allow read: if tsIsMember();
-      allow write: if tsCanEdit('internshipDocs');
+      allow write: if tsCanEdit('inTaiwanCare');
     }
     // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者；
     // inTaiwanVisa 存檔時也會連鎖補建 inTaiwanCare/housingRecords（見
