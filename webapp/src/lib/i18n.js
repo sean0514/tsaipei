@@ -1215,6 +1215,8 @@ const VI = {
   '費用計算': 'Tính phí',
   '每位移工一筆費用設定：應繳費用為總金額，台仲收費為其中元凱自己抽的部分，招募者獎金直接填固定金額，收費對象記錄向工人本人或向招募人員收取':
     'Mỗi lao động một thiết lập phí: phí phải nộp là tổng số tiền, phí môi giới Đài Loan là phần Nguyên Khải tự thu, tiền thưởng người tuyển dụng điền số tiền cố định, đối tượng thu phí ghi lại thu từ chính lao động hay từ người tuyển dụng',
+  '儲存後，若已選擇雇主，會自動將該配對狀態設為「錄取」，列入文件追蹤名單':
+    'Sau khi lưu, nếu đã chọn chủ sử dụng lao động, trạng thái cặp đó sẽ tự động chuyển thành "Trúng tuyển" và được đưa vào danh sách theo dõi hồ sơ',
   '新增費用設定': 'Thêm thiết lập phí',
   '應繳費用': 'Phí phải nộp',
   '台仲收費': 'Phí môi giới Đài Loan',
