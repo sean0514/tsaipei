@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -56,6 +56,7 @@ export default function WorkersPage() {
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const { rows: users } = useCollection('laborAgency_users');
+  const { rows: feeSetups, add: addFeeSetup } = useCollection('laborAgency_feeSetup');
   const [editing, setEditing] = useState(null);
   const [arranging, setArranging] = useState(false);
   const [q, setQ] = useState('');
@@ -78,6 +79,17 @@ export default function WorkersPage() {
     setEditing(null);
   }
 
+  // 這一筆配對（移工×雇主）第一次變成「錄取」時，自動在「費用計算」
+  // 補一筆空白設定（金額都是 0），行政人員不用自己記得要去新增——跟
+  // FeeSetupPage.jsx 的 ensureHiredForFee()（費用計算存檔時反過來帶動
+  // 這裡的狀態變「錄取」）是同一組連動的另一個方向。已經有對應這筆
+  // 配對（同一個 workerId＋employerId）的設定就不重複建立。
+  async function ensureFeeSetupForHire(worker, employerId) {
+    const exists = feeSetups.some((f) => f.workerId === worker.id && (f.employerId || '') === (employerId || ''));
+    if (exists) return;
+    await addFeeSetup({ workerId: worker.id, employerId: employerId || '', totalFee: 0, taiwanAgencyFee: 0, recruiterBonus: 0, chargeTarget: '' });
+  }
+
   // 目前階段每筆配對（移工×雇主）各自獨立，存在 matchStatuses（見
   // constants.js），不是整個移工共用一個欄位，所以要帶 employerId 才能
   // 知道是改哪一筆配對的狀態。
@@ -85,11 +97,37 @@ export default function WorkersPage() {
     const payload = { matchStatuses: withMatchStatus(worker, employerId, status), updatedAt: Date.now() };
     // 從其他狀態改回「錄取」，等於那一筆配對重新開始整個流程，清掉下游
     // 關卡留下的舊旗標，不然改回來後不會重新出現在文件追蹤。
-    if (status === MATCH_STATUSES[1] && matchStatusOf(worker, employerId) !== MATCH_STATUSES[1]) {
+    const wasHired = matchStatusOf(worker, employerId) === MATCH_STATUSES[1];
+    if (status === MATCH_STATUSES[1] && !wasHired) {
       Object.assign(payload, resetPipelineFlags(worker, employerId));
     }
     await update(worker.id, payload);
+    if (status === MATCH_STATUSES[1] && !wasHired) {
+      await ensureFeeSetupForHire(worker, employerId);
+    }
   }
+
+  // 補救既有資料：這個連動是後來才加上的，在這之前就已經是「錄取」
+  // 的配對不會走到上面 handleMoveStatus 那段，費用計算永遠不會自動
+  // 補上。資料第一次載入完成時掃一次所有配對，把已經「錄取」但還沒有
+  // 對應費用設定的補上——只在資料剛載入完成時跑一次（ensureFeeSetupForHire
+  // 內部本來就會先檢查是否已存在才新增，就算這個 effect 被重新觸發也
+  // 不會建出重複的空白設定，但沒必要每次 Firestore 即時同步都掃一次
+  // 全部移工，用 ref 擋掉重複執行）。
+  const backfillRanRef = useRef(false);
+  useEffect(() => {
+    if (loading || !canEditPage || backfillRanRef.current) return;
+    backfillRanRef.current = true;
+    workers.forEach((w) => {
+      const ids = workerEmployerIds(w);
+      (ids.length ? ids : [null]).forEach((employerId) => {
+        if (matchStatusOf(w, employerId) === MATCH_STATUSES[1]) {
+          ensureFeeSetupForHire(w, employerId);
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, canEditPage]);
 
   async function handleArrangeEmployer({ workerId, employerId }) {
     const worker = workers.find((w) => w.id === workerId);
