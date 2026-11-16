@@ -30,6 +30,13 @@ service cloud.firestore {
     function tsIsMember() {
       return signedIn() && exists(/databases/$(database)/documents/tsaipei_users/$(request.auth.uid));
     }
+    // 每月訪視紀錄的學生/企業主管線上填寫連結（不用登入）各自只能改自己
+    // 負責的那組欄位，跟 lib/monthlyVisitRecord.js 的 STUDENT_PUBLIC_FIELDS/
+    // MANAGER_PUBLIC_FIELDS 保持一致。
+    function tsIsPublicVisitFieldUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentComment', 'lifeRatings', 'lifeNotes'])
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerComment', 'workRatings', 'workNotes']);
+    }
     // 沒有人在「使用人員」頁面動過某個模組/角色的權限時，tsaipei_rolePermissions
     // 底下就不會有對應的 override 文件——這時要照 src/lib/permissions.js
     // SYSTEMS.tsaipei.defaultPermissions 的預設值判斷，不能直接當作沒有權限，
@@ -159,10 +166,19 @@ service cloud.firestore {
       allow update: if tsCanEdit('applicationProgress') || tsCanEdit('closedCases');
       allow delete: if tsCanEdit('applicationProgress') || tsCanEdit('students') || vnCanEdit('students');
     }
-    // 每月訪視紀錄：一位學生一個月一筆，從在台關懷紀錄頁面建立/編輯。
+    // 每月訪視紀錄：一位學生一個月一筆，從在台關懷紀錄頁面建立/編輯，文件
+    // ID 固定是「學生ID_月份」(不是亂數 ID)，讓學生/企業主管的線上填寫
+    // 連結（/apply/visitRecord/:studentId/:month/:role，不用登入）可以只靠
+    // 這兩個資訊直接 get 到對應那一筆；allow list 保持只給內部人員，公開
+    // 連結沒辦法查詢/列出其他學生的紀錄。公開連結只能更新自己負責的欄位
+    // （tsIsPublicVisitFieldUpdate()），不能新增/刪除整份紀錄，也動不了
+    // 其他欄位，即使有人改網址送出別的欄位一樣會被這條規則擋掉。
     match /tsaipei_monthlyVisitRecords/{docId} {
-      allow read: if tsIsMember();
-      allow write: if tsCanEdit('inTaiwanCare');
+      allow get: if true;
+      allow list: if tsIsMember();
+      allow create: if tsCanEdit('inTaiwanCare');
+      allow update: if tsCanEdit('inTaiwanCare') || tsIsPublicVisitFieldUpdate();
+      allow delete: if tsCanEdit('inTaiwanCare');
     }
     // 申辦進度到「入台」時連鎖建立以下三個，寫入者是 applicationProgress 編輯者；
     // inTaiwanVisa 存檔時也會連鎖補建 inTaiwanCare/housingRecords（見

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
@@ -8,7 +10,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import {
   VISIT_METHODS, WORK_ITEMS, WORK_RATING_OPTIONS, LIFE_ITEMS, LIFE_RATING_OPTIONS,
-  RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord,
+  RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord, visitRecordDocId,
 } from '../../lib/monthlyVisitRecord';
 import {
   AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
@@ -74,7 +76,7 @@ export default function InTaiwanCarePage() {
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
-  const { rows: visitRecords, add: addVisit, update: updateVisit, remove: removeVisit } = useCollection('tsaipei_monthlyVisitRecords');
+  const { rows: visitRecords, remove: removeVisit } = useCollection('tsaipei_monthlyVisitRecords');
   const { rows: applicationProgress } = useCollection('tsaipei_applicationProgress');
   const [editing, setEditing] = useState(null);
   const [visiting, setVisiting] = useState(null); // studentId managing monthly visit records for, or null
@@ -165,8 +167,6 @@ export default function InTaiwanCarePage() {
           position={studentPosition(visiting, ctx)}
           match={studentMatch(visiting, ctx)}
           records={visitRecords.filter((r) => r.studentId === visiting)}
-          onAdd={(data) => addVisit({ studentId: visiting, ...data })}
-          onUpdate={updateVisit}
           onRemove={removeVisit}
           onClose={() => setVisiting(null)}
         />
@@ -258,7 +258,7 @@ function RatingTable({ title, items, options, group, notesGroup, values, notes, 
 // 無關」的基本資料每次都直接讀目前的學生/實習單位資料（不逐月存一份），
 // 切換月份只影響訪視內容本身；該月已經存過紀錄就帶入既有內容，沒有就是
 // 空白表單，訪視日期預設今天。
-function MonthlyVisitModal({ student, studentLabel, position, match, records, onAdd, onUpdate, onRemove, onClose }) {
+function MonthlyVisitModal({ student, studentLabel, position, match, records, onRemove, onClose }) {
   const header = {
     studentName: studentLabel,
     passportNumber: student?.passportNumber || '',
@@ -274,6 +274,8 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
   const [loadedMonth, setLoadedMonth] = useState(month);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [gettingLinks, setGettingLinks] = useState(false);
+  const [copyHint, setCopyHint] = useState('');
 
   if (month !== loadedMonth) {
     const existing = records.find((r) => r.month === month);
@@ -296,12 +298,16 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
     setForm((f) => ({ ...f, result: f.result.includes(option) ? f.result.filter((o) => o !== option) : [...f.result, option] }));
   }
 
+  // 文件 ID 固定是「學生ID_月份」（見 lib/monthlyVisitRecord.js 的
+  // visitRecordDocId），不用亂數 ID，讓學生/企業主管的線上填寫連結可以
+  // 只靠這兩個資訊直接存取到對應那一筆。每次儲存都一併帶入目前的學生/
+  // 實習單位基本資料快照，公開填寫頁面才不用另外查 tsaipei_students/
+  // tsaipei_positions（這兩個集合不開放公開讀取）。
   async function handleSave() {
     setSaving(true);
     try {
       const { id: _id, studentId: _studentId, ...rest } = form;
-      if (existing) await onUpdate(existing.id, { month, ...rest });
-      else await onAdd({ month, ...rest });
+      await setDoc(doc(db, 'tsaipei_monthlyVisitRecords', visitRecordDocId(student.id, month)), { studentId: student.id, month, ...header, ...rest }, { merge: true });
     } catch (err) {
       alert(`儲存失敗：${err.message || err}`);
     } finally {
@@ -326,6 +332,30 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
     await onRemove(existing.id);
     setForm({ ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
   }
+
+  // 連結需要先確保這個月的紀錄已經存在（公開填寫頁面只能「更新」既有
+  // 文件，不能自己新建，避免開放公開新增文件），所以按「取得填寫連結」
+  // 會先存檔一次目前畫面上的內容，再組出連結。
+  async function handleGetLinks() {
+    setGettingLinks(true);
+    try {
+      await handleSave();
+    } finally {
+      setGettingLinks(false);
+    }
+  }
+
+  async function handleCopy(url, label) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyHint(`已複製${label}連結`);
+    } catch {
+      setCopyHint(`複製失敗，請手動選取上面的連結文字`);
+    }
+  }
+
+  const studentLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/student`;
+  const managerLink = `${window.location.origin}/apply/visitRecord/${student?.id}/${month}/manager`;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -389,6 +419,29 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
               )}
             </label>
           ))}
+        </div>
+
+        <h4>線上填寫連結</h4>
+        <p className="muted">按下去會先存檔目前畫面上的內容，才能讓對方打開連結看得到資料；學生只能改「生活適應情況」評核表跟自己的意見，企業主管只能改「實習狀況」評核表跟主管意見，其餘欄位對方改不了。連結不用登入，知道連結的人就看得到這份紀錄的全部內容，請透過私訊/email 等方式一對一傳送，不要公開張貼。</p>
+        <div className="form-grid" style={{ marginBottom: 12 }}>
+          <label>
+            學生填寫連結
+            <div className="row-actions">
+              <input readOnly value={studentLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+              <button type="button" onClick={() => handleCopy(studentLink, '學生')}>複製</button>
+            </div>
+          </label>
+          <label>
+            企業主管填寫連結
+            <div className="row-actions">
+              <input readOnly value={managerLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+              <button type="button" onClick={() => handleCopy(managerLink, '企業主管')}>複製</button>
+            </div>
+          </label>
+        </div>
+        <div className="row-actions" style={{ marginBottom: 12 }}>
+          <button type="button" onClick={handleGetLinks} disabled={gettingLinks}>{gettingLinks ? '存檔中…' : existing ? '更新連結內容' : '儲存並啟用連結'}</button>
+          {copyHint && <span className="muted">{copyHint}</span>}
         </div>
 
         <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
