@@ -7,8 +7,12 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import SegmentedControl from '../../components/SegmentedControl';
+import {
+  AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
+  TEMPLATE_FILE_BY_LANG, LANG_LABEL, downloadInternshipCertificate,
+} from '../../lib/internshipCertificate';
 
-export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '實習契約', '護照影本', '其他'];
+export const DOC_TYPES = ['語言能力證明', '在學證明', '延畢證明', '夜間實習同意書', '實習契約', '實習證明書', '護照影本', '其他'];
 const STATUSES = ['未提供', '已收到', '審核中', '已核准', '需補件', '不適用'];
 const EXTENSION_OPTIONS = ['', '有延畢', '無延畢'];
 const CSV_FIELDS = [
@@ -79,6 +83,28 @@ function studentPositionLabel(studentId, { matches, admittedList, positions }) {
   return [p.projectCode, p.company, m.venue].filter(Boolean).join(' ');
 }
 
+// 實習證明書要用到的「公司名稱/函文編號/產業別」來自這個學生實際媒合到的
+// 實習單位，跟 studentPositionLabel 同一套比對邏輯，只是回傳完整物件。
+function studentPosition(studentId, { matches, admittedList, positions }) {
+  const admitted = admittedList.find((a) => {
+    const m = matches.find((mm) => mm.id === a.matchId);
+    return m && m.studentId === studentId;
+  });
+  let m = admitted ? matches.find((mm) => mm.id === admitted.matchId) : null;
+  if (!m) m = matches.find((x) => x.studentId === studentId);
+  if (!m) return null;
+  return positions.find((pp) => pp.id === m.positionId) || null;
+}
+
+// 跟 DashboardPage 同一套「有第二次入台/離台就用第二次，否則用第一次」
+// 判斷，實習證明書預設帶入這個區間。
+function effectiveEntryDate(s) {
+  return s?.secondEntryDate || s?.firstEntryDate || '';
+}
+function effectiveExitDate(s) {
+  return s?.secondExitDate || s?.firstExitDate || '';
+}
+
 // Ported from submittedText/overallStatusTag/completionDate in apps-script/Index.html.
 function submittedText(docs) {
   const names = docs.filter((d) => d.status !== '未提供').map((d) => d.docType);
@@ -104,8 +130,10 @@ export default function InternshipDocsPage() {
   const { rows: matches } = useCollection('tsaipei_matches');
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
+  const { rows: applicationProgress } = useCollection('tsaipei_applicationProgress');
   const [q, setQ] = useState('');
   const [managing, setManaging] = useState(null); // studentId being managed, or null
+  const [generatingCert, setGeneratingCert] = useState(null); // studentId generating a certificate for, or null
   const [backfilling, setBackfilling] = useState(false);
 
   const ctx = { matches, admittedList, positions };
@@ -208,6 +236,7 @@ export default function InternshipDocsPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button onClick={() => handleBackfillDocType('實習契約')} disabled={backfilling}>{backfilling ? '補齊中…' : '幫既有學生補上「實習契約」'}</button>}
+          {canEditPage && <button onClick={() => handleBackfillDocType('實習證明書')} disabled={backfilling}>{backfilling ? '補齊中…' : '幫既有學生補上「實習證明書」'}</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
@@ -261,13 +290,23 @@ export default function InternshipDocsPage() {
           onConfirmAll={confirmAll}
           onRemove={remove}
           onClose={() => setManaging(null)}
+          onGenerateCertificate={(sid) => setGeneratingCert(sid)}
+        />
+      )}
+      {generatingCert && (
+        <CertificateGeneratorModal
+          student={studentById(generatingCert)}
+          studentLabel={studentFullLabel(studentById(generatingCert))}
+          position={studentPosition(generatingCert, ctx)}
+          progress={applicationProgress.find((r) => r.studentId === generatingCert) || null}
+          onClose={() => setGeneratingCert(null)}
         />
       )}
     </div>
   );
 }
 
-function DocsManageModal({ studentId, docs, studentLabel, canEditPage, onUpdate, onConfirmAll, onRemove, onClose }) {
+function DocsManageModal({ studentId, docs, studentLabel, canEditPage, onUpdate, onConfirmAll, onRemove, onClose, onGenerateCertificate }) {
   const allDone = docs.every((d) => d.status === '已核准' || d.status === '不適用');
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -321,7 +360,12 @@ function DocsManageModal({ studentId, docs, studentLabel, canEditPage, onUpdate,
                       <input type="date" value={d.receivedDate || ''} onChange={(e) => onUpdate(d, { receivedDate: e.target.value })} />
                     ) : (d.receivedDate || '—')}
                   </td>
-                  {canEditPage && <td><button className="danger" onClick={() => onRemove(d.id)}>刪除</button></td>}
+                  {canEditPage && (
+                    <td className="row-actions">
+                      {d.docType === '實習證明書' && <button onClick={() => onGenerateCertificate(studentId)}>產生證明書</button>}
+                      <button className="danger" onClick={() => onRemove(d.id)}>刪除</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -329,6 +373,115 @@ function DocsManageModal({ studentId, docs, studentLabel, canEditPage, onUpdate,
         </div>
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button onClick={onClose}>關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 實習證明書產生器：國籍決定要用哪個語言版本（越南/印尼各自有專屬範本，
+// 其餘國籍統一用英文版），其餘欄位從學生資料/實習單位/申辦進度追蹤自動
+// 帶入，沒有資料的欄位留空，產生出來的證明書會用底線標示方便補填。
+function CertificateGeneratorModal({ student, studentLabel, position, progress, onClose }) {
+  const [form, setForm] = useState(() => ({
+    nationality: student?.nationality || '',
+    studentNameEn: student?.originalName || '',
+    passportNumber: student?.passportNumber || '',
+    agency: guessApprovalAgency(position?.industry),
+    approvalDate: progress?.ministryReviewDate || '',
+    letterNo: position?.letterNo || '',
+    startDate: effectiveEntryDate(student),
+    endDate: effectiveExitDate(student),
+    hotelName: position?.company || '',
+    department: position?.title || '',
+    issuingAuthority: position?.company || '',
+  }));
+  const [lang, setLang] = useState(certificateLangFor(student?.nationality));
+  const [downloading, setDownloading] = useState(false);
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const totalDays = totalInternshipDays(form.startDate, form.endDate);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadInternshipCertificate(`${studentLabel}_實習證明書_${LANG_LABEL[lang]}.docx`, lang, { ...form, totalDays });
+    } catch (err) {
+      alert(`產生失敗：${err.message || err}`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
+        <h3 style={{ marginTop: 0 }}>{studentLabel} · 產生實習證明書</h3>
+        <p className="muted">欄位已盡量從學生資料/實習單位/申辦進度追蹤自動帶入，請核對後再下載；核准函日期/文號若還沒登記，要自己補上。</p>
+        <div className="form-grid">
+          <label>
+            證明書語言版本
+            <select value={lang} onChange={(e) => setLang(e.target.value)}>
+              {Object.keys(LANG_LABEL).map((l) => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}
+            </select>
+          </label>
+          <label>
+            國籍
+            <input value={form.nationality} onChange={(e) => setField('nationality', e.target.value)} />
+          </label>
+          <label>
+            英文姓名(護照姓名)
+            <input value={form.studentNameEn} onChange={(e) => setField('studentNameEn', e.target.value)} />
+          </label>
+          <label>
+            護照號碼
+            <input value={form.passportNumber} onChange={(e) => setField('passportNumber', e.target.value)} />
+          </label>
+          <label>
+            核准機關
+            <select value={form.agency} onChange={(e) => setField('agency', e.target.value)}>
+              {AGENCY_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
+          <label>
+            核准函日期
+            <input type="date" value={form.approvalDate} onChange={(e) => setField('approvalDate', e.target.value)} />
+          </label>
+          <label>
+            核准函文號
+            <input value={form.letterNo} onChange={(e) => setField('letterNo', e.target.value)} />
+          </label>
+          <label>
+            實習起日
+            <input type="date" value={form.startDate} onChange={(e) => setField('startDate', e.target.value)} />
+          </label>
+          <label>
+            實習迄日
+            <input type="date" value={form.endDate} onChange={(e) => setField('endDate', e.target.value)} />
+          </label>
+          <label>
+            旅館/公司名稱
+            <input value={form.hotelName} onChange={(e) => setField('hotelName', e.target.value)} />
+          </label>
+          <label>
+            部門/職務
+            <input value={form.department} onChange={(e) => setField('department', e.target.value)} />
+          </label>
+          <label>
+            發證單位
+            <input value={form.issuingAuthority} onChange={(e) => setField('issuingAuthority', e.target.value)} />
+          </label>
+        </div>
+        <p className="muted">共計 {totalDays != null ? `${totalDays} 天` : '—(請填實習起訖日)'}</p>
+        <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
+          <a href={TEMPLATE_FILE_BY_LANG[lang]} target="_blank" rel="noreferrer">下載空白範例範本（{LANG_LABEL[lang]}）</a>
+          <div className="row-actions">
+            <button className="primary" onClick={handleDownload} disabled={downloading}>{downloading ? '產生中…' : '下載已帶入資料的證明書'}</button>
+            <button onClick={onClose}>關閉</button>
+          </div>
         </div>
       </div>
     </div>
