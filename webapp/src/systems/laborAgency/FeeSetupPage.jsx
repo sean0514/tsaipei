@@ -28,6 +28,7 @@ export default function FeeSetupPage() {
   const { rows: employers } = useCollection('laborAgency_employers');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
+  const [showClosed, setShowClosed] = useState(false);
   // 移工ID欄位如果填了一個查不到對應移工的 ID（打錯、複製到舊的 ID、
   // 移工後來被刪除…），畫面上的姓名/護照號碼/雇主就會全部顯示「—」，
   // 看起來像「這筆資料是空的」——這裡連同雇主ID一併擋掉，不要讓這種
@@ -46,6 +47,13 @@ export default function FeeSetupPage() {
   const filteredRows = rows
     .filter((r) => !searchQuery || (workerOf(r.workerId)?.name || '').toLowerCase().includes(searchQuery))
     .sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
+  // 結案：比照「收費紀錄」(ChargeRecordsPage.jsx) 跟「雇主需求單」
+  // (tsaipei/PositionsPage.jsx) 已結案職缺的做法，closed 欄位（'是'/''），
+  // 結案後從主列表收起、移到下方「已結案」收合區塊，資料還在，可以
+  // 「取消已結案」移回來，不是刪除——收費紀錄頁面的結案按鈕改的也是
+  // 同一個 closed 欄位，兩邊互通，不會各自存一份。
+  const openRows = filteredRows.filter((r) => r.closed !== '是');
+  const closedRows = filteredRows.filter((r) => r.closed === '是');
 
   // 新增/編輯費用設定時，順便把那一筆配對（移工×雇主）的狀態改成
   // 「錄取」（會先建費用設定，代表這筆案件已經確定成立，不用再回
@@ -92,42 +100,88 @@ export default function FeeSetupPage() {
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <div className="table-wrap"><table>
-            <thead>
-              <tr>
-                <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('核准文號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
-                <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: 600 }}>{workerOf(r.workerId)?.name || '—'}</td>
-                  {showDocNumber && <td>{employerOf(r.employerId)?.docNumber || '—'}</td>}
-                  <td>{workerOf(r.workerId)?.passportNo || '—'}</td>
-                  <td>{employerOf(r.employerId)?.name || '—'}</td>
-                  <td>{(r.totalFee || 0).toLocaleString()}</td>
-                  <td>{(r.taiwanAgencyFee || 0).toLocaleString()}</td>
-                  <td>{(r.recruiterBonus || 0).toLocaleString()}</td>
-                  <td>{t(r.chargeTarget, lang) || '—'}</td>
-                  {canEditPage && (
-                    <td className="row-actions">
-                      <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
-                      <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filteredRows.length === 0 && <tr><td colSpan={(showDocNumber ? 8 : 7) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
-            </tbody>
-          </table></div>
-        </div>
+        <>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <FeeSetupTable
+              list={openRows}
+              workerOf={workerOf}
+              employerOf={employerOf}
+              showDocNumber={showDocNumber}
+              canEditPage={canEditPage}
+              setEditing={setEditing}
+              remove={remove}
+              update={update}
+              lang={lang}
+            />
+          </div>
+          <div style={{ margin: '12px 0' }}>
+            <label className="row-actions" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} style={{ width: 'auto' }} />
+              {t('顯示已結案名單', lang)}（{closedRows.length}）
+            </label>
+          </div>
+          {showClosed && (
+            <div className="card" style={{ overflowX: 'auto' }}>
+              <FeeSetupTable
+                list={closedRows}
+                workerOf={workerOf}
+                employerOf={employerOf}
+                showDocNumber={showDocNumber}
+                canEditPage={canEditPage}
+                setEditing={setEditing}
+                remove={remove}
+                update={update}
+                lang={lang}
+              />
+            </div>
+          )}
+        </>
       )}
       {editing && (
         <FeeSetupFormModal initial={editing} workers={workers} employers={employers} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />
       )}
     </div>
+  );
+}
+
+// 獨立宣告在元件外面——寫在 FeeSetupPage 裡面的話，每次父元件重新
+// render 都會產生新的函式參照，React 會當成不同的元件型別整個重新
+// 掛載（這個頁面其他地方也有同樣的教訓，見 VisaProcessingPage.jsx
+// 的註解）。
+function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage, setEditing, remove, update, lang }) {
+  return (
+    <div className="table-wrap"><table>
+      <thead>
+        <tr>
+          <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('核准文號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
+          <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
+        </tr>
+      </thead>
+      <tbody>
+        {list.map((r) => (
+          <tr key={r.id}>
+            <td style={{ fontWeight: 600 }}>{workerOf(r.workerId)?.name || '—'}</td>
+            {showDocNumber && <td>{employerOf(r.employerId)?.docNumber || '—'}</td>}
+            <td>{workerOf(r.workerId)?.passportNo || '—'}</td>
+            <td>{employerOf(r.employerId)?.name || '—'}</td>
+            <td>{(r.totalFee || 0).toLocaleString()}</td>
+            <td>{(r.taiwanAgencyFee || 0).toLocaleString()}</td>
+            <td>{(r.recruiterBonus || 0).toLocaleString()}</td>
+            <td>{t(r.chargeTarget, lang) || '—'}</td>
+            {canEditPage && (
+              <td className="row-actions">
+                <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                {r.closed === '是'
+                  ? <button onClick={() => update(r.id, { closed: '' })}>{t('取消已結案', lang)}</button>
+                  : <button onClick={() => update(r.id, { closed: '是' })}>{t('結案', lang)}</button>}
+                <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
+              </td>
+            )}
+          </tr>
+        ))}
+        {list.length === 0 && <tr><td colSpan={(showDocNumber ? 8 : 7) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
+      </tbody>
+    </table></div>
   );
 }
 
