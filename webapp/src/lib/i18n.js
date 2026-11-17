@@ -1259,6 +1259,9 @@ const VI = {
   '（無）': '(Không có)',
   '尚未建立支付紀錄': 'Chưa có hồ sơ chi trả',
   '編輯支付紀錄': 'Chỉnh sửa hồ sơ chi trả',
+  '已付招募者獎金': 'Tiền thưởng người tuyển dụng đã trả',
+  '其他支付紀錄': 'Hồ sơ chi trả khác',
+  '此移工目前沒有支付紀錄': 'Lao động này hiện chưa có hồ sơ chi trả nào',
 
   '內部獎金編輯': 'Chỉnh sửa tiền thưởng nội bộ',
   '設定行政（履歷表）/會計人員/外務人員/主管每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':

@@ -1093,12 +1093,18 @@ service cloud.firestore {
     }
     // create 也放行 workers 編輯者：移工管理把一筆配對改成「錄取」時，
     // 會自動在這裡補一筆空白費用設定（見 WorkersPage.jsx 的
-    // ensureFeeSetupForHire），經辦人不一定有費用計算的編輯權限；
-    // update/delete 仍只限費用計算編輯者，避免誤改/誤刪已維護的設定。
+    // ensureFeeSetupForHire），經辦人不一定有費用計算的編輯權限。
+    // update 也放行 chargeRecords／paymentRecords 編輯者：這兩個頁面
+    // 的「結案」按鈕改的是同一個 closed 欄位（三邊互通，見
+    // ChargeRecordsPage.jsx／PaymentRecordsPage.jsx），經辦人不一定
+    // 有費用計算本身的編輯權限，只放行 closed 這一個欄位風險太小、
+    // 不值得為此另外寫欄位層級的限制。delete 仍只限費用計算編輯者，
+    // 避免誤刪已維護的設定。
     match /laborAgency_feeSetup/{docId} {
       allow read: if laIsMember();
       allow create: if laCanEdit('feeSetup') || laCanEdit('workers');
-      allow update, delete: if laCanEdit('feeSetup');
+      allow update: if laCanEdit('feeSetup') || laCanEdit('chargeRecords') || laCanEdit('paymentRecords');
+      allow delete: if laCanEdit('feeSetup');
     }
     match /laborAgency_chargeRecords/{docId} {
       allow read: if laIsMember();
