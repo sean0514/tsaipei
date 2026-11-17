@@ -3,24 +3,10 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, getPairInfo, withPairInfo } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, withPairInfo, departureInfoOf } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
-const LEGACY_DEPARTURE_FIELDS = ['flightAirline', 'flightNumber', 'flightTerminal', 'flightTime', 'transportFee', 'billingParty', 'includeInBilling'];
-
-// 航班/交通資訊要依配對（移工×雇主）各自獨立存放（departureInfoMap），
-// 不能像舊版那樣直接存在移工文件的扁平欄位上——否則同一個移工同時配對
-// 多個雇主時，填寫其中一筆的航班資訊會覆蓋到另一筆。舊資料沒有
-// departureInfoMap 時，退回舊的扁平欄位顯示（只配對單一雇主時仍準確），
-// 一旦透過「編輯」存檔就會改存進新的 departureInfoMap。
-function departureInfoOf(w, employerId) {
-  const stored = getPairInfo(w, 'departureInfoMap', employerId);
-  if (Object.keys(stored).length) return stored;
-  const legacy = {};
-  LEGACY_DEPARTURE_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
-  return legacy;
-}
 
 // 名單來源：某一筆配對在辦理簽證標記「完成」(visaCompletedMap) 的，
 // 自動出現在這裡安排出境行程；填好航班資訊後按「已完成」

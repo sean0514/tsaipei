@@ -159,6 +159,24 @@ export function withPairInfo(w, field, employerId, value) {
   return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
 }
 
+// 移到這裡（原本只在 DeparturePage.jsx 裡）：內部獎金頁面要依「出境
+// 月份」試算，也要讀同一份航班資訊，兩邊共用同一份判斷邏輯，不要
+// 各自維護一份、以後改了其中一邊忘記改另一邊。
+const LEGACY_DEPARTURE_FIELDS = ['flightAirline', 'flightNumber', 'flightTerminal', 'flightTime', 'transportFee', 'billingParty', 'includeInBilling'];
+
+// 航班/交通資訊依配對（移工×雇主）各自獨立存放（departureInfoMap），
+// 不能像舊版那樣直接存在移工文件的扁平欄位上——否則同一個移工同時配對
+// 多個雇主時，填寫其中一筆的航班資訊會覆蓋到另一筆。舊資料沒有
+// departureInfoMap 時，退回舊的扁平欄位顯示（只配對單一雇主時仍準確），
+// 一旦透過「編輯」存檔就會改存進新的 departureInfoMap。
+export function departureInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'departureInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_DEPARTURE_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
+
 // 從其他狀態改回「錄取」，代表那一筆配對重新開始整個流程——文件追蹤/
 // 辦理簽證/出境辦理/入境通知先前留下的完成/移除/結案旗標都要清掉，
 // 不然那一筆配對會因為舊旗標還是 true，卡在原本的頁面出不來或一路

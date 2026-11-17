@@ -617,6 +617,14 @@ const VI = {
   '合計總額': 'Tổng cộng',
   '已封存': 'Đã lưu trữ',
   '即時試算': 'Ước tính trực tiếp',
+  '封存本月': 'Lưu trữ tháng này',
+  '取消封存': 'Hủy lưu trữ',
+  '目前沒有任何移工的出境紀錄，無法試算內部獎金': 'Hiện chưa có hồ sơ xuất cảnh nào của lao động, không thể ước tính tiền thưởng nội bộ',
+  '這個月沒有可計算的獎金資料，無法封存': 'Tháng này không có dữ liệu tiền thưởng để tính, không thể lưu trữ',
+  '封存失敗': 'Lưu trữ thất bại',
+  '取消封存失敗': 'Hủy lưu trữ thất bại',
+  '確定要取消封存這個月份的內部獎金計算嗎？取消後會改回即時重算的數字。':
+    'Bạn có chắc muốn hủy lưu trữ tiền thưởng nội bộ của tháng này không? Sau khi hủy sẽ quay lại tính toán trực tiếp.',
   '產生中…': 'Đang tạo…',
   '下載請款單': 'Tải hóa đơn thu tiền',
   '取消確認': 'Hủy xác nhận',
@@ -1274,6 +1282,8 @@ const VI = {
 
   '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
+  '依移工出境月份自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總；每個月分開顯示，可各自封存':
+    'Tự động tính theo tháng xuất cảnh của lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người; mỗi tháng hiển thị riêng, có thể lưu trữ từng tháng',
 
   // 元凱移工事業部：補漏翻譯——性別/角色等跨頁共用值，以及出境辦理/
   // 入境通知/文件追蹤/辦理簽證頁面標題、說明文字、欄位標籤（原本漏了
