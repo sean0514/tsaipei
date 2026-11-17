@@ -5,18 +5,21 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
+import { CURRENCIES, DEFAULT_CURRENCY } from './constants';
 
 // 內部獎金的角色費率設定——「招募人員」的獎金金額直接在「費用計算」每位
 // 移工各自填固定金額，不是公司統一費率；這裡只設定其餘 4 個角色（行政
 // (履歷表)/會計人員/外務人員/主管）每案固定發放的獎金金額，全公司統一
 // 一筆設定，固定存在 laborAgency_bonusRateSetup/default，供「內部獎金」
 // 頁面試算：每位移工指派了哪個角色，對應角色的負責人就拿到這裡設定的
-// 金額（不是按月比例分攤，是整個案件固定一筆）。
+// 金額（不是按月比例分攤，是整個案件固定一筆）。每個角色的金額各自有
+// 自己的幣別（currencyKey），不是全部共用一個——跟費用計算/收費紀錄/
+// 支付紀錄一樣，不同幣別分開顯示，不轉換成同一個基準幣別。
 const RATE_FIELDS = [
-  { key: 'adminResumeRate', label: '行政（履歷表）' },
-  { key: 'accountantRate', label: '會計人員' },
-  { key: 'fieldStaffRate', label: '外務人員' },
-  { key: 'supervisorRate', label: '主管' },
+  { key: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { key: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
+  { key: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
+  { key: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
 ];
 
 export default function BonusRateSetupPage() {
@@ -34,7 +37,10 @@ export default function BonusRateSetupPage() {
   async function handleSave(e) {
     e.preventDefault();
     const payload = {};
-    RATE_FIELDS.forEach((f) => { payload[f.key] = Number(form[f.key]) || 0; });
+    RATE_FIELDS.forEach((f) => {
+      payload[f.key] = Number(form[f.key]) || 0;
+      payload[f.currencyKey] = form[f.currencyKey] || DEFAULT_CURRENCY;
+    });
     await setDoc(doc(db, 'laborAgency_bonusRateSetup', 'default'), payload);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -55,7 +61,12 @@ export default function BonusRateSetupPage() {
               {RATE_FIELDS.map((f) => (
                 <label key={f.key}>
                   {t(f.label, lang)}（{t('每案', lang)}）
-                  <input type="number" min="0" disabled={!canEditPage} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                  <div className="row-actions" style={{ gap: 6 }}>
+                    <input type="number" min="0" disabled={!canEditPage} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} style={{ flex: 1 }} />
+                    <select disabled={!canEditPage} value={form[f.currencyKey] || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, [f.currencyKey]: e.target.value })} style={{ width: 'auto' }}>
+                      {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                    </select>
+                  </div>
                 </label>
               ))}
             </div>

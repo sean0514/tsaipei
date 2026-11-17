@@ -234,3 +234,48 @@ export function requiredDocsDone(worker) {
   const required = DOCS_CHECKLIST.filter((d) => d.required);
   return required.filter((d) => checked[d.key]).length;
 }
+
+// 費用計算/收費紀錄/支付紀錄/內部獎金都要能各自標示幣別——同一位
+// 移工的多筆收費/支付可能用不同幣別分開收/付，不互相轉換，各幣別
+// 分開加總顯示（不換算成同一個基準幣別），所以這裡提供共用的
+// 「依幣別分組加總」「兩個幣別分組相減」「幣別分組格式化成字串」
+// 工具函式，四個頁面各自的彙總表都呼叫同一份，不要各自重寫一次。
+// 舊資料沒有幣別欄位時，當作新台幣（DEFAULT_CURRENCY），不是因為
+// 新台幣比較重要，只是這個系統原本金額欄位預設就是新台幣。
+export const CURRENCIES = ['新台幣', '美金', '越盾'];
+export const DEFAULT_CURRENCY = CURRENCIES[0];
+
+export function formatMoney(amount, currency, lang) {
+  return `${(Number(amount) || 0).toLocaleString()} ${t(currency || DEFAULT_CURRENCY, lang)}`;
+}
+
+// items 是任意物件陣列（收費紀錄、支付紀錄…），amountKey/currencyKey
+// 是金額跟幣別分別存在哪個欄位名稱；回傳 { 幣別: 加總金額 }。
+export function sumByCurrency(items, amountKey, currencyKey = 'currency') {
+  const map = {};
+  items.forEach((item) => {
+    const cur = item[currencyKey] || DEFAULT_CURRENCY;
+    map[cur] = (map[cur] || 0) + (Number(item[amountKey]) || 0);
+  });
+  return map;
+}
+
+// 應繳 - 已繳＝餘額，但兩邊可能出現不同的幣別組合（例如應繳是新台幣，
+// 已繳卻收了一筆美金）——用兩邊出現過的幣別聯集各自相減，不會漏掉
+// 任何一個幣別，也不會把不同幣別的數字加在一起相減。
+export function subtractCurrencyMaps(dueMap, paidMap) {
+  const result = {};
+  new Set([...Object.keys(dueMap), ...Object.keys(paidMap)]).forEach((cur) => {
+    result[cur] = (dueMap[cur] || 0) - (paidMap[cur] || 0);
+  });
+  return result;
+}
+
+// 把 { 幣別: 金額 } 的分組結果格式化成一行文字（例如「50,000 新台幣、
+// $200 美金」），金額是 0 的幣別不顯示（不然每筆沒用到的幣別都會列出
+// 一個「0 越盾」，太吵）；整個結果是空的（或全部都是 0）就顯示「0」。
+export function formatMoneyMap(map, lang) {
+  const entries = Object.entries(map).filter(([, amount]) => amount);
+  if (!entries.length) return '0';
+  return entries.map(([cur, amount]) => formatMoney(amount, cur, lang)).join('、');
+}

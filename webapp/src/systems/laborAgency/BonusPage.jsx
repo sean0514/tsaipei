@@ -2,42 +2,49 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { t } from '../../lib/i18n';
+import { DEFAULT_CURRENCY, formatMoney, formatMoneyMap } from './constants';
 
 // 內部獎金：每位移工一個案件，獎金不是按月比例分攤，是整個案件固定算一次
 // ——招募人員拿「費用計算」裡該移工填的招募者獎金金額；其餘 4 個角色
 // （行政(履歷表)/會計人員/外務人員/主管）若這位移工有指派負責人，就拿
 // 「內部獎金編輯」設定的固定金額。同一個人可能同時是多位移工的負責人，
-// 金額依人員加總。
+// 金額依人員加總——加總依幣別分開算，不轉換成同一個基準幣別（見
+// constants.js 的說明），所以同一個人底下可能同時列出好幾種幣別的總額。
 const ROLE_DEFS = [
-  { workerKey: 'assignedAdminResume', rateKey: 'adminResumeRate', label: '行政（履歷表）' },
-  { workerKey: 'assignedAccountant', rateKey: 'accountantRate', label: '會計人員' },
-  { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', label: '外務人員' },
-  { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', label: '主管' },
+  { workerKey: 'assignedAdminResume', rateKey: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { workerKey: 'assignedAccountant', rateKey: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
+  { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
+  { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
 ];
 
 function computeLaborAgencyBonusByPerson(workers, feeSetupRecords, rateDoc) {
   const personTotals = {};
-  function addAmount(name, amount, detail) {
+  function addAmount(name, amount, currency, detail) {
     if (!name || !amount) return;
-    const entry = (personTotals[name] ||= { name, total: 0, breakdown: [] });
-    entry.total += amount;
+    const entry = (personTotals[name] ||= { name, totals: {}, breakdown: [] });
+    entry.totals[currency] = (entry.totals[currency] || 0) + amount;
     entry.breakdown.push(detail);
   }
 
   workers.forEach((w) => {
     const feeSetup = feeSetupRecords.find((r) => r.workerId === w.id);
     if (feeSetup?.recruiterBonus && w.assignedRecruiter) {
-      addAmount(w.assignedRecruiter, Number(feeSetup.recruiterBonus) || 0, { worker: w.name, role: '招募人員', amount: Number(feeSetup.recruiterBonus) || 0 });
+      const amount = Number(feeSetup.recruiterBonus) || 0;
+      const currency = feeSetup.currency || DEFAULT_CURRENCY;
+      addAmount(w.assignedRecruiter, amount, currency, { worker: w.name, role: '招募人員', amount, currency });
     }
-    ROLE_DEFS.forEach(({ workerKey, rateKey, label }) => {
+    ROLE_DEFS.forEach(({ workerKey, rateKey, currencyKey, label }) => {
       const name = w[workerKey];
       const rateVal = Number(rateDoc?.[rateKey]) || 0;
       if (!name || !rateVal) return;
-      addAmount(name, rateVal, { worker: w.name, role: label, amount: rateVal });
+      const currency = rateDoc?.[currencyKey] || DEFAULT_CURRENCY;
+      addAmount(name, rateVal, currency, { worker: w.name, role: label, amount: rateVal, currency });
     });
   });
 
-  return Object.values(personTotals).sort((a, b) => b.total - a.total);
+  // 不同人可能各自的總額用不同幣別組成，沒辦法互相比較大小來排序
+  // （原本是依總額由大到小排序），改成依姓名排序，穩定、不會誤導。
+  return Object.values(personTotals).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export default function BonusPage() {
@@ -72,8 +79,8 @@ export default function BonusPage() {
               {byPerson.map((p) => (
                 <tr key={p.name}>
                   <td style={{ fontWeight: 600 }}>{p.name}</td>
-                  <td>{p.total.toLocaleString()} {t('元', lang)}</td>
-                  <td className="muted">{p.breakdown.map((b) => `${b.worker}(${t(b.role, lang)}) ${b.amount.toLocaleString()}`).join('、')}</td>
+                  <td>{formatMoneyMap(p.totals, lang)}</td>
+                  <td className="muted">{p.breakdown.map((b) => `${b.worker}(${t(b.role, lang)}) ${formatMoney(b.amount, b.currency, lang)}`).join('、')}</td>
                 </tr>
               ))}
               {byPerson.length === 0 && <tr><td colSpan={3} className="muted">{t('沒有資料', lang)}</td></tr>}

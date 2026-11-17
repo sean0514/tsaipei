@@ -380,6 +380,9 @@ const VI = {
   '學生來源(國外供應商)': 'Nguồn học viên (nhà cung cấp nước ngoài)',
   '學生名字': 'Tên học viên',
   '幣別': 'Loại tiền',
+  '新台幣': 'Đài tệ (TWD)',
+  '美金': 'Đô la Mỹ (USD)',
+  '越盾': 'Đồng Việt Nam (VND)',
   '台幣金額': 'Số tiền TWD',
 
   // 郵資費用紀錄

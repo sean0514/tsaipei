@@ -5,12 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { employerLabel } from './constants';
+import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMap, sumByCurrency, subtractCurrencyMaps } from './constants';
 
 const PAYMENT_CATEGORIES = ['招募者獎金', '內部獎金', '其他支出'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'recipient', label: '收款人' }, { key: 'category', label: '款項類別' },
-  { key: 'workerId', label: '對應移工ID' }, { key: 'date', label: '支付日期' }, { key: 'amount', label: '金額' }, { key: 'note', label: '備註' },
+  { key: 'workerId', label: '對應移工ID' }, { key: 'date', label: '支付日期' }, { key: 'amount', label: '金額' },
+  { key: 'currency', label: '幣別' }, { key: 'note', label: '備註' },
 ];
 
 // 支付紀錄：跟收費紀錄(ChargeRecordsPage.jsx)一樣，「招募者獎金」類別
@@ -44,16 +45,19 @@ export default function PaymentRecordsPage() {
 
   function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
   function recordsOf(workerId) { return rows.filter((r) => r.workerId === workerId); }
-  function paidRecruiterOf(workerId) {
-    return recordsOf(workerId).filter((r) => r.category === '招募者獎金').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  function paidRecruiterMapOf(workerId) {
+    return sumByCurrency(recordsOf(workerId).filter((r) => r.category === '招募者獎金'), 'amount', 'currency');
   }
 
   const searchQuery = q.trim().toLowerCase();
+  // 應付/已付招募者獎金/餘額都依幣別分開算，不轉換成同一個基準幣別
+  // 加總（見 constants.js 的說明）。
   const summaries = feeSetups
     .filter((fs) => !searchQuery || (workerOf(fs.workerId)?.name || '').toLowerCase().includes(searchQuery))
     .map((fs) => {
-      const paid = paidRecruiterOf(fs.workerId);
-      return { feeSetup: fs, paid, balance: (Number(fs.recruiterBonus) || 0) - paid };
+      const paidMap = paidRecruiterMapOf(fs.workerId);
+      const dueMap = { [fs.currency || DEFAULT_CURRENCY]: Number(fs.recruiterBonus) || 0 };
+      return { feeSetup: fs, paidMap, balanceMap: subtractCurrencyMaps(dueMap, paidMap) };
     })
     .sort((a, b) => (workerOf(a.feeSetup.workerId)?.name || '').localeCompare(workerOf(b.feeSetup.workerId)?.name || ''));
   const openSummaries = summaries.filter((s) => s.feeSetup.closed !== '是');
@@ -68,7 +72,7 @@ export default function PaymentRecordsPage() {
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   async function handleSave(data) {
-    const payload = { ...data, amount: Number(data.amount) || 0 };
+    const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
     if (data.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
@@ -119,7 +123,7 @@ export default function PaymentRecordsPage() {
                     <td style={{ fontWeight: 600 }}>{r.recipient || '—'}</td>
                     <td>{t(r.category, lang) || '—'}</td>
                     <td>{workerOf(r.workerId)?.name || '—'}</td>
-                    <td>{(r.amount || 0).toLocaleString()}</td>
+                    <td>{formatMoney(r.amount, r.currency, lang)}</td>
                     <td className="muted">{r.note || '—'}</td>
                     {canEditPage && (
                       <td className="row-actions">
@@ -165,14 +169,14 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
         </tr>
       </thead>
       <tbody>
-        {list.map(({ feeSetup: fs, paid, balance }) => (
+        {list.map(({ feeSetup: fs, paidMap, balanceMap }) => (
           <tr key={fs.id}>
             <td style={{ fontWeight: 600 }}>{workerOf(fs.workerId)?.name || '—'}</td>
             <td>{employerLabel(employers, fs.employerId, lang)}</td>
-            <td className="muted">{(fs.taiwanAgencyFee || 0).toLocaleString()}</td>
-            <td>{(fs.recruiterBonus || 0).toLocaleString()}</td>
-            <td>{paid.toLocaleString()}</td>
-            <td className={balance > 0 ? 'tag-amber' : ''} style={{ fontWeight: 600 }}>{balance.toLocaleString()}</td>
+            <td className="muted">{formatMoney(fs.taiwanAgencyFee, fs.currency, lang)}</td>
+            <td>{formatMoney(fs.recruiterBonus, fs.currency, lang)}</td>
+            <td>{formatMoneyMap(paidMap, lang)}</td>
+            <td style={{ fontWeight: 600 }}>{formatMoneyMap(balanceMap, lang)}</td>
             {canEditPage && (
               <td className="row-actions">
                 <button onClick={() => setViewing(fs)}>{t('查看明細', lang)}</button>
@@ -205,7 +209,7 @@ function PaymentDetailModal({ worker, records, onClose, onEdit, onAdd, onRemove,
               <tr key={r.id}>
                 <td>{r.date || '—'}</td>
                 <td>{t(r.category, lang) || '—'}</td>
-                <td>{(r.amount || 0).toLocaleString()}</td>
+                <td>{formatMoney(r.amount, r.currency, lang)}</td>
                 <td className="row-actions">
                   <button onClick={() => onEdit(r)}>{t('編輯', lang)}</button>
                   <button className="danger" onClick={() => onRemove(r.id)}>{t('刪除', lang)}</button>
@@ -285,6 +289,12 @@ function PaymentRecordFormModal({ initial, workers, feeSetups, users, onCancel, 
             <label>
               {t('金額', lang)}
               <input type="number" required value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            </label>
+            <label>
+              {t('幣別', lang)}
+              <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
           </div>
           <label style={{ display: 'block', marginTop: 8 }}>

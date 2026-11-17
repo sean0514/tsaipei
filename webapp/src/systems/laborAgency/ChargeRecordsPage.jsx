@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { employerLabel } from './constants';
+import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMap, sumByCurrency, subtractCurrencyMaps } from './constants';
 
 const CHARGE_TARGETS = ['工人', '招募'];
 // 收費項目除了這幾個常見類別，也可以自己輸入新的項目名稱（見下面
@@ -14,7 +14,8 @@ const CHARGE_TARGETS = ['工人', '招募'];
 const CHARGE_ITEM_PRESETS = ['訂金', '預付款', '尾款', '其他費用'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '移工ID' }, { key: 'date', label: '收費日期' },
-  { key: 'item', label: '收費項目' }, { key: 'amount', label: '金額' }, { key: 'chargeTarget', label: '收費對象' }, { key: 'note', label: '備註' },
+  { key: 'item', label: '收費項目' }, { key: 'amount', label: '金額' }, { key: 'currency', label: '幣別' },
+  { key: 'chargeTarget', label: '收費對象' }, { key: 'note', label: '備註' },
 ];
 
 // 收費紀錄：畫面改成以「費用計算」每一筆設定（一位移工配對一個雇主
@@ -59,21 +60,23 @@ export default function ChargeRecordsPage() {
 
   function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
   function recordsOf(workerId) { return rows.filter((r) => r.workerId === workerId); }
-  function paidOf(workerId) { return recordsOf(workerId).reduce((sum, r) => sum + (Number(r.amount) || 0), 0); }
 
   const searchQuery = q.trim().toLowerCase();
+  // 應繳/已繳/餘額都依幣別分開算，不轉換成同一個基準幣別加總——同一
+  // 位移工可能分好幾筆用不同幣別收款（見 constants.js 的說明）。
   const summaries = feeSetups
     .filter((fs) => !searchQuery || (workerOf(fs.workerId)?.name || '').toLowerCase().includes(searchQuery))
     .map((fs) => {
-      const paid = paidOf(fs.workerId);
-      return { feeSetup: fs, paid, balance: (Number(fs.totalFee) || 0) - paid };
+      const paidMap = sumByCurrency(recordsOf(fs.workerId), 'amount', 'currency');
+      const dueMap = { [fs.currency || DEFAULT_CURRENCY]: Number(fs.totalFee) || 0 };
+      return { feeSetup: fs, paidMap, balanceMap: subtractCurrencyMaps(dueMap, paidMap) };
     })
     .sort((a, b) => (workerOf(a.feeSetup.workerId)?.name || '').localeCompare(workerOf(b.feeSetup.workerId)?.name || ''));
   const openSummaries = summaries.filter((s) => s.feeSetup.closed !== '是');
   const closedSummaries = summaries.filter((s) => s.feeSetup.closed === '是');
 
   async function handleSave(data) {
-    const payload = { ...data, amount: Number(data.amount) || 0 };
+    const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
     if (data.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
@@ -144,13 +147,13 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
         </tr>
       </thead>
       <tbody>
-        {list.map(({ feeSetup: fs, paid, balance }) => (
+        {list.map(({ feeSetup: fs, paidMap, balanceMap }) => (
           <tr key={fs.id}>
             <td style={{ fontWeight: 600 }}>{workerOf(fs.workerId)?.name || '—'}</td>
             <td>{employerLabel(employers, fs.employerId, lang)}</td>
-            <td>{(fs.totalFee || 0).toLocaleString()}</td>
-            <td>{paid.toLocaleString()}</td>
-            <td className={balance > 0 ? 'tag-amber' : ''} style={{ fontWeight: 600 }}>{balance.toLocaleString()}</td>
+            <td>{formatMoney(fs.totalFee, fs.currency, lang)}</td>
+            <td>{formatMoneyMap(paidMap, lang)}</td>
+            <td style={{ fontWeight: 600 }}>{formatMoneyMap(balanceMap, lang)}</td>
             {canEditPage && (
               <td className="row-actions">
                 <button onClick={() => setViewing(fs)}>{t('查看明細', lang)}</button>
@@ -185,7 +188,7 @@ function ChargeDetailModal({ worker, records, onClose, onEdit, onAdd, onRemove, 
               <tr key={r.id}>
                 <td>{r.date || '—'}</td>
                 <td>{t(r.item, lang) || '—'}</td>
-                <td>{(r.amount || 0).toLocaleString()}</td>
+                <td>{formatMoney(r.amount, r.currency, lang)}</td>
                 <td>{t(r.chargeTarget, lang) || '—'}</td>
                 <td className="row-actions">
                   <button onClick={() => onEdit(r)}>{t('編輯', lang)}</button>
@@ -261,6 +264,12 @@ function ChargeRecordFormModal({ initial, workers, feeSetups, onCancel, onSave, 
             <label>
               {t('金額', lang)}
               <input type="number" required value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            </label>
+            <label>
+              {t('幣別', lang)}
+              <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
             <label>
               {t('收費對象', lang)}
