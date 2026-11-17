@@ -71,17 +71,24 @@ function residentOverlapDays(h, range) {
 
 const PAYMENT_STATUSES = ['未收款', '先繳部分', '全額付清'];
 
-// 確認繳款人：四個審核層級各自獨立按確認，不用照順序，系統管理員可以代
+// 確認繳款人：三個審核層級各自獨立按確認，不用照順序，系統管理員可以代
 // 任何層級確認。每個層級各自記錄確認人姓名(按下按鈕當下登入者的名字)跟
 // 確認時間，存在跟收款狀態同一筆 tsaipei_studentBillingPayments 紀錄裡。
-// 「審核」是主管看過會計/財務確認結果後的最終審核，跟前三個確認層級
-// 同一套機制，只是角色換成主管。
 const CONFIRM_LEVELS = [
   { key: 'accountant', label: '會計', role: '會計人員' },
   { key: 'finance', label: '財務', role: '財務人員' },
   { key: 'admin', label: '系統管理員', role: '系統管理員' },
-  { key: 'reviewer', label: '審核', role: '主管' },
 ];
+
+// 審核是對「每一筆實際收到的錢」審核，不是對學生這整列審核——先繳部分
+// 可能分好幾筆收，每一筆金額各自要能單獨審核；全額付清只有一筆金額，
+// 審核按鈕就跟著那筆日期一起顯示。角色限定主管(系統管理員可以代按)，
+// 跟 CONFIRM_LEVELS 的角色限制邏輯一致，只是不走那個通用機制(那個是
+// 整列只有一組、不分金額筆數)。
+const REVIEWER_ROLE = '主管';
+function canReviewAmount(canEditPage, profile) {
+  return canEditPage && (profile?.role === REVIEWER_ROLE || profile?.role === '系統管理員');
+}
 
 // 舊資料相容：
 // 1. 改版前只有 received(布林)/receivedDate 兩個欄位，沒有 status——沒有
@@ -128,7 +135,7 @@ const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
 // 被即時存檔觸發的重新渲染蓋掉；key 包含金額/日期本身，commit 後 key 換了
 // 才重新掛載，新增/刪除某一筆造成後面筆數的 index 位移時顯示的內容也會
 // 正確更新(不會卡著舊的顯示值)。
-function PartialPaymentsEditor({ payment, canEditPage, onAdd, onUpdate, onRemove }) {
+function PartialPaymentsEditor({ payment, canEditPage, canReview, onAdd, onUpdate, onRemove, onToggleReview }) {
   const entries = parsePartialPayments(payment.partialPayments);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -152,6 +159,16 @@ function PartialPaymentsEditor({ payment, canEditPage, onAdd, onUpdate, onRemove
             style={{ width: 130 }}
           />
           {canEditPage && <button onClick={() => onRemove(i)}>×</button>}
+          {entry.reviewedBy ? (
+            <>
+              <span className="tag tag-green" style={{ fontSize: 12 }}>審核：{entry.reviewedBy}</span>
+              {canReview && <button onClick={() => onToggleReview(i)}>取消審核</button>}
+            </>
+          ) : canReview ? (
+            <button onClick={() => onToggleReview(i)}>審核</button>
+          ) : (
+            <span className="muted" style={{ fontSize: 12 }}>未審核</span>
+          )}
         </div>
       ))}
       {canEditPage ? <button onClick={onAdd}>+ 新增一筆</button> : (entries.length === 0 && <span className="muted">—</span>)}
@@ -214,6 +231,18 @@ export default function StudentBillingPage() {
     upsertPayment(studentId, monthStr, { status: '全額付清', fullPaidDate });
   }
 
+  // 全額付清只有一筆金額，審核欄位直接存在收款紀錄本身（不用像先繳部分
+  // 那樣存進陣列）。
+  function handleToggleFullPaidReview(studentId, monthStr) {
+    const existing = paymentFor(studentId, monthStr);
+    if (existing.fullPaidReviewedBy) {
+      if (!window.confirm('確定要取消這筆的審核嗎？')) return;
+      upsertPayment(studentId, monthStr, { fullPaidReviewedBy: '', fullPaidReviewedAt: '' });
+    } else {
+      upsertPayment(studentId, monthStr, { fullPaidReviewedBy: operatorName, fullPaidReviewedAt: new Date().toISOString() });
+    }
+  }
+
   // 先繳部分可以分好幾筆填(每筆各自金額+日期)：新增一筆空白(日期預設今天)、
   // 修改某一筆的金額或日期、刪除某一筆，都是整個陣列重新存回 partialPayments。
   function handleAddPartialPayment(studentId, monthStr) {
@@ -234,6 +263,21 @@ export default function StudentBillingPage() {
   function handleRemovePartialPayment(studentId, monthStr, index) {
     const existing = paymentFor(studentId, monthStr);
     const entries = parsePartialPayments(existing.partialPayments).filter((_, i) => i !== index);
+    upsertPayment(studentId, monthStr, { partialPayments: JSON.stringify(entries) });
+  }
+
+  // 先繳部分每一筆金額各自審核，存在那一筆自己身上(reviewedBy/reviewedAt)，
+  // 不是整個 partialPayments 陣列共用一組。
+  function handleTogglePartialReview(studentId, monthStr, index) {
+    const existing = paymentFor(studentId, monthStr);
+    const entries = parsePartialPayments(existing.partialPayments);
+    if (!entries[index]) return;
+    if (entries[index].reviewedBy) {
+      if (!window.confirm('確定要取消這筆的審核嗎？')) return;
+      entries[index] = { ...entries[index], reviewedBy: '', reviewedAt: '' };
+    } else {
+      entries[index] = { ...entries[index], reviewedBy: operatorName, reviewedAt: new Date().toISOString() };
+    }
     upsertPayment(studentId, monthStr, { partialPayments: JSON.stringify(entries) });
   }
 
@@ -447,7 +491,7 @@ export default function StudentBillingPage() {
       const p = paymentFor(h.studentId, month);
       const ledgerEntry = ledgerFor(h.studentId)[month] || { remaining: b.total, creditAfter: 0 };
       const partialDetail = p.status === '先繳部分'
-        ? parsePartialPayments(p.partialPayments).map((e) => `${e.amount || 0}元(${e.date || '未填日期'})`).join('；')
+        ? parsePartialPayments(p.partialPayments).map((e) => `${e.amount || 0}元(${e.date || '未填日期'})${e.reviewedBy ? `[已審核:${e.reviewedBy}]` : ''}`).join('；')
         : '';
       return {
         dorm: h.type || '',
@@ -463,12 +507,12 @@ export default function StudentBillingPage() {
         status: p.status,
         partialDetail,
         fullPaidDate: p.status === '全額付清' ? (p.fullPaidDate || '') : '',
+        fullPaidReviewedBy: p.status === '全額付清' ? (p.fullPaidReviewedBy || '') : '',
         remaining: ledgerEntry.remaining,
         overpaidCredit: ledgerEntry.creditAfter,
         accountantConfirmedBy: p.accountantConfirmedBy || '',
         financeConfirmedBy: p.financeConfirmedBy || '',
         adminConfirmedBy: p.adminConfirmedBy || '',
-        reviewerConfirmedBy: p.reviewerConfirmedBy || '',
       };
     });
     exportEntityCSV(rows, [
@@ -476,9 +520,9 @@ export default function StudentBillingPage() {
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
       { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'total', label: '合計' },
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
-      { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
+      { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'fullPaidReviewedBy', label: '全額付清審核人' },
+      { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
       { key: 'accountantConfirmedBy', label: '會計確認人' }, { key: 'financeConfirmedBy', label: '財務確認人' }, { key: 'adminConfirmedBy', label: '系統管理員確認人' },
-      { key: 'reviewerConfirmedBy', label: '主管審核人' },
     ], `學生請款計算_${month}`);
   }
 
@@ -551,7 +595,7 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期)」「全額付清(填日期)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
               : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
           </div>
         </div>
@@ -605,20 +649,34 @@ export default function StudentBillingPage() {
                               </td>
                               <td>
                                 {p.status === '全額付清' ? (
-                                  <input
-                                    type="date"
-                                    value={p.fullPaidDate || ''}
-                                    disabled={!canEditPage}
-                                    onChange={(e) => handleFullPaidDateChange(h.studentId, month, e.target.value)}
-                                    style={{ width: 140 }}
-                                  />
+                                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                    <input
+                                      type="date"
+                                      value={p.fullPaidDate || ''}
+                                      disabled={!canEditPage}
+                                      onChange={(e) => handleFullPaidDateChange(h.studentId, month, e.target.value)}
+                                      style={{ width: 140 }}
+                                    />
+                                    {p.fullPaidReviewedBy ? (
+                                      <>
+                                        <span className="tag tag-green" style={{ fontSize: 12 }}>審核：{p.fullPaidReviewedBy}</span>
+                                        {canReviewAmount(canEditPage, profile) && <button onClick={() => handleToggleFullPaidReview(h.studentId, month)}>取消審核</button>}
+                                      </>
+                                    ) : canReviewAmount(canEditPage, profile) ? (
+                                      <button onClick={() => handleToggleFullPaidReview(h.studentId, month)}>審核</button>
+                                    ) : (
+                                      <span className="muted" style={{ fontSize: 12 }}>未審核</span>
+                                    )}
+                                  </div>
                                 ) : p.status === '先繳部分' ? (
                                   <PartialPaymentsEditor
                                     payment={p}
                                     canEditPage={canEditPage}
+                                    canReview={canReviewAmount(canEditPage, profile)}
                                     onAdd={() => handleAddPartialPayment(h.studentId, month)}
                                     onUpdate={(i, field, value) => handleUpdatePartialPayment(h.studentId, month, i, field, value)}
                                     onRemove={(i) => handleRemovePartialPayment(h.studentId, month, i)}
+                                    onToggleReview={(i) => handleTogglePartialReview(h.studentId, month, i)}
                                   />
                                 ) : '—'}
                               </td>
