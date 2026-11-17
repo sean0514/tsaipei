@@ -333,6 +333,8 @@ const VI = {
   '航班編號': 'Số hiệu chuyến bay',
   '航廈': 'Nhà ga',
   '機票費用': 'Chi phí vé máy bay',
+  '簽證費用': 'Chi phí xin visa',
+  '掛牌費用': 'Chi phí đăng ký',
   '付款人': 'Người thanh toán',
 
   // 接送車輛安排
@@ -1280,6 +1282,11 @@ const VI = {
   '編輯支付紀錄': 'Chỉnh sửa hồ sơ chi trả',
   '已付招募者獎金': 'Tiền thưởng người tuyển dụng đã trả',
   '其他支付紀錄': 'Hồ sơ chi trả khác',
+  '已結案支付紀錄（依月份）': 'Hồ sơ chi trả đã kết thúc hồ sơ (theo tháng)',
+  '月份': 'Tháng',
+  '未知月份': 'Tháng không xác định',
+  '本月總計': 'Tổng tháng này',
+  '這個月沒有已結案的支付紀錄': 'Tháng này không có hồ sơ chi trả đã kết thúc hồ sơ nào',
   '此移工目前沒有支付紀錄': 'Lao động này hiện chưa có hồ sơ chi trả nào',
 
   '內部獎金編輯': 'Chỉnh sửa tiền thưởng nội bộ',

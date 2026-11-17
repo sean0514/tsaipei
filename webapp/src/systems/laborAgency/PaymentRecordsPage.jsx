@@ -7,7 +7,7 @@ import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMap, sumByCurrency, subtractCurrencyMaps, canCloseFee } from './constants';
 
-const PAYMENT_CATEGORIES = ['招募者獎金', '內部獎金', '其他支出'];
+const PAYMENT_CATEGORIES = ['招募者獎金', '內部獎金', '其他支出', '機票費用', '簽證費用', '掛牌費用'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'recipient', label: '收款人' }, { key: 'category', label: '款項類別' },
   { key: 'workerId', label: '對應移工ID' }, { key: 'date', label: '支付日期' }, { key: 'amount', label: '金額' },
@@ -63,6 +63,19 @@ export default function PaymentRecordsPage() {
   const openSummaries = summaries.filter((s) => s.feeSetup.closed !== '是');
   const closedSummaries = summaries.filter((s) => s.feeSetup.closed === '是');
 
+  // 已結案的支付紀錄改成依「支付日期」的月份分組顯示（不是依移工彙總），
+  // 每個月列出當月實際付出去的所有支付紀錄（不分款項類別），並加總
+  // 當月的總計金額——結案後案件本身已經不會再變動，這時候看的是「這個
+  // 月付了多少錢出去」的記帳角度，不是「這個案件還欠多少」。
+  const closedWorkerIds = new Set(closedSummaries.map((s) => s.feeSetup.workerId));
+  const closedRecords = rows.filter((r) => closedWorkerIds.has(r.workerId));
+  const closedByMonth = {};
+  closedRecords.forEach((r) => {
+    const month = (r.date || '').slice(0, 7) || t('未知月份', lang);
+    (closedByMonth[month] ||= []).push(r);
+  });
+  const closedMonths = Object.keys(closedByMonth).sort().reverse();
+
   // 「其他支付紀錄」：款項類別不是「招募者獎金」的，或是「招募者獎金」
   // 但對應的移工查無費用計算設定的（理論上不太會發生，先求保險不要
   // 讓資料憑空消失不顯示）。
@@ -107,9 +120,49 @@ export default function PaymentRecordsPage() {
             </label>
           </div>
           {showClosed && (
-            <div className="card" style={{ overflowX: 'auto' }}>
-              <SummaryTable list={closedSummaries} workerOf={workerOf} employers={employers} canEditPage={canEditPage} setViewing={setViewing} setEditing={setEditing} updateFeeSetup={updateFeeSetup} lang={lang} />
-            </div>
+            <>
+              <div className="card" style={{ marginBottom: 16 }}>
+                <div className="row-actions" style={{ flexWrap: 'wrap', gap: 8 }}>
+                  {closedSummaries.map(({ feeSetup: fs }) => (
+                    <span key={fs.id} className="tag tag-grey" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {workerOf(fs.workerId)?.name || '—'}
+                      {canEditPage && <button onClick={() => updateFeeSetup(fs.id, { closed: '' })} className="small">{t('取消已結案', lang)}</button>}
+                    </span>
+                  ))}
+                  {closedSummaries.length === 0 && <span className="muted">{t('沒有資料', lang)}</span>}
+                </div>
+              </div>
+              <h3 style={{ marginTop: 0 }}>{t('已結案支付紀錄（依月份）', lang)}</h3>
+              {closedMonths.length === 0 ? (
+                <div className="card"><p className="muted" style={{ margin: 0 }}>{t('這個月沒有已結案的支付紀錄', lang)}</p></div>
+              ) : closedMonths.map((month) => {
+                const records = closedByMonth[month];
+                const monthTotal = sumByCurrency(records, 'amount', 'currency');
+                return (
+                  <div className="card" key={month} style={{ marginBottom: 16, overflowX: 'auto' }}>
+                    <div className="row-actions" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+                      <h4 style={{ margin: 0 }}>{month}</h4>
+                      <div className="muted">{t('本月總計', lang)}：{formatMoneyMap(monthTotal, lang)}</div>
+                    </div>
+                    <div className="table-wrap"><table>
+                      <thead><tr><th>{t('支付日期', lang)}</th><th>{t('收款人', lang)}</th><th>{t('款項類別', lang)}</th><th>{t('對應移工', lang)}</th><th>{t('金額', lang)}</th><th>{t('備註', lang)}</th></tr></thead>
+                      <tbody>
+                        {records.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r) => (
+                          <tr key={r.id}>
+                            <td>{r.date || '—'}</td>
+                            <td style={{ fontWeight: 600 }}>{r.recipient || '—'}</td>
+                            <td>{t(r.category, lang) || '—'}</td>
+                            <td>{workerOf(r.workerId)?.name || '—'}</td>
+                            <td>{formatMoney(r.amount, r.currency, lang)}</td>
+                            <td className="muted">{r.note || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table></div>
+                  </div>
+                );
+              })}
+            </>
           )}
 
           <h3 style={{ marginTop: 24 }}>{t('其他支付紀錄', lang)}</h3>
