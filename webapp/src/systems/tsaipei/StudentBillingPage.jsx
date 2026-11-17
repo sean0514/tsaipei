@@ -71,13 +71,16 @@ function residentOverlapDays(h, range) {
 
 const PAYMENT_STATUSES = ['未收款', '先繳部分', '全額付清'];
 
-// 確認繳款人：三個審核層級各自獨立按確認，不用照順序，系統管理員可以代
+// 確認繳款人：四個審核層級各自獨立按確認，不用照順序，系統管理員可以代
 // 任何層級確認。每個層級各自記錄確認人姓名(按下按鈕當下登入者的名字)跟
 // 確認時間，存在跟收款狀態同一筆 tsaipei_studentBillingPayments 紀錄裡。
+// 「審核」是主管看過會計/財務確認結果後的最終審核，跟前三個確認層級
+// 同一套機制，只是角色換成主管。
 const CONFIRM_LEVELS = [
   { key: 'accountant', label: '會計', role: '會計人員' },
   { key: 'finance', label: '財務', role: '財務人員' },
   { key: 'admin', label: '系統管理員', role: '系統管理員' },
+  { key: 'reviewer', label: '審核', role: '主管' },
 ];
 
 // 舊資料相容：
@@ -465,6 +468,7 @@ export default function StudentBillingPage() {
         accountantConfirmedBy: p.accountantConfirmedBy || '',
         financeConfirmedBy: p.financeConfirmedBy || '',
         adminConfirmedBy: p.adminConfirmedBy || '',
+        reviewerConfirmedBy: p.reviewerConfirmedBy || '',
       };
     });
     exportEntityCSV(rows, [
@@ -474,6 +478,7 @@ export default function StudentBillingPage() {
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
       { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
       { key: 'accountantConfirmedBy', label: '會計確認人' }, { key: 'financeConfirmedBy', label: '財務確認人' }, { key: 'adminConfirmedBy', label: '系統管理員確認人' },
+      { key: 'reviewerConfirmedBy', label: '主管審核人' },
     ], `學生請款計算_${month}`);
   }
 
