@@ -8,15 +8,17 @@ import { t } from '../../lib/i18n';
 import { CURRENCIES, DEFAULT_CURRENCY } from './constants';
 
 // 內部獎金的角色費率設定——「招募人員」的獎金金額直接在「費用計算」每位
-// 移工各自填固定金額，不是公司統一費率；這裡只設定其餘 5 個角色（行政
-// (履歷表)/會計人員/外務人員/主管/經理）每案固定發放的獎金金額，全公司
-// 統一一筆設定，固定存在 laborAgency_bonusRateSetup/default，供「內部
-// 獎金」頁面試算：每位移工指派了哪個角色，對應角色的負責人就拿到這裡
-// 設定的金額（不是按月比例分攤，是整個案件固定一筆）。每個角色的金額
-// 各自有自己的幣別（currencyKey），不是全部共用一個——跟費用計算/收費
-// 紀錄/支付紀錄一樣，不同幣別分開顯示，不轉換成同一個基準幣別。
+// 移工各自填固定金額，不是公司統一費率；這裡只設定其餘 6 個角色（行政
+// (履歷表)/行政表格/會計人員/外務人員/主管/經理）每案固定發放的獎金
+// 金額，全公司統一一筆設定，固定存在 laborAgency_bonusRateSetup/default，
+// 供「內部獎金」頁面試算：每位移工指派了哪個角色，對應角色的負責人就
+// 拿到這裡設定的金額（不是按月比例分攤，是整個案件固定一筆）。每個
+// 角色的金額各自有自己的幣別（currencyKey），不是全部共用一個——跟
+// 費用計算/收費紀錄/支付紀錄一樣，不同幣別分開顯示，不轉換成同一個
+// 基準幣別。
 const RATE_FIELDS = [
   { key: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { key: 'adminFormRate', currencyKey: 'adminFormRateCurrency', label: '行政表格' },
   { key: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
   { key: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
   { key: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
@@ -52,7 +54,7 @@ export default function BonusRateSetupPage() {
       <div className="page-header">
         <div>
           <h2>{t('內部獎金編輯', lang)}</h2>
-          <div className="page-desc">{t('設定行政（履歷表）/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('設定行政（履歷表）/行政表格/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
       </div>
       <div className="card" style={{ maxWidth: 420 }}>

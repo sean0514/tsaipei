@@ -7,16 +7,18 @@ import { DEFAULT_CURRENCY, formatMoney, formatMoneyMap, workerEmployerIds, depar
 
 // 內部獎金：依「出境月份」試算，不是看現在系統裡全部符合條件的移工，
 // 而是看那位移工是哪個月出境的（出境辦理頁面填的航班時間），一個案件
-// 的獎金（招募人員 + 行政(履歷表)/會計/外務/主管）整筆算進那個月——
-// 還沒出境（沒填航班時間）的移工不會出現在任何月份裡。每個月分開顯示，
+// 的獎金（招募人員 + 行政(履歷表)/行政表格/會計/外務/主管/經理）整筆
+// 算進那個月——還沒出境（沒填航班時間）的移工不會出現在任何月份裡。
+// 每個月分開顯示，
 // 不是選一個月份切換看。
 //
-// 招募人員拿「費用計算」裡該移工填的招募者獎金；其餘 5 個角色若這位
+// 招募人員拿「費用計算」裡該移工填的招募者獎金；其餘 6 個角色若這位
 // 移工有指派負責人，就拿「內部獎金編輯」設定的固定金額。同一個人可能
 // 同時是多位移工的負責人，同一個月內金額依人員加總——加總依幣別分開
 // 算，不轉換成同一個基準幣別（見 constants.js 的說明）。
 const ROLE_DEFS = [
   { workerKey: 'assignedAdminResume', rateKey: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { workerKey: 'assignedAdminForm', rateKey: 'adminFormRate', currencyKey: 'adminFormRateCurrency', label: '行政表格' },
   { workerKey: 'assignedAccountant', rateKey: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
   { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
   { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },

@@ -1220,6 +1220,7 @@ const VI = {
   // 內部獎金編輯），以及移工資料新增的角色指派欄位
   '招募人員': 'Nhân viên tuyển dụng',
   '行政（履歷表）': 'Hành chính (hồ sơ)',
+  '行政表格': 'Hành chính (biểu mẫu)',
   '主管': 'Quản lý',
   '經理': 'Giám đốc',
   '搜尋姓名': 'Tìm theo tên',
@@ -1286,6 +1287,8 @@ const VI = {
     'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
   '設定行政（履歷表）/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
     'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '設定行政（履歷表）/行政表格/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/hành chính (biểu mẫu)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
   '每案': 'mỗi hồ sơ',
   '已儲存': 'Đã lưu',
 
