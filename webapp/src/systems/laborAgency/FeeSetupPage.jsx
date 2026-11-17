@@ -5,13 +5,13 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { canSeeDocNumber, matchStatusOf, withMatchStatus, MATCH_STATUSES } from './constants';
+import { canSeeDocNumber, matchStatusOf, withMatchStatus, MATCH_STATUSES, CURRENCIES, DEFAULT_CURRENCY } from './constants';
 
 const CHARGE_TARGETS = ['工人', '招募'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '移工ID' }, { key: 'workerName', label: '姓名' },
   { key: 'employerId', label: '雇主ID' }, { key: 'totalFee', label: '應繳費用' }, { key: 'taiwanAgencyFee', label: '台仲收費' },
-  { key: 'recruiterBonus', label: '招募者獎金' }, { key: 'chargeTarget', label: '收費對象' },
+  { key: 'recruiterBonus', label: '招募者獎金' }, { key: 'currency', label: '幣別' }, { key: 'chargeTarget', label: '收費對象' },
 ];
 
 // 費用計算：每位移工一筆費用設定——應繳費用是整筆總金額，台仲收費是其中
@@ -74,6 +74,11 @@ export default function FeeSetupPage() {
       totalFee: Number(data.totalFee) || 0,
       taiwanAgencyFee: Number(data.taiwanAgencyFee) || 0,
       recruiterBonus: Number(data.recruiterBonus) || 0,
+      // 幣別下拉選單「看起來」預設選到新台幣，但如果使用者完全沒碰過
+      // 這個欄位，form.currency 本身還是 undefined（同一類問題見
+      // EmployersPage.jsx 的「需求人數」欄位），這裡明確補上預設值，
+      // 不要讓存檔結果跟畫面顯示的不一樣。
+      currency: data.currency || DEFAULT_CURRENCY,
     };
     if (data.id) {
       const { id, ...rest } = payload;
@@ -154,7 +159,7 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
       <thead>
         <tr>
           <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('核准文號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
-          <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
+          <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('幣別', lang)}</th><th>{t('收費對象', lang)}</th>{canEditPage && <th></th>}
         </tr>
       </thead>
       <tbody>
@@ -167,6 +172,7 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
             <td>{(r.totalFee || 0).toLocaleString()}</td>
             <td>{(r.taiwanAgencyFee || 0).toLocaleString()}</td>
             <td>{(r.recruiterBonus || 0).toLocaleString()}</td>
+            <td>{t(r.currency || DEFAULT_CURRENCY, lang)}</td>
             <td>{t(r.chargeTarget, lang) || '—'}</td>
             {canEditPage && (
               <td className="row-actions">
@@ -179,7 +185,7 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
             )}
           </tr>
         ))}
-        {list.length === 0 && <tr><td colSpan={(showDocNumber ? 8 : 7) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
+        {list.length === 0 && <tr><td colSpan={(showDocNumber ? 9 : 8) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
       </tbody>
     </table></div>
   );
@@ -225,6 +231,12 @@ function FeeSetupFormModal({ initial, workers, employers, onCancel, onSave, lang
             <label>
               {t('招募者獎金', lang)}
               <input type="number" value={form.recruiterBonus || ''} onChange={(e) => setForm({ ...form, recruiterBonus: e.target.value })} />
+            </label>
+            <label>
+              {t('幣別', lang)}
+              <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
             <label>
               {t('收費對象', lang)}
