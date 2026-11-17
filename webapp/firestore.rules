@@ -1122,6 +1122,13 @@ service cloud.firestore {
       allow read: if laIsMember();
       allow write: if laCanEdit('bonusRateSetup');
     }
+    // 內部獎金：確認封存的獎金快照（每個出境月份一筆），封存後該月畫面
+    // 改用這份固定資料，不再即時重算——比照 tsaipei_bonusArchives 同一套
+    // 做法，用「內部獎金」頁面本身的 bonus 權限鍵控管。
+    match /laborAgency_bonusArchives/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('bonus');
+    }
     // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
     // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status
     // 一定要是「待處理」。workerId 開放在「建立當下」填入（送出履歷時會
