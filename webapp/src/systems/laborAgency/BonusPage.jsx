@@ -11,7 +11,7 @@ import { DEFAULT_CURRENCY, formatMoney, formatMoneyMap, workerEmployerIds, depar
 // 還沒出境（沒填航班時間）的移工不會出現在任何月份裡。每個月分開顯示，
 // 不是選一個月份切換看。
 //
-// 招募人員拿「費用計算」裡該移工填的招募者獎金；其餘 4 個角色若這位
+// 招募人員拿「費用計算」裡該移工填的招募者獎金；其餘 5 個角色若這位
 // 移工有指派負責人，就拿「內部獎金編輯」設定的固定金額。同一個人可能
 // 同時是多位移工的負責人，同一個月內金額依人員加總——加總依幣別分開
 // 算，不轉換成同一個基準幣別（見 constants.js 的說明）。
@@ -20,6 +20,7 @@ const ROLE_DEFS = [
   { workerKey: 'assignedAccountant', rateKey: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
   { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
   { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
+  { workerKey: 'assignedManager', rateKey: 'managerRate', currencyKey: 'managerRateCurrency', label: '經理' },
 ];
 
 // 一位移工可能配對好幾個雇主（workerEmployerIds），每一筆配對各自的

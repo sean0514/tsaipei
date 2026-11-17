@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
-import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMap, sumByCurrency, subtractCurrencyMaps } from './constants';
+import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMap, sumByCurrency, subtractCurrencyMaps, canCloseFee } from './constants';
 
 const PAYMENT_CATEGORIES = ['招募者獎金', '內部獎金', '其他支出'];
 const CSV_FIELDS = [
@@ -165,7 +165,7 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
       <thead>
         <tr>
           <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th>
-          <th>{t('已付招募者獎金', lang)}</th><th>{t('餘額', lang)}</th>{canEditPage && <th></th>}
+          <th>{t('已付招募者獎金', lang)}</th><th>{t('餘額', lang)}</th><th>{t('支付審核', lang)}</th>{canEditPage && <th></th>}
         </tr>
       </thead>
       <tbody>
@@ -177,13 +177,21 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
             <td>{formatMoney(fs.recruiterBonus, fs.currency, lang)}</td>
             <td>{formatMoneyMap(paidMap, lang)}</td>
             <td style={{ fontWeight: 600 }}>{formatMoneyMap(balanceMap, lang)}</td>
+            <td>
+              <span className={`tag ${fs.paymentReviewed === '是' ? 'tag-green' : 'tag-grey'}`}>
+                {fs.paymentReviewed === '是' ? t('審核完成', lang) : t('未審核', lang)}
+              </span>
+            </td>
             {canEditPage && (
               <td className="row-actions">
                 <button onClick={() => setViewing(fs)}>{t('查看明細', lang)}</button>
                 <button className="primary" onClick={() => setEditing({ workerId: fs.workerId, category: '招募者獎金' })}>+ {t('新增支付紀錄', lang)}</button>
+                {fs.paymentReviewed === '是'
+                  ? <button onClick={() => updateFeeSetup(fs.id, { paymentReviewed: '' })}>{t('取消審核', lang)}</button>
+                  : <button onClick={() => updateFeeSetup(fs.id, { paymentReviewed: '是' })}>{t('審核完成', lang)}</button>}
                 {fs.closed === '是'
                   ? <button onClick={() => updateFeeSetup(fs.id, { closed: '' })}>{t('取消已結案', lang)}</button>
-                  : <button onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
+                  : <button disabled={!canCloseFee(fs)} title={!canCloseFee(fs) ? t('需先完成收費與支付審核才能結案', lang) : ''} onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
               </td>
             )}
           </tr>
