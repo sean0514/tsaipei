@@ -1221,6 +1221,7 @@ const VI = {
   '招募人員': 'Nhân viên tuyển dụng',
   '行政（履歷表）': 'Hành chính (hồ sơ)',
   '主管': 'Quản lý',
+  '經理': 'Giám đốc',
   '搜尋姓名': 'Tìm theo tên',
 
   '費用計算': 'Tính phí',
@@ -1256,6 +1257,12 @@ const VI = {
   '取消已結案': 'Hủy kết thúc hồ sơ',
   '顯示已結案名單': 'Hiện danh sách đã kết thúc hồ sơ',
   '此移工目前沒有收費紀錄': 'Lao động này hiện chưa có hồ sơ thu phí nào',
+  '收費審核': 'Duyệt thu phí',
+  '支付審核': 'Duyệt chi trả',
+  '審核完成': 'Đã duyệt',
+  '未審核': 'Chưa duyệt',
+  '取消審核': 'Hủy duyệt',
+  '需先完成收費與支付審核才能結案': 'Cần hoàn tất duyệt thu phí và chi trả trước khi có thể kết thúc hồ sơ',
 
   '支付紀錄': 'Hồ sơ chi trả',
   '實際付出的款項日誌（招募者獎金、內部獎金或其他支出）': 'Nhật ký thực tế chi tiền (tiền thưởng người tuyển dụng, tiền thưởng nội bộ hoặc chi phí khác)',
@@ -1277,6 +1284,8 @@ const VI = {
   '內部獎金編輯': 'Chỉnh sửa tiền thưởng nội bộ',
   '設定行政（履歷表）/會計人員/外務人員/主管每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
     'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '設定行政（履歷表）/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
   '每案': 'mỗi hồ sơ',
   '已儲存': 'Đã lưu',
 

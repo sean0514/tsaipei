@@ -29,13 +29,14 @@ const CASE_FIELDS = [
   { key: 'passportExpiry', label: '護照效期', type: 'date' },
   // 每位移工各自指派負責人，詳見 BonusPage.jsx／BonusRateSetupPage.jsx。
   // 「招募人員」的獎金金額直接在「費用計算」(FeeSetupPage.jsx) 設定，
-  // 其餘 4 個角色的獎金金額在「內部獎金編輯」(BonusRateSetupPage.jsx)
+  // 其餘 5 個角色的獎金金額在「內部獎金編輯」(BonusRateSetupPage.jsx)
   // 設定固定金額。
   { key: 'assignedRecruiter', label: '招募人員', type: 'staff' },
   { key: 'assignedAdminResume', label: '行政（履歷表）', type: 'staff' },
   { key: 'assignedAccountant', label: '會計人員', type: 'staff' },
   { key: 'assignedFieldStaff', label: '外務人員', type: 'staff' },
   { key: 'assignedSupervisor', label: '主管', type: 'staff' },
+  { key: 'assignedManager', label: '經理', type: 'staff' },
 ];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'name', label: '姓名' }, { key: 'vietnameseName', label: '越文姓名' },
