@@ -244,7 +244,7 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
                   : <button onClick={() => updateFeeSetup(fs.id, { paymentReviewed: '是' })}>{t('審核完成', lang)}</button>}
                 {fs.closed === '是'
                   ? <button onClick={() => updateFeeSetup(fs.id, { closed: '' })}>{t('取消已結案', lang)}</button>
-                  : <button disabled={!canCloseFee(fs)} title={!canCloseFee(fs) ? t('需先完成收費與支付審核才能結案', lang) : ''} onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
+                  : <button disabled={!canCloseFee(fs)} title={!canCloseFee(fs) ? t('需先完成收費覆核與支付審核才能結案', lang) : ''} onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
               </td>
             )}
           </tr>
