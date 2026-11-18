@@ -58,7 +58,7 @@ export default function WorkersPage() {
   const { rows: workers, loading, add, update, remove } = useCollection('laborAgency_workers');
   const { rows: employers } = useCollection('laborAgency_employers');
   const { rows: users } = useCollection('laborAgency_users');
-  const { rows: feeSetups, add: addFeeSetup } = useCollection('laborAgency_feeSetup');
+  const { rows: feeSetups, loading: feeSetupsLoading, add: addFeeSetup } = useCollection('laborAgency_feeSetup');
   const [editing, setEditing] = useState(null);
   const [arranging, setArranging] = useState(false);
   const [q, setQ] = useState('');
@@ -85,7 +85,10 @@ export default function WorkersPage() {
   // 補一筆空白設定（金額都是 0），行政人員不用自己記得要去新增——跟
   // FeeSetupPage.jsx 的 ensureHiredForFee()（費用計算存檔時反過來帶動
   // 這裡的狀態變「錄取」）是同一組連動的另一個方向。已經有對應這筆
-  // 配對（同一個 workerId＋employerId）的設定就不重複建立。
+  // 配對（同一個 workerId＋employerId）的設定就不重複建立——這個檢查
+  // 依賴呼叫端已經等到 feeSetups 的即時資料真的載入完成，不然本地
+  // 陣列還是空的，會誤判成「不存在」而重複新增一筆空白設定（見下面
+  // backfillRanRef 那段的說明，這個問題實際發生過）。
   async function ensureFeeSetupForHire(worker, employerId) {
     const exists = feeSetups.some((f) => f.workerId === worker.id && (f.employerId || '') === (employerId || ''));
     if (exists) return;
@@ -115,10 +118,12 @@ export default function WorkersPage() {
   // 對應費用設定的補上——只在資料剛載入完成時跑一次（ensureFeeSetupForHire
   // 內部本來就會先檢查是否已存在才新增，就算這個 effect 被重新觸發也
   // 不會建出重複的空白設定，但沒必要每次 Firestore 即時同步都掃一次
-  // 全部移工，用 ref 擋掉重複執行）。
+  // 全部移工，用 ref 擋掉重複執行）。兩個集合（workers／feeSetups）各自
+  // 獨立訂閱，一定要等兩邊都載入完成才能掃，不然 feeSetups 還是空陣列，
+  // 每一筆已經錄取的配對都會被誤判成「還沒有費用設定」而重複新增。
   const backfillRanRef = useRef(false);
   useEffect(() => {
-    if (loading || !canEditPage || backfillRanRef.current) return;
+    if (loading || feeSetupsLoading || !canEditPage || backfillRanRef.current) return;
     backfillRanRef.current = true;
     workers.forEach((w) => {
       const ids = workerEmployerIds(w);
@@ -129,7 +134,7 @@ export default function WorkersPage() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, canEditPage]);
+  }, [loading, feeSetupsLoading, canEditPage]);
 
   async function handleArrangeEmployer({ workerId, employerId }) {
     const worker = workers.find((w) => w.id === workerId);
