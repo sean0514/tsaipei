@@ -9,8 +9,8 @@ import { employerLabel, CURRENCIES, DEFAULT_CURRENCY, formatMoney, formatMoneyMa
 
 const CHARGE_TARGETS = ['工人', '招募'];
 // 收費項目除了這幾個常見類別，也可以自己輸入新的項目名稱（見下面
-// ChargeRecordFormModal 的 datalist 做法，跟支付紀錄「收款人」欄位
-// 同一套模式），不是寫死只能選這幾項。
+// ChargeRecordAddModal/ChargeRecordEditModal 的 datalist 做法，跟支付
+// 紀錄「收款人」欄位同一套模式），不是寫死只能選這幾項。
 const CHARGE_ITEM_PRESETS = ['訂金', '預付款', '尾款', '其他費用'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'workerId', label: '移工ID' }, { key: 'date', label: '收費日期' },
@@ -37,7 +37,7 @@ const CSV_FIELDS = [
 // 下方「已結案」收合區塊，資料還在，可以「取消已結案」移回來，不是
 // 刪除。
 export default function ChargeRecordsPage() {
-  const { system, role, overrides, lang } = useOutletContext();
+  const { system, role, overrides, lang, userDisplayName } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'chargeRecords', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('laborAgency_chargeRecords');
   const { rows: workers } = useCollection('laborAgency_workers');
@@ -77,13 +77,42 @@ export default function ChargeRecordsPage() {
 
   async function handleSave(data) {
     const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
-    if (data.id) {
-      const { id, ...rest } = payload;
-      await update(id, rest);
-    } else {
-      await add(payload);
-    }
+    const { id, ...rest } = payload;
+    await update(id, rest);
     setEditing(null);
+  }
+
+  // 新增收費一次可以填好幾列（訂金/預付款/尾款可能同一次登打，日期也
+  // 可能各自不同），逐列各自呼叫 add() 存成獨立一筆 laborAgency_chargeRecords
+  // 文件——跟既有單筆收費紀錄的資料結構完全一樣，只是這裡一次送出多筆。
+  async function handleSaveMultiple(workerId, newRows) {
+    const validRows = newRows.filter((r) => r.date || r.item || r.amount);
+    await Promise.all(validRows.map((r) => add({
+      workerId,
+      date: r.date || '',
+      item: r.item || '',
+      amount: Number(r.amount) || 0,
+      currency: r.currency || DEFAULT_CURRENCY,
+      chargeTarget: r.chargeTarget || '',
+      note: r.note || '',
+    })));
+    setEditing(null);
+  }
+
+  // 審核／覆核各自記錄按下當下登入人員的姓名，不只是一個是/否的勾選
+  // ——覆核要先完成審核才能按，兩個關卡各自獨立的核准人（canCloseFee
+  // 判斷只看覆核是否完成，見 constants.js 的說明）。
+  function handleReview(fs) {
+    updateFeeSetup(fs.id, { chargeReviewed: '是', chargeReviewedBy: userDisplayName, chargeReviewedAt: Date.now() });
+  }
+  function handleUnreview(fs) {
+    updateFeeSetup(fs.id, { chargeReviewed: '', chargeReviewedBy: '', chargeReviewedAt: '' });
+  }
+  function handleCountersign(fs) {
+    updateFeeSetup(fs.id, { chargeCountersigned: '是', chargeCountersignedBy: userDisplayName, chargeCountersignedAt: Date.now() });
+  }
+  function handleUncountersign(fs) {
+    updateFeeSetup(fs.id, { chargeCountersigned: '', chargeCountersignedBy: '', chargeCountersignedAt: '' });
   }
 
   return (
@@ -102,7 +131,12 @@ export default function ChargeRecordsPage() {
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
         <>
           <div className="card" style={{ overflowX: 'auto' }}>
-            <SummaryTable list={openSummaries} workerOf={workerOf} employers={employers} canEditPage={canEditPage} setViewing={setViewing} setEditing={setEditing} updateFeeSetup={updateFeeSetup} lang={lang} />
+            <SummaryTable
+              list={openSummaries} workerOf={workerOf} employers={employers} canEditPage={canEditPage}
+              setViewing={setViewing} setEditing={setEditing}
+              onReview={handleReview} onUnreview={handleUnreview} onCountersign={handleCountersign} onUncountersign={handleUncountersign}
+              updateFeeSetup={updateFeeSetup} lang={lang}
+            />
           </div>
           <div style={{ margin: '12px 0' }}>
             <label className="row-actions" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -112,12 +146,20 @@ export default function ChargeRecordsPage() {
           </div>
           {showClosed && (
             <div className="card" style={{ overflowX: 'auto' }}>
-              <SummaryTable list={closedSummaries} workerOf={workerOf} employers={employers} canEditPage={canEditPage} setViewing={setViewing} setEditing={setEditing} updateFeeSetup={updateFeeSetup} lang={lang} />
+              <SummaryTable
+                list={closedSummaries} workerOf={workerOf} employers={employers} canEditPage={canEditPage}
+                setViewing={setViewing} setEditing={setEditing}
+                onReview={handleReview} onUnreview={handleUnreview} onCountersign={handleCountersign} onUncountersign={handleUncountersign}
+                updateFeeSetup={updateFeeSetup} lang={lang}
+              />
             </div>
           )}
         </>
       )}
-      {editing && <ChargeRecordFormModal initial={editing} workers={workers} feeSetups={feeSetups} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />}
+      {editing && (editing.id
+        ? <ChargeRecordEditModal initial={editing} feeSetups={feeSetups} workerOf={workerOf} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} />
+        : <ChargeRecordAddModal initial={editing} workers={workers} feeSetups={feeSetups} onCancel={() => setEditing(null)} onSave={handleSaveMultiple} lang={lang} />
+      )}
       {viewing && (
         <ChargeDetailModal
           worker={workerOf(viewing.workerId)}
@@ -137,13 +179,13 @@ export default function ChargeRecordsPage() {
 // 重新 render 都會產生新的函式參照，React 會當成不同的元件型別整個
 // 重新掛載（這個頁面其他地方也有同樣的教訓，見 VisaProcessingPage.jsx
 // 的註解）。
-function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setEditing, updateFeeSetup, lang }) {
+function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setEditing, onReview, onUnreview, onCountersign, onUncountersign, updateFeeSetup, lang }) {
   return (
     <div className="table-wrap"><table>
       <thead>
         <tr>
           <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
-          <th>{t('已繳費用', lang)}</th><th>{t('餘額', lang)}</th><th>{t('收費審核', lang)}</th>{canEditPage && <th></th>}
+          <th>{t('已繳費用', lang)}</th><th>{t('餘額', lang)}</th><th>{t('審核', lang)}</th><th>{t('覆核', lang)}</th>{canEditPage && <th></th>}
         </tr>
       </thead>
       <tbody>
@@ -155,34 +197,53 @@ function SummaryTable({ list, workerOf, employers, canEditPage, setViewing, setE
             <td>{formatMoneyMap(paidMap, lang)}</td>
             <td style={{ fontWeight: 600 }}>{formatMoneyMap(balanceMap, lang)}</td>
             <td>
-              <span className={`tag ${fs.chargeReviewed === '是' ? 'tag-green' : 'tag-grey'}`}>
-                {fs.chargeReviewed === '是' ? t('審核完成', lang) : t('未審核', lang)}
-              </span>
+              <ReviewTag done={fs.chargeReviewed === '是'} doneLabel={t('審核完成', lang)} notDoneLabel={t('未審核', lang)} approverName={fs.chargeReviewedBy} approvedAt={fs.chargeReviewedAt} lang={lang} />
+            </td>
+            <td>
+              <ReviewTag done={fs.chargeCountersigned === '是'} doneLabel={t('覆核完成', lang)} notDoneLabel={t('未覆核', lang)} approverName={fs.chargeCountersignedBy} approvedAt={fs.chargeCountersignedAt} lang={lang} />
             </td>
             {canEditPage && (
               <td className="row-actions">
                 <button onClick={() => setViewing(fs)}>{t('查看明細', lang)}</button>
                 <button className="primary" onClick={() => setEditing({ workerId: fs.workerId })}>+ {t('新增收費', lang)}</button>
                 {fs.chargeReviewed === '是'
-                  ? <button onClick={() => updateFeeSetup(fs.id, { chargeReviewed: '' })}>{t('取消審核', lang)}</button>
-                  : <button onClick={() => updateFeeSetup(fs.id, { chargeReviewed: '是' })}>{t('審核完成', lang)}</button>}
+                  ? (fs.chargeCountersigned !== '是' && <button onClick={() => onUnreview(fs)}>{t('取消審核', lang)}</button>)
+                  : <button onClick={() => onReview(fs)}>{t('審核完成', lang)}</button>}
+                {fs.chargeReviewed === '是' && (fs.chargeCountersigned === '是'
+                  ? <button onClick={() => onUncountersign(fs)}>{t('取消覆核', lang)}</button>
+                  : <button onClick={() => onCountersign(fs)}>{t('覆核完成', lang)}</button>)}
                 {fs.closed === '是'
                   ? <button onClick={() => updateFeeSetup(fs.id, { closed: '' })}>{t('取消已結案', lang)}</button>
-                  : <button disabled={!canCloseFee(fs)} title={!canCloseFee(fs) ? t('需先完成收費與支付審核才能結案', lang) : ''} onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
+                  : <button disabled={!canCloseFee(fs)} title={!canCloseFee(fs) ? t('需先完成收費覆核與支付審核才能結案', lang) : ''} onClick={() => updateFeeSetup(fs.id, { closed: '是' })}>{t('結案', lang)}</button>}
               </td>
             )}
           </tr>
         ))}
-        {list.length === 0 && <tr><td colSpan={canEditPage ? 6 : 5} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
+        {list.length === 0 && <tr><td colSpan={canEditPage ? 8 : 7} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
       </tbody>
     </table></div>
   );
 }
 
+// 審核/覆核狀態標籤：完成時可以點一下看核准人姓名跟時間，不然主列表
+// 一堆人名擠在欄位裡太吵——平時只顯示「審核完成」這種簡短狀態字樣。
+function ReviewTag({ done, doneLabel, notDoneLabel, approverName, approvedAt, lang }) {
+  if (!done) return <span className="tag tag-grey">{notDoneLabel}</span>;
+  function handleClick() {
+    const when = approvedAt ? new Date(approvedAt).toLocaleString() : '—';
+    window.alert(`${doneLabel}\n${t('核准人：', lang)}${approverName || '—'}\n${t('時間：', lang)}${when}`);
+  }
+  return (
+    <button type="button" className="tag tag-green" style={{ border: 'none', cursor: 'pointer' }} onClick={handleClick}>
+      {doneLabel}
+    </button>
+  );
+}
+
 // 查看某一位移工底下所有收費紀錄的明細（主列表只顯示彙總金額，個別
-// 哪一天收了哪個項目多少錢要點進這裡看）；「編輯」「新增」沿用同一個
-// ChargeRecordFormModal，疊在這個視窗上面（雙層背景遮罩，純視覺上的
-// 小瑕疵，不影響操作）。
+// 哪一天收了哪個項目多少錢要點進這裡看）；「編輯」開 ChargeRecordEditModal、
+// 「新增」開 ChargeRecordAddModal，疊在這個視窗上面（雙層背景遮罩，純
+// 視覺上的小瑕疵，不影響操作）。
 function ChargeDetailModal({ worker, records, onClose, onEdit, onAdd, onRemove, lang }) {
   const sorted = [...records].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return (
@@ -216,36 +277,21 @@ function ChargeDetailModal({ worker, records, onClose, onEdit, onAdd, onRemove, 
   );
 }
 
-// 新增收費紀錄時，移工選單改成帶入「費用計算」已設定好應繳費用的名單
-// （而不是整個移工名冊），選了之後自動帶入該筆設定的應繳費用當作預設
-// 金額，不用再手動對照費用計算的金額填一次。收費項目可以選常見的幾個
-// 類別，也可以自己輸入其他名稱。
-function ChargeRecordFormModal({ initial, workers, feeSetups, onCancel, onSave, lang }) {
+// 編輯既有的單筆收費紀錄——跟新增多筆的表單（下面 ChargeRecordAddModal）
+// 分開：編輯一次只改一筆，沿用原本的單列表單欄位。
+function ChargeRecordEditModal({ initial, feeSetups, workerOf, onCancel, onSave, lang }) {
   const [form, setForm] = useState(initial);
-
-  function workerOf(workerId) { return workers.find((w) => w.id === workerId); }
-  const sortedFeeSetups = [...feeSetups].sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
-
-  function handleFeeSetupChange(feeSetupId) {
-    const fs = feeSetups.find((f) => f.id === feeSetupId);
-    if (!fs) { setForm({ ...form, workerId: '' }); return; }
-    setForm({ ...form, workerId: fs.workerId, amount: form.amount || fs.totalFee || '' });
-  }
+  const fs = feeSetups.find((f) => f.workerId === form.workerId);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{initial.id ? t('編輯收費紀錄', lang) : t('新增收費紀錄', lang)}</h3>
+        <h3>{t('編輯收費紀錄', lang)}</h3>
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
           <div className="form-grid">
             <label>
               {t('移工', lang)}（{t('費用計算', lang)}）
-              <select required value={sortedFeeSetups.find((f) => f.workerId === form.workerId)?.id || ''} onChange={(e) => handleFeeSetupChange(e.target.value)}>
-                <option value="">{t('請選擇', lang)}</option>
-                {sortedFeeSetups.map((f) => (
-                  <option key={f.id} value={f.id}>{workerOf(f.workerId)?.name || '—'}（{(f.totalFee || 0).toLocaleString()}）</option>
-                ))}
-              </select>
+              <input value={`${workerOf(form.workerId)?.name || '—'}${fs ? `（${(fs.totalFee || 0).toLocaleString()}）` : ''}`} disabled />
             </label>
             <label>
               {t('收費日期', lang)}
@@ -259,12 +305,6 @@ function ChargeRecordFormModal({ initial, workers, feeSetups, onCancel, onSave, 
                 placeholder={t('選擇或自行輸入項目名稱', lang)}
                 onChange={(e) => setForm({ ...form, item: e.target.value })}
               />
-              {/* datalist 的建議清單跟自由輸入共存：value 存固定的中文
-                  canonical 值（訂金/預付款/尾款/其他費用），跟其他固定
-                  類別欄位（例如收費對象）一致，不會因為使用者當下顯示
-                  語言不同而存到不同文字；選單裡顯示的文字另外用 t()
-                  翻譯成當下語言，瀏覽器選取建議項目時填入的是 value，
-                  不是顯示文字。 */}
               <datalist id="charge-item-options">
                 {CHARGE_ITEM_PRESETS.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
               </datalist>
@@ -292,6 +332,111 @@ function ChargeRecordFormModal({ initial, workers, feeSetups, onCancel, onSave, 
             <textarea rows={3} value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ marginBottom: 16 }} />
           </label>
           <div className="row-actions">
+            <button type="submit" className="primary">{t('儲存', lang)}</button>
+            <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function emptyChargeRow() {
+  return { date: '', item: '', amount: '', currency: DEFAULT_CURRENCY, chargeTarget: '', note: '' };
+}
+
+// 新增收費：同一位移工的收款常常分好幾筆（訂金/預付款/尾款，各自日期
+// 跟金額不同），一次開一列填一筆太慢——改成跟履歷表的工作經歷編輯器
+// 同一套模式，一次可以列好幾列、填好一起送出，各列分別存成獨立一筆
+// laborAgency_chargeRecords 文件（見上面 handleSaveMultiple）。移工（費用
+// 計算）選單選了之後自動帶入該筆設定的應繳費用當作參考，不是自動帶入
+// 到某一列的金額——多筆金額各自不同，不適合自動帶入。
+function ChargeRecordAddModal({ initial, workers, feeSetups, onCancel, onSave, lang }) {
+  const [workerId, setWorkerId] = useState(initial.workerId || '');
+  const [rows, setRows] = useState([emptyChargeRow()]);
+
+  function workerOf(id) { return workers.find((w) => w.id === id); }
+  const sortedFeeSetups = [...feeSetups].sort((a, b) => (workerOf(a.workerId)?.name || '').localeCompare(workerOf(b.workerId)?.name || ''));
+  const selectedFeeSetup = feeSetups.find((f) => f.workerId === workerId);
+
+  function updateRow(i, patch) {
+    setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i) {
+    setRows(rows.filter((_, idx) => idx !== i));
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave(workerId, rows);
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 680, maxWidth: '100%' }}>
+        <h3>{t('新增收費紀錄', lang)}</h3>
+        <form onSubmit={handleSubmit}>
+          <label style={{ display: 'block', marginBottom: 12 }}>
+            {t('移工', lang)}（{t('費用計算', lang)}）
+            <select required value={selectedFeeSetup?.id || ''} onChange={(e) => setWorkerId(feeSetups.find((f) => f.id === e.target.value)?.workerId || '')}>
+              <option value="">{t('請選擇', lang)}</option>
+              {sortedFeeSetups.map((f) => (
+                <option key={f.id} value={f.id}>{workerOf(f.workerId)?.name || '—'}（{(f.totalFee || 0).toLocaleString()}）</option>
+              ))}
+            </select>
+          </label>
+
+          {rows.map((r, i) => (
+            <div key={i} className="form-grid" style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #eee' }}>
+              <label>
+                {t('收費日期', lang)}
+                <input type="date" value={r.date} onChange={(e) => updateRow(i, { date: e.target.value })} />
+              </label>
+              <label>
+                {t('收費項目', lang)}
+                <input
+                  list="charge-item-options"
+                  value={r.item}
+                  placeholder={t('選擇或自行輸入項目名稱', lang)}
+                  onChange={(e) => updateRow(i, { item: e.target.value })}
+                />
+                {/* datalist 的建議清單跟自由輸入共存：value 存固定的中文
+                    canonical 值（訂金/預付款/尾款/其他費用），跟其他固定
+                    類別欄位（例如收費對象）一致，不會因為使用者當下顯示
+                    語言不同而存到不同文字；選單裡顯示的文字另外用 t()
+                    翻譯成當下語言，瀏覽器選取建議項目時填入的是 value，
+                    不是顯示文字。 */}
+                <datalist id="charge-item-options">
+                  {CHARGE_ITEM_PRESETS.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
+                </datalist>
+              </label>
+              <label>
+                {t('金額', lang)}
+                <input type="number" value={r.amount} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+              </label>
+              <label>
+                {t('幣別', lang)}
+                <select value={r.currency || DEFAULT_CURRENCY} onChange={(e) => updateRow(i, { currency: e.target.value })}>
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                </select>
+              </label>
+              <label>
+                {t('收費對象', lang)}
+                <select value={r.chargeTarget} onChange={(e) => updateRow(i, { chargeTarget: e.target.value })}>
+                  <option value="">{t('請選擇', lang)}</option>
+                  {CHARGE_TARGETS.map((o) => <option key={o} value={o}>{t(o, lang)}</option>)}
+                </select>
+              </label>
+              <label>
+                {t('備註', lang)}
+                <input value={r.note} onChange={(e) => updateRow(i, { note: e.target.value })} />
+              </label>
+              {rows.length > 1 && <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>{t('移除', lang)}</button>}
+            </div>
+          ))}
+          <button type="button" onClick={() => setRows([...rows, emptyChargeRow()])}>+ {t('新增一筆', lang)}</button>
+
+          <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">{t('儲存', lang)}</button>
             <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
           </div>

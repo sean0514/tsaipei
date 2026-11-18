@@ -299,10 +299,10 @@ export function formatMoneyMap(map, lang) {
 }
 
 // 結案（費用計算/收費紀錄/支付紀錄共用同一個 closed 欄位）前要先完成
-// 兩道審核關卡：收費紀錄跟支付紀錄各自要審核過這位移工的收款/付款
-// 資料（chargeReviewed/paymentReviewed，'是'/''），兩邊都審核完成才能
-// 按「結案」——三個頁面的結案按鈕都要套用同一個判斷，不要各自寫一次
-// 判斷式，以免以後改了審核規則卻只改到其中一兩個頁面。
+// 審核關卡：收費紀錄這邊是審核、覆核兩道（chargeReviewed 審核完成後
+// 才能按 chargeCountersigned 覆核，兩個都要完成），支付紀錄只有一道
+// （paymentReviewed）——三個頁面的結案按鈕都要套用同一個判斷，不要
+// 各自寫一次判斷式，以免以後改了審核規則卻只改到其中一兩個頁面。
 export function canCloseFee(fs) {
-  return fs.chargeReviewed === '是' && fs.paymentReviewed === '是';
+  return fs.chargeCountersigned === '是' && fs.paymentReviewed === '是';
 }

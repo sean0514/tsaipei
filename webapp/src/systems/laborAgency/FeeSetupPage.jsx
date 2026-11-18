@@ -160,7 +160,7 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
         <tr>
           <th>{t('姓名', lang)}</th>{showDocNumber && <th>{t('核准文號', lang)}</th>}<th>{t('護照號碼', lang)}</th><th>{t('雇主', lang)}</th><th>{t('應繳費用', lang)}</th>
           <th>{t('台仲收費', lang)}</th><th>{t('招募者獎金', lang)}</th><th>{t('幣別', lang)}</th><th>{t('收費對象', lang)}</th>
-          <th>{t('收費審核', lang)}</th><th>{t('支付審核', lang)}</th>{canEditPage && <th></th>}
+          <th>{t('收費審核', lang)}</th><th>{t('收費覆核', lang)}</th><th>{t('支付審核', lang)}</th>{canEditPage && <th></th>}
         </tr>
       </thead>
       <tbody>
@@ -181,6 +181,11 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
               </span>
             </td>
             <td>
+              <span className={`tag ${r.chargeCountersigned === '是' ? 'tag-green' : 'tag-grey'}`}>
+                {r.chargeCountersigned === '是' ? t('覆核完成', lang) : t('未覆核', lang)}
+              </span>
+            </td>
+            <td>
               <span className={`tag ${r.paymentReviewed === '是' ? 'tag-green' : 'tag-grey'}`}>
                 {r.paymentReviewed === '是' ? t('審核完成', lang) : t('未審核', lang)}
               </span>
@@ -190,13 +195,13 @@ function FeeSetupTable({ list, workerOf, employerOf, showDocNumber, canEditPage,
                 <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
                 {r.closed === '是'
                   ? <button onClick={() => update(r.id, { closed: '' })}>{t('取消已結案', lang)}</button>
-                  : <button disabled={!canCloseFee(r)} title={!canCloseFee(r) ? t('需先完成收費與支付審核才能結案', lang) : ''} onClick={() => update(r.id, { closed: '是' })}>{t('結案', lang)}</button>}
+                  : <button disabled={!canCloseFee(r)} title={!canCloseFee(r) ? t('需先完成收費覆核與支付審核才能結案', lang) : ''} onClick={() => update(r.id, { closed: '是' })}>{t('結案', lang)}</button>}
                 <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
               </td>
             )}
           </tr>
         ))}
-        {list.length === 0 && <tr><td colSpan={(showDocNumber ? 11 : 10) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
+        {list.length === 0 && <tr><td colSpan={(showDocNumber ? 12 : 11) + (canEditPage ? 1 : 0)} className="muted">{t('尚未建立費用設定', lang)}</td></tr>}
       </tbody>
     </table></div>
   );
