@@ -133,9 +133,15 @@ export default function ArrivalNoticePage() {
   // 日期/機場及班機/抵達時間，底下接編號/姓名/雇主…的名冊表格。同一組
   // （仲介）底下的移工通常是同一班飛機，班機資訊取第一筆有填的那筆。
   async function handleDownload(agencyKey, group) {
-    const flightPair = group.find((r) => departureInfoOf(r.worker, r.employerId).flightTime);
+    const flightPair = group.find((r) => {
+      const info = departureInfoOf(r.worker, r.employerId);
+      return info.arrivalTime || info.flightTime;
+    });
     const flightRow = flightPair ? departureInfoOf(flightPair.worker, flightPair.employerId) : {};
-    const [arrivalDate, arrivalTimeRaw] = (flightRow.flightTime || '').split('T');
+    // 抵達時間另外有專屬欄位（出境辦理填的是啟程班機時間，兩者不一定
+    // 相同），舊資料沒填抵達時間時退回用班機時間頂替，不然入境通知單
+    // 整欄空白。
+    const [arrivalDate, arrivalTimeRaw] = (flightRow.arrivalTime || flightRow.flightTime || '').split('T');
     const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
     await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
       const sheet = workbook.addWorksheet('入境通知單');
