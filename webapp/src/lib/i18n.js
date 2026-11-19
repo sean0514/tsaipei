@@ -1272,7 +1272,6 @@ const VI = {
   '取消覆核': 'Hủy phúc duyệt',
   '核准人：': 'Người phê duyệt: ',
   '時間：': 'Thời gian: ',
-  '新增一筆': 'Thêm dòng',
   '需先完成收費覆核與支付審核才能結案': 'Cần hoàn tất phúc duyệt thu phí và duyệt chi trả trước khi có thể kết thúc hồ sơ',
 
   '支付紀錄': 'Hồ sơ chi trả',
@@ -1338,6 +1337,7 @@ const VI = {
   '目前沒有待收件的名單': 'Hiện chưa có danh sách chờ thu hồ sơ',
   '簽證辦理日期': 'Ngày làm visa',
   '簽證文號': 'Số văn bản visa',
+  '招募文號': 'Số văn bản tuyển dụng',
   '需先填入簽證文號才能按完成': 'Cần điền số văn bản visa trước khi bấm hoàn tất',
   '簽證領取日期': 'Ngày nhận visa',
   '自動列出文件已收齊完成的移工，填寫簽證辦理日期、領取日期；完成後進入下一關「出境辦理」':
