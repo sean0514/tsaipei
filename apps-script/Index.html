@@ -25,6 +25,16 @@
   h1,h2,h3{font-family:'Noto Serif TC',serif;margin:0;color:var(--jade-dark);}
 
   #sidebar{width:220px;flex-shrink:0;background:var(--sidebar-bg);color:#F3E3ED;display:flex;flex-direction:column;padding:22px 0;}
+  #mobile-menu-btn{display:none;position:fixed;top:14px;left:14px;z-index:140;width:40px;height:40px;border-radius:var(--radius);border:none;background:var(--sidebar-bg);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 4px 14px rgba(90,58,86,0.3);align-items:center;justify-content:center;}
+  #sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(20,26,32,0.45);z-index:130;}
+  @media (max-width:860px){
+    #mobile-menu-btn{display:flex;}
+    #sidebar{position:fixed;top:0;left:0;bottom:0;z-index:135;transform:translateX(-100%);transition:transform .2s ease-out;box-shadow:0 0 30px rgba(0,0,0,0.3);}
+    body.sidebar-open #sidebar{transform:translateX(0);}
+    body.sidebar-open #sidebar-backdrop{display:block;}
+    body.sidebar-open #mobile-menu-btn{display:none;}
+    #main{padding:72px 16px 50px 16px;}
+  }
   .brand{padding:0 20px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:14px;}
   .brand-mark{font-family:'Noto Serif TC',serif;font-weight:700;font-size:18px;color:#fff;line-height:1.4;}
   .brand-sub{font-size:11.5px;color:#D6AFC7;margin-top:4px;}
@@ -100,6 +110,10 @@
   .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
   textarea{resize:vertical;min-height:60px;font-family:inherit;}
   .form-error{background:var(--red-tint);color:var(--red);font-size:12.5px;padding:8px 10px;border-radius:var(--radius);margin-bottom:12px;}
+  .form-section-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;position:sticky;top:0;background:#fff;padding:4px 0 10px 0;z-index:5;}
+  .form-section-link{font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--line-soft);color:var(--ink-soft);cursor:pointer;}
+  .form-section-link:hover{background:var(--jade-tint);color:var(--jade-dark);border-color:var(--jade-tint);}
+  .form-section{padding-top:4px;}
 
   #toast-container{position:fixed;top:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:10px;max-width:360px;}
   .toast{background:#fff;border-left:4px solid var(--jade);border-radius:var(--radius);padding:12px 16px;font-size:13px;line-height:1.5;white-space:pre-line;box-shadow:0 10px 28px rgba(90,58,86,0.2);cursor:pointer;animation:toast-in .18s ease-out;}
@@ -162,6 +176,8 @@
   <div class="login-card" id="login-card"></div>
 </div>
 
+<button id="mobile-menu-btn" style="display:none;" aria-label="開啟選單">☰</button>
+
 <div id="sidebar" style="display:none;">
   <div class="brand">
     <div class="brand-mark">🌸 鈞羽有限公司<br>境外實習生管理系統</div>
@@ -170,6 +186,7 @@
   <nav id="nav"></nav>
   <div class="sidebar-foot" id="sidebar-foot"></div>
 </div>
+<div id="sidebar-backdrop"></div>
 
 <div id="main" style="display:none;">
   <div id="loading" class="loading-note">資料載入中…</div>
@@ -292,6 +309,8 @@ async function doLogout(){
   try{ await gsRun('logout', authToken); }catch(e){}
   setAuth(null, null);
   document.getElementById('sidebar').style.display = 'none';
+  document.body.classList.remove('sidebar-open');
+  document.getElementById('mobile-menu-btn').style.display = 'none';
   document.getElementById('main').style.display = 'none';
   renderLoginScreen();
 }
@@ -299,6 +318,7 @@ async function doLogout(){
 function startApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('mobile-menu-btn').style.display = '';
   document.getElementById('main').style.display = 'block';
   loadAll();
 }
@@ -447,7 +467,17 @@ document.getElementById('nav').addEventListener('click', (e)=>{
   if(!btn) return;
   currentPage = btn.dataset.page;
   render();
+  closeMobileSidebar();
 });
+
+function openMobileSidebar(){
+  document.body.classList.add('sidebar-open');
+}
+function closeMobileSidebar(){
+  document.body.classList.remove('sidebar-open');
+}
+document.getElementById('mobile-menu-btn').addEventListener('click', openMobileSidebar);
+document.getElementById('sidebar-backdrop').addEventListener('click', closeMobileSidebar);
 
 function renderNav(){
   const nav = document.getElementById('nav');
@@ -837,7 +867,14 @@ function studentFormModal(existing){
   return `
     <h2>${existing?'編輯學生資料':'新增學生'}</h2>
     <div class="modal-sub">建立或更新一位國際實習生的基本資料</div>
+    <div class="form-section-nav">
+      <button type="button" class="form-section-link" data-scroll-to="student-sec-basic">基本資料</button>
+      <button type="button" class="form-section-link" data-scroll-to="student-sec-docs">文件與證明</button>
+      <button type="button" class="form-section-link" data-scroll-to="student-sec-status">入境與狀態</button>
+    </div>
     <form id="student-form">
+      <div class="form-section" id="student-sec-basic">
+      <div class="subhead">基本資料</div>
       <div class="field-row">
         <div class="field"><label>原始姓名（護照姓名）</label><input type="text" name="originalName" value="${s.originalName||''}" required></div>
         <div class="field"><label>中文姓名</label><input type="text" name="chineseName" value="${s.chineseName||''}"></div>
@@ -872,7 +909,9 @@ function studentFormModal(existing){
         <div class="field"><label>實習開始日</label><input type="date" name="startDate" value="${s.startDate}"></div>
         <div class="field"><label>實習結束日</label><input type="date" name="endDate" value="${s.endDate}"></div>
       </div>
+      </div>
 
+      <div class="form-section" id="student-sec-docs">
       <div class="subhead" style="margin-top:18px;">文件與證明</div>
       <div class="field-row">
         <div class="field"><label>語言能力證明類別</label>
@@ -941,6 +980,10 @@ function studentFormModal(existing){
           <option value="不適用" ${s.nightInternshipDoc==='不適用'?'selected':''}>不適用</option>
         </select>
       </div>
+      </div>
+
+      <div class="form-section" id="student-sec-status">
+      <div class="subhead" style="margin-top:18px;">入境與狀態</div>
       <div class="field-row">
         <div class="field"><label>第一次入境日期</label><input type="date" name="firstEntryDate" value="${s.firstEntryDate||''}"></div>
         <div class="field"><label>第一次離境日期</label><input type="date" name="firstExitDate" value="${s.firstExitDate||''}"></div>
@@ -954,6 +997,7 @@ function studentFormModal(existing){
       </div>
       <div class="field"><label>備註</label><textarea name="notes">${s.notes||''}</textarea></div>
       <div class="field"><label>學生來源（國外供應商）</label><input type="text" name="sourceSupplier" value="${s.sourceSupplier||''}"></div>
+      </div>
       <div id="student-form-error"></div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" id="modal-cancel">取消</button>
@@ -3295,6 +3339,12 @@ function closeModal(){
 }
 document.getElementById('overlay').addEventListener('click', (e)=>{
   if(e.target.id==='overlay') closeModal();
+});
+document.getElementById('modal-body').addEventListener('click', (e)=>{
+  const link = e.target.closest('.form-section-link');
+  if(!link) return;
+  const target = document.getElementById(link.dataset.scrollTo);
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
 });
 
 /* =========================================================
