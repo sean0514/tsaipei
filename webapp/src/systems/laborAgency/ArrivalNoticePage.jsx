@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import { downloadXlsx } from '../../lib/xlsxExport';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, departureInfoOf } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
@@ -133,7 +133,8 @@ export default function ArrivalNoticePage() {
   // 日期/機場及班機/抵達時間，底下接編號/姓名/雇主…的名冊表格。同一組
   // （仲介）底下的移工通常是同一班飛機，班機資訊取第一筆有填的那筆。
   async function handleDownload(agencyKey, group) {
-    const flightRow = group.find(({ worker: w }) => w.flightTime)?.worker || {};
+    const flightPair = group.find((r) => departureInfoOf(r.worker, r.employerId).flightTime);
+    const flightRow = flightPair ? departureInfoOf(flightPair.worker, flightPair.employerId) : {};
     const [arrivalDate, arrivalTimeRaw] = (flightRow.flightTime || '').split('T');
     const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
     await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
@@ -226,18 +227,20 @@ export default function ArrivalNoticePage() {
               </tr>
             </thead>
             <tbody>
-              {group.map(({ worker: w, employerId: rowEmployerId }) => (
+              {group.map(({ worker: w, employerId: rowEmployerId }) => {
+                const info = departureInfoOf(w, rowEmployerId);
+                return (
                 <tr key={`${w.id}-${rowEmployerId || UNMATCHED_EMPLOYER}`}>
                   <td style={{ fontWeight: 600 }}>{w.name}</td>
                   <td>{rowEmployerId ? employerLabel(employers, rowEmployerId, lang) : t('尚未配對', lang)}</td>
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.passportNo || '—'}</td>
-                  <td>{w.flightAirline || '—'}</td>
-                  <td>{w.flightNumber || '—'}</td>
-                  <td>{w.flightTerminal || '—'}</td>
-                  <td>{w.flightTime || '—'}</td>
-                  <td>{w.transportFee ? (+w.transportFee).toLocaleString() : '—'}</td>
-                  <td>{w.billingParty || '—'}</td>
+                  <td>{info.flightAirline || '—'}</td>
+                  <td>{info.flightNumber || '—'}</td>
+                  <td>{info.flightTerminal || '—'}</td>
+                  <td>{info.flightTime || '—'}</td>
+                  <td>{info.transportFee ? (+info.transportFee).toLocaleString() : '—'}</td>
+                  <td>{info.billingParty || '—'}</td>
                   {!closed && canEditPage && (
                     <td>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -270,7 +273,8 @@ export default function ArrivalNoticePage() {
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table></div>
       </div>
