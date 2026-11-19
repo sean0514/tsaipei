@@ -72,7 +72,7 @@ export default function DeparturePage() {
                   <thead>
                     <tr>
                       <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
-                      <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
+                      <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('抵達時間', lang)}</th><th>{t('車資費用', lang)}</th>
                       <th>{t('請款對象', lang)}</th><th>{t('是否列入客戶請款', lang)}</th>{canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -87,6 +87,7 @@ export default function DeparturePage() {
                         <td>{info.flightNumber || '—'}</td>
                         <td>{info.flightTerminal || '—'}</td>
                         <td>{info.flightTime || '—'}</td>
+                        <td>{info.arrivalTime || '—'}</td>
                         <td>{info.transportFee ? (+info.transportFee).toLocaleString() : '—'}</td>
                         <td>{info.billingParty || '—'}</td>
                         <td>{info.includeInBilling ? t('是', lang) : t('否', lang)}</td>
@@ -128,6 +129,7 @@ function DepartureFormModal({ worker, employerId, onCancel, onSave, lang }) {
     flightNumber: initial.flightNumber || '',
     flightTerminal: initial.flightTerminal || '',
     flightTime: initial.flightTime || '',
+    arrivalTime: initial.arrivalTime || '',
     transportFee: initial.transportFee || '',
     billingParty: initial.billingParty || '',
     includeInBilling: !!initial.includeInBilling,
@@ -148,6 +150,7 @@ function DepartureFormModal({ worker, employerId, onCancel, onSave, lang }) {
             <label>{t('航班編號', lang)}<input value={form.flightNumber} onChange={(e) => setForm({ ...form, flightNumber: e.target.value })} /></label>
             <label>{t('出入境航廈', lang)}<input value={form.flightTerminal} onChange={(e) => setForm({ ...form, flightTerminal: e.target.value })} /></label>
             <label>{t('班機時間', lang)}<input type="datetime-local" value={form.flightTime} onChange={(e) => setForm({ ...form, flightTime: e.target.value })} /></label>
+            <label>{t('抵達時間', lang)}<input type="datetime-local" value={form.arrivalTime} onChange={(e) => setForm({ ...form, arrivalTime: e.target.value })} /></label>
             <label>{t('車資費用', lang)}<input type="number" value={form.transportFee} onChange={(e) => setForm({ ...form, transportFee: e.target.value })} /></label>
             <label>{t('請款對象', lang)}<input value={form.billingParty} onChange={(e) => setForm({ ...form, billingParty: e.target.value })} /></label>
             <label>
