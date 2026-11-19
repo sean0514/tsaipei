@@ -312,7 +312,7 @@ export function buildMonthlyProjectClientVendorOtherFeeTotals(monthStr, ctx) {
     const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
     if (!u) return;
     const vendorPaidTotal = parseOtherFeesJson(u.otherFees)
-      .filter((f) => f.payer === '廠商代付')
+      .filter((f) => f.payer === '廠商代付' && (f.type || '支出') === '支出')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     if (!vendorPaidTotal) return;
     const residents = (housingRecords || []).filter((h) =>
@@ -432,10 +432,11 @@ export const DORM_EQUIPMENT_ITEM = '宿舍設備';
 export const DORM_PNL_BILLABLE_STATUSES = ['已核准', '已匯款'];
 const DORM_PROFIT_SHARE_RATE = 0.2;
 
-// 損益細項欄位：收入(住宿費收入、宿舍設備收入)、成本(租金、房仲費、水費、
-// 電費、瓦斯費、其他費用、宿舍設備支出)——月/宿舍/宿管1/全部宿舍這幾層
-// 加總都用同一組欄位，避免每層各寫一次加總邏輯。
-const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome'];
+// 損益細項欄位：收入(住宿費收入、宿舍設備收入、宿舍管理自訂其他收入)、
+// 成本(租金、房仲費、水費、電費、瓦斯費、其他費用、宿舍設備支出)——
+// 月/宿舍/宿管1/全部宿舍這幾層加總都用同一組欄位，避免每層各寫一次
+// 加總邏輯。
+const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome'];
 const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
 
 function sumDormPnlEntries(entries) {
@@ -455,10 +456,12 @@ function sumDormPnlEntries(entries) {
 // 住宿紀錄上填的租金，兩者都 ÷ 當月天數 × 住在這間宿舍的天數；廠商代付的
 // 住戶另外加計「客戶費用建檔」設定的宿管費費率，同樣 ÷ 當月天數 × 住在這
 // 間宿舍的天數) + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=收入、
-// 已核准/已匯款)；成本＝租金
+// 已核准/已匯款) + 宿舍管理「填寫其他費用」自訂項目標類型=收入的金額；
+// 成本＝租金
 // (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
 // + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
-// 在退還押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫的紀錄)
+// 在退還押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫、
+// 自訂項目標類型=支出的金額)
 // + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；
 // 利潤＝收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1
 // 分類呈現。
@@ -518,11 +521,16 @@ export function computeDormProfitLossForYear(year, ctx) {
       const waterCost = Number(u?.waterFee) || 0;
       const electricityCost = Number(u?.electricityFee) || 0;
       const gasCost = Number(u?.gasFee) || 0;
-      const otherUtilityCost = parseOtherFeesJson(u?.otherFees).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+      // 宿舍管理「填寫其他費用」自訂項目各自標類型=支出/收入：支出項目照
+      // 原本邏輯算進成本，收入項目(例如設備出租收入、回收押金)算進收入，
+      // 不會互相混在同一個數字裡。
+      const feeEntries = parseOtherFeesJson(u?.otherFees);
+      const otherUtilityCost = feeEntries.filter((f) => (f.type || '支出') !== '收入').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+      const otherIncome = feeEntries.filter((f) => f.type === '收入').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
       monthly.push({
         month: m,
-        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
       });
     }
     const yearTotal = sumDormPnlEntries(monthly);
