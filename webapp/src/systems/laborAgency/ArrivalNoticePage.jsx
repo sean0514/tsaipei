@@ -133,89 +133,101 @@ export default function ArrivalNoticePage() {
   // 日期/機場及班機/抵達時間，底下接編號/姓名/雇主…的名冊表格。同一組
   // （仲介）底下的移工通常是同一班飛機，班機資訊取第一筆有填的那筆。
   async function handleDownload(agencyKey, group) {
-    const flightPair = group.find((r) => {
-      const info = departureInfoOf(r.worker, r.employerId);
-      return info.arrivalTime || info.flightTime;
-    });
-    const flightRow = flightPair ? departureInfoOf(flightPair.worker, flightPair.employerId) : {};
-    // 抵達時間另外有專屬欄位（出境辦理填的是啟程班機時間，兩者不一定
-    // 相同），舊資料沒填抵達時間時退回用班機時間頂替，不然入境通知單
-    // 整欄空白。
-    const [arrivalDate, arrivalTimeRaw] = (flightRow.arrivalTime || flightRow.flightTime || '').split('T');
-    const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
-    await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
-      const sheet = workbook.addWorksheet('入境通知單');
-      sheet.addRow(['入境通知單']);
-      sheet.mergeCells('A1:N1');
-      sheet.getCell('A1').alignment = { horizontal: 'center' };
-      sheet.getCell('A1').font = { bold: true, size: 14 };
-      sheet.addRow(['TO：']);
-      sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
-      sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
-      sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
-      sheet.addRow([
-        '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
-        '護照發照日期', '護照有效日期', '核准文號', '婚姻狀況', '台灣電話號碼',
-      ]).font = { bold: true };
-      // 姓名欄中文+越文兩行、核准文號欄核准文號+簽證文號兩行；工人照片欄
-      // 直接把履歷照片嵌進那一格，不是文字。
-      for (let i = 0; i < group.length; i += 1) {
-        const { worker: w, employerId } = group[i];
-        const row = sheet.addRow([
-          i + 1, '',
-          [w.name, w.vietnameseName].filter(Boolean).join('\n'),
-          employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
-          w.birthDate || '', '越南', t(w.gender, lang) || '', w.passportNo || '',
-          w.passportIssueDate || '', w.passportExpiry || '',
-          [w.approvalDocNumber, w.visaDocNumber].filter(Boolean).join('\n'),
-          t(w.maritalStatus, lang) || '', w.taiwanPhone || '',
-        ]);
-        row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
-        row.getCell(11).alignment = { wrapText: true, vertical: 'middle' };
-        row.height = WORKER_PHOTO_PT;
-        const photo = await fetchImageForExcel(w.photoUrl);
-        if (photo) {
-          const imageId = workbook.addImage({ base64: photo.base64, extension: photo.extension });
-          sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: WORKER_PHOTO_PX, height: WORKER_PHOTO_PX } });
-        }
-      }
-      sheet.columns.forEach((col) => { col.width = 14; });
-
-      // 選擇帶入的證件照片接續放在同一個分頁的主表格下方，每位移工一個
-      // 區塊，標題列顯示姓名，底下橫向排開那個人自己勾選的幾種照片
-      // （每個人各自獨立選，不是整組共用一份）——入境通知單與附件照片
-      // 都在同一頁，不再另開分頁。
-      const anySelected = group.some(({ worker: w, employerId }) => {
-        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
-        return IMAGE_TYPES.some((it) => sel[it.key]);
+    try {
+      const flightPair = group.find((r) => {
+        const info = departureInfoOf(r.worker, r.employerId);
+        return info.arrivalTime || info.flightTime;
       });
-      if (!anySelected) return;
-      sheet.addRow([]);
-      const titleRow = sheet.addRow([t('附件照片', lang)]);
-      titleRow.font = { bold: true, size: 13 };
-      for (const { worker: w, employerId } of group) {
-        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
-        const selectedTypes = IMAGE_TYPES.filter((it) => sel[it.key]);
-        if (!selectedTypes.length) continue;
-        const nameRow = sheet.addRow([w.name]);
-        nameRow.font = { bold: true };
-        const labelRow = sheet.addRow([]);
-        for (let col = 0; col < selectedTypes.length; col += 1) {
-          labelRow.getCell(col * 3 + 1).value = t(selectedTypes[col].label, lang);
-        }
-        const imageRow = sheet.addRow([]);
-        imageRow.height = DOC_PHOTO_PT;
-        for (let col = 0; col < selectedTypes.length; col += 1) {
-          const type = selectedTypes[col];
-          const img = await fetchImageForExcel(w[type.field]);
-          if (img) {
-            const imageId = workbook.addImage({ base64: img.base64, extension: img.extension });
-            sheet.addImage(imageId, { tl: { col: col * 3, row: imageRow.number - 1 }, ext: { width: DOC_PHOTO_PX, height: DOC_PHOTO_PX } });
+      const flightRow = flightPair ? departureInfoOf(flightPair.worker, flightPair.employerId) : {};
+      // 抵達時間另外有專屬欄位（出境辦理填的是啟程班機時間，兩者不一定
+      // 相同），舊資料沒填抵達時間時退回用班機時間頂替，不然入境通知單
+      // 整欄空白。
+      const [arrivalDate, arrivalTimeRaw] = (flightRow.arrivalTime || flightRow.flightTime || '').split('T');
+      const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
+      // 每位移工的大頭照先一次全部平行抓好（原本是逐筆 await，一筆一筆
+      // 排隊抓，人數一多下載要等很久，使用者在按下按鈕跟真正跳出存檔
+      // 之間等太久，看起來就像「按了沒反應」）——抓失敗的那幾張
+      // fetchImageForExcel 內部已經接住回傳 null，不會讓整個下載失敗。
+      const photos = await Promise.all(group.map(({ worker: w }) => fetchImageForExcel(w.photoUrl)));
+      await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
+        const sheet = workbook.addWorksheet('入境通知單');
+        sheet.addRow(['入境通知單']);
+        sheet.mergeCells('A1:N1');
+        sheet.getCell('A1').alignment = { horizontal: 'center' };
+        sheet.getCell('A1').font = { bold: true, size: 14 };
+        sheet.addRow(['TO：']);
+        sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
+        sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
+        sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
+        sheet.addRow([
+          '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
+          '護照發照日期', '護照有效日期', '核准文號', '婚姻狀況', '台灣電話號碼',
+        ]).font = { bold: true };
+        // 姓名欄中文+越文兩行、核准文號欄核准文號+簽證文號兩行；工人照片欄
+        // 直接把履歷照片嵌進那一格，不是文字。
+        for (let i = 0; i < group.length; i += 1) {
+          const { worker: w, employerId } = group[i];
+          const row = sheet.addRow([
+            i + 1, '',
+            [w.name, w.vietnameseName].filter(Boolean).join('\n'),
+            employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
+            w.birthDate || '', '越南', t(w.gender, lang) || '', w.passportNo || '',
+            w.passportIssueDate || '', w.passportExpiry || '',
+            [w.approvalDocNumber, w.visaDocNumber].filter(Boolean).join('\n'),
+            t(w.maritalStatus, lang) || '', w.taiwanPhone || '',
+          ]);
+          row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
+          row.getCell(11).alignment = { wrapText: true, vertical: 'middle' };
+          row.height = WORKER_PHOTO_PT;
+          const photo = photos[i];
+          if (photo) {
+            const imageId = workbook.addImage({ base64: photo.base64, extension: photo.extension });
+            sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: WORKER_PHOTO_PX, height: WORKER_PHOTO_PX } });
           }
         }
+        sheet.columns.forEach((col) => { col.width = 14; });
+
+        // 選擇帶入的證件照片接續放在同一個分頁的主表格下方，每位移工一個
+        // 區塊，標題列顯示姓名，底下橫向排開那個人自己勾選的幾種照片
+        // （每個人各自獨立選，不是整組共用一份）——入境通知單與附件照片
+        // 都在同一頁，不再另開分頁。
+        const withSelections = group
+          .map((pair) => ({ ...pair, selectedTypes: IMAGE_TYPES.filter((it) => (imageSelections[selectionKey(pair.worker.id, pair.employerId)] || {})[it.key]) }))
+          .filter((pair) => pair.selectedTypes.length);
+        if (!withSelections.length) return;
+        // 同一個人勾選的幾種證件照片也一次平行抓好，理由跟上面大頭照一樣。
+        const attachmentPhotos = await Promise.all(
+          withSelections.map((pair) => Promise.all(pair.selectedTypes.map((type) => fetchImageForExcel(pair.worker[type.field])))),
+        );
         sheet.addRow([]);
-      }
-    });
+        const titleRow = sheet.addRow([t('附件照片', lang)]);
+        titleRow.font = { bold: true, size: 13 };
+        withSelections.forEach(({ worker: w, selectedTypes }, idx) => {
+          const nameRow = sheet.addRow([w.name]);
+          nameRow.font = { bold: true };
+          const labelRow = sheet.addRow([]);
+          for (let col = 0; col < selectedTypes.length; col += 1) {
+            labelRow.getCell(col * 3 + 1).value = t(selectedTypes[col].label, lang);
+          }
+          const imageRow = sheet.addRow([]);
+          imageRow.height = DOC_PHOTO_PT;
+          for (let col = 0; col < selectedTypes.length; col += 1) {
+            const img = attachmentPhotos[idx][col];
+            if (img) {
+              const imageId = workbook.addImage({ base64: img.base64, extension: img.extension });
+              sheet.addImage(imageId, { tl: { col: col * 3, row: imageRow.number - 1 }, ext: { width: DOC_PHOTO_PX, height: DOC_PHOTO_PX } });
+            }
+          }
+          sheet.addRow([]);
+        });
+      });
+    } catch (err) {
+      // 原本任何一步失敗（例如抓照片、產生 Excel）都只會在 console 留下
+      // 錯誤，畫面上完全看不出來、以為是按鈕沒反應——改成明確跳出錯誤
+      // 訊息，之後真的遇到問題才看得出是哪一步壞了。
+      console.error(err);
+      window.alert(`${t('下載失敗', lang)}：${err.message || err}`);
+    }
   }
 
   function AgencyTable({ group, closed }) {

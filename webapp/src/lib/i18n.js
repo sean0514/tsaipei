@@ -1368,6 +1368,7 @@ const VI = {
   '下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。':
     'Khi tải xuống thông báo nhập cảnh, ba thông tin này sẽ được điền vào; ngày nhập cảnh/sân bay và chuyến bay/giờ đến được tự động lấy từ thông tin chuyến bay của nhóm lao động đó.',
   '入境通知欄位': 'Thông tin nhập cảnh',
+  '下載失敗': 'Tải xuống thất bại',
 
   '是否可以接受刺青': 'Có chấp nhận hình xăm',
   '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
