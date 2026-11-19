@@ -37,14 +37,25 @@ function parseOtherFees(json) {
 }
 
 const OTHER_FEE_PAYERS = ['學生自付', '廠商代付'];
+const OTHER_FEE_TYPES = ['支出', '收入'];
 
 function otherFeesSummary(json) {
   const fees = parseOtherFees(json);
   if (!fees.length) return '—';
-  return fees.map((f) => `${f.label || '未命名'}：${f.amount || '—'}（${f.payer || '學生自付'}）`).join('、');
+  return fees.map((f) => `${f.label || '未命名'}：${(f.type || '支出') === '收入' ? '+' : ''}${f.amount || '—'}（${(f.type || '支出') === '收入' ? '收入' : f.payer || '學生自付'}）`).join('、');
 }
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
+// 每間宿舍自己維護一組可重複使用的收入/支出項目名稱，填「其他費用」時
+// 從下拉選單挑，不用每個月自己手打，避免同一個項目各月打法不一致
+// （例如「電梯維修」跟「電梯維修費」）導致看起來像兩筆不同項目。
+function parseItemOptions(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'itemOptions', label: '收支項目選項(JSON)' }, { key: 'confirmedClosed', label: '結案' }];
 
 // 「住宿中」的判斷跟 HousingPage 同一套邏輯：已完成的紀錄不算、沒有入住日
 // 的不算、退宿日已過的也不算（當作已離宿）。
@@ -64,6 +75,7 @@ export default function DormManagementPage() {
   const [editing, setEditing] = useState(null);
   const [utilEditing, setUtilEditing] = useState(null);
   const [viewingDorm, setViewingDorm] = useState(null);
+  const [optionsEditing, setOptionsEditing] = useState(null); // dormitory row being managed, or null
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dormitories', CSV_FIELDS, { entityLabel: '宿舍管理', requiredKeys: ['name'], canEdit: canEditPage });
@@ -128,7 +140,7 @@ export default function DormManagementPage() {
       <div className="page-header">
         <div>
           <h2>宿舍管理</h2>
-          <div className="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的其他費用{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">管理公司承租的宿舍清單：租期、押金、租金、房仲費，以及按月填寫的其他費用；「項目選項」可以自行維護這間宿舍常用的收入/支出項目名稱，填寫其他費用時直接挑選{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增宿舍</button>}
@@ -176,6 +188,7 @@ export default function DormManagementPage() {
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>編輯</button>
                         <button onClick={() => setUtilEditing({ dormId: r.id, waterFee: u?.waterFee || '', electricityFee: u?.electricityFee || '', gasFee: u?.gasFee || '', otherFees: u?.otherFees || '' })}>填寫其他費用</button>
+                        <button onClick={() => setOptionsEditing(r)}>項目選項</button>
                         <button className="danger" onClick={() => remove(r.id)}>刪除</button>
                         <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>
                       </td>
@@ -193,12 +206,20 @@ export default function DormManagementPage() {
         <OtherFeesFormModal
           month={month}
           initial={utilEditing}
+          itemOptions={parseItemOptions(rows.find((r) => r.id === utilEditing.dormId)?.itemOptions)}
           onCancel={() => setUtilEditing(null)}
           onSave={(data) => handleSaveUtility(utilEditing.dormId, data)}
         />
       )}
       {viewingDorm && (
         <ResidentsModal dorm={viewingDorm} residents={residentsOf(viewingDorm.name)} studentName={studentName} onClose={() => setViewingDorm(null)} />
+      )}
+      {optionsEditing && (
+        <ItemOptionsModal
+          dorm={optionsEditing}
+          onCancel={() => setOptionsEditing(null)}
+          onSave={async (itemOptions) => { await update(optionsEditing.id, { itemOptions: JSON.stringify(itemOptions) }); setOptionsEditing(null); }}
+        />
       )}
     </div>
   );
@@ -225,6 +246,60 @@ function ResidentsModal({ dorm, residents, studentName, onClose }) {
         </table></div>
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button type="button" onClick={onClose}>關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 每間宿舍自己維護一組收入/支出項目名稱，「填寫其他費用」的項目名稱
+// 欄位會用這份清單當下拉建議（仍可自行輸入清單以外的文字，不強制）。
+function ItemOptionsModal({ dorm, onCancel, onSave }) {
+  const [options, setOptions] = useState(() => parseItemOptions(dorm.itemOptions));
+  const [newLabel, setNewLabel] = useState('');
+  const [newType, setNewType] = useState('支出');
+
+  function addOption() {
+    const label = newLabel.trim();
+    if (!label) return;
+    if (options.some((o) => o.label === label && o.type === newType)) { alert('已經有一筆同名稱、同類型的項目了。'); return; }
+    setOptions([...options, { label, type: newType }]);
+    setNewLabel('');
+  }
+  function removeOption(i) {
+    setOptions(options.filter((_, idx) => idx !== i));
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{dorm.name} · 收支項目選項</h3>
+        <p className="muted">維護這間宿舍常用的「其他費用」項目名稱，填寫時可以直接從建議清單挑，不用每個月重打；這裡只是維護可挑選的名稱清單，不是填實際金額。</p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>項目名稱</th><th>類型</th><th></th></tr></thead>
+            <tbody>
+              {options.map((o, i) => (
+                <tr key={`${o.label}-${o.type}`}>
+                  <td>{o.label}</td>
+                  <td>{o.type}</td>
+                  <td><button type="button" onClick={() => removeOption(i)}>移除</button></td>
+                </tr>
+              ))}
+              {options.length === 0 && <tr><td colSpan={3} className="muted">目前沒有自訂項目選項。</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="row-actions" style={{ marginTop: 12 }}>
+          <input placeholder="新項目名稱" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} style={{ width: 160 }} />
+          <select value={newType} onChange={(e) => setNewType(e.target.value)}>
+            {OTHER_FEE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button type="button" onClick={addOption}>+ 新增</button>
+        </div>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button className="primary" onClick={() => onSave(options)}>儲存</button>
+          <button type="button" onClick={onCancel}>取消</button>
         </div>
       </div>
     </div>
@@ -272,7 +347,7 @@ function DormFormModal({ initial, users, onCancel, onSave }) {
   );
 }
 
-function OtherFeesListEditor({ fees, onChange }) {
+function OtherFeesListEditor({ fees, itemOptions, onChange }) {
   function updateRow(i, patch) {
     onChange(fees.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
   }
@@ -280,37 +355,51 @@ function OtherFeesListEditor({ fees, onChange }) {
     onChange(fees.filter((_, idx) => idx !== i));
   }
   function addRow() {
-    onChange([...fees, { label: '', amount: '', payer: '學生自付' }]);
+    onChange([...fees, { label: '', amount: '', payer: '學生自付', type: '支出' }]);
   }
 
   return (
     <div>
-      {fees.map((f, i) => (
-        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
-          <label>
-            項目名稱
-            <input value={f.label || ''} onChange={(e) => updateRow(i, { label: e.target.value })} />
-          </label>
-          <label>
-            金額
-            <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
-          </label>
-          <label>
-            付款方式
-            <select value={f.payer || '學生自付'} onChange={(e) => updateRow(i, { payer: e.target.value })}>
-              {OTHER_FEE_PAYERS.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </label>
-          <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
-        </div>
-      ))}
+      <datalist id="dorm-other-fee-options">
+        {(itemOptions || []).map((o) => <option key={`${o.label}-${o.type}`} value={o.label} />)}
+      </datalist>
+      {fees.map((f, i) => {
+        const feeType = f.type || '支出';
+        return (
+          <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+            <label>
+              項目名稱
+              <input list="dorm-other-fee-options" value={f.label || ''} onChange={(e) => updateRow(i, { label: e.target.value })} />
+            </label>
+            <label>
+              類型
+              <select value={feeType} onChange={(e) => updateRow(i, { type: e.target.value })}>
+                {OTHER_FEE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label>
+              金額
+              <input value={f.amount || ''} onChange={(e) => updateRow(i, { amount: e.target.value })} />
+            </label>
+            {feeType === '支出' && (
+              <label>
+                付款方式
+                <select value={f.payer || '學生自付'} onChange={(e) => updateRow(i, { payer: e.target.value })}>
+                  {OTHER_FEE_PAYERS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+            )}
+            <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
+          </div>
+        );
+      })}
       <button type="button" onClick={addRow}>+ 新增其他費用</button>
-      <p className="muted" style={{ marginTop: 8 }}>廠商代付的項目不會出現在學生請款計算，會改計入客戶請款計算的「宿舍其他費用」，平分給這個月住在這間宿舍、廠商代付的學生所屬客戶。</p>
+      <p className="muted" style={{ marginTop: 8 }}>類型選「支出」才需要選付款方式：廠商代付的項目不會出現在學生請款計算，會改計入客戶請款計算的「宿舍其他費用」，平分給這個月住在這間宿舍、廠商代付的學生所屬客戶。類型選「收入」的項目只計入宿舍損益的收入，不會跟任何人請款。</p>
     </div>
   );
 }
 
-function OtherFeesFormModal({ month, initial, onCancel, onSave }) {
+function OtherFeesFormModal({ month, initial, itemOptions, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const otherFees = parseOtherFees(form.otherFees);
 
@@ -344,8 +433,8 @@ function OtherFeesFormModal({ month, initial, onCancel, onSave }) {
             </label>
           </div>
           <p className="muted" style={{ marginTop: -8 }}>水電瓦斯費平分給這個月住在這間宿舍的所有學生，不論住宿安排裡填的「水電瓦斯付款方式」是「學生自付」還是「廠商代付」，一律出現在學生請款計算，不會因為標「廠商代付」就改跟客戶請款收。</p>
-          <h4>其他費用（可自行新增）</h4>
-          <OtherFeesListEditor fees={otherFees} onChange={setOtherFees} />
+          <h4>其他費用（可自行新增，項目名稱可從「項目選項」挑或自己輸入）</h4>
+          <OtherFeesListEditor fees={otherFees} itemOptions={itemOptions} onChange={setOtherFees} />
           <div className="row-actions" style={{ marginTop: 16 }}>
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>

@@ -352,9 +352,10 @@ export default function StudentBillingPage() {
     // 「廠商代付」的其他費用項目不跟學生收，公司會跟客戶請款計算收回來
     // (見 lib/bonus.js buildMonthlyProjectClientVendorOtherFeeTotals)；只有
     // 沒填付款方式(舊資料，視同學生自付，維持改版前的行為)或明確標「學生
-    // 自付」的項目才攤到住這間宿舍的學生身上。
+    // 自付」的項目才攤到住這間宿舍的學生身上。類型標「收入」的自訂項目
+    // (只計入宿舍損益，不是要跟誰收的費用)不算進來。
     const otherFeesTotal = parseOtherFees(u?.otherFees)
-      .filter((f) => f.payer !== '廠商代付')
+      .filter((f) => f.payer !== '廠商代付' && (f.type || '支出') === '支出')
       .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
     const perHead = (amount) => (residentCount > 0 ? Math.round((Number(amount) || 0) / residentCount) : 0);
     // 水電瓦斯費是整間宿舍共用的費用，每人應攤金額是「總金額 ÷ 當月住過
