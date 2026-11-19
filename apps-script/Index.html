@@ -101,6 +101,19 @@
   textarea{resize:vertical;min-height:60px;font-family:inherit;}
   .form-error{background:var(--red-tint);color:var(--red);font-size:12.5px;padding:8px 10px;border-radius:var(--radius);margin-bottom:12px;}
 
+  #toast-container{position:fixed;top:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:10px;max-width:360px;}
+  .toast{background:#fff;border-left:4px solid var(--jade);border-radius:var(--radius);padding:12px 16px;font-size:13px;line-height:1.5;white-space:pre-line;box-shadow:0 10px 28px rgba(90,58,86,0.2);cursor:pointer;animation:toast-in .18s ease-out;}
+  .toast.success{border-left-color:var(--green);}
+  .toast.error{border-left-color:var(--red);}
+  .toast.info{border-left-color:var(--blue);}
+  .toast.closing{animation:toast-out .15s ease-in forwards;}
+  @keyframes toast-in{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes toast-out{from{opacity:1;transform:translateY(0);}to{opacity:0;transform:translateY(-8px);}}
+
+  .overlay.confirm-overlay{z-index:120;padding-top:120px;}
+  .btn.danger{border-color:var(--red);background:var(--red);color:#fff;}
+  .btn.danger:hover{filter:brightness(0.93);}
+
   .searchable-select{position:relative;}
   .searchable-select input[type=text]{width:100%;}
   .searchable-select-list{
@@ -166,6 +179,12 @@
 <div class="overlay" id="overlay">
   <div class="modal" id="modal-body"></div>
 </div>
+
+<div class="overlay confirm-overlay" id="confirm-overlay">
+  <div class="modal" id="confirm-modal-body" style="max-width:420px;"></div>
+</div>
+
+<div id="toast-container"></div>
 
 <script>
 /* =========================================================
@@ -259,7 +278,7 @@ function renderSetupScreen(){
       startApp();
     }catch(err){
       submitBtn.disabled = false; submitBtn.textContent = '建立並登入';
-      alert(errMsg(err));
+      showToast(errMsg(err), 'error');
     }
   });
 }
@@ -763,9 +782,17 @@ function docSummary(s){
   return { done, total:list.length, complete: done===list.length };
 }
 
+let studentsSearchQuery = '';
+
 function renderStudents(){
   const editable = canEdit('students');
-  const rows = state.students.map(s=>{
+  const query = studentsSearchQuery.trim().toLowerCase();
+  const filteredStudents = state.students.filter(s=>{
+    if(!query) return true;
+    const text = `${s.originalName||''} ${s.chineseName||''} ${s.nationality||''} ${s.school||''} ${s.email||''} ${s.phone||''} ${s.status||''}`.toLowerCase();
+    return text.includes(query);
+  });
+  const rows = filteredStudents.map(s=>{
     const doc = docSummary(s);
     return `<tr>
       <td><div style="font-weight:600;">${studentFullLabel(s)}</div><div class="cell-sub">${s.nationality||'—'}</div></td>
@@ -792,9 +819,12 @@ function renderStudents(){
       ` : `<button class="btn secondary" id="btn-export-students">下載完整資料</button>`}
     </div>
     ${editable ? `<div class="split-note" style="margin-top:-14px;margin-bottom:16px;">「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有學生資料，請先下載備份再匯入。</div>` : ''}
+    <div class="toolbar">
+      <input type="text" id="students-search" placeholder="搜尋姓名、國籍、學校或聯絡方式…" value="${studentsSearchQuery}" style="min-width:260px;">
+    </div>
     <div class="panel"><div class="table-wrap"><table>
       <thead><tr><th>姓名 / 國籍</th><th>學校 / 系所</th><th>聯絡方式</th><th>入境 / 離境</th><th>文件</th><th>狀態</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="7"><div class="empty-note">尚無學生資料，點選「新增學生」開始建立。</div></td></tr>`}</tbody>
+      <tbody>${rows || `<tr><td colspan="7"><div class="empty-note">${query?'找不到符合搜尋條件的學生。':'尚無學生資料，點選「新增學生」開始建立。'}</div></td></tr>`}</tbody>
     </table></div></div>
   `;
 }
@@ -956,10 +986,18 @@ function positionRowInfo(p){
   ).join('') : `<span class="cell-sub">尚未設定地點</span>`;
   return {groups, totalHeadcount, matchCount, groupsHTML};
 }
+let positionsSearchQuery = '';
+
 function renderPositions(){
   const editable = canEdit('matching');
-  const activePositions = state.positions.filter(p=>p.closed!=='是');
-  const closedPositions = state.positions.filter(p=>p.closed==='是');
+  const query = positionsSearchQuery.trim().toLowerCase();
+  const matchesQuery = p=>{
+    if(!query) return true;
+    const text = `${p.projectCode||''} ${p.company||''} ${p.title||''} ${p.industry||''}`.toLowerCase();
+    return text.includes(query);
+  };
+  const activePositions = state.positions.filter(p=>p.closed!=='是' && matchesQuery(p));
+  const closedPositions = state.positions.filter(p=>p.closed==='是' && matchesQuery(p));
   const industryMap = {};
   const posRows = activePositions.map(p=>{
     const info = positionRowInfo(p);
@@ -1018,6 +1056,9 @@ function renderPositions(){
       ${importExportButtonsHTML('position', editable)}
     </div>
     ${editable ? `<div class="split-note" style="margin-top:-14px;margin-bottom:16px;">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有職缺資料，請先下載備份再匯入。已結案的職缺按「已結案」後會移到下方「已結案」區塊，不會再列入缺額概況統計，也可以按「取消已結案」移回上方列表。</div>` : ''}
+    <div class="toolbar">
+      <input type="text" id="positions-search" placeholder="搜尋專案編號、公司、職務或產業…" value="${positionsSearchQuery}" style="min-width:260px;">
+    </div>
     <div class="panel">
       <h3>缺額概況（依產業分類）</h3>
       <div class="table-wrap"><table>
@@ -1027,13 +1068,13 @@ function renderPositions(){
     </div>
     <div class="panel section-gap"><div class="table-wrap"><table>
       <thead><tr><th>專案編號</th><th>公司 / 產業</th><th>職務名稱</th><th>地點 / 缺額 / 狀態</th><th>已媒合 / 總缺額</th><th></th></tr></thead>
-      <tbody>${posRows || `<tr><td colspan="6"><div class="empty-note">尚無職缺，點選「新增職缺」開始建立。</div></td></tr>`}</tbody>
+      <tbody>${posRows || `<tr><td colspan="6"><div class="empty-note">${query?'找不到符合搜尋條件的職缺。':'尚無職缺，點選「新增職缺」開始建立。'}</div></td></tr>`}</tbody>
     </table></div></div>
     <div class="section-gap panel">
       <h3>已結案 <span style="font-weight:400;color:var(--ink-soft);">（${closedPositions.length} 筆）</span></h3>
       <div class="table-wrap"><table>
         <thead><tr><th>專案編號</th><th>公司 / 產業</th><th>職務名稱</th><th>地點 / 缺額 / 狀態</th><th>已媒合 / 總缺額</th><th></th></tr></thead>
-        <tbody>${closedRows || `<tr><td colspan="6"><div class="empty-note">目前沒有已結案的實習單位。</div></td></tr>`}</tbody>
+        <tbody>${closedRows || `<tr><td colspan="6"><div class="empty-note">${query?'找不到符合搜尋條件的已結案職缺。':'目前沒有已結案的實習單位。'}</div></td></tr>`}</tbody>
       </table></div>
     </div>
   `;
@@ -2226,7 +2267,7 @@ function wireDocChecklistModal(studentId){
       const today = new Date().toISOString().slice(0,10);
       const payload = d.status === '未提供' ? {status:'已收到', receivedDate: today} : {status:'未提供', receivedDate:''};
       try{ await gsRun('updateInternshipDoc', authToken, id, payload); await loadAll(); await refreshDocChecklistModal(studentId); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   container.querySelectorAll('[data-edit-doc]').forEach(b=>{
@@ -2240,23 +2281,23 @@ function wireDocChecklistModal(studentId){
         ev.preventDefault();
         const form = ev.target; setFormBusy(form, true);
         try{ await gsRun('updateInternshipDoc', authToken, d.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   container.querySelectorAll('[data-del-doc]').forEach(b=>{
     b.addEventListener('click', async (e)=>{
       e.stopPropagation();
-      if(!confirm('確定要刪除這筆文件紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆文件紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteInternshipDoc', authToken, b.dataset.delDoc); await loadAll(); await refreshDocChecklistModal(studentId); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   container.querySelectorAll('[data-confirm-complete]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要將這位學生的所有文件標記為「已核准」完成嗎？')) return;
+      if(!await customConfirm('確定要將這位學生的所有文件標記為「已核准」完成嗎？')) return;
       try{ await gsRun('confirmAllDocsForStudent', authToken, b.dataset.confirmComplete); await loadAll(); closeModal(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const cancelBtn = document.getElementById('modal-cancel');
@@ -3255,6 +3296,67 @@ function closeModal(){
 document.getElementById('overlay').addEventListener('click', (e)=>{
   if(e.target.id==='overlay') closeModal();
 });
+
+/* =========================================================
+   Toast notifications (replaces native alert())
+========================================================= */
+function showToast(message, type){
+  const container = document.getElementById('toast-container');
+  if(!container) return;
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = message;
+  const remove = ()=>{
+    el.classList.add('closing');
+    setTimeout(()=>el.remove(), 150);
+  };
+  const timer = setTimeout(remove, type==='error' ? 6000 : 4000);
+  el.addEventListener('click', ()=>{ clearTimeout(timer); remove(); });
+  container.appendChild(el);
+}
+
+/* =========================================================
+   Custom confirm dialog (replaces native confirm())
+========================================================= */
+function customConfirm(message, opts){
+  opts = opts || {};
+  return new Promise(resolve=>{
+    const overlay = document.getElementById('confirm-overlay');
+    const body = document.getElementById('confirm-modal-body');
+    body.innerHTML =
+      '<h2>' + (opts.title || '請確認') + '</h2>' +
+      '<div class="modal-sub" style="white-space:pre-line;">' + escapeHtml(message) + '</div>' +
+      '<div class="modal-actions">' +
+        '<button type="button" class="btn ghost" id="confirm-cancel-btn">' + (opts.cancelText || '取消') + '</button>' +
+        '<button type="button" class="btn ' + (opts.danger ? 'danger' : '') + '" id="confirm-ok-btn">' + (opts.confirmText || '確定') + '</button>' +
+      '</div>';
+    overlay.classList.add('open');
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    function finish(result){
+      overlay.classList.remove('open');
+      body.innerHTML = '';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlayClick);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onOk(){ finish(true); }
+    function onCancel(){ finish(false); }
+    function onOverlayClick(e){ if(e.target===overlay) finish(false); }
+    function onKeydown(e){ if(e.key==='Escape') finish(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onKeydown);
+    okBtn.focus();
+  });
+}
+function escapeHtml(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
 function formToObject(form){
   const data = {};
   new FormData(form).forEach((v,k)=>{ data[k]=v; });
@@ -3357,21 +3459,21 @@ function parseImportRows(text, fields, fkValidators){
 
 async function handleImportGenericFile(file, opts){
   let text;
-  try{ text = await file.text(); } catch(e){ alert('無法讀取檔案。'); return; }
+  try{ text = await file.text(); } catch(e){ showToast('無法讀取檔案。', 'error'); return; }
   const result = parseImportRows(text, opts.fields, opts.fkValidators);
-  if(result.error){ alert(result.error); return; }
+  if(result.error){ showToast(result.error, 'error'); return; }
   if(!result.imported.length){
-    alert('沒有任何一列可以匯入，請確認欄位格式與必填的關聯 ID 是否正確。請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。');
+    showToast('沒有任何一列可以匯入，請確認欄位格式與必填的關聯 ID 是否正確。請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。', 'error');
     return;
   }
-  const ok = confirm(`即將以檔案中的 ${result.imported.length} 筆資料，完全覆蓋目前系統中的 ${opts.currentCount} 筆${opts.entityLabel}。\n\n此動作無法復原，確定要繼續嗎？`);
+  const ok = await customConfirm(`即將以檔案中的 ${result.imported.length} 筆資料，完全覆蓋目前系統中的 ${opts.currentCount} 筆${opts.entityLabel}。\n\n此動作無法復原，確定要繼續嗎？`, {danger:true, confirmText:'覆蓋'});
   if(!ok) return;
   try{
     await gsRun(opts.importFnName, authToken, result.imported);
     await loadAll();
-    alert(`匯入完成，${opts.entityLabel}已覆蓋為 ${result.imported.length} 筆${result.skipped?`（另有 ${result.skipped} 筆因欄位或關聯 ID 不符被略過）`:''}。`);
+    showToast(`匯入完成，${opts.entityLabel}已覆蓋為 ${result.imported.length} 筆${result.skipped?`（另有 ${result.skipped} 筆因欄位或關聯 ID 不符被略過）`:''}。`, 'success');
   }catch(err){
-    alert('匯入失敗：' + errMsg(err));
+    showToast('匯入失敗：' + errMsg(err), 'error');
   }
 }
 function wireGenericImportExport(prefix, exportFn, importOpts){
@@ -3412,9 +3514,9 @@ function importExportButtonsHTML(prefix, editable){
 }
 async function handleImportStudentsFile(file){
   let text;
-  try{ text = await file.text(); } catch(e){ alert('無法讀取檔案。'); return; }
+  try{ text = await file.text(); } catch(e){ showToast('無法讀取檔案。', 'error'); return; }
   const rows = parseCSV(text);
-  if(rows.length < 2){ alert('檔案沒有可匯入的資料列。'); return; }
+  if(rows.length < 2){ showToast('檔案沒有可匯入的資料列。', 'error'); return; }
   const header = rows[0].map(h=>h.trim());
   const labelToKey = {}; STUDENT_FIELDS.forEach(f=>{ labelToKey[f.label]=f.key; });
   const imported = []; let skipped = 0;
@@ -3429,15 +3531,15 @@ async function handleImportStudentsFile(file){
     if(!obj.nightInternshipDoc) obj.nightInternshipDoc='未收到';
     imported.push(obj);
   });
-  if(!imported.length){ alert('沒有任何一列符合匯入格式（每一列至少需要填寫「原始姓名」或「中文姓名」）。'); return; }
-  const ok = confirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.students.length} 筆學生資料。\n\n此動作無法復原，確定要繼續嗎？`);
+  if(!imported.length){ showToast('沒有任何一列符合匯入格式（每一列至少需要填寫「原始姓名」或「中文姓名」）。', 'error'); return; }
+  const ok = await customConfirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.students.length} 筆學生資料。\n\n此動作無法復原，確定要繼續嗎？`, {danger:true, confirmText:'覆蓋'});
   if(!ok) return;
   try{
     await gsRun('importStudentsOverwrite', authToken, imported);
     await loadAll();
-    alert(`匯入完成，學生資料已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因缺少姓名被略過）`:''}。`);
+    showToast(`匯入完成，學生資料已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因缺少姓名被略過）`:''}。`, 'success');
   }catch(err){
-    alert('匯入失敗：' + errMsg(err));
+    showToast('匯入失敗：' + errMsg(err), 'error');
   }
 }
 
@@ -3469,9 +3571,9 @@ function exportSecondInterviewsCSV(){
 
 async function handleImportSecondInterviewsFile(file){
   let text;
-  try{ text = await file.text(); } catch(e){ alert('無法讀取檔案。'); return; }
+  try{ text = await file.text(); } catch(e){ showToast('無法讀取檔案。', 'error'); return; }
   const rows = parseCSV(text);
-  if(rows.length < 2){ alert('檔案沒有可匯入的資料列。'); return; }
+  if(rows.length < 2){ showToast('檔案沒有可匯入的資料列。', 'error'); return; }
   const header = rows[0].map(h=>h.trim());
   const idx = {
     matchId: header.indexOf('媒合紀錄ID'),
@@ -3481,7 +3583,7 @@ async function handleImportSecondInterviewsFile(file){
     notes: header.indexOf('備註')
   };
   if(idx.matchId === -1){
-    alert('檔案缺少「媒合紀錄ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。');
+    showToast('檔案缺少「媒合紀錄ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。', 'error');
     return;
   }
   const imported = []; let skipped = 0;
@@ -3498,17 +3600,17 @@ async function handleImportSecondInterviewsFile(file){
     });
   });
   if(!imported.length){
-    alert('沒有任何一列可以匯入——請確認「媒合紀錄ID」欄位對應到目前系統中真實存在的媒合紀錄。');
+    showToast('沒有任何一列可以匯入——請確認「媒合紀錄ID」欄位對應到目前系統中真實存在的媒合紀錄。', 'error');
     return;
   }
-  const ok = confirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.secondInterviews.length} 筆二面紀錄。\n\n此動作無法復原，確定要繼續嗎？`);
+  const ok = await customConfirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.secondInterviews.length} 筆二面紀錄。\n\n此動作無法復原，確定要繼續嗎？`, {danger:true, confirmText:'覆蓋'});
   if(!ok) return;
   try{
     await gsRun('importSecondInterviewsOverwrite', authToken, imported);
     await loadAll();
-    alert(`匯入完成，二面進度已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因媒合紀錄ID無效被略過）`:''}。`);
+    showToast(`匯入完成，二面進度已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因媒合紀錄ID無效被略過）`:''}。`, 'success');
   }catch(err){
-    alert('匯入失敗：' + errMsg(err));
+    showToast('匯入失敗：' + errMsg(err), 'error');
   }
 }
 
@@ -3540,9 +3642,9 @@ function exportMatchesCSV(){
 
 async function handleImportMatchesFile(file){
   let text;
-  try{ text = await file.text(); } catch(e){ alert('無法讀取檔案。'); return; }
+  try{ text = await file.text(); } catch(e){ showToast('無法讀取檔案。', 'error'); return; }
   const rows = parseCSV(text);
-  if(rows.length < 2){ alert('檔案沒有可匯入的資料列。'); return; }
+  if(rows.length < 2){ showToast('檔案沒有可匯入的資料列。', 'error'); return; }
   const header = rows[0].map(h=>h.trim());
   const idx = {
     studentId: header.indexOf('學生ID'),
@@ -3553,7 +3655,7 @@ async function handleImportMatchesFile(file){
     notes: header.indexOf('備註')
   };
   if(idx.studentId === -1 || idx.positionId === -1){
-    alert('檔案缺少「學生ID」或「職缺ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。');
+    showToast('檔案缺少「學生ID」或「職缺ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。', 'error');
     return;
   }
   const imported = []; let skipped = 0;
@@ -3571,17 +3673,17 @@ async function handleImportMatchesFile(file){
     });
   });
   if(!imported.length){
-    alert('沒有任何一列可以匯入——請確認「學生ID」與「職缺ID」對應到目前系統中真實存在的學生與職缺。');
+    showToast('沒有任何一列可以匯入——請確認「學生ID」與「職缺ID」對應到目前系統中真實存在的學生與職缺。', 'error');
     return;
   }
-  const ok = confirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.matches.length} 筆媒合紀錄。\n\n此動作無法復原，確定要繼續嗎？`);
+  const ok = await customConfirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.matches.length} 筆媒合紀錄。\n\n此動作無法復原，確定要繼續嗎？`, {danger:true, confirmText:'覆蓋'});
   if(!ok) return;
   try{
     await gsRun('importMatchesOverwrite', authToken, imported);
     await loadAll();
-    alert(`匯入完成，媒合紀錄已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因學生ID或職缺ID無效被略過）`:''}。`);
+    showToast(`匯入完成，媒合紀錄已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因學生ID或職缺ID無效被略過）`:''}。`, 'success');
   }catch(err){
-    alert('匯入失敗：' + errMsg(err));
+    showToast('匯入失敗：' + errMsg(err), 'error');
   }
 }
 
@@ -3612,9 +3714,9 @@ function exportAdmittedCSV(){
 
 async function handleImportAdmittedFile(file){
   let text;
-  try{ text = await file.text(); } catch(e){ alert('無法讀取檔案。'); return; }
+  try{ text = await file.text(); } catch(e){ showToast('無法讀取檔案。', 'error'); return; }
   const rows = parseCSV(text);
-  if(rows.length < 2){ alert('檔案沒有可匯入的資料列。'); return; }
+  if(rows.length < 2){ showToast('檔案沒有可匯入的資料列。', 'error'); return; }
   const header = rows[0].map(h=>h.trim());
   const idx = {
     matchId: header.indexOf('媒合紀錄ID'),
@@ -3623,7 +3725,7 @@ async function handleImportAdmittedFile(file){
     notes: header.indexOf('備註')
   };
   if(idx.matchId === -1){
-    alert('檔案缺少「媒合紀錄ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。');
+    showToast('檔案缺少「媒合紀錄ID」欄位，請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。', 'error');
     return;
   }
   const imported = []; let skipped = 0;
@@ -3639,17 +3741,17 @@ async function handleImportAdmittedFile(file){
     });
   });
   if(!imported.length){
-    alert('沒有任何一列可以匯入——請確認「媒合紀錄ID」欄位對應到目前系統中真實存在的媒合紀錄。');
+    showToast('沒有任何一列可以匯入——請確認「媒合紀錄ID」欄位對應到目前系統中真實存在的媒合紀錄。', 'error');
     return;
   }
-  const ok = confirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.admittedList.length} 筆錄取紀錄。\n\n此動作無法復原，確定要繼續嗎？`);
+  const ok = await customConfirm(`即將以檔案中的 ${imported.length} 筆資料，完全覆蓋目前系統中的 ${state.admittedList.length} 筆錄取紀錄。\n\n此動作無法復原，確定要繼續嗎？`, {danger:true, confirmText:'覆蓋'});
   if(!ok) return;
   try{
     await gsRun('importAdmittedOverwrite', authToken, imported);
     await loadAll();
-    alert(`匯入完成，錄取名單已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因媒合紀錄ID無效被略過）`:''}。`);
+    showToast(`匯入完成，錄取名單已覆蓋為 ${imported.length} 筆${skipped?`（另有 ${skipped} 筆因媒合紀錄ID無效被略過）`:''}。`, 'success');
   }catch(err){
-    alert('匯入失敗：' + errMsg(err));
+    showToast('匯入失敗：' + errMsg(err), 'error');
   }
 }
 
@@ -3695,11 +3797,12 @@ function attachPageEvents(){
   });
   document.querySelectorAll('[data-del-student]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這位學生嗎？')) return;
+      if(!await customConfirm('確定要刪除這位學生嗎？', {danger:true})) return;
       try{ await gsRun('deleteStudent', authToken, b.dataset.delStudent); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
+  wireSearchInput('students-search', v=>{ studentsSearchQuery = v; });
   const exportStudentsBtn = document.getElementById('btn-export-students');
   if(exportStudentsBtn) exportStudentsBtn.addEventListener('click', exportStudentsCSV);
   const importStudentsBtn = document.getElementById('btn-import-students');
@@ -3726,7 +3829,7 @@ function attachPageEvents(){
       data.locationGroups = collectLocationGroups(form);
       data.otherBenefits = collectBenefits(form);
       try{ await gsRun('addPosition', authToken, data); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-position]').forEach(b=>{
@@ -3742,7 +3845,7 @@ function attachPageEvents(){
         data.locationGroups = collectLocationGroups(form);
         data.otherBenefits = collectBenefits(form);
         try{ await gsRun('updatePosition', authToken, p.id, data); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
@@ -3760,29 +3863,30 @@ function attachPageEvents(){
         data.locationGroups = collectLocationGroups(form);
         data.otherBenefits = collectBenefits(form);
         try{ await gsRun('addPosition', authToken, data); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-close-position]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       try{ await gsRun('updatePosition', authToken, b.dataset.closePosition, {closed:'是'}); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-reopen-position]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       try{ await gsRun('updatePosition', authToken, b.dataset.reopenPosition, {closed:''}); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-del-position]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆職缺嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆職缺嗎？', {danger:true})) return;
       try{ await gsRun('deletePosition', authToken, b.dataset.delPosition); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
+  wireSearchInput('positions-search', v=>{ positionsSearchQuery = v; });
   wireGenericImportExport('position',
     ()=>exportEntityCSV(state.positions, POSITION_FIELDS, '實習單位'),
     {fields:POSITION_FIELDS, fkValidators:null, currentCount:state.positions.length, entityLabel:'職缺資料', importFnName:'importPositionsOverwrite'}
@@ -3792,7 +3896,7 @@ function attachPageEvents(){
   const addMatchBtn = document.getElementById('btn-add-match');
   if(addMatchBtn) addMatchBtn.addEventListener('click', ()=>{
     if(!state.students.length || !state.positions.length){
-      alert('請先建立至少一位學生與一筆職缺，才能建立媒合紀錄。'); return;
+      showToast('請先建立至少一位學生與一筆職缺，才能建立媒合紀錄。', 'info'); return;
     }
     openModal(matchFormModal(null));
     wireMatchFilters(null);
@@ -3805,7 +3909,7 @@ function attachPageEvents(){
         if(created && created.status==='已媒合') await ensureSecondInterviewForMatch(created.id);
         closeModal(); await loadAll();
       }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-match]').forEach(b=>{
@@ -3822,15 +3926,15 @@ function attachPageEvents(){
           if(data.status==='已媒合') await ensureSecondInterviewForMatch(m.id);
           closeModal(); await loadAll();
         }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-match]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆媒合紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆媒合紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteMatch', authToken, b.dataset.delMatch); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const exportMatchBtn = document.getElementById('btn-export-match');
@@ -3862,7 +3966,7 @@ function attachPageEvents(){
   // Second interview
   const addSecondBtn = document.getElementById('btn-add-second');
   if(addSecondBtn) addSecondBtn.addEventListener('click', ()=>{
-    if(!state.matches.length){ alert('請先建立至少一筆媒合紀錄。'); return; }
+    if(!state.matches.length){ showToast('請先建立至少一筆媒合紀錄。', 'info'); return; }
     openModal(secondInterviewFormModal(null));
     wireMatchPicker('second');
     wireStatusChips('second-status-chips');
@@ -3877,7 +3981,7 @@ function attachPageEvents(){
         if(data.status==='通過') await syncAdmittedFromSecondInterview(data.matchId);
         closeModal(); await loadAll();
       }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-second]').forEach(b=>{
@@ -3897,15 +4001,15 @@ function attachPageEvents(){
           if(data.status==='通過') await syncAdmittedFromSecondInterview(data.matchId);
           closeModal(); await loadAll();
         }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-second]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆二面紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆二面紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteSecondInterview', authToken, b.dataset.delSecond); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const exportSecondBtn = document.getElementById('btn-export-second');
@@ -3937,7 +4041,7 @@ function attachPageEvents(){
   // Admitted list
   const addAdmittedBtn = document.getElementById('btn-add-admitted');
   if(addAdmittedBtn) addAdmittedBtn.addEventListener('click', ()=>{
-    if(!state.matches.length){ alert('請先建立至少一筆媒合紀錄。'); return; }
+    if(!state.matches.length){ showToast('請先建立至少一筆媒合紀錄。', 'info'); return; }
     openModal(admittedFormModal(null));
     wireMatchPicker('admitted');
     wireStatusChips('admitted-status-chips');
@@ -3952,7 +4056,7 @@ function attachPageEvents(){
         if(data.status==='確認錄取'){ await syncInternshipDocsFromAdmission(data.matchId); await syncApplicationProgressFromAdmission(data.matchId); }
         closeModal(); await loadAll();
       }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-admitted]').forEach(b=>{
@@ -3976,15 +4080,15 @@ function attachPageEvents(){
           }
           closeModal(); await loadAll();
         }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-admitted]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆錄取紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆錄取紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteAdmitted', authToken, b.dataset.delAdmitted); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const exportAdmittedBtn = document.getElementById('btn-export-admitted');
@@ -4016,7 +4120,7 @@ function attachPageEvents(){
   // Application progress
   const addProgressBtn = document.getElementById('btn-add-progress');
   if(addProgressBtn) addProgressBtn.addEventListener('click', ()=>{
-    if(!state.students.length){ alert('請先建立學生資料。'); return; }
+    if(!state.students.length){ showToast('請先建立學生資料。', 'info'); return; }
     openModal(progressFormModal(null));
     wireStudentInfoDisplay('progress');
     document.getElementById('progress-form').addEventListener('submit', async (e)=>{
@@ -4029,7 +4133,7 @@ function attachPageEvents(){
         if(data.currentStage==='入台') await syncInTaiwanVisaFromProgress(data.studentId);
         closeModal(); await loadAll();
       }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-progress]').forEach(b=>{
@@ -4047,15 +4151,15 @@ function attachPageEvents(){
           if(data.currentStage==='入台') await syncInTaiwanVisaFromProgress(data.studentId);
           closeModal(); await loadAll();
         }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-progress]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆進度紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆進度紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteApplicationProgress', authToken, b.dataset.delProgress); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   wireGenericImportExport('progress',
@@ -4079,7 +4183,7 @@ function attachPageEvents(){
   // In-Taiwan Visa Tracking
   const addInVisaBtn = document.getElementById('btn-add-in-visa');
   if(addInVisaBtn) addInVisaBtn.addEventListener('click', ()=>{
-    if(!state.students.length){ alert('請先建立學生資料。'); return; }
+    if(!state.students.length){ showToast('請先建立學生資料。', 'info'); return; }
     openModal(inTaiwanVisaFormModal(null));
     wireStudentInfoDisplay('in-visa');
     document.getElementById('in-visa-form').addEventListener('submit', async (e)=>{
@@ -4088,7 +4192,7 @@ function attachPageEvents(){
       const data = formToObject(form);
       data.confirmedDeparture = form.querySelector('[name="confirmedDeparture"]').checked ? '是' : '';
       try{ await gsRun('addInTaiwanVisa', authToken, data); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-in-visa]').forEach(b=>{
@@ -4102,15 +4206,15 @@ function attachPageEvents(){
         const data = formToObject(form);
         data.confirmedDeparture = form.querySelector('[name="confirmedDeparture"]').checked ? '是' : '';
         try{ await gsRun('updateInTaiwanVisa', authToken, v.id, data); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-in-visa]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆在台簽證紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆在台簽證紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteInTaiwanVisa', authToken, b.dataset.delInVisa); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const inVisaSearchInput = document.getElementById('in-visa-search');
@@ -4131,7 +4235,7 @@ function attachPageEvents(){
   // In-Taiwan Care Records
   const addInCareBtn = document.getElementById('btn-add-in-care');
   if(addInCareBtn) addInCareBtn.addEventListener('click', ()=>{
-    if(!state.students.length){ alert('請先建立學生資料。'); return; }
+    if(!state.students.length){ showToast('請先建立學生資料。', 'info'); return; }
     openModal(inTaiwanCareFormModal(null));
     wireStudentInfoDisplay('in-care');
     document.getElementById('in-care-form').addEventListener('submit', async (e)=>{
@@ -4140,7 +4244,7 @@ function attachPageEvents(){
       const data = formToObject(form);
       data.confirmedDeparture = form.querySelector('[name="confirmedDeparture"]').checked ? '是' : '';
       try{ await gsRun('addInTaiwanCare', authToken, data); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-in-care]').forEach(b=>{
@@ -4154,15 +4258,15 @@ function attachPageEvents(){
         const data = formToObject(form);
         data.confirmedDeparture = form.querySelector('[name="confirmedDeparture"]').checked ? '是' : '';
         try{ await gsRun('updateInTaiwanCare', authToken, c.id, data); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-in-care]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆關懷紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆關懷紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteInTaiwanCare', authToken, b.dataset.delInCare); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const inCareSearchInput = document.getElementById('in-care-search');
@@ -4183,7 +4287,7 @@ function attachPageEvents(){
   // Internship documents
   const addDocBtn = document.getElementById('btn-add-doc');
   if(addDocBtn) addDocBtn.addEventListener('click', ()=>{
-    if(!state.students.length){ alert('請先建立學生資料。'); return; }
+    if(!state.students.length){ showToast('請先建立學生資料。', 'info'); return; }
     openModal(internshipDocFormModal(null));
     wireStudentInfoDisplay('doc');
     wireDocTypeExtensionToggle();
@@ -4191,7 +4295,7 @@ function attachPageEvents(){
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addInternshipDoc', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-manage-doc]').forEach(b=>{
@@ -4205,9 +4309,9 @@ function attachPageEvents(){
     b.addEventListener('click', async ()=>{
       const sid = b.dataset.delDocStudent;
       const name = studentFullLabel(studentById(sid));
-      if(!confirm(`確定要刪除「${name}」的整組實習文件追蹤紀錄嗎？此動作會一次刪除該學生所有的文件項目，無法復原。`)) return;
+      if(!await customConfirm(`確定要刪除「${name}」的整組實習文件追蹤紀錄嗎？此動作會一次刪除該學生所有的文件項目，無法復原。`, {danger:true})) return;
       try{ await gsRun('deleteInternshipDocsForStudent', authToken, sid); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   const docSearchInput = document.getElementById('doc-search');
@@ -4231,14 +4335,14 @@ function attachPageEvents(){
   // Housing
   const addHousingBtn = document.getElementById('btn-add-housing');
   if(addHousingBtn) addHousingBtn.addEventListener('click', ()=>{
-    if(!state.students.length){ alert('請先建立學生資料。'); return; }
+    if(!state.students.length){ showToast('請先建立學生資料。', 'info'); return; }
     openModal(housingFormModal(null));
     wireStudentSearchSelect('housing', '');
     document.getElementById('housing-form').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addHousingRecord', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-housing]').forEach(b=>{
@@ -4250,22 +4354,22 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('updateHousingRecord', authToken, h.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-housing]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆住宿紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆住宿紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteHousingRecord', authToken, b.dataset.delHousing); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-complete-housing]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要將這筆住宿紀錄標記為已完成嗎？標記後將不再顯示於列表中。')) return;
+      if(!await customConfirm('確定要將這筆住宿紀錄標記為已完成嗎？標記後將不再顯示於列表中。')) return;
       try{ await gsRun('updateHousingRecord', authToken, b.dataset.completeHousing, {completed:'是'}); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
 
@@ -4284,7 +4388,7 @@ function attachPageEvents(){
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addDormitory', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-dormitory]').forEach(b=>{
@@ -4295,15 +4399,15 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('updateDormitory', authToken, d.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-dormitory]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆宿舍紀錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆宿舍紀錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteDormitory', authToken, b.dataset.delDormitory); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-fill-utility]').forEach(b=>{
@@ -4316,7 +4420,7 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('saveDormitoryUtility', authToken, dorm.id, month, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
@@ -4395,7 +4499,7 @@ function attachPageEvents(){
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addMeeting', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-meeting]').forEach(b=>{
@@ -4406,15 +4510,15 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('updateMeeting', authToken, m.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-meeting]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆會議記錄嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆會議記錄嗎？', {danger:true})) return;
       try{ await gsRun('deleteMeeting', authToken, b.dataset.delMeeting); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   wireSearchInput('meeting-search', v=>{ meetingSearchQuery = v; });
@@ -4491,7 +4595,7 @@ function attachPageEvents(){
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }catch(err){
-        alert('產生請款單失敗：' + errMsg(err));
+        showToast('產生請款單失敗：' + errMsg(err), 'error');
       }finally{
         b.disabled = false; b.textContent = originalText;
       }
@@ -4506,7 +4610,7 @@ function attachPageEvents(){
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addClientFeeSetup', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-cfee]').forEach(b=>{
@@ -4517,15 +4621,15 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('updateClientFeeSetup', authToken, item.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-cfee]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆客戶費用設定嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆客戶費用設定嗎？', {danger:true})) return;
       try{ await gsRun('deleteClientFeeSetup', authToken, b.dataset.delCfee); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   wireSearchInput('cfee-search', v=>{ clientFeeSetupSearchQuery = v; });
@@ -4542,7 +4646,7 @@ function attachPageEvents(){
       e.preventDefault();
       const form = e.target; setFormBusy(form, true);
       try{ await gsRun('addInternalFeeSetup', authToken, formToObject(form)); closeModal(); await loadAll(); }
-      catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+      catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-edit-ifee]').forEach(b=>{
@@ -4553,15 +4657,15 @@ function attachPageEvents(){
         e.preventDefault();
         const form = e.target; setFormBusy(form, true);
         try{ await gsRun('updateInternalFeeSetup', authToken, item.id, formToObject(form)); closeModal(); await loadAll(); }
-        catch(err){ setFormBusy(form,false); alert(errMsg(err)); }
+        catch(err){ setFormBusy(form,false); showToast(errMsg(err), 'error'); }
       });
     });
   });
   document.querySelectorAll('[data-del-ifee]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這筆內部費用設定嗎？')) return;
+      if(!await customConfirm('確定要刪除這筆內部費用設定嗎？', {danger:true})) return;
       try{ await gsRun('deleteInternalFeeSetup', authToken, b.dataset.delIfee); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   wireSearchInput('ifee-search', v=>{ internalFeeSetupSearchQuery = v; });
@@ -4602,9 +4706,9 @@ function attachPageEvents(){
   });
   document.querySelectorAll('[data-del-user]').forEach(b=>{
     b.addEventListener('click', async ()=>{
-      if(!confirm('確定要刪除這位使用者嗎？')) return;
+      if(!await customConfirm('確定要刪除這位使用者嗎？', {danger:true})) return;
       try{ await gsRun('deleteUser', authToken, b.dataset.delUser); await loadAll(); }
-      catch(err){ alert(errMsg(err)); }
+      catch(err){ showToast(errMsg(err), 'error'); }
     });
   });
   document.querySelectorAll('[data-perm-module]').forEach(b=>{
@@ -4621,7 +4725,7 @@ function attachPageEvents(){
         render();
       }catch(err){
         b.disabled = false;
-        alert('更新權限失敗：' + errMsg(err));
+        showToast('更新權限失敗：' + errMsg(err), 'error');
       }
     });
   });
