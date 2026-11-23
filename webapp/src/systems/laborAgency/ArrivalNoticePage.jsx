@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import { downloadXlsx } from '../../lib/xlsxExport';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, departureInfoOf } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, departureInfoOf, visaInfoOf } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
@@ -143,6 +143,9 @@ export default function ArrivalNoticePage() {
       // 相同），舊資料沒填抵達時間時退回用班機時間頂替，不然入境通知單
       // 整欄空白。
       const [arrivalDate, arrivalTimeRaw] = (flightRow.arrivalTime || flightRow.flightTime || '').split('T');
+      // 起飛時間另外顯示在表頭，跟抵達時間放一起比較——兩者是不同時間點
+      // （起飛用的就是出境辦理那邊的班機時間本身，不是抵達時間的退回值）。
+      const [, departureTimeRaw] = (flightRow.flightTime || '').split('T');
       const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
       // 每位移工的大頭照先一次全部平行抓好（原本是逐筆 await，一筆一筆
       // 排隊抓，人數一多下載要等很久，使用者在按下按鈕跟真正跳出存檔
@@ -158,6 +161,7 @@ export default function ArrivalNoticePage() {
         sheet.addRow(['TO：']);
         sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
         sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
+        sheet.addRow(['', '', '', '', '', '', '', '', '', '起飛時間', departureTimeRaw || '']);
         sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
         sheet.addRow([
           '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
@@ -173,7 +177,7 @@ export default function ArrivalNoticePage() {
             employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
             w.birthDate || '', '越南', t(w.gender, lang) || '', w.passportNo || '',
             w.passportIssueDate || '', w.passportExpiry || '',
-            [w.approvalDocNumber, w.visaDocNumber].filter(Boolean).join('\n'),
+            [w.approvalDocNumber, visaInfoOf(w, employerId).visaDocNumber].filter(Boolean).join('\n'),
             t(w.maritalStatus, lang) || '', w.taiwanPhone || '',
           ]);
           row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
@@ -237,7 +241,7 @@ export default function ArrivalNoticePage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('護照號碼', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
+                <th>{t('護照號碼', lang)}</th><th>{t('簽證文號', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
                 <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
                 <th>{t('請款對象', lang)}</th>
                 {!closed && canEditPage && <th>{t('下載時選擇帶入的證件照片', lang)}</th>}
@@ -247,12 +251,14 @@ export default function ArrivalNoticePage() {
             <tbody>
               {group.map(({ worker: w, employerId: rowEmployerId }) => {
                 const info = departureInfoOf(w, rowEmployerId);
+                const visaInfo = visaInfoOf(w, rowEmployerId);
                 return (
                 <tr key={`${w.id}-${rowEmployerId || UNMATCHED_EMPLOYER}`}>
                   <td style={{ fontWeight: 600 }}>{w.name}</td>
                   <td>{rowEmployerId ? employerLabel(employers, rowEmployerId, lang) : t('尚未配對', lang)}</td>
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.passportNo || '—'}</td>
+                  <td>{visaInfo.visaDocNumber || '—'}</td>
                   <td>{info.flightAirline || '—'}</td>
                   <td>{info.flightNumber || '—'}</td>
                   <td>{info.flightTerminal || '—'}</td>
