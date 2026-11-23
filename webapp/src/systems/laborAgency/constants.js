@@ -177,6 +177,23 @@ export function departureInfoOf(w, employerId) {
   return legacy;
 }
 
+// 移到這裡（原本只在 VisaProcessingPage.jsx 裡）：入境通知要顯示簽證
+// 文號，也要讀同一份簽證資訊，理由跟上面 departureInfoOf 移過來一樣
+// ——兩邊共用同一份讀取邏輯，不要各自維護一份。
+const LEGACY_VISA_FIELDS = ['visaProcessDate', 'visaPickupDate', 'visaDocNumber', 'taiwanPhone'];
+
+// 簽證辦理日期/領取日期/文號、台灣電話號碼依配對（移工×雇主）各自
+// 獨立存放（visaInfoMap），理由跟上面 departureInfoOf 一樣——不能像舊版
+// 那樣直接存在移工文件的扁平欄位上，否則同一個移工同時配對多個雇主時，
+// 填寫其中一筆的簽證資料會覆蓋到另一筆。
+export function visaInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'visaInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_VISA_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
+
 // 從其他狀態改回「錄取」，代表那一筆配對重新開始整個流程——文件追蹤/
 // 辦理簽證/出境辦理/入境通知先前留下的完成/移除/結案旗標都要清掉，
 // 不然那一筆配對會因為舊旗標還是 true，卡在原本的頁面出不來或一路
