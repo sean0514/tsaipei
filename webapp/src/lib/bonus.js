@@ -175,8 +175,12 @@ export function computeDormManagerBonusForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
   const { dormitories, housingRecords, internalFeeSetupRecords } = ctx;
+  // 跟下面 computeDormProfitLossForYear 同一個理由：不能排除已經「結案」
+  // 的宿舍——結案只是 DormManagementPage.jsx 自己清單畫面的歸檔標記，
+  // 不代表宿舍關閉之前那幾個月的宿管獎金沒有真的發生過。一結案就整間
+  // 從這裡的計算排除，會讓已經發生過的歷史月份宿管獎金憑空消失。
   return (dormitories || [])
-    .filter((d) => !d.confirmedClosed && (d.manager1 || d.manager2))
+    .filter((d) => d.manager1 || d.manager2)
     .map((d) => {
       let manager1Amount = 0;
       let manager2Amount = 0;
@@ -517,9 +521,16 @@ function sumDormPnlEntries(entries) {
 // + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；
 // 利潤＝收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1
 // 分類呈現。
+//
+// 不能排除已經「結案」的宿舍：confirmedClosed 只是 DormManagementPage.jsx
+// 自己清單畫面用來把退租後的宿舍歸檔隱藏的標記，不代表這間宿舍結案之前
+// 那幾個月的收入/成本沒有真的發生過——跟同一份檔案裡 housingRecords.completed
+// 的處理原則一樣(見下面 housingIncome 迴圈的註解)。如果在這裡把整間宿舍
+// 濾掉，宿舍一結案，過去已經發生、甚至已經對外請款/發獎金過的月份就會
+// 從宿舍損益、公司損益裡憑空消失。
 export function computeDormProfitLossForYear(year, ctx) {
   const { dormitories, housingRecords, dormitoryUtilities, dailyExpenseApplications, clientFeeSetupRecords } = ctx;
-  const dormResults = (dormitories || []).filter((d) => !d.confirmedClosed).map((d) => {
+  const dormResults = (dormitories || []).map((d) => {
     const monthly = [];
     for (let m = 1; m <= 12; m++) {
       const monthStr = `${year}-${String(m).padStart(2, '0')}`;
