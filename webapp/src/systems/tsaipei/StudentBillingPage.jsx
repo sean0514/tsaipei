@@ -4,7 +4,10 @@ import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { useSystemProfile } from '../../auth/useSystemAccess';
-import { studentProjectClientPair, currentYear, NOT_BILLABLE } from '../../lib/bonus';
+import {
+  studentProjectClientPair, currentYear, NOT_BILLABLE,
+  ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
+} from '../../lib/bonus';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -122,13 +125,6 @@ function nextMonthStr(monthStr) {
 // 只有非「廠商代付」的項目才平分給學生，跟水電瓦斯費不同套規則；平分
 // 後的金額再跟自付宿舍費加總成這個學生這個月要付的總金額。
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
-
-// 電費每人每月固定加收 200 元，加在宿舍管理填寫的實際電費平分金額之上。
-const ELECTRICITY_FLAT_FEE_PER_HEAD = 200;
-// 南投竹山宿舍的電費每人每月要再額外加收 500 元，疊加在上面全宿舍共通的
-// 200 元之上（這間宿舍的學生電費=平分金額+200+500）。
-const NANTOU_ZHUSHAN_DORM_NAME = '南投竹山';
-const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
 
 // 實習單位是和德昌的學生，在第一次入境期間(第一次入境日~第一次離境日，
 // 還沒離境視為還在這段期間內)每個月固定收 150 元體檢費，不管當月住了

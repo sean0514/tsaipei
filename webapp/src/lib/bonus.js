@@ -19,6 +19,13 @@ export const BONUS_ROLE_LABELS = ['開發業務', '國外代表', '服務主管'
 export const PROJECT_CLIENT_BONUS_ROLE_KEYS = BONUS_ROLE_KEYS.filter((k) => k !== 'dormManager1' && k !== 'dormManager2' && k !== 'overseasRep');
 export const PROJECT_CLIENT_BONUS_ROLE_LABELS = PROJECT_CLIENT_BONUS_ROLE_KEYS.map((k) => BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)]);
 
+// 宿舍水電瓦斯費跟學生收取時的加收金額，StudentBillingPage.jsx(學生請款
+// 計算的實際試算)、這裡的宿舍損益(computeDormProfitLossForYear 認列的
+// 水電瓦斯費收入)共用同一份常數，不會兩邊各自維護一份卻改到不一致。
+export const ELECTRICITY_FLAT_FEE_PER_HEAD = 200;
+export const NANTOU_ZHUSHAN_DORM_NAME = '南投竹山';
+export const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
+
 export function monthRange(monthStr) {
   const [y, m] = (monthStr || '').split('-').map(Number);
   if (!y || !m) return null;
@@ -478,7 +485,7 @@ const DORM_PROFIT_SHARE_RATE = 0.2;
 // 成本(租金、房仲費、水費、電費、瓦斯費、其他費用、宿舍設備支出)——
 // 月/宿舍/宿管1/全部宿舍這幾層加總都用同一組欄位，避免每層各寫一次
 // 加總邏輯。
-const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome'];
+const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome', 'utilityIncome'];
 const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
 
 function sumDormPnlEntries(entries) {
@@ -498,7 +505,10 @@ function sumDormPnlEntries(entries) {
 // 住宿紀錄上填的租金，兩者都 ÷ 當月天數 × 住在這間宿舍的天數；廠商代付的
 // 住戶另外加計「客戶費用建檔」設定的宿管費費率，同樣 ÷ 當月天數 × 住在這
 // 間宿舍的天數) + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=收入、
-// 已核准/已匯款) + 宿舍管理「填寫其他費用」自訂項目標類型=收入的金額；
+// 已核准/已匯款) + 宿舍管理「填寫其他費用」自訂項目標類型=收入的金額
+// + 水電瓦斯費收入(這個月住過這間宿舍的所有人平分水電瓦斯費、電費另外
+// 每人每月固定加收200元(南投竹山再加500元)，不論付款方式，這是實際
+// 跟學生收到的錢，不是只算在成本面)；
 // 成本＝租金
 // (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
 // + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
@@ -570,9 +580,26 @@ export function computeDormProfitLossForYear(year, ctx) {
       const otherUtilityCost = feeEntries.filter((f) => (f.type || '支出') !== '收入').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
       const otherIncome = feeEntries.filter((f) => f.type === '收入').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
+      // 水電瓦斯費收入：跟學生請款計算(StudentBillingPage.jsx billingFor)
+      // 同一套公式——不論住宿紀錄的付款方式(學生自付/廠商代付)，水電瓦斯費
+      // 一律由這個月住過這間宿舍的所有人平分，電費另外每人每月固定加收
+      // ELECTRICITY_FLAT_FEE_PER_HEAD 元(南投竹山宿舍再加
+      // NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD 元)，這些都是實際
+      // 跟學生收到的錢，要算成宿舍損益的收入——不然水電瓦斯費成本面有算，
+      // 收入面卻完全沒認列，加收的部分更是整筆漏算。
+      const utilityResidentCount = (housingRecords || []).filter((h) => {
+        if (h.type !== d.name || h.completed || !h.checkIn) return false;
+        return dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0;
+      }).length;
+      const utilityPerHead = (amount) => (utilityResidentCount > 0 ? Math.round((Number(amount) || 0) / utilityResidentCount) : 0);
+      const utilityElectricitySurcharge = d.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+      const utilityIncome = utilityResidentCount > 0
+        ? utilityResidentCount * (utilityPerHead(u?.waterFee) + utilityPerHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD + utilityElectricitySurcharge + utilityPerHead(u?.gasFee))
+        : 0;
+
       monthly.push({
         month: m,
-        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, utilityIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
       });
     }
     const yearTotal = sumDormPnlEntries(monthly);
