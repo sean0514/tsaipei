@@ -1223,6 +1223,8 @@ const VI = {
   '招募人員': 'Nhân viên tuyển dụng',
   '行政（履歷表）': 'Hành chính (hồ sơ)',
   '行政表格': 'Hành chính (biểu mẫu)',
+  '行政（負責履歷表）': 'Hành chính (phụ trách hồ sơ)',
+  '行政（負責客戶）': 'Hành chính (phụ trách khách hàng)',
   '主管': 'Quản lý',
   '經理': 'Giám đốc',
   '搜尋姓名': 'Tìm theo tên',
@@ -1305,6 +1307,10 @@ const VI = {
     'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/hành chính (biểu mẫu)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
   '每案': 'mỗi hồ sơ',
   '已儲存': 'Đã lưu',
+  '自動列出已到「入境通知」階段的移工，依出境月份分類，每位移工各自填寫行政（負責履歷表）/行政（負責客戶）/會計人員/外務人員/主管/經理的獎金金額與幣別（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Tự động liệt kê các lao động đã đến bước "Thông báo nhập cảnh", phân loại theo tháng xuất cảnh, mỗi lao động tự điền số tiền và đơn vị tiền tệ thưởng cho hành chính (phụ trách hồ sơ)/hành chính (phụ trách khách hàng)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '目前沒有已到入境通知階段的移工': 'Hiện chưa có lao động nào đến bước Thông báo nhập cảnh',
+  '尚未填出境月份': 'Chưa điền tháng xuất cảnh',
 
   '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
