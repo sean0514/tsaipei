@@ -5,7 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import {
   CURRENCIES, DEFAULT_CURRENCY, BONUS_ROLE_DEFS, reachedArrivalNotice, departedInMonth,
-  workerEmployerIds, departureInfoOf,
+  workerEmployerIds, departureInfoOf, employerLabel,
 } from './constants';
 
 const NO_MONTH_KEY = '__no_month__';
@@ -91,11 +91,55 @@ function AmountInput({ value, onChange, style }) {
   );
 }
 
+// 負責人姓名原本只在「移工管理」指派、這一頁唯讀顯示；改成這一頁也
+// 能直接打字修改（跟金額共用同一套本地狀態＋debounce 做法，原因一樣：
+// 打字打到一半不能被外部資料蓋掉）。
+function NameInput({ value, onChange, style }) {
+  const [local, setLocal] = useState(value || '');
+  const [focused, setFocused] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!focused) setLocal(value || '');
+  }, [value, focused]);
+
+  function commit(v) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onChange(v), 400);
+  }
+  function handleChange(e) {
+    setLocal(e.target.value);
+    commit(e.target.value);
+  }
+  function handleBlur() {
+    setFocused(false);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      onChange(local);
+    }
+  }
+
+  return (
+    <input
+      value={local}
+      onFocus={() => setFocused(true)} onBlur={handleBlur} onChange={handleChange}
+      style={style}
+    />
+  );
+}
+
 export default function BonusRateSetupPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bonusRateSetup', role, overrides);
   const { rows: workers, loading, update } = useCollection('laborAgency_workers');
+  const { rows: employers } = useCollection('laborAgency_employers');
   const [q, setQ] = useState('');
+
+  function employerNamesOf(w) {
+    const ids = workerEmployerIds(w);
+    return ids.length ? ids.map((id) => employerLabel(employers, id, lang)).join('、') : t('尚未配對', lang);
+  }
 
   const qualifying = workers.filter(reachedArrivalNotice);
   const searchQuery = q.trim().toLowerCase();
@@ -133,7 +177,7 @@ export default function BonusRateSetupPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('姓名', lang)}</th>
+                      <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th>
                       {BONUS_ROLE_DEFS.map((r) => <th key={r.workerKey}>{t(LABEL_OVERRIDES[r.workerKey] || r.label, lang)}</th>)}
                     </tr>
                   </thead>
@@ -141,9 +185,20 @@ export default function BonusRateSetupPage() {
                     {monthWorkers.map((w) => (
                       <tr key={w.id}>
                         <td style={{ fontWeight: 600 }}>{w.name}</td>
+                        <td>{employerNamesOf(w)}</td>
                         {BONUS_ROLE_DEFS.map(({ workerKey, rateKey, currencyKey }) => (
                           <td key={workerKey}>
-                            <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{w[workerKey] || '—'}</div>
+                            <div style={{ marginBottom: 4 }}>
+                              {canEditPage ? (
+                                <NameInput
+                                  value={w[workerKey]}
+                                  onChange={(v) => handleField(w.id, workerKey, v)}
+                                  style={{ width: 90, fontSize: 12 }}
+                                />
+                              ) : (
+                                <span className="muted" style={{ fontSize: 12 }}>{w[workerKey] || '—'}</span>
+                              )}
+                            </div>
                             <div className="row-actions" style={{ gap: 4 }}>
                               {canEditPage ? (
                                 <AmountInput
@@ -167,7 +222,7 @@ export default function BonusRateSetupPage() {
                         ))}
                       </tr>
                     ))}
-                    {monthWorkers.length === 0 && <tr><td colSpan={1 + BONUS_ROLE_DEFS.length} className="muted">{t('沒有資料', lang)}</td></tr>}
+                    {monthWorkers.length === 0 && <tr><td colSpan={2 + BONUS_ROLE_DEFS.length} className="muted">{t('沒有資料', lang)}</td></tr>}
                   </tbody>
                 </table></div>
               </div>
