@@ -11,8 +11,19 @@ const CSV_FIELDS = [
   { key: 'address', label: '地址' }, { key: 'contactName', label: '宿舍管理員1' }, { key: 'contactName2', label: '宿舍管理員2' },
   { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' }, { key: 'utilityPayer', label: '水電瓦斯付款方式' },
   { key: 'checkIn', label: '入住日', type: 'date' }, { key: 'checkOut', label: '退宿日', type: 'date' }, { key: 'monthlyRent', label: '每月租金' },
+  { key: 'hasElectricVehicle', label: '是否借用電動車' }, { key: 'electricVehicleId', label: '電動車編號' }, { key: 'electricVehicleMonthlyFee', label: '電動車每月金額' },
   { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
 ];
+
+// 電動車每月租金同一筆數字會連動帶入「宿舍管理」電動車管理列表裡這筆
+// 住宿紀錄對應的那段出租期間，依這筆住宿紀錄的 id 找/更新那一段，
+// 不會動到其他住戶或其他段出租期間。
+function parseRentalPeriods(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
 
 // Ported from studentCompanyName/matchPositionLabel in apps-script/Index.html —
 // 這裡只取「實習場域」當分店名稱，不是完整的專案＋客戶標籤。
@@ -40,6 +51,7 @@ export default function HousingPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const { rows: users } = useCollection('tsaipei_users');
+  const { rows: electricVehicles, update: updateVehicle } = useCollection('tsaipei_electricVehicles');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_housingRecords', CSV_FIELDS, { entityLabel: '住宿安排', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -90,14 +102,41 @@ export default function HousingPage() {
     return out;
   }
 
+  // 把這筆住宿紀錄的電動車每月租金同步進電動車管理列表裡對應那段出租
+  // 期間：用住宿紀錄 id 當 key，找得到既有段就更新金額/起訖日，找不到
+  // 就新增一段；沒勾選借用電動車（或換了別輛車）則把舊車上對應這筆
+  // 住宿紀錄的那一段移除，避免舊車留下一筆已經不存在的出租紀錄。
+  async function syncElectricVehicleRental(housingRecordId, data, previousVehicleId) {
+    const vehicleId = data.hasElectricVehicle ? data.electricVehicleId : '';
+    if (previousVehicleId && previousVehicleId !== vehicleId) {
+      const prevVehicle = electricVehicles.find((v) => v.id === previousVehicleId);
+      if (prevVehicle) {
+        const periods = parseRentalPeriods(prevVehicle.rentalPeriods).filter((p) => p.housingRecordId !== housingRecordId);
+        await updateVehicle(prevVehicle.id, { rentalPeriods: JSON.stringify(periods) });
+      }
+    }
+    if (!vehicleId) return;
+    const vehicle = electricVehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return;
+    const periods = parseRentalPeriods(vehicle.rentalPeriods);
+    const entry = { housingRecordId, start: data.checkIn || '', end: data.checkOut || '', monthlyRent: Number(data.electricVehicleMonthlyFee) || 0 };
+    const idx = periods.findIndex((p) => p.housingRecordId === housingRecordId);
+    if (idx >= 0) periods[idx] = entry; else periods.push(entry);
+    await updateVehicle(vehicle.id, { rentalPeriods: JSON.stringify(periods) });
+  }
+
   async function handleSave(data) {
     try {
-      if (data.id) {
-        const { id, ...rest } = data;
+      let id = data.id;
+      const previousVehicleId = id ? rows.find((r) => r.id === id)?.electricVehicleId : '';
+      if (id) {
+        const { id: _id, ...rest } = data;
         await update(id, sanitize(rest));
       } else {
-        await add(sanitize(data));
+        const ref = await add(sanitize(data));
+        id = ref.id;
       }
+      await syncElectricVehicleRental(id, data, previousVehicleId);
       setEditing(null);
     } catch (err) {
       alert(`儲存失敗：${err.message || err}`);
@@ -107,7 +146,7 @@ export default function HousingPage() {
   function renderTable(list, label) {
     return (
       <div className="table-wrap sticky-header"><table>
-        <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>水電瓦斯付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th><th>性別</th><th>分店</th><th>入境日</th><th>離境日</th><th>宿舍名稱</th><th>付款方式</th><th>水電瓦斯付款方式</th><th>每月租金</th><th>入住日</th><th>退宿日</th><th>電動車</th>{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {list.map((r) => (
             <tr key={r.id}>
@@ -122,6 +161,7 @@ export default function HousingPage() {
               <td>{r.monthlyRent ? Number(r.monthlyRent).toLocaleString() : '—'}</td>
               <td>{r.checkIn || '—'}</td>
               <td>{r.checkOut || '—'}</td>
+              <td>{r.hasElectricVehicle ? `是（${Number(r.electricVehicleMonthlyFee || 0).toLocaleString()}/月）` : '—'}</td>
               {canEditPage && (
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
@@ -131,7 +171,7 @@ export default function HousingPage() {
               )}
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
+          {list.length === 0 && <tr><td colSpan={13} className="muted">沒有資料</td></tr>}
         </tbody>
       </table></div>
     );
@@ -164,12 +204,12 @@ export default function HousingPage() {
           ) : renderTable(list, label)}
         </div>
       ))}
-      {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <HousingFormModal initial={editing} students={students} dormitories={dormitories} users={users} electricVehicles={electricVehicles} onCancel={() => setEditing(null)} onSave={handleSave} />}
     </div>
   );
 }
 
-function HousingFormModal({ initial, students, dormitories, users, onCancel, onSave }) {
+function HousingFormModal({ initial, students, dormitories, users, electricVehicles, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const dormNames = [...new Set(dormitories.map((d) => d.name).filter(Boolean))];
   if (form.type && !dormNames.includes(form.type)) dormNames.push(form.type);
@@ -242,6 +282,29 @@ function HousingFormModal({ initial, students, dormitories, users, onCancel, onS
               每月租金
               <input type="number" value={form.monthlyRent || ''} onChange={(e) => setForm({ ...form, monthlyRent: e.target.value })} />
             </label>
+            <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={!!form.hasElectricVehicle}
+                onChange={(e) => setForm({ ...form, hasElectricVehicle: e.target.checked })}
+              />
+              是否借用電動車
+            </label>
+            {form.hasElectricVehicle && (
+              <>
+                <label>
+                  電動車
+                  <select value={form.electricVehicleId || ''} onChange={(e) => setForm({ ...form, electricVehicleId: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {(electricVehicles || []).map((v) => <option key={v.id} value={v.id}>{v.number || '(未命名)'}{v.model ? `・${v.model}` : ''}</option>)}
+                  </select>
+                </label>
+                <label>
+                  電動車每月金額
+                  <input type="number" value={form.electricVehicleMonthlyFee || ''} onChange={(e) => setForm({ ...form, electricVehicleMonthlyFee: e.target.value })} />
+                </label>
+              </>
+            )}
             <label>
               地址
               <input value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />

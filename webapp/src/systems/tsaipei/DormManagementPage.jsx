@@ -57,6 +57,59 @@ function parseItemOptions(json) {
 
 const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'itemOptions', label: '收支項目選項(JSON)' }, { key: 'confirmedClosed', label: '結案' }];
 
+// 電動車管理：每輛車一筆資料，出租期間(多筆，每段各自的起租日/退租日/
+// 每月租金)存成 JSON 陣列。借給住宿紀錄用的那幾段(housingRecordId 有值)
+// 由「住宿安排」頁面勾選「是否借用電動車」時自動同步寫入，這裡仍可以
+// 直接新增/編輯/移除任何一段（包含沒有綁住宿紀錄的出租期間）。
+const VEHICLE_FIELDS = [
+  { key: 'number', label: '編號', required: true },
+  { key: 'location', label: '車輛放置處' },
+  { key: 'purchaseDate', label: '購買日期', type: 'date' },
+  { key: 'model', label: '車子型號' },
+  { key: 'purchaseAmount', label: '購買金額', type: 'number' },
+];
+const VEHICLE_EQUIPMENT_ITEMS = [
+  { key: 'hasCover', label: '車套' },
+  { key: 'hasLock', label: '車鎖' },
+  { key: 'hasKey', label: '車鑰匙' },
+];
+const VEHICLE_CSV_FIELDS = [
+  { key: 'id', label: 'ID' }, ...VEHICLE_FIELDS,
+  { key: 'hasCover', label: '車套' }, { key: 'hasLock', label: '車鎖' }, { key: 'hasKey', label: '車鑰匙' },
+  { key: 'rentalPeriods', label: '出租期間(JSON)' },
+];
+
+function parseRentalPeriods(json) {
+  try {
+    const arr = json ? JSON.parse(json) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+// 產值差額 = 每月租金(累計，依每段出租期間實際經過的天數換算，未結束的
+// 段只算到今天) － 購買金額；每段期間的天數都是「含起租日跟退租日」
+// 的實際天數，不是整月概算，所以用 (天數/30*每月租金) 換算成這段累計
+// 收到的租金。
+function accumulatedRentalIncome(periods, today) {
+  const todayDate = new Date(`${today}T00:00:00`);
+  return (periods || []).reduce((sum, p) => {
+    if (!p.start) return sum;
+    const start = new Date(`${p.start}T00:00:00`);
+    const rawEnd = p.end ? new Date(`${p.end}T00:00:00`) : todayDate;
+    const end = rawEnd > todayDate ? todayDate : rawEnd;
+    if (end < start) return sum;
+    const days = Math.round((end - start) / 86400000) + 1;
+    return sum + Math.round(((Number(p.monthlyRent) || 0) / 30) * days);
+  }, 0);
+}
+function vehicleValueDiff(vehicle, today) {
+  return accumulatedRentalIncome(parseRentalPeriods(vehicle.rentalPeriods), today) - (Number(vehicle.purchaseAmount) || 0);
+}
+function equipmentSummary(vehicle) {
+  const labels = VEHICLE_EQUIPMENT_ITEMS.filter((it) => vehicle[it.key]).map((it) => it.label);
+  return labels.length ? labels.join('、') : '—';
+}
+
 // 「住宿中」的判斷跟 HousingPage 同一套邏輯：已完成的紀錄不算、沒有入住日
 // 的不算、退宿日已過的也不算（當作已離宿）。
 function isCurrentResident(r, today) {
@@ -72,13 +125,30 @@ export default function DormManagementPage() {
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: students } = useCollection('tsaipei_students');
   const { rows: users } = useCollection('tsaipei_users');
+  const { rows: vehicles, loading: loadingVehicles, add: addVehicle, update: updateVehicle, remove: removeVehicle } = useCollection('tsaipei_electricVehicles');
   const [editing, setEditing] = useState(null);
   const [utilEditing, setUtilEditing] = useState(null);
   const [viewingDorm, setViewingDorm] = useState(null);
   const [optionsEditing, setOptionsEditing] = useState(null); // dormitory row being managed, or null
+  const [vehicleEditing, setVehicleEditing] = useState(null);
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_dormitories', CSV_FIELDS, { entityLabel: '宿舍管理', requiredKeys: ['name'], canEdit: canEditPage });
+  const { handleExport: handleExportVehicles, handleImport: handleImportVehicles } = useCsvOverwrite('tsaipei_electricVehicles', VEHICLE_CSV_FIELDS, { entityLabel: '電動車管理', requiredKeys: ['number'], canEdit: canEditPage });
+
+  async function handleSaveVehicle(data) {
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await updateVehicle(id, rest);
+      } else {
+        await addVehicle(data);
+      }
+      setVehicleEditing(null);
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
+    }
+  }
 
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
   const today = new Date().toISOString().slice(0, 10);
@@ -201,6 +271,54 @@ export default function DormManagementPage() {
           </table></div>
         )}
       </div>
+      <div className="card">
+        <div className="page-header" style={{ marginBottom: 12 }}>
+          <div>
+            <h3 style={{ marginTop: 0 }}>電動車管理</h3>
+            <div className="page-desc">產值差額＝每月租金(累計，依每段出租期間實際經過天數換算，未結束的段只算到今天)－購買金額；「住宿安排」頁面勾選「是否借用電動車」會自動同步寫入對應那段出租期間{!canEditPage && '（唯讀）'}</div>
+          </div>
+          <div className="row-actions">
+            {canEditPage && <button className="primary" onClick={() => setVehicleEditing({})}>+ 新增電動車</button>}
+            <ImportExportButtons rows={vehicles} onExport={handleExportVehicles} onImport={handleImportVehicles} canEdit={canEditPage} />
+          </div>
+        </div>
+        {loadingVehicles ? <p className="muted">載入中…</p> : (
+          <div className="table-wrap sticky-header"><table>
+            <thead>
+              <tr>
+                <th>編號</th><th>車輛放置處</th><th>購買日期</th><th>車子型號</th><th>購買金額</th><th>設備內容</th>
+                <th>出租期間(筆數)</th><th>產值差額</th>
+                {canEditPage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((v) => {
+                const periods = parseRentalPeriods(v.rentalPeriods);
+                const diff = vehicleValueDiff(v, today);
+                return (
+                  <tr key={v.id}>
+                    <td>{v.number || '—'}</td>
+                    <td>{v.location || '—'}</td>
+                    <td>{v.purchaseDate || '—'}</td>
+                    <td>{v.model || '—'}</td>
+                    <td>{v.purchaseAmount ? Number(v.purchaseAmount).toLocaleString() : '—'}</td>
+                    <td>{equipmentSummary(v)}</td>
+                    <td>{periods.length}</td>
+                    <td style={{ color: diff < 0 ? 'var(--danger)' : undefined, fontWeight: 600 }}>{diff.toLocaleString()}</td>
+                    {canEditPage && (
+                      <td className="row-actions">
+                        <button onClick={() => setVehicleEditing(v)}>編輯</button>
+                        <button className="danger" onClick={() => removeVehicle(v.id)}>刪除</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {vehicles.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+            </tbody>
+          </table></div>
+        )}
+      </div>
       {editing && <DormFormModal initial={editing} users={users} onCancel={() => setEditing(null)} onSave={handleSave} />}
       {utilEditing && (
         <OtherFeesFormModal
@@ -221,6 +339,7 @@ export default function DormManagementPage() {
           onSave={async (itemOptions) => { await update(optionsEditing.id, { itemOptions: JSON.stringify(itemOptions) }); setOptionsEditing(null); }}
         />
       )}
+      {vehicleEditing && <VehicleFormModal initial={vehicleEditing} onCancel={() => setVehicleEditing(null)} onSave={handleSaveVehicle} />}
     </div>
   );
 }
@@ -395,6 +514,91 @@ function OtherFeesListEditor({ fees, itemOptions, onChange }) {
       })}
       <button type="button" onClick={addRow}>+ 新增其他費用</button>
       <p className="muted" style={{ marginTop: 8 }}>類型選「支出」才需要選付款方式：廠商代付的項目不會出現在學生請款計算，會改計入客戶請款計算的「宿舍其他費用」，平分給這個月住在這間宿舍、廠商代付的學生所屬客戶。類型選「收入」的項目只計入宿舍損益的收入，不會跟任何人請款。</p>
+    </div>
+  );
+}
+
+function RentalPeriodsEditor({ periods, onChange }) {
+  function updateRow(i, patch) {
+    onChange(periods.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function removeRow(i) {
+    onChange(periods.filter((_, idx) => idx !== i));
+  }
+  function addRow() {
+    onChange([...periods, { start: '', end: '', monthlyRent: '' }]);
+  }
+
+  return (
+    <div>
+      {periods.map((p, i) => (
+        <div key={i} className="form-grid" style={{ marginBottom: 8 }}>
+          <label>
+            出租起始日
+            <input type="date" value={p.start || ''} onChange={(e) => updateRow(i, { start: e.target.value })} />
+          </label>
+          <label>
+            出租結束日
+            <input type="date" value={p.end || ''} onChange={(e) => updateRow(i, { end: e.target.value })} />
+          </label>
+          <label>
+            每月租金
+            <input type="number" value={p.monthlyRent || ''} onChange={(e) => updateRow(i, { monthlyRent: e.target.value })} />
+          </label>
+          {p.housingRecordId && <span className="muted" style={{ alignSelf: 'end', paddingBottom: 8 }}>（由住宿安排同步）</span>}
+          <button type="button" onClick={() => removeRow(i)} style={{ alignSelf: 'end' }}>移除</button>
+        </div>
+      ))}
+      <button type="button" onClick={addRow}>+ 新增出租期間</button>
+      <p className="muted" style={{ marginTop: 8 }}>標註「由住宿安排同步」的段是住宿紀錄勾選「是否借用電動車」自動帶入的，改住宿紀錄的入住日/退宿日/每月金額會自動更新這裡；其他段可以自行新增，用在沒有綁定住宿紀錄的出租情況。</p>
+    </div>
+  );
+}
+
+function VehicleFormModal({ initial, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  const periods = parseRentalPeriods(form.rentalPeriods);
+
+  function setPeriods(next) {
+    setForm({ ...form, rentalPeriods: JSON.stringify(next) });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const cleaned = parseRentalPeriods(form.rentalPeriods).filter((p) => p.start);
+    onSave({ ...form, rentalPeriods: JSON.stringify(cleaned) });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{initial.id ? '編輯電動車' : '新增電動車'}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            {VEHICLE_FIELDS.map((f) => (
+              <label key={f.key}>
+                {f.label}
+                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+              </label>
+            ))}
+          </div>
+          <h4>設備內容</h4>
+          <div className="row-actions" style={{ marginBottom: 12 }}>
+            {VEHICLE_EQUIPMENT_ITEMS.map((it) => (
+              <label key={it.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={!!form[it.key]} onChange={(e) => setForm({ ...form, [it.key]: e.target.checked })} />
+                {it.label}
+              </label>
+            ))}
+          </div>
+          <h4>出租期間（多筆）</h4>
+          <RentalPeriodsEditor periods={periods} onChange={setPeriods} />
+          <div className="row-actions" style={{ marginTop: 16 }}>
+            <button type="submit" className="primary">儲存</button>
+            <button type="button" onClick={onCancel}>取消</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

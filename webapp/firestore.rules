@@ -227,6 +227,12 @@ service cloud.firestore {
       allow read: if tsIsMember();
       allow write: if tsCanEdit('dormManagement');
     }
+    // 電動車管理：housing 也放行，因為「住宿安排」頁面勾選「是否借用電動車」
+    // 要能自動把出租期間同步寫進這裡對應的那一筆電動車。
+    match /tsaipei_electricVehicles/{docId} {
+      allow read: if tsIsMember();
+      allow write: if tsCanEdit('dormManagement') || tsCanEdit('housing');
+    }
     // 行政未完成事項：自由新增的代辦事項清單，不綁定其他集合。
     match /tsaipei_adminTodos/{docId} {
       allow read: if tsIsMember();
