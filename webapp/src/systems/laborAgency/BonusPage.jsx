@@ -67,9 +67,11 @@ export default function BonusPage() {
   const { rows: feeSetupRecords, loading: l2 } = useCollection('laborAgency_feeSetup');
   const { rows: archives, add: addArchive, remove: removeArchive, loading: l4 } = useCollection('laborAgency_bonusArchives');
   const [q, setQ] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
   const loading = l1 || l2 || l4;
 
-  const months = allMonths(workers, archives);
+  const allMonthKeys = allMonths(workers, archives);
+  const months = monthFilter ? allMonthKeys.filter((m) => m === monthFilter) : allMonthKeys;
 
   // 封存：把當月算出來的依人員加總明細固定下來，之後移工的出境時間、
   // 指派負責人、費用計算、內部獎金編輯等原始資料再怎麼改，這個月的
@@ -102,8 +104,12 @@ export default function BonusPage() {
           <div className="page-desc">{t('依移工出境月份自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總；每個月分開顯示，可各自封存', lang)}</div>
         </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
+      <div className="row-actions" style={{ marginBottom: 12 }}>
         <input placeholder={t('搜尋姓名', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+        <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} style={{ width: 'auto' }}>
+          <option value="">{t('全部月份', lang)}</option>
+          {allMonthKeys.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : months.length === 0 ? (
         <div className="card"><p className="muted" style={{ margin: 0 }}>{t('目前沒有任何移工的出境紀錄，無法試算內部獎金', lang)}</p></div>

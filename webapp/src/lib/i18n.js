@@ -1316,6 +1316,7 @@ const VI = {
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
   '依移工出境月份自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總；每個月分開顯示，可各自封存':
     'Tự động tính theo tháng xuất cảnh của lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người; mỗi tháng hiển thị riêng, có thể lưu trữ từng tháng',
+  '全部月份': 'Tất cả các tháng',
 
   // 元凱移工事業部：補漏翻譯——性別/角色等跨頁共用值，以及出境辦理/
   // 入境通知/文件追蹤/辦理簽證頁面標題、說明文字、欄位標籤（原本漏了
