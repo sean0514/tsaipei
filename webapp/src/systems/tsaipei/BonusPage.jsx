@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   PROJECT_CLIENT_BONUS_ROLE_KEYS, PROJECT_CLIENT_BONUS_ROLE_LABELS, BONUS_ROLE_KEYS, BONUS_ROLE_LABELS,
-  computeInternalBonusForMonth, computeDormManagerBonusForMonth, currentMonthStr,
+  computeInternalBonusForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth, currentMonthStr,
 } from '../../lib/bonus';
 
 function parseJson(json, fallback) {
@@ -15,7 +15,7 @@ function parseJson(json, fallback) {
 // 聚合邏輯，但吃目前實際顯示的 rows/dormRows（可能是封存當下的固定數字，
 // 也可能是即時試算），這樣封存後「依人員加總」才會跟著封存的客戶/宿管
 // 明細一致，不會自己重新即時計算。
-function bonusByPerson(rows, dormRows) {
+function bonusByPerson(rows, dormRows, overseasRepRows) {
   const personTotals = {};
   rows.forEach((r) => {
     PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => {
@@ -34,6 +34,12 @@ function bonusByPerson(rows, dormRows) {
       entry.total += amt;
       entry.breakdown.push({ client: d.dormName, projectCode: '', role: roleLabel, amount: amt });
     });
+  });
+  (overseasRepRows || []).forEach((r) => {
+    if (!r.supplier || !r.amount) return;
+    const entry = (personTotals[r.supplier] ||= { name: r.supplier, total: 0, breakdown: [] });
+    entry.total += r.amount;
+    entry.breakdown.push({ client: r.client, projectCode: r.projectCode, role: '國外代表', amount: r.amount });
   });
   return Object.values(personTotals).sort((a, b) => b.total - a.total);
 }
@@ -56,28 +62,38 @@ export default function BonusPage() {
   const [editValues, setEditValues] = useState(null);
   const [editDormKey, setEditDormKey] = useState(null);
   const [editDormValues, setEditDormValues] = useState(null);
+  const [editOverseasKey, setEditOverseasKey] = useState(null);
+  const [editOverseasValues, setEditOverseasValues] = useState(null);
 
   const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, internalFeeSetupRecords, dormitories, housingRecords };
 
-  // 封存：把當月算出來的客戶/宿管獎金明細固定下來，之後內部費用建檔、
-  // 在台簽證、住宿安排等原始資料再怎麼改，這個月的獎金數字都維持封存
-  // 當下的樣子，直到按「取消封存」解除——避免薪資已經發放後，原始資料
-  // 事後修正又讓歷史月份的獎金數字變動。
+  // 封存：把當月算出來的客戶/宿管/國外代表獎金明細固定下來，之後內部費用
+  // 建檔、在台簽證、住宿安排等原始資料再怎麼改，這個月的獎金數字都維持
+  // 封存當下的樣子，直到按「取消封存」解除——避免薪資已經發放後，原始
+  // 資料事後修正又讓歷史月份的獎金數字變動。
   const archive = archives.find((a) => a.month === month) || null;
   const allRows = archive ? parseJson(archive.rows, []) : computeInternalBonusForMonth(month, ctx);
   const allDormRows = archive ? parseJson(archive.dormRows, []) : computeDormManagerBonusForMonth(month, ctx);
+  const allOverseasRepRows = archive ? parseJson(archive.overseasRepRows, []) : computeOverseasRepBonusForMonth(month, ctx);
   const rows = allRows.filter((r) =>
     !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.projectCode || '').toLowerCase().includes(q.toLowerCase())
   );
   const dormRows = allDormRows.filter((d) => !q || (d.dormName || '').toLowerCase().includes(q.toLowerCase()));
-  const byPerson = bonusByPerson(allRows, allDormRows);
+  const overseasRepRows = allOverseasRepRows.filter((r) =>
+    !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.supplier || '').toLowerCase().includes(q.toLowerCase())
+  );
+  const byPerson = bonusByPerson(allRows, allDormRows, allOverseasRepRows);
 
   async function handleConfirmArchive() {
     const liveRows = computeInternalBonusForMonth(month, ctx);
     const liveDormRows = computeDormManagerBonusForMonth(month, ctx);
-    if (!liveRows.length && !liveDormRows.length) { alert('這個月沒有可計算的獎金資料，無法封存。'); return; }
+    const liveOverseasRepRows = computeOverseasRepBonusForMonth(month, ctx);
+    if (!liveRows.length && !liveDormRows.length && !liveOverseasRepRows.length) { alert('這個月沒有可計算的獎金資料，無法封存。'); return; }
     try {
-      await addArchive({ month, rows: JSON.stringify(liveRows), dormRows: JSON.stringify(liveDormRows), lockedAt: new Date().toISOString() });
+      await addArchive({
+        month, rows: JSON.stringify(liveRows), dormRows: JSON.stringify(liveDormRows),
+        overseasRepRows: JSON.stringify(liveOverseasRepRows), lockedAt: new Date().toISOString(),
+      });
     } catch (err) {
       alert(`封存失敗：${err.message || err}`);
     }
@@ -117,7 +133,10 @@ export default function BonusPage() {
       if (archive) {
         await updateArchive(archive.id, { rows: JSON.stringify(newRows) });
       } else {
-        await addArchive({ month, rows: JSON.stringify(newRows), dormRows: JSON.stringify(allDormRows), lockedAt: new Date().toISOString() });
+        await addArchive({
+          month, rows: JSON.stringify(newRows), dormRows: JSON.stringify(allDormRows),
+          overseasRepRows: JSON.stringify(allOverseasRepRows), lockedAt: new Date().toISOString(),
+        });
       }
       setEditKey(null);
       setEditValues(null);
@@ -151,10 +170,43 @@ export default function BonusPage() {
       if (archive) {
         await updateArchive(archive.id, { dormRows: JSON.stringify(newDormRows) });
       } else {
-        await addArchive({ month, rows: JSON.stringify(allRows), dormRows: JSON.stringify(newDormRows), lockedAt: new Date().toISOString() });
+        await addArchive({
+          month, rows: JSON.stringify(allRows), dormRows: JSON.stringify(newDormRows),
+          overseasRepRows: JSON.stringify(allOverseasRepRows), lockedAt: new Date().toISOString(),
+        });
       }
       setEditDormKey(null);
       setEditDormValues(null);
+    } catch (err) {
+      alert(`儲存失敗：${err.message || err}`);
+    }
+  }
+
+  function handleStartEditOverseas(r) {
+    setEditOverseasKey(`${r.projectCode}||${r.client}||${r.supplier}`);
+    setEditOverseasValues({ amount: r.amount, totalDays: r.totalDays });
+  }
+
+  function handleCancelEditOverseas() {
+    setEditOverseasKey(null);
+    setEditOverseasValues(null);
+  }
+
+  async function handleSaveEditOverseas(r) {
+    const v = editOverseasValues;
+    const updatedRow = { ...r, amount: Number(v.amount) || 0, totalDays: Number(v.totalDays) || 0 };
+    const newOverseasRepRows = allOverseasRepRows.map((x) => (x === r ? updatedRow : x));
+    try {
+      if (archive) {
+        await updateArchive(archive.id, { overseasRepRows: JSON.stringify(newOverseasRepRows) });
+      } else {
+        await addArchive({
+          month, rows: JSON.stringify(allRows), dormRows: JSON.stringify(allDormRows),
+          overseasRepRows: JSON.stringify(newOverseasRepRows), lockedAt: new Date().toISOString(),
+        });
+      }
+      setEditOverseasKey(null);
+      setEditOverseasValues(null);
     } catch (err) {
       alert(`儲存失敗：${err.message || err}`);
     }
@@ -212,7 +264,7 @@ export default function BonusPage() {
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td colSpan={12} className="muted">沒有資料</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={PROJECT_CLIENT_BONUS_ROLE_KEYS.length + 2} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
@@ -255,6 +307,45 @@ export default function BonusPage() {
               );
             })}
             {dormRows.length === 0 && <tr><td colSpan={7} className="muted">沒有資料</td></tr>}
+          </tbody>
+        </table></div>
+      </div>
+
+      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>國外代表獎金</h3>
+        <p className="muted" style={{ marginTop: 0 }}>依學生自己的「學生來源(國外供應商)」分別計算，不是整個實習單位只算給職缺上設定的單一國外代表：費率仍是該實習單位(專案＋客戶)在「內部費用建檔」設定的「國外代表」月費率 ÷ 當月天數 × 該供應商這個月名下所有學生的在台天數加總。學生沒填來源的歸到「(未填學生來源)」。</p>
+        <div className="table-wrap sticky-header"><table>
+          <thead><tr><th>學生來源(國外供應商)</th><th>客戶</th><th>獎金</th><th>在台天數合計</th>{canEditPage && <th></th>}</tr></thead>
+          <tbody>
+            {overseasRepRows.map((r) => {
+              const key = `${r.projectCode}||${r.client}||${r.supplier}`;
+              const editing = editOverseasKey === key;
+              if (editing) {
+                const v = editOverseasValues;
+                return (
+                  <tr key={key}>
+                    <td>{r.supplier}</td>
+                    <td><strong>{r.client || '—'}</strong><div className="muted">{r.projectCode}</div></td>
+                    <td><input type="number" value={v.amount} onChange={(e) => setEditOverseasValues({ ...v, amount: e.target.value })} style={{ width: 80 }} /></td>
+                    <td><input type="number" value={v.totalDays} onChange={(e) => setEditOverseasValues({ ...v, totalDays: e.target.value })} style={{ width: 60 }} /></td>
+                    <td className="row-actions">
+                      <button className="primary" onClick={() => handleSaveEditOverseas(r)}>儲存</button>
+                      <button onClick={handleCancelEditOverseas}>取消</button>
+                    </td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={key}>
+                  <td>{r.supplier}</td>
+                  <td><strong>{r.client || '—'}</strong><div className="muted">{r.projectCode}</div></td>
+                  <td>{r.amount.toLocaleString()} 元</td>
+                  <td>{r.totalDays} 天</td>
+                  {canEditPage && <td><button onClick={() => handleStartEditOverseas(r)}>編輯</button></td>}
+                </tr>
+              );
+            })}
+            {overseasRepRows.length === 0 && <tr><td colSpan={5} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
