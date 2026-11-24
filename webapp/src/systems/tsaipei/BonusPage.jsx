@@ -313,7 +313,7 @@ export default function BonusPage() {
 
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>國外代表獎金</h3>
-        <p className="muted" style={{ marginTop: 0 }}>依學生自己的「學生來源(國外供應商)」分別計算，不是整個實習單位只算給職缺上設定的單一國外代表：費率仍是該實習單位(專案＋客戶)在「內部費用建檔」設定的「國外代表」月費率 ÷ 當月天數 × 該供應商這個月名下所有學生的在台天數加總。學生沒填來源的歸到「(未填學生來源)」。</p>
+        <p className="muted" style={{ marginTop: 0 }}>依學生自己的「學生來源(國外供應商)」分別計算，不是整個實習單位只算給職缺上設定的單一國外代表：費率仍是該實習單位(專案＋客戶)在「內部費用建檔」設定的「國外代表」月費率 ÷ 當月天數 × 該供應商這個月名下所有學生的在台天數加總。學生沒填來源的歸到「(未填學生來源)」；學生來源標「TND」的不計算這筆獎金。</p>
         <div className="table-wrap sticky-header"><table>
           <thead><tr><th>學生來源(國外供應商)</th><th>客戶</th><th>獎金</th><th>在台天數合計</th>{canEditPage && <th></th>}</tr></thead>
           <tbody>
