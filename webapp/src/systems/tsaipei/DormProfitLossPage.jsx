@@ -6,7 +6,7 @@ import {
   monthRange, dateOverlapDays, studentProjectClientPair,
   ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
 } from '../../lib/bonus';
-import { exportEntityCSV } from '../../lib/csv';
+import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
 
 function parseOtherFees(json) {
   try { const arr = json ? JSON.parse(json) : []; return Array.isArray(arr) ? arr : []; } catch { return []; }
@@ -69,9 +69,10 @@ function detailEntriesFor(key, rawDorm, monthStr, ctx) {
     if (residents.length === 0) return [];
     const u = utilFor();
     const perHead = (amount) => Math.round((Number(amount) || 0) / residents.length);
-    const surcharge = rawDorm.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+    const flatFee = rawDorm.isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD;
+    const surcharge = !rawDorm.isVendorDorm && rawDorm.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
     const waterShare = perHead(u?.waterFee);
-    const electricityShare = perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD + surcharge;
+    const electricityShare = perHead(u?.electricityFee) + flatFee + surcharge;
     const gasShare = perHead(u?.gasFee);
     return residents.map((h) => ({
       desc: `${studentName(h.studentId)}（水${waterShare}+電${electricityShare}+瓦斯${gasShare}，共${residents.length}人平分）`,
@@ -194,11 +195,12 @@ export default function DormProfitLossPage() {
 
   // 「宿舍設備支出(日常支出申請)」這一項的明細：跟 bonus.js 算 dormItemCost/
   // dormItemIncome 用同一套篩選條件（項目=宿舍設備、綁定這間宿舍、已核准/
-  // 已匯款），只是這裡列出單筆紀錄而不是加總。
-  function dormItemEntriesFor(dormId) {
+  // 已匯款），只是這裡列出單筆紀錄而不是加總。periodPrefix 傳年份(4字元)
+  // 就是整年明細按鈕用的範圍，傳月份(7字元 YYYY-MM)就是下載報表單月分頁用的範圍。
+  function dormItemEntriesFor(dormId, periodPrefix = String(year)) {
     return dailyExpenseApplications
       .filter((app) => app.item === DORM_EQUIPMENT_ITEM && app.dormId === dormId)
-      .filter((app) => (app.date || '').slice(0, 4) === String(year))
+      .filter((app) => (app.date || '').startsWith(periodPrefix))
       .filter((app) => DORM_PNL_BILLABLE_STATUSES.includes(app.status))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
@@ -212,27 +214,40 @@ export default function DormProfitLossPage() {
   const { grandMonthly, grandTotal } = sumDormProfitLossGroups(managerGroups);
   const loading = loadingDorms || loadingHousing || loadingUtilities || loadingApps;
 
-  function handleDownload() {
-    const csvFields = [
-      { key: 'manager1', label: '宿管1' }, { key: 'dorm', label: '宿舍' }, { key: 'item', label: '損益細項' },
-      ...MONTH_LABELS.map((l, i) => ({ key: `m${i + 1}`, label: l })),
-      { key: 'total', label: '合計' },
-    ];
-    function rowsFor(manager1, dorm, monthly, yearTotal) {
-      return LINE_ITEMS.map((item) => {
-        const row = { manager1, dorm, item: item.label, total: yearTotal[item.key] || 0 };
-        monthly.forEach((m, i) => { row[`m${i + 1}`] = m[item.key] || 0; });
-        return row;
-      });
-    }
-    const rows = [
-      ...rowsFor('全部宿舍', '全部宿舍', grandMonthly, grandTotal),
-      ...managerGroups.flatMap((g) => [
-        ...rowsFor(g.manager1, '(小計)', g.managerMonthly, g.managerYearTotal),
-        ...g.dorms.flatMap((d) => rowsFor(g.manager1, d.dormName, d.monthly, d.yearTotal)),
-      ]),
-    ];
-    exportEntityCSV(rows, csvFields, `宿舍損益_${year}`);
+  // 下載報表：依月份分頁(一個月一個工作表)，每個分頁列出全部宿舍總計、
+  // 各宿管1小計、每間宿舍的每一項損益細項金額，細項下面再列出逐筆明細
+  // (跟畫面上點數字看明細、「宿舍設備收支明細」按鈕同一套資料來源)，
+  // 方便離線核對每一筆金額是怎麼算出來的。
+  async function handleDownload() {
+    const header = ['宿管1', '宿舍', '損益細項', '明細說明', '金額'];
+    await downloadXlsx(`宿舍損益_${year}.xlsx`, (workbook) => {
+      for (let m = 1; m <= 12; m++) {
+        const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+        const rows = [];
+        LINE_ITEMS.forEach((item) => rows.push(['全部宿舍', '全部宿舍', item.label, '', grandMonthly[m - 1][item.key] || 0]));
+        managerGroups.forEach((g) => {
+          LINE_ITEMS.forEach((item) => rows.push([g.manager1, '(小計)', item.label, '', g.managerMonthly[m - 1][item.key] || 0]));
+          g.dorms.forEach((d) => {
+            const rawDorm = dormitories.find((r) => r.id === d.dormId) || { name: d.dormName };
+            LINE_ITEMS.forEach((item) => {
+              const amount = d.monthly[m - 1][item.key] || 0;
+              rows.push([g.manager1, d.dormName, item.label, '', amount]);
+              let entries = [];
+              if (item.key === 'dormItemIncome' || item.key === 'dormItemCost') {
+                const wantIncome = item.key === 'dormItemIncome';
+                entries = dormItemEntriesFor(d.dormId, monthStr)
+                  .filter((e) => ((e.type || '支出') === '收入') === wantIncome)
+                  .map((e) => ({ desc: `${e.date || ''} ${e.applicant || '—'} ${e.purpose || ''}`.trim(), amount: Number(e.amount) || 0 }));
+              } else if (DETAILABLE_KEYS.includes(item.key)) {
+                entries = detailEntriesFor(item.key, rawDorm, monthStr, ctx);
+              }
+              entries.forEach((en) => rows.push([g.manager1, d.dormName, '', en.desc, en.amount]));
+            });
+          });
+        });
+        addTableSheet(workbook, `${m}月`, header, rows);
+      }
+    });
   }
 
   return (
@@ -240,7 +255,7 @@ export default function DormProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>宿舍損益</h2>
-          <div className="page-desc">收入＝住宿費收入(學生自付用住宿紀錄租金；廠商代付改用客戶費用建檔的宿舍費費率，即實際收到的錢)＋宿管費收入(廠商代付住戶依客戶費用建檔的宿管費費率)＋日常支出申請(宿舍設備收入)＋宿舍管理「填寫其他費用」自訂項目標類型=收入的金額＋水電瓦斯費收入(跟學生請款計算同一套公式，不論付款方式由當月所有住戶平分，電費另外每人每月固定加收200元，南投竹山再加500元)＋電動車月租金收入(住宿紀錄勾選「是否借用電動車」的住戶，整月固定金額、不依天數比例，跟學生請款計算同一套算法)；成本＝租金(依租約當月生效天數比例計算)/房仲費/押金損失/水費/電費/瓦斯費/其他費用(自訂項目標類型=支出的金額)＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類；每間宿舍可以到「宿舍管理」的「項目選項」自行維護常用的收入/支出項目名稱</div>
+          <div className="page-desc">收入＝住宿費收入(學生自付用住宿紀錄租金；廠商代付改用客戶費用建檔的宿舍費費率，即實際收到的錢)＋宿管費收入(廠商代付住戶依客戶費用建檔的宿管費費率)＋日常支出申請(宿舍設備收入)＋宿舍管理「填寫其他費用」自訂項目標類型=收入的金額＋水電瓦斯費收入(跟學生請款計算同一套公式，不論付款方式由當月所有住戶平分，電費另外每人每月固定加收200元，南投竹山再加500元，宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)＋電動車月租金收入(住宿紀錄勾選「是否借用電動車」的住戶，整月固定金額、不依天數比例，跟學生請款計算同一套算法)；成本＝租金(依租約當月生效天數比例計算)/房仲費/押金損失/水費/電費/瓦斯費/其他費用(自訂項目標類型=支出的金額)＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類；每間宿舍可以到「宿舍管理」的「項目選項」自行維護常用的收入/支出項目名稱</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>

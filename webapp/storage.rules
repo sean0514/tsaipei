@@ -42,5 +42,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.resource.size <= 3 * 1024 * 1024;
     }
+    // 境外實習生管理系統「電動車管理」上傳的車輛照片，單檔上限 4MB
+    // （跟前端 MAX_ATTACHMENT_SIZE 一致）；只有登入的人員才能讀取/上傳。
+    match /tsaipei_electricVehiclePhotos/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.resource.size <= 4 * 1024 * 1024;
+    }
   }
 }

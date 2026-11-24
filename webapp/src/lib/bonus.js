@@ -603,15 +603,17 @@ export function computeDormProfitLossForYear(year, ctx) {
       // ELECTRICITY_FLAT_FEE_PER_HEAD 元(南投竹山宿舍再加
       // NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD 元)，這些都是實際
       // 跟學生收到的錢，要算成宿舍損益的收入——不然水電瓦斯費成本面有算，
-      // 收入面卻完全沒認列，加收的部分更是整筆漏算。
+      // 收入面卻完全沒認列，加收的部分更是整筆漏算。宿舍管理標「廠商宿舍」
+      // (d.isVendorDorm)的宿舍不加收這兩筆，水電瓦斯其他費用仍照常分攤。
       const utilityResidentCount = (housingRecords || []).filter((h) => {
         if (h.type !== d.name || h.completed || !h.checkIn) return false;
         return dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0;
       }).length;
       const utilityPerHead = (amount) => (utilityResidentCount > 0 ? Math.round((Number(amount) || 0) / utilityResidentCount) : 0);
-      const utilityElectricitySurcharge = d.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+      const utilityElectricityFlatFee = d.isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD;
+      const utilityElectricitySurcharge = !d.isVendorDorm && d.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
       const utilityIncome = utilityResidentCount > 0
-        ? utilityResidentCount * (utilityPerHead(u?.waterFee) + utilityPerHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD + utilityElectricitySurcharge + utilityPerHead(u?.gasFee))
+        ? utilityResidentCount * (utilityPerHead(u?.waterFee) + utilityPerHead(u?.electricityFee) + utilityElectricityFlatFee + utilityElectricitySurcharge + utilityPerHead(u?.gasFee))
         : 0;
 
       monthly.push({

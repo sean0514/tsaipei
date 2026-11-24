@@ -6,10 +6,10 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth,
-  computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
+  computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS, BONUS_ROLE_KEYS, BONUS_ROLE_LABELS,
   monthRange, dateOverlapDays, currentYear, NOT_BILLABLE,
 } from '../../lib/bonus';
-import { exportEntityCSV } from '../../lib/csv';
+import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
 const DAILY_EXPENSE_BILLABLE_STATUSES = ['已核准', '已匯款'];
@@ -268,6 +268,121 @@ function sumLineItems(monthly) {
   return total;
 }
 
+// 以下是「下載報表」用的逐筆明細函式——跟上面算合計數字的函式讀同一批
+// 原始資料，只是不加總、改成列出每一筆對應紀錄方便離線核對來源。
+
+function selfPayDormIncomeEntries(monthStr, housingRecords, students) {
+  const range = monthRange(monthStr);
+  const studentName = (id) => { const s = (students || []).find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知學生)'; };
+  return (housingRecords || []).map((h) => {
+    if (h.payer === '廠商代付') return null;
+    const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
+    if (days <= 0) return null;
+    const amount = h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+    if (!amount) return null;
+    return { desc: `${studentName(h.studentId)}（${h.type || '未指定宿舍'}，租金 ${Number(h.monthlyRent).toLocaleString()}/月 × ${days}/${range.daysInMonth}天）`, amount };
+  }).filter(Boolean);
+}
+
+// 宿舍相關項目(廠商代付以外的)改成列出每一間宿舍的貢獻金額，學生/逐筆
+// 層級的明細已經在「宿舍損益」頁面自己的下載報表裡，這裡不重複列。
+function dormLineItemEntriesByDorm(dormPnlKey, dormManagerGroups, i) {
+  const entries = [];
+  (dormManagerGroups || []).forEach((g) => (g.dorms || []).forEach((d) => {
+    const amount = d.monthly[i]?.[dormPnlKey] || 0;
+    if (amount) entries.push({ desc: d.dormName, amount });
+  }));
+  return entries;
+}
+
+function clientRowEntries(clientRows, sumFn) {
+  return (clientRows || []).map((r) => {
+    const amount = sumFn(r.amounts, r.tax);
+    if (!amount) return null;
+    return { desc: `${r.client || ''} ${r.projectCode || ''}`.trim(), amount };
+  }).filter(Boolean);
+}
+
+function otherDailyExpenseEntries(monthStr, dailyExpenseApplications, wantIncome) {
+  return (dailyExpenseApplications || []).filter((app) => {
+    if (app.item === DORM_EQUIPMENT_ITEM) return false;
+    if (!DAILY_EXPENSE_BILLABLE_STATUSES.includes(app.status)) return false;
+    if ((app.date || '').slice(0, 7) !== monthStr) return false;
+    if (!(Number(app.amount) || 0)) return false;
+    const isIncome = (app.type || '支出') === '收入';
+    if (isIncome && app.billToCompany && app.billToCompany !== NOT_BILLABLE) return false;
+    return isIncome === wantIncome;
+  }).map((app) => ({ desc: `${app.date || ''} ${app.applicant || '—'} ${app.purpose || ''}`.trim(), amount: Number(app.amount) || 0 }));
+}
+
+function foreignPaymentEntries(monthStr, foreignPayments) {
+  const entries = [];
+  (foreignPayments || []).forEach((p) => {
+    const currency = p.currency || '台幣';
+    const label = p.company || p.studentId || '—';
+    if (currency === '台幣') {
+      if ((p.paymentDate || '').slice(0, 7) === monthStr && (Number(p.amount) || 0)) {
+        entries.push({ desc: `付款：${label}（${p.paymentDate}）`, amount: Number(p.amount) || 0 });
+      }
+      [1, 2, 3].forEach((n) => {
+        const refundDate = p[`foreignRefund${n}Date`];
+        const refundAmt = Number(p[`foreignRefund${n}`]) || 0;
+        if ((refundDate || '').slice(0, 7) === monthStr && refundAmt) {
+          entries.push({ desc: `國外回款沖減：${label}（${refundDate}）`, amount: -refundAmt });
+        }
+      });
+    } else if (p.twdAmount && (p.paymentDate || '').slice(0, 7) === monthStr) {
+      entries.push({ desc: `付款(美金換算台幣)：${label}（${p.paymentDate}）`, amount: Number(p.twdAmount) || 0 });
+    }
+  });
+  return entries;
+}
+
+function postageFeeEntries(monthStr, postageFeeRecords) {
+  return (postageFeeRecords || [])
+    .filter((r) => r.status !== '退回' && (r.shipDate || '').slice(0, 7) === monthStr && (Number(r.amount) || 0))
+    .map((r) => ({ desc: `${r.shipDate || ''} 收件人：${r.recipientName || '—'}`, amount: Number(r.amount) || 0 }));
+}
+
+function projectBonusEntries(monthStr, ctx) {
+  const entries = [];
+  computeInternalBonusForMonth(monthStr, ctx).forEach((r) => {
+    PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => {
+      const amount = r.amounts[k];
+      if (r.roles[k] && amount) {
+        entries.push({ desc: `${r.client || ''} ${r.projectCode || ''} － ${r.roles[k]}（${BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)]}）`, amount });
+      }
+    });
+  });
+  computeOverseasRepBonusForMonth(monthStr, ctx).forEach((r) => {
+    if (r.amount) entries.push({ desc: `${r.client || ''} ${r.projectCode || ''} － 國外代表(${r.supplier})`, amount: r.amount });
+  });
+  return entries;
+}
+
+function dormManagerBonusEntries(monthStr, ctx) {
+  const entries = [];
+  computeDormManagerBonusForMonth(monthStr, ctx).forEach((r) => {
+    if (r.manager1 && r.manager1Amount) entries.push({ desc: `${r.dormName} － 宿管1：${r.manager1}`, amount: r.manager1Amount });
+    if (r.manager2 && r.manager2Amount) entries.push({ desc: `${r.dormName} － 宿管2：${r.manager2}`, amount: r.manager2Amount });
+  });
+  return entries;
+}
+
+function customItemEntries(items, amounts, monthStr) {
+  return (items || []).map((item) => {
+    const amount = Number(amounts.find((a) => a.itemId === item.id && a.month === monthStr)?.amount) || 0;
+    if (!amount) return null;
+    return { desc: item.label, amount };
+  }).filter(Boolean);
+}
+
+// dormPnl 裡的「其他收入(宿舍管理自訂項目)」原始欄位叫 otherIncome，但
+// 這個頁面的 otherIncome 另有所指(日常支出申請-收入類)，LINE_ITEMS 裡
+// 改用 dormOtherIncome 這個名字避免撞名，這裡對照回 dormPnl 的原始欄位。
+const DORM_LINE_ITEM_KEY_MAP = { dormOtherIncome: 'otherIncome', dormProfitBonusExpense: 'bonus' };
+const DORM_BY_DORM_KEYS = ['dormItemIncome', 'dormOtherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost', 'dormProfitBonusExpense'];
+
 // 公司損益：收入＝服務費收入(文件費/機票費/體檢費/服務費)＋代墊費用收入(日常支出申請裡
 // 已請款客戶的鈞羽/供應商發票部分，公司向客戶收回來的錢)＋營業稅收入(5%，
 // 向客戶收取)＋宿舍收入(廠商代付的宿舍費/宿管費直接拿客戶請款計算的金額，
@@ -336,7 +451,8 @@ export default function CompanyProfitLossPage() {
   const customIncomeItems = customItems.filter((i) => i.type === '收入');
   const customExpenseItems = customItems.filter((i) => i.type === '支出');
 
-  const { grandMonthly: dormMonthly } = sumDormProfitLossGroups(computeDormProfitLossForYear(year, ctx));
+  const dormManagerGroups = computeDormProfitLossForYear(year, ctx);
+  const { grandMonthly: dormMonthly } = sumDormProfitLossGroups(dormManagerGroups);
 
   const monthly = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
@@ -392,6 +508,7 @@ export default function CompanyProfitLossPage() {
       dormItemCost: dormPnl.dormItemCost || 0,
       dormCost, taxExpense: taxTotal, foreignPaymentExpense, postageFeeExpense, projectBonusExpense, dormManagerBonusExpense, dormProfitBonusExpense, customExpenseTotal, cost,
       profit: income - cost,
+      _clientRows: clientRows, // 下載報表明細用，保留這個月算好的客戶請款逐筆資料，不用重算一次
     };
   });
   const yearTotal = sumLineItems(monthly);
@@ -424,18 +541,39 @@ export default function CompanyProfitLossPage() {
     await batch.commit();
   }
 
-  function handleDownload() {
-    const csvFields = [
-      { key: 'item', label: '損益細項' },
-      ...MONTH_LABELS.map((l, i) => ({ key: `m${i + 1}`, label: l })),
-      { key: 'total', label: '合計' },
-    ];
-    const rows = LINE_ITEMS.map((item) => {
-      const row = { item: item.label, total: yearTotal[item.key] || 0 };
-      monthly.forEach((m, i) => { row[`m${i + 1}`] = m[item.key] || 0; });
-      return row;
+  // 下載報表：依月份分頁(一個月一個工作表)，每個分頁列出每一項收入/支出
+  // 細項的金額，金額底下再列出逐筆明細(客戶請款按客戶、宿舍相關項目按
+  // 宿舍、日常支出/國外付款/郵資按單筆紀錄、內部獎金按人、自訂項目按
+  // 項目名稱)，方便離線核對每一筆金額是怎麼算出來的。
+  async function handleDownload() {
+    const header = ['損益細項', '明細說明', '金額'];
+    await downloadXlsx(`公司損益_${year}.xlsx`, (workbook) => {
+      monthly.forEach((m, i) => {
+        const monthStr = monthStrOf(year, m.month);
+        const clientRows = m._clientRows;
+        const rows = [];
+        LINE_ITEMS.forEach((item) => {
+          rows.push([item.label, '', m[item.key] || 0]);
+          let entries = [];
+          if (item.key === 'serviceIncome') entries = clientRowEntries(clientRows, (a) => a.monthlyProcessingFee + (a.monthlyAirfareFee || 0) + (a.monthlyMedicalCheckFee || 0) + a.monthlyServiceFee);
+          else if (item.key === 'dailyExpenseReimbursementIncome') entries = clientRowEntries(clientRows, (a) => a.dailyExpenseChargeJunyu + a.dailyExpenseChargeSupplier);
+          else if (item.key === 'taxIncome' || item.key === 'taxExpense') entries = clientRowEntries(clientRows, (a, tax) => tax);
+          else if (item.key === 'employerDormFeeIncome') entries = clientRowEntries(clientRows, (a) => a.monthlyDormFee + (a.collectedDormFee || 0) + a.monthlyDormManageFee + (a.dormOtherFeeCharge || 0) + (a.dormUtilityPassThrough || 0));
+          else if (item.key === 'selfPayDormIncome') entries = selfPayDormIncomeEntries(monthStr, housingRecords, students);
+          else if (DORM_BY_DORM_KEYS.includes(item.key)) entries = dormLineItemEntriesByDorm(DORM_LINE_ITEM_KEY_MAP[item.key] || item.key, dormManagerGroups, i);
+          else if (item.key === 'otherIncome') entries = otherDailyExpenseEntries(monthStr, dailyExpenseApplications, true);
+          else if (item.key === 'otherExpense') entries = otherDailyExpenseEntries(monthStr, dailyExpenseApplications, false);
+          else if (item.key === 'foreignPaymentExpense') entries = foreignPaymentEntries(monthStr, foreignPayments);
+          else if (item.key === 'postageFeeExpense') entries = postageFeeEntries(monthStr, postageFeeRecords);
+          else if (item.key === 'projectBonusExpense') entries = projectBonusEntries(monthStr, ctx);
+          else if (item.key === 'dormManagerBonusExpense') entries = dormManagerBonusEntries(monthStr, ctx);
+          else if (item.key === 'customIncomeTotal') entries = customItemEntries(customIncomeItems, customAmounts, monthStr);
+          else if (item.key === 'customExpenseTotal') entries = customItemEntries(customExpenseItems, customAmounts, monthStr);
+          entries.forEach((en) => rows.push(['', en.desc, en.amount]));
+        });
+        addTableSheet(workbook, `${m.month}月`, header, rows);
+      });
     });
-    exportEntityCSV(rows, csvFields, `公司損益_${year}`);
   }
 
   return (
