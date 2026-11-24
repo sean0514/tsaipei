@@ -323,3 +323,37 @@ export function formatMoneyMap(map, lang) {
 export function canCloseFee(fs) {
   return fs.chargeCountersigned === '是' && fs.paymentReviewed === '是';
 }
+
+// 內部獎金的 6 個固定角色（招募人員另外在「費用計算」每位移工各自填，
+// 不在這裡）——「內部獎金編輯」(BonusRateSetupPage.jsx) 跟「內部獎金」
+// (BonusPage.jsx) 都要讀同一組角色定義跟對應的欄位名稱，共用同一份
+// 設定，不要各自維護一份。rateKey/currencyKey 直接存在移工文件本身
+// （不是依配對），因為這筆獎金是整個案件固定一筆，不是按配對拆開算。
+export const BONUS_ROLE_DEFS = [
+  { workerKey: 'assignedAdminResume', rateKey: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { workerKey: 'assignedAdminForm', rateKey: 'adminFormRate', currencyKey: 'adminFormRateCurrency', label: '行政表格' },
+  { workerKey: 'assignedAccountant', rateKey: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
+  { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
+  { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
+  { workerKey: 'assignedManager', rateKey: 'managerRate', currencyKey: 'managerRateCurrency', label: '經理' },
+];
+
+// 這位移工是否有任一筆配對（移工×雇主）已經到「入境通知」名單——跟
+// ArrivalNoticePage.jsx 判斷是否列入名單的條件一致（出境辦理已完成、
+// 沒有從入境通知名單移除），「內部獎金編輯」的名單直接沿用同一個條件，
+// 不會因為那一筆配對在入境通知那邊「已結案」就消失（獎金設定是永久
+// 紀錄，不跟著入境通知自己的結案狀態走）。
+export function reachedArrivalNotice(w) {
+  const ids = workerEmployerIds(w);
+  const pairs = ids.length ? ids : [null];
+  return pairs.some((employerId) => getPairFlag(w, 'departureCompletedMap', employerId) && !getPairFlag(w, 'arrivalListRemovedMap', employerId));
+}
+
+// 這位移工是否有任一筆配對的出境航班時間落在這個月——跟 BonusPage.jsx
+// 原本「依出境月份試算」的判斷同一套邏輯，移到這裡供「內部獎金編輯」
+// 共用（名單也要依月份分類）。
+export function departedInMonth(w, month) {
+  const ids = workerEmployerIds(w);
+  const pairs = ids.length ? ids : [null];
+  return pairs.some((employerId) => (departureInfoOf(w, employerId).flightTime || '').slice(0, 7) === month);
+}
