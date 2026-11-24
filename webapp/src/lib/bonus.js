@@ -201,13 +201,17 @@ export function computeDormManagerBonusForMonth(monthStr, ctx) {
 // 上設定的那一個人。費率仍然看該學生實習單位(專案+客戶)在「內部費用
 // 建檔」設定的「國外代表」月費率，算法跟其他專案角色一樣：費率÷當月
 // 天數×該供應商這個月名下所有學生的在台天數加總；沒有填學生來源的
-// 歸到「(未填學生來源)」，方便看出哪些學生還沒補這個欄位。
+// 歸到「(未填學生來源)」，方便看出哪些學生還沒補這個欄位。學生來源標
+// 「TND」的不計算獎金(這些不是真的國外供應商介紹來的學生，不用付這筆
+// 獎金)，整個排除在分組之外。
+const OVERSEAS_REP_EXCLUDED_SOURCE = 'TND';
 export function computeOverseasRepBonusForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
   const { students, inTaiwanVisaRecords, internalFeeSetupRecords } = ctx;
   const groups = {};
   (students || []).forEach((s) => {
+    if ((s.sourceSupplier || '').trim() === OVERSEAS_REP_EXCLUDED_SOURCE) return;
     const pair = studentProjectClientPair(s.id, ctx);
     if (!pair) return;
     const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
