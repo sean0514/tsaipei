@@ -386,8 +386,11 @@ export default function StudentBillingPage() {
     const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const healthCheckFee = healthCheckFeeFor(h.studentId, monthStr, range);
-    const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees + healthCheckFee;
-    const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, total };
+    // 電動車月租金：住宿紀錄勾選「是否借用電動車」才收，跟體檢費一樣整月
+    // 固定金額、不依當月住了幾天比例計算。
+    const evFee = h.hasElectricVehicle && days > 0 ? (Number(h.electricVehicleMonthlyFee) || 0) : 0;
+    const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees + healthCheckFee + evFee;
+    const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, evFee, total };
     const lock = lockFor(h.id, monthStr);
     if (!lock) return { ...live, locked: false };
     return { ...live, ...parseJson(lock.billingRow, {}), locked: true, lockId: lock.id };
@@ -395,11 +398,11 @@ export default function StudentBillingPage() {
 
   async function handleConfirmBillingLock(h) {
     const live = billingFor(h, month, range);
-    const { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, total } = live;
+    const { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, evFee, total } = live;
     try {
       await addBillingLock({
         month, housingRecordId: h.id, studentId: h.studentId,
-        billingRow: JSON.stringify({ days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, total }),
+        billingRow: JSON.stringify({ days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, evFee, total }),
         lockedAt: new Date().toISOString(),
       });
     } catch (err) {
@@ -520,6 +523,7 @@ export default function StudentBillingPage() {
         gasFee: b.gasFee,
         otherFees: b.otherFees,
         healthCheckFee: b.healthCheckFee,
+        evFee: b.evFee,
         total: b.total,
         status: p.status,
         partialDetail,
@@ -535,7 +539,7 @@ export default function StudentBillingPage() {
     exportEntityCSV(rows, [
       { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'payer', label: '付款方式' }, { key: 'days', label: '當月天數' },
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
-      { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'healthCheckFee', label: '體檢費' }, { key: 'total', label: '合計' },
+      { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'healthCheckFee', label: '體檢費' }, { key: 'evFee', label: '電動車月租金' }, { key: 'total', label: '合計' },
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
       { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'fullPaidReviewedBy', label: '全額付清審核人' },
       { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
@@ -612,7 +616,7 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元）；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，整月固定收取設定的月租金（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
               : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
           </div>
         </div>
@@ -636,7 +640,7 @@ export default function StudentBillingPage() {
                   <div className="card" key={key}>
                     <h3 style={{ marginTop: 0 }}>{key} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{groups[key].length} 位學生</span></h3>
                     <div className="table-wrap sticky-header"><table>
-                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>體檢費</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th><th>確認繳款人</th>{canEditPage && <th></th>}</tr></thead>
+                      <thead><tr><th>學生</th><th>付款方式</th><th>當月天數</th><th>自付宿舍費</th><th>水費</th><th>電費</th><th>瓦斯費</th><th>其他費用</th><th>體檢費</th><th>電動車月租金</th><th>合計</th><th>狀態</th><th>收款狀態</th><th>金額/日期明細</th><th>剩餘餘額</th><th>確認繳款人</th>{canEditPage && <th></th>}</tr></thead>
                       <tbody>
                         {groups[key].map((h) => {
                           const b = billingFor(h, month, range);
@@ -654,6 +658,7 @@ export default function StudentBillingPage() {
                               <td>{b.gasFee.toLocaleString()}</td>
                               <td>{b.otherFees.toLocaleString()}</td>
                               <td>{b.healthCheckFee.toLocaleString()}</td>
+                              <td>{b.evFee.toLocaleString()}</td>
                               <td style={{ fontWeight: 600 }}>{b.total.toLocaleString()}</td>
                               <td>{b.locked ? <span className="tag tag-green">已封存</span> : <span className="muted status-text">即時試算</span>}</td>
                               <td>

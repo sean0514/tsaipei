@@ -489,7 +489,7 @@ const DORM_PROFIT_SHARE_RATE = 0.2;
 // 成本(租金、房仲費、水費、電費、瓦斯費、其他費用、宿舍設備支出)——
 // 月/宿舍/宿管1/全部宿舍這幾層加總都用同一組欄位，避免每層各寫一次
 // 加總邏輯。
-const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome', 'utilityIncome'];
+const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome', 'utilityIncome', 'evIncome'];
 const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
 
 function sumDormPnlEntries(entries) {
@@ -512,7 +512,9 @@ function sumDormPnlEntries(entries) {
 // 已核准/已匯款) + 宿舍管理「填寫其他費用」自訂項目標類型=收入的金額
 // + 水電瓦斯費收入(這個月住過這間宿舍的所有人平分水電瓦斯費、電費另外
 // 每人每月固定加收200元(南投竹山再加500元)，不論付款方式，這是實際
-// 跟學生收到的錢，不是只算在成本面)；
+// 跟學生收到的錢，不是只算在成本面) + 電動車月租金收入(住宿紀錄勾選
+// 「是否借用電動車」的住戶，整月固定金額、不依天數比例，跟「學生請款
+// 計算」頁面的算法一致，只要這個月住過這間宿舍就整筆收)；
 // 成本＝租金
 // (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
 // + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
@@ -538,6 +540,7 @@ export function computeDormProfitLossForYear(year, ctx) {
 
       let housingIncome = 0;
       let dormManageFeeIncome = 0;
+      let evIncome = 0;
       (housingRecords || []).forEach((h) => {
         // h.completed 只是「住宿安排」頁面把已離宿的紀錄從作業清單隱藏掉的
         // 歸檔標記，不代表這筆住宿財務上沒發生過，不能排除，否則舊紀錄一被
@@ -556,6 +559,9 @@ export function computeDormProfitLossForYear(year, ctx) {
         } else {
           housingIncome += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
         }
+        // 電動車月租金：跟 StudentBillingPage.jsx 的 billingFor 同一套規則，
+        // 整月固定金額、不照天數比例（只要這個月有住在這間宿舍就整筆收）。
+        if (h.hasElectricVehicle) evIncome += Number(h.electricVehicleMonthlyFee) || 0;
       });
 
       let dormItemIncome = 0;
@@ -610,7 +616,7 @@ export function computeDormProfitLossForYear(year, ctx) {
 
       monthly.push({
         month: m,
-        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, utilityIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, utilityIncome, evIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
       });
     }
     const yearTotal = sumDormPnlEntries(monthly);
