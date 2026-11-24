@@ -4,6 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { uploadAttachment, deleteAttachmentFile, MAX_ATTACHMENT_SIZE } from '../../lib/fileAttachment';
 
 const ROOM_COUNT_OPTIONS = Array.from({ length: 30 }, (_, i) => String(i + 1));
 
@@ -76,7 +77,7 @@ const VEHICLE_EQUIPMENT_ITEMS = [
 const VEHICLE_CSV_FIELDS = [
   { key: 'id', label: 'ID' }, ...VEHICLE_FIELDS,
   { key: 'hasCover', label: '車套' }, { key: 'hasLock', label: '車鎖' }, { key: 'hasKey', label: '車鑰匙' },
-  { key: 'rentalPeriods', label: '出租期間(JSON)' },
+  { key: 'rentalPeriods', label: '出租期間(JSON)' }, { key: 'photoUrl', label: '車輛照片連結' },
 ];
 
 function parseRentalPeriods(json) {
@@ -286,7 +287,7 @@ export default function DormManagementPage() {
           <div className="table-wrap sticky-header"><table>
             <thead>
               <tr>
-                <th>編號</th><th>車輛放置處</th><th>購買日期</th><th>車子型號</th><th>購買金額</th><th>設備內容</th>
+                <th>照片</th><th>編號</th><th>車輛放置處</th><th>購買日期</th><th>車子型號</th><th>購買金額</th><th>設備內容</th>
                 <th>出租期間(筆數)</th><th>產值差額</th>
                 {canEditPage && <th></th>}
               </tr>
@@ -297,6 +298,7 @@ export default function DormManagementPage() {
                 const diff = vehicleValueDiff(v, today);
                 return (
                   <tr key={v.id}>
+                    <td>{v.photoUrl ? <img src={v.photoUrl} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }} /> : '—'}</td>
                     <td>{v.number || '—'}</td>
                     <td>{v.location || '—'}</td>
                     <td>{v.purchaseDate || '—'}</td>
@@ -314,7 +316,7 @@ export default function DormManagementPage() {
                   </tr>
                 );
               })}
-              {vehicles.length === 0 && <tr><td colSpan={9} className="muted">沒有資料</td></tr>}
+              {vehicles.length === 0 && <tr><td colSpan={10} className="muted">沒有資料</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -557,10 +559,40 @@ function RentalPeriodsEditor({ periods, onChange }) {
 
 function VehicleFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const periods = parseRentalPeriods(form.rentalPeriods);
 
   function setPeriods(next) {
     setForm({ ...form, rentalPeriods: JSON.stringify(next) });
+  }
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    setUploadError('');
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setUploadError(`照片檔案太大（上限 ${Math.round(MAX_ATTACHMENT_SIZE / 1024 / 1024)}MB）`);
+      e.target.value = '';
+      return;
+    }
+    setUploading(true);
+    try {
+      const oldPath = form.photoPath;
+      const { url, name, path } = await uploadAttachment(file, 'tsaipei_electricVehiclePhotos');
+      setForm((f) => ({ ...f, photoUrl: url, photoName: name, photoPath: path }));
+      if (oldPath) deleteAttachmentFile(oldPath);
+    } catch (err) {
+      setUploadError(`上傳失敗：${err.message || err}`);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+
+  function handleRemovePhoto() {
+    if (form.photoPath) deleteAttachmentFile(form.photoPath);
+    setForm((f) => ({ ...f, photoUrl: '', photoName: '', photoPath: '' }));
   }
 
   function handleSubmit(e) {
@@ -581,6 +613,18 @@ function VehicleFormModal({ initial, onCancel, onSave }) {
                 <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </label>
             ))}
+          </div>
+          <h4>車輛照片</h4>
+          <div style={{ marginBottom: 12 }}>
+            {form.photoUrl && (
+              <div style={{ marginBottom: 6 }}>
+                <img src={form.photoUrl} alt="" style={{ width: 160, height: 160, objectFit: 'cover', borderRadius: 4, display: 'block', marginBottom: 6 }} />
+                <button type="button" onClick={handleRemovePhoto}>移除照片</button>
+              </div>
+            )}
+            <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} />
+            {uploading && <div className="muted">上傳中…</div>}
+            {uploadError && <div style={{ color: 'var(--danger)' }}>{uploadError}</div>}
           </div>
           <h4>設備內容</h4>
           <div className="row-actions" style={{ marginBottom: 12 }}>
