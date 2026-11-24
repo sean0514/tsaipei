@@ -56,7 +56,7 @@ function parseItemOptions(json) {
   } catch { return []; }
 }
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'itemOptions', label: '收支項目選項(JSON)' }, { key: 'confirmedClosed', label: '結案' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'isVendorDorm', label: '廠商宿舍(不加收電費200/竹山500)' }, { key: 'itemOptions', label: '收支項目選項(JSON)' }, { key: 'confirmedClosed', label: '結案' }];
 
 // 電動車管理：每輛車一筆資料，出租期間(多筆，每段各自的起租日/退租日/
 // 每月租金)存成 JSON 陣列。借給住宿紀錄用的那幾段(housingRecordId 有值)
@@ -243,7 +243,10 @@ export default function DormManagementPage() {
                 const u = utilityFor(r.id);
                 return (
                   <tr key={r.id}>
-                    <td><button type="button" className="link-button" onClick={() => setViewingDorm(r)}>{r.name}</button></td>
+                    <td>
+                      <button type="button" className="link-button" onClick={() => setViewingDorm(r)}>{r.name}</button>
+                      {r.isVendorDorm && <span className="tag" style={{ marginLeft: 6 }}>廠商宿舍</span>}
+                    </td>
                     <td>{r.location || '—'}</td>
                     <td>{r.gender || '—'}</td>
                     <td>{r.roomCount || '—'}</td>
@@ -458,6 +461,10 @@ function DormFormModal({ initial, users, onCancel, onSave }) {
               </label>
             ))}
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <input type="checkbox" checked={!!form.isVendorDorm} onChange={(e) => setForm({ ...form, isVendorDorm: e.target.checked })} />
+            廠商宿舍（不額外加收學生電費200元／南投竹山500元，水電瓦斯其他費用照常分攤）
+          </label>
           <div className="row-actions">
             <button type="submit" className="primary">儲存</button>
             <button type="button" onClick={onCancel}>取消</button>
