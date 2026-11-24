@@ -6,7 +6,7 @@ import {
   monthRange, dateOverlapDays, studentProjectClientPair,
   ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
 } from '../../lib/bonus';
-import { exportEntityCSV } from '../../lib/csv';
+import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
 
 function parseOtherFees(json) {
   try { const arr = json ? JSON.parse(json) : []; return Array.isArray(arr) ? arr : []; } catch { return []; }
@@ -195,11 +195,12 @@ export default function DormProfitLossPage() {
 
   // 「宿舍設備支出(日常支出申請)」這一項的明細：跟 bonus.js 算 dormItemCost/
   // dormItemIncome 用同一套篩選條件（項目=宿舍設備、綁定這間宿舍、已核准/
-  // 已匯款），只是這裡列出單筆紀錄而不是加總。
-  function dormItemEntriesFor(dormId) {
+  // 已匯款），只是這裡列出單筆紀錄而不是加總。periodPrefix 傳年份(4字元)
+  // 就是整年明細按鈕用的範圍，傳月份(7字元 YYYY-MM)就是下載報表單月分頁用的範圍。
+  function dormItemEntriesFor(dormId, periodPrefix = String(year)) {
     return dailyExpenseApplications
       .filter((app) => app.item === DORM_EQUIPMENT_ITEM && app.dormId === dormId)
-      .filter((app) => (app.date || '').slice(0, 4) === String(year))
+      .filter((app) => (app.date || '').startsWith(periodPrefix))
       .filter((app) => DORM_PNL_BILLABLE_STATUSES.includes(app.status))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
@@ -213,27 +214,40 @@ export default function DormProfitLossPage() {
   const { grandMonthly, grandTotal } = sumDormProfitLossGroups(managerGroups);
   const loading = loadingDorms || loadingHousing || loadingUtilities || loadingApps;
 
-  function handleDownload() {
-    const csvFields = [
-      { key: 'manager1', label: '宿管1' }, { key: 'dorm', label: '宿舍' }, { key: 'item', label: '損益細項' },
-      ...MONTH_LABELS.map((l, i) => ({ key: `m${i + 1}`, label: l })),
-      { key: 'total', label: '合計' },
-    ];
-    function rowsFor(manager1, dorm, monthly, yearTotal) {
-      return LINE_ITEMS.map((item) => {
-        const row = { manager1, dorm, item: item.label, total: yearTotal[item.key] || 0 };
-        monthly.forEach((m, i) => { row[`m${i + 1}`] = m[item.key] || 0; });
-        return row;
-      });
-    }
-    const rows = [
-      ...rowsFor('全部宿舍', '全部宿舍', grandMonthly, grandTotal),
-      ...managerGroups.flatMap((g) => [
-        ...rowsFor(g.manager1, '(小計)', g.managerMonthly, g.managerYearTotal),
-        ...g.dorms.flatMap((d) => rowsFor(g.manager1, d.dormName, d.monthly, d.yearTotal)),
-      ]),
-    ];
-    exportEntityCSV(rows, csvFields, `宿舍損益_${year}`);
+  // 下載報表：依月份分頁(一個月一個工作表)，每個分頁列出全部宿舍總計、
+  // 各宿管1小計、每間宿舍的每一項損益細項金額，細項下面再列出逐筆明細
+  // (跟畫面上點數字看明細、「宿舍設備收支明細」按鈕同一套資料來源)，
+  // 方便離線核對每一筆金額是怎麼算出來的。
+  async function handleDownload() {
+    const header = ['宿管1', '宿舍', '損益細項', '明細說明', '金額'];
+    await downloadXlsx(`宿舍損益_${year}.xlsx`, (workbook) => {
+      for (let m = 1; m <= 12; m++) {
+        const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+        const rows = [];
+        LINE_ITEMS.forEach((item) => rows.push(['全部宿舍', '全部宿舍', item.label, '', grandMonthly[m - 1][item.key] || 0]));
+        managerGroups.forEach((g) => {
+          LINE_ITEMS.forEach((item) => rows.push([g.manager1, '(小計)', item.label, '', g.managerMonthly[m - 1][item.key] || 0]));
+          g.dorms.forEach((d) => {
+            const rawDorm = dormitories.find((r) => r.id === d.dormId) || { name: d.dormName };
+            LINE_ITEMS.forEach((item) => {
+              const amount = d.monthly[m - 1][item.key] || 0;
+              rows.push([g.manager1, d.dormName, item.label, '', amount]);
+              let entries = [];
+              if (item.key === 'dormItemIncome' || item.key === 'dormItemCost') {
+                const wantIncome = item.key === 'dormItemIncome';
+                entries = dormItemEntriesFor(d.dormId, monthStr)
+                  .filter((e) => ((e.type || '支出') === '收入') === wantIncome)
+                  .map((e) => ({ desc: `${e.date || ''} ${e.applicant || '—'} ${e.purpose || ''}`.trim(), amount: Number(e.amount) || 0 }));
+              } else if (DETAILABLE_KEYS.includes(item.key)) {
+                entries = detailEntriesFor(item.key, rawDorm, monthStr, ctx);
+              }
+              entries.forEach((en) => rows.push([g.manager1, d.dormName, '', en.desc, en.amount]));
+            });
+          });
+        });
+        addTableSheet(workbook, `${m}月`, header, rows);
+      }
+    });
   }
 
   return (
