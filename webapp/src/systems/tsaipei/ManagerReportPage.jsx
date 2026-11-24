@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView } from '../../lib/permissions';
 import {
-  PROJECT_CLIENT_BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, computeDormManagerBonusForMonth, studentProjectClientPair, currentMonthStr,
+  PROJECT_CLIENT_BONUS_ROLE_KEYS, computeInternalBonusForMonth, computeClientBillingForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth, studentProjectClientPair, currentMonthStr,
 } from '../../lib/bonus';
 
 // 跟原本 renderManagerReport 一樣，狀態長條圖依固定的流程順序排列，未知狀態排在最後。
@@ -85,6 +85,7 @@ export default function ManagerReportPage() {
   if (canSeeBonus) {
     computeInternalBonusForMonth(month, ctx).forEach((r) => PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => { bonusTotal += r.amounts[k] || 0; }));
     computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
+    computeOverseasRepBonusForMonth(month, ctx).forEach((r) => { bonusTotal += r.amount || 0; });
   }
   if (canSeeBilling) computeClientBillingForMonth(month, ctx).forEach((r) => { billingTotal += r.total || 0; });
 

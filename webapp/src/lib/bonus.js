@@ -11,9 +11,12 @@ export const BONUS_ROLE_KEYS = [
 export const BONUS_ROLE_LABELS = ['開發業務', '國外代表', '服務主管', '服務專員', '翻譯主管', '翻譯專員', '行政主管', '行政專員', '會計人員', '會計助理', '宿管人員1', '宿管人員2'];
 
 // 宿管人員1/2 改成依「宿舍管理」設定的宿管1/宿管2計算（見
-// computeDormManagerBonusForMonth），不再跟著學生的實習單位(專案+客戶)走，
+// computeDormManagerBonusForMonth），不再跟著學生的實習單位(專案+客戶)走；
+// 國外代表改成依學生的「學生來源(國外供應商)」計算（見
+// computeOverseasRepBonusForMonth），因為同一個職缺底下的學生可能來自
+// 不同的國外供應商，不能整個職缺只算給職缺設定的單一「國外代表」。
 // 這裡的主表（依實習單位分列）只保留其餘角色。
-export const PROJECT_CLIENT_BONUS_ROLE_KEYS = BONUS_ROLE_KEYS.filter((k) => k !== 'dormManager1' && k !== 'dormManager2');
+export const PROJECT_CLIENT_BONUS_ROLE_KEYS = BONUS_ROLE_KEYS.filter((k) => k !== 'dormManager1' && k !== 'dormManager2' && k !== 'overseasRep');
 export const PROJECT_CLIENT_BONUS_ROLE_LABELS = PROJECT_CLIENT_BONUS_ROLE_KEYS.map((k) => BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)]);
 
 export function monthRange(monthStr) {
@@ -192,6 +195,35 @@ export function computeDormManagerBonusForMonth(monthStr, ctx) {
     .sort((a, b) => a.dormName.localeCompare(b.dormName));
 }
 
+// 國外代表獎金改成依學生自己的「學生來源(國外供應商)」分別計算，不再
+// 用職缺設定的單一「國外代表」欄位——同一個職缺底下的學生可能來自不同
+// 的國外供應商，應該各自算給各自的供應商，不是整個職缺的人都算給職缺
+// 上設定的那一個人。費率仍然看該學生實習單位(專案+客戶)在「內部費用
+// 建檔」設定的「國外代表」月費率，算法跟其他專案角色一樣：費率÷當月
+// 天數×該供應商這個月名下所有學生的在台天數加總；沒有填學生來源的
+// 歸到「(未填學生來源)」，方便看出哪些學生還沒補這個欄位。
+export function computeOverseasRepBonusForMonth(monthStr, ctx) {
+  const range = monthRange(monthStr);
+  if (!range) return [];
+  const { students, inTaiwanVisaRecords, internalFeeSetupRecords } = ctx;
+  const groups = {};
+  (students || []).forEach((s) => {
+    const pair = studentProjectClientPair(s.id, ctx);
+    if (!pair) return;
+    const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
+    if (days <= 0) return;
+    const supplier = s.sourceSupplier || '(未填學生來源)';
+    const key = `${pair.projectCode}||${pair.client}||${supplier}`;
+    (groups[key] ||= { projectCode: pair.projectCode, client: pair.client, supplier, totalDays: 0 }).totalDays += days;
+  });
+  return Object.values(groups).map((g) => {
+    const rate = internalFeeSetupRecords.find((r) => (r.projectCode || '') === g.projectCode && r.client === g.client);
+    const rateVal = rate ? (Number(rate.overseasRep) || 0) : 0;
+    const amount = rateVal ? Math.round((rateVal / range.daysInMonth) * g.totalDays) : 0;
+    return { ...g, amount };
+  }).sort((a, b) => a.supplier.localeCompare(b.supplier));
+}
+
 export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
   const rows = computeInternalBonusForMonth(monthStr, ctx);
   const personTotals = {};
@@ -213,6 +245,12 @@ export function computeInternalBonusByPersonForMonth(monthStr, ctx) {
       entry.total += amt;
       entry.breakdown.push({ client: d.dormName, projectCode: '', role: roleLabel, amount: amt });
     });
+  });
+  computeOverseasRepBonusForMonth(monthStr, ctx).forEach((r) => {
+    if (!r.supplier || !r.amount) return;
+    const entry = (personTotals[r.supplier] ||= { name: r.supplier, total: 0, breakdown: [] });
+    entry.total += r.amount;
+    entry.breakdown.push({ client: r.client, projectCode: r.projectCode, role: '國外代表', amount: r.amount });
   });
   return Object.values(personTotals).sort((a, b) => b.total - a.total);
 }

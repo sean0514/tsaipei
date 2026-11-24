@@ -5,7 +5,7 @@ import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
-  computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth,
+  computeClientBillingForMonth, computeInternalBonusForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth,
   computeDormProfitLossForYear, sumDormProfitLossGroups, PROJECT_CLIENT_BONUS_ROLE_KEYS,
   monthRange, dateOverlapDays, currentYear, NOT_BILLABLE,
 } from '../../lib/bonus';
@@ -213,8 +213,12 @@ function postageFeeExpenseForMonth(monthStr, postageFeeRecords) {
 }
 
 function projectBonusExpenseForMonth(monthStr, ctx) {
-  return computeInternalBonusForMonth(monthStr, ctx)
+  const roleBonus = computeInternalBonusForMonth(monthStr, ctx)
     .reduce((sum, r) => sum + PROJECT_CLIENT_BONUS_ROLE_KEYS.reduce((s, k) => s + (r.roles[k] && r.amounts[k] ? r.amounts[k] : 0), 0), 0);
+  // 國外代表改成依學生來源(國外供應商)分別計算，不再是 PROJECT_CLIENT_BONUS_ROLE_KEYS
+  // 其中一個角色，要另外加總進來，不然公司損益會漏算這筆內部獎金支出。
+  const overseasRepBonus = computeOverseasRepBonusForMonth(monthStr, ctx).reduce((sum, r) => sum + (r.amount || 0), 0);
+  return roleBonus + overseasRepBonus;
 }
 
 function dormManagerBonusExpenseForMonth(monthStr, ctx) {
