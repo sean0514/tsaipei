@@ -1,8 +1,106 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear, DORM_EQUIPMENT_ITEM, DORM_PNL_BILLABLE_STATUSES } from '../../lib/bonus';
+import {
+  computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear, DORM_EQUIPMENT_ITEM, DORM_PNL_BILLABLE_STATUSES,
+  monthRange, dateOverlapDays, studentProjectClientPair,
+  ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
+} from '../../lib/bonus';
 import { exportEntityCSV } from '../../lib/csv';
+
+function parseOtherFees(json) {
+  try { const arr = json ? JSON.parse(json) : []; return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+
+// 可以點數字看逐筆明細的細項——不含「宿舍設備收入/支出」(已經有自己的
+// 「宿舍設備收支明細」按鈕)跟幾個合計列(income/cost/profit/bonus)。
+const DETAILABLE_KEYS = ['housingIncome', 'dormManageFeeIncome', 'otherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost'];
+
+// 各損益細項的逐筆明細：跟 lib/bonus.js computeDormProfitLossForYear 裡
+// 同一套公式，只是這裡不加總、改成列出每一筆對應紀錄方便核對來源。
+function detailEntriesFor(key, rawDorm, monthStr, ctx) {
+  const { housingRecords, dormitoryUtilities, clientFeeSetupRecords, students } = ctx;
+  const range = monthRange(monthStr);
+  const studentName = (id) => { const s = (students || []).find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知學生)'; };
+  const residentsOf = () => (housingRecords || []).filter((h) => h.type === rawDorm.name && dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0);
+  const utilFor = () => (dormitoryUtilities || []).find((x) => x.dormitoryId === rawDorm.id && x.month === monthStr);
+
+  if (key === 'housingIncome' || key === 'dormManageFeeIncome') {
+    return residentsOf().map((h) => {
+      const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
+      if (h.payer === '廠商代付') {
+        const pair = studentProjectClientPair(h.studentId, ctx);
+        const rate = pair && (clientFeeSetupRecords || []).find((r) => (r.projectCode || '') === pair.projectCode && r.client === pair.client);
+        if (!rate || rate.billDormFee === '否') return null;
+        const rateAmount = key === 'housingIncome' ? (Number(rate.monthlyDormFee) || 0) : (Number(rate.monthlyDormManageFee) || 0);
+        const amount = rateAmount ? Math.round((rateAmount / range.daysInMonth) * days) : 0;
+        if (!amount) return null;
+        return { desc: `${studentName(h.studentId)}（廠商代付，客戶費用建檔費率 ${rateAmount.toLocaleString()}/月 × ${days}/${range.daysInMonth}天）`, amount };
+      }
+      if (key === 'dormManageFeeIncome') return null;
+      const amount = h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
+      if (!amount) return null;
+      return { desc: `${studentName(h.studentId)}（學生自付，租金 ${Number(h.monthlyRent).toLocaleString()}/月 × ${days}/${range.daysInMonth}天）`, amount };
+    }).filter(Boolean);
+  }
+
+  if (key === 'evIncome') {
+    return residentsOf()
+      .filter((h) => h.hasElectricVehicle && Number(h.electricVehicleMonthlyFee))
+      .map((h) => ({ desc: `${studentName(h.studentId)}（電動車每月固定金額，不依天數比例）`, amount: Number(h.electricVehicleMonthlyFee) || 0 }));
+  }
+
+  if (key === 'otherIncome' || key === 'otherUtilityCost') {
+    const wantIncome = key === 'otherIncome';
+    return parseOtherFees(utilFor()?.otherFees)
+      .filter((f) => (f.type === '收入') === wantIncome)
+      .map((f) => ({ desc: `${f.label || '未命名'}${!wantIncome ? `（${f.payer || '學生自付'}）` : ''}`, amount: Number(f.amount) || 0 }))
+      .filter((e) => e.amount);
+  }
+
+  if (key === 'waterCost' || key === 'electricityCost' || key === 'gasCost') {
+    const fieldMap = { waterCost: 'waterFee', electricityCost: 'electricityFee', gasCost: 'gasFee' };
+    const amount = Number(utilFor()?.[fieldMap[key]]) || 0;
+    return amount ? [{ desc: '宿舍管理當月填寫金額', amount }] : [];
+  }
+
+  if (key === 'utilityIncome') {
+    const residents = residentsOf();
+    if (residents.length === 0) return [];
+    const u = utilFor();
+    const perHead = (amount) => Math.round((Number(amount) || 0) / residents.length);
+    const surcharge = rawDorm.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+    const waterShare = perHead(u?.waterFee);
+    const electricityShare = perHead(u?.electricityFee) + ELECTRICITY_FLAT_FEE_PER_HEAD + surcharge;
+    const gasShare = perHead(u?.gasFee);
+    return residents.map((h) => ({
+      desc: `${studentName(h.studentId)}（水${waterShare}+電${electricityShare}+瓦斯${gasShare}，共${residents.length}人平分）`,
+      amount: waterShare + electricityShare + gasShare,
+    }));
+  }
+
+  if (key === 'rentCost') {
+    const leaseDays = rawDorm.leaseStart ? dateOverlapDays(range.start, range.end, rawDorm.leaseStart, rawDorm.leaseEnd) : 0;
+    if (leaseDays <= 0) return [];
+    const amount = Math.round(((Number(rawDorm.rent) || 0) / range.daysInMonth) * leaseDays);
+    return amount ? [{ desc: `租約生效 ${leaseDays}/${range.daysInMonth} 天 × 租金 ${Number(rawDorm.rent || 0).toLocaleString()}/月`, amount }] : [];
+  }
+
+  if (key === 'agentFeeCost') {
+    const leaseStartMonth = rawDorm.leaseStart ? rawDorm.leaseStart.slice(0, 7) : '';
+    if (leaseStartMonth !== monthStr) return [];
+    const amount = Number(rawDorm.agentFee) || 0;
+    return amount ? [{ desc: '起租月份房仲費', amount }] : [];
+  }
+
+  if (key === 'depositLossCost') {
+    if (!rawDorm.depositRefundDate || rawDorm.depositRefundDate.slice(0, 7) !== monthStr) return [];
+    const amount = (Number(rawDorm.deposit) || 0) - (Number(rawDorm.depositRefundAmount) || 0);
+    return amount ? [{ desc: `押金 ${Number(rawDorm.deposit || 0).toLocaleString()} － 退還押金 ${Number(rawDorm.depositRefundAmount || 0).toLocaleString()}（退還日 ${rawDorm.depositRefundDate}）`, amount }] : [];
+  }
+
+  return [];
+}
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
 
@@ -46,7 +144,7 @@ function availableYears(ctx) {
   return Array.from(years).sort((a, b) => b - a);
 }
 
-function PnlTable({ monthly, yearTotal }) {
+function PnlTable({ monthly, yearTotal, onDetail }) {
   return (
     <div className="table-wrap sticky-header">
       <table>
@@ -54,17 +152,22 @@ function PnlTable({ monthly, yearTotal }) {
           <tr><th>損益細項</th>{MONTH_LABELS.map((l) => <th key={l}>{l}</th>)}<th>合計</th></tr>
         </thead>
         <tbody>
-          {LINE_ITEMS.map((item) => (
-            <tr key={item.key}>
-              <td style={{ fontWeight: item.bold ? 600 : 400 }}>{item.label}</td>
-              {monthly.map((m) => (
-                <td key={m.month} style={{ fontWeight: item.bold ? 600 : 400, color: item.signed && m[item.key] < 0 ? 'var(--danger)' : undefined }}>
-                  {fmt(m[item.key])}
-                </td>
-              ))}
-              <td style={{ fontWeight: 600, color: item.signed && yearTotal[item.key] < 0 ? 'var(--danger)' : undefined }}>{fmt(yearTotal[item.key])}</td>
-            </tr>
-          ))}
+          {LINE_ITEMS.map((item) => {
+            const canDetail = onDetail && DETAILABLE_KEYS.includes(item.key);
+            return (
+              <tr key={item.key}>
+                <td style={{ fontWeight: item.bold ? 600 : 400 }}>{item.label}</td>
+                {monthly.map((m) => (
+                  <td key={m.month} style={{ fontWeight: item.bold ? 600 : 400, color: item.signed && m[item.key] < 0 ? 'var(--danger)' : undefined }}>
+                    {canDetail && m[item.key] ? (
+                      <button type="button" className="link-button" onClick={() => onDetail(item.key, m.month)}>{fmt(m[item.key])}</button>
+                    ) : fmt(m[item.key])}
+                  </td>
+                ))}
+                <td style={{ fontWeight: 600, color: item.signed && yearTotal[item.key] < 0 ? 'var(--danger)' : undefined }}>{fmt(yearTotal[item.key])}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -87,6 +190,7 @@ export default function DormProfitLossPage() {
   const { rows: clientFeeSetupRecords } = useCollection('tsaipei_clientFeeSetup');
   const [year, setYear] = useState(currentYear());
   const [detailDorm, setDetailDorm] = useState(null);
+  const [lineDetail, setLineDetail] = useState(null); // { dormId, dormName, key, label, month } or null
 
   // 「宿舍設備支出(日常支出申請)」這一項的明細：跟 bonus.js 算 dormItemCost/
   // dormItemIncome 用同一套篩選條件（項目=宿舍設備、綁定這間宿舍、已核准/
@@ -172,7 +276,14 @@ export default function DormProfitLossPage() {
                         {d.dormName} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>年合計 利潤 {fmt(d.yearTotal.profit)}／分紅 {fmt(d.yearTotal.bonus)}</span>
                         <button style={{ marginLeft: 10 }} onClick={() => setDetailDorm(d)}>宿舍設備收支明細</button>
                       </h4>
-                      <PnlTable monthly={d.monthly} yearTotal={d.yearTotal} />
+                      <PnlTable
+                        monthly={d.monthly}
+                        yearTotal={d.yearTotal}
+                        onDetail={(key, month) => {
+                          const item = LINE_ITEMS.find((it) => it.key === key);
+                          setLineDetail({ dormId: d.dormId, dormName: d.dormName, key, label: item?.label || key, month });
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -189,6 +300,40 @@ export default function DormProfitLossPage() {
           onClose={() => setDetailDorm(null)}
         />
       )}
+      {lineDetail && (
+        <LineDetailModal
+          detail={lineDetail}
+          entries={detailEntriesFor(lineDetail.key, dormitories.find((r) => r.id === lineDetail.dormId) || {}, `${year}-${String(lineDetail.month).padStart(2, '0')}`, ctx)}
+          onClose={() => setLineDetail(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function LineDetailModal({ detail, entries, onClose }) {
+  const total = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{detail.dormName} · {detail.month}月 {detail.label}</h3>
+        <p className="muted">合計 {fmt(total)}</p>
+        <div className="table-wrap"><table>
+          <thead><tr><th>說明</th><th>金額</th></tr></thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <tr key={i}>
+                <td>{e.desc}</td>
+                <td>{fmt(e.amount)}</td>
+              </tr>
+            ))}
+            {entries.length === 0 && <tr><td colSpan={2} className="muted">沒有符合條件的紀錄。</td></tr>}
+          </tbody>
+        </table></div>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <button type="button" onClick={onClose}>關閉</button>
+        </div>
+      </div>
     </div>
   );
 }
