@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
@@ -125,7 +125,7 @@ export default function StudentBillingPage() {
   const { rows: dormitories } = useCollection('vietnam_dormitories');
   const { rows: utilities } = useCollection('vietnam_dormitoryUtilities');
   const { rows: dailyExpenseApplications } = useCollection('vietnam_dailyExpenseApplications');
-  const { rows: payments, add: addPayment, update: updatePayment } = useCollection('vietnam_studentBillingPayments');
+  const { rows: payments, add: addPayment, update: updatePayment, remove: removePayment } = useCollection('vietnam_studentBillingPayments');
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
@@ -135,6 +135,22 @@ export default function StudentBillingPage() {
   const [year, setYear] = useState(currentYear());
 
   const pairCtx = { matches, admittedList, positions };
+
+  // 這個頁面的繳費紀錄是跟著 housingRecords(學生刪除時已經會連鎖刪除)
+  // 顯示，正常不會冒出孤兒紀錄；這裡只是順手清掉舊資料裡本來就有、
+  // studentId 已經找不到對應學生的 vietnam_studentBillingPayments 紀錄，
+  // 避免資料庫裡一直留著用不到的資料。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditPage) return;
+    const studentIds = new Set(students.map((s) => s.id));
+    payments.forEach((p) => {
+      if (!p.studentId || studentIds.has(p.studentId) || attemptedCleanupIds.current.has(p.id)) return;
+      attemptedCleanupIds.current.add(p.id);
+      removePayment(p.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payments, students, canEditPage]);
 
   function paymentFor(studentId, monthStr) {
     if (!studentId) return null;

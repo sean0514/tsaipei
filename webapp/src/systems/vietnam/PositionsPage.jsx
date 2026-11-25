@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import Tag from '../../components/Tag';
@@ -79,6 +81,34 @@ export default function PositionsPage() {
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_positions', CSV_FIELDS, { entityLabel: '實習單位', requiredKeys: ['projectCode', 'company'], canEdit: canEditPage });
 
+  // 刪除實習單位以前沒有連動清掉指向它的媒合紀錄（已經補上，見下面的
+  // handleDeletePosition），導致舊資料留下一批 positionId 已經找不到對應
+  // 職缺的媒合紀錄，以及綁在這些媒合紀錄上、同樣對應不到職缺的二面/錄取
+  // 紀錄。這裡載入時順便清掉：媒合紀錄清空 positionId、退回「媒合中」，
+  // 二面/錄取直接刪除——跟 handleDeletePosition 同一套處理方式，只是這裡
+  // 一次處理所有孤兒紀錄，不是刪除單一職缺時才處理。
+  const orphanCleanupDone = useRef(false);
+  useEffect(() => {
+    if (!canEditPage || loading || orphanCleanupDone.current) return;
+    const positionIds = new Set(rows.map((r) => r.id));
+    const orphanMatches = matches.filter((m) => m.positionId && !positionIds.has(m.positionId));
+    if (!orphanMatches.length) return;
+    orphanCleanupDone.current = true;
+    (async () => {
+      const matchIds = orphanMatches.map((m) => m.id);
+      const dependentSnaps = await Promise.all([
+        getDocs(query(collection(db, 'vietnam_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))),
+        getDocs(query(collection(db, 'vietnam_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))),
+      ]);
+      const deleteRefs = dependentSnaps.flatMap((snap) => snap.docs.map((d) => d.ref));
+      const batch = writeBatch(db);
+      deleteRefs.forEach((ref) => batch.delete(ref));
+      orphanMatches.forEach((m) => batch.update(doc(db, 'vietnam_matches', m.id), { positionId: '', status: '媒合中' }));
+      await batch.commit();
+    })().catch((err) => console.error('實習單位：清理孤兒媒合紀錄失敗', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, canEditPage]);
+
   const byCompany = (a, b) => (a.company || '').localeCompare(b.company || '');
   const open = rows.filter((r) => r.closed !== '是' && (!q || [r.projectCode, r.company, r.title].some((v) => v?.includes(q)))).sort(byCompany);
   const closed = rows.filter((r) => r.closed === '是').sort(byCompany);
@@ -100,6 +130,35 @@ export default function PositionsPage() {
       await add({ ...data, closed: '' });
     }
     setEditing(null);
+  }
+
+  // 刪除實習單位時，原本直接 remove(r.id)，沒有清掉任何關聯資料：媒合紀錄
+  // (vietnam_matches) 還留著一個指向已經不存在職缺的 positionId，二面
+  // (vietnam_secondInterviews)、錄取名單 (vietnam_admittedList) 也還留著
+  // 對應這個職缺的紀錄。這裡改成：媒合紀錄保留(media日期/備註等學生端
+  // 歷程不是因為職缺消失就沒有意義)，只把 positionId 清空、狀態退回
+  // 「媒合中」，讓學生自動重新出現在「學生尚未安排」；二面/錄取則是
+  // 綁定在「這個職缺」上的結果，職缺沒了就沒有意義，直接刪除。
+  async function handleDeletePosition(positionId) {
+    if (!window.confirm(t('確定要刪除這個實習單位嗎？已經媒合的學生會退回「媒合中」，對應的二面/錄取紀錄會一併刪除。', lang))) return;
+    const matchesSnap = await getDocs(query(collection(db, 'vietnam_matches'), where('positionId', '==', positionId)));
+    const matchIds = matchesSnap.docs.map((d) => d.id);
+    const dependentSnaps = await Promise.all([
+      matchIds.length ? getDocs(query(collection(db, 'vietnam_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      matchIds.length ? getDocs(query(collection(db, 'vietnam_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+    ]);
+    const deleteRefs = dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : []));
+    for (let i = 0; i < deleteRefs.length; i += 450) {
+      const batch = writeBatch(db);
+      deleteRefs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+    for (let i = 0; i < matchesSnap.docs.length; i += 450) {
+      const batch = writeBatch(db);
+      matchesSnap.docs.slice(i, i + 450).forEach((d) => batch.update(d.ref, { positionId: '', status: '媒合中' }));
+      await batch.commit();
+    }
+    await remove(positionId);
   }
 
   function copyAsNew(row) {
@@ -132,7 +191,7 @@ export default function PositionsPage() {
                 {r.closed === '是'
                   ? <button onClick={() => update(r.id, { closed: '' })}>{t('取消已結案', lang)}</button>
                   : <button onClick={() => update(r.id, { closed: '是' })}>{t('已結案', lang)}</button>}
-                <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
+                <button className="danger" onClick={() => handleDeletePosition(r.id)}>{t('刪除', lang)}</button>
               </div>
             </td>
           )}

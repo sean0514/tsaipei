@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { serverTimestamp } from 'firebase/firestore';
 import { useCollection } from '../../lib/useCollection';
@@ -26,9 +26,27 @@ export default function ResumeLinksPage() {
   const canEditStudents = computeCanEdit(system, 'students', role, overrides);
   const { rows: staff, loading: loadingStaff } = useCollection('vietnam_users');
   const { rows: submissions, loading: loadingSubmissions, update: updateSubmission, remove: removeSubmission } = useCollection('vietnam_resumeSubmissions');
-  const { add: addStudent, update: updateStudent } = useCollection('vietnam_students');
+  const { rows: existingStudents, loading: loadingExistingStudents, add: addStudent, update: updateStudent } = useCollection('vietnam_students');
   const [q, setQ] = useState('');
   const [viewing, setViewing] = useState(null);
+
+  // 轉入學生資料後，這筆履歷會記住 studentId 避免重複轉入（見
+  // handleConvertToStudent）；學生之後被刪除的話，StudentsPage.jsx 的
+  // handleDelete 會把這裡清回待處理，但刪除學生這個連動補上之前的舊資料
+  // 還會卡在「已轉入」、指著一個不存在的學生，永遠沒辦法重新轉入。這裡
+  // 載入時順便清掉：對每筆孤兒紀錄只嘗試清一次，避免即時同步推回新資料
+  // 時重複觸發。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditStudents || loadingSubmissions || loadingExistingStudents) return;
+    const studentIds = new Set(existingStudents.map((s) => s.id));
+    submissions.forEach((sub) => {
+      if (!sub.studentId || studentIds.has(sub.studentId) || attemptedCleanupIds.current.has(sub.id)) return;
+      attemptedCleanupIds.current.add(sub.id);
+      updateSubmission(sub.id, { studentId: '', processedAt: null });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissions, existingStudents, loadingSubmissions, loadingExistingStudents, canEditStudents]);
 
   function handleCopyLink(member) {
     const url = `${window.location.origin}/apply/vietnam?ref=${encodeURIComponent(member.displayName || '')}`;

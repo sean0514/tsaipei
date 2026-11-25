@@ -230,6 +230,7 @@ export default function StudentsPage() {
         getDocs(query(collection(db, 'vietnam_departureTransport'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_vehicleArrangements'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_bankAccountProgress'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'vietnam_studentBillingPayments'), where('studentId', '==', studentId))),
       ]);
       const refs = [
         ...matchesSnap.docs.map((d) => d.ref),
@@ -238,6 +239,17 @@ export default function StudentsPage() {
       for (let i = 0; i < refs.length; i += 450) {
         const batch = writeBatch(db);
         refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+      // 「履歷表連結」(ResumeLinksPage.jsx) 轉入學生資料後，履歷紀錄本身會
+      // 留著（代表「收到過這份履歷」的歷史，不是單純的學生資料指標），只
+      // 記住對應的 studentId/processedAt 避免重複轉入。學生被刪除後，這筆
+      // 履歷不刪除，但要把 studentId/processedAt 清掉退回「待處理」，不然
+      // 會永遠卡在「已轉入」、指著一個不存在的學生，也沒辦法重新轉入。
+      const resumeSubmissionsSnap = await getDocs(query(collection(db, 'vietnam_resumeSubmissions'), where('studentId', '==', studentId)));
+      for (let i = 0; i < resumeSubmissionsSnap.docs.length; i += 450) {
+        const batch = writeBatch(db);
+        resumeSubmissionsSnap.docs.slice(i, i + 450).forEach((d) => batch.update(d.ref, { studentId: '', processedAt: null }));
         await batch.commit();
       }
       await remove(studentId);
