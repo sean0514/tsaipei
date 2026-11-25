@@ -1195,6 +1195,7 @@ const VI = {
   '「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯；上傳後會完全取代目前所有學校資料，請先下載備份再匯入。':
     '"Nhập dữ liệu" cần dùng file CSV được tạo từ "Tải toàn bộ dữ liệu" để chỉnh sửa; sau khi tải lên sẽ thay thế toàn bộ dữ liệu trường học hiện tại, vui lòng tải bản sao lưu trước khi nhập.',
   '搜尋學校名稱': 'Tìm theo tên trường học',
+  '搜尋學校': 'Tìm theo trường học',
   '學校名稱': 'Tên trường học',
   '學校代表': 'Đại diện trường',
   '學校代表獎金月費率': 'Mức phí thưởng hàng tháng của đại diện trường',

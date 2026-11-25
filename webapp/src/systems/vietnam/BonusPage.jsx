@@ -2,17 +2,15 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { currentMonthStr } from '../../lib/bonus';
-import {
-  computeVietnamInternalBonusByPerson,
-  computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
-} from '../../lib/vietnamBonus';
+import { computeVietnamInternalBonusByPerson, computeVietnamSchoolRepBonusForMonth } from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
 // 跟境外生實習系統（tsaipei）的 BonusPage.jsx 不同：角色清單改用越南
-// 系統專用的 6 個角色（lib/vietnamBonus.js），不是共用的 lib/bonus.js
+// 系統專用的 5 個角色（lib/vietnamBonus.js），不是共用的 lib/bonus.js
 // 舊角色清單。開發業務/行政主管/行政招募/行政簽證/外務人員這 5 個角色改成
 // 一次性計算（見 lib/vietnamBonus.js 的 computeVietnamInternalBonusByPerson），
-// 不分月份；學校代表/宿管人員維持原本按月比例分攤的算法。
+// 不分月份；學校代表維持原本按月比例分攤的算法。宿管人員獎金的費率來源
+// （內部費用建檔）已經移除，這裡不再顯示這個永遠是 0 的區塊。
 export default function BonusPage() {
   const { lang } = useOutletContext();
   const { rows: students } = useCollection('vietnam_students');
@@ -21,26 +19,18 @@ export default function BonusPage() {
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
-  const { rows: dormitories } = useCollection('vietnam_dormitories');
-  const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
   const { rows: departureTransport } = useCollection('vietnam_departureTransport');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
   const [qPerson, setQPerson] = useState('');
 
-  // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓
-  // lib/bonus.js 的 computeDormManagerBonusForMonth 安全地找不到費率、
-  // 金額算成 0，不用動共用計算邏輯本身。
-  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
+  const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, schools };
   const byPerson = computeVietnamInternalBonusByPerson(ctx).filter((p) =>
     !qPerson || p.name.toLowerCase().includes(qPerson.toLowerCase()) || p.breakdown.some((b) => (b.student || '').toLowerCase().includes(qPerson.toLowerCase()))
   );
   const schoolRows = computeVietnamSchoolRepBonusForMonth(month, ctx).filter((s) =>
     !q || (s.schoolName || '').toLowerCase().includes(q.toLowerCase())
-  );
-  const dormRows = computeDormManagerBonusForMonth(month, ctx).filter((d) =>
-    !q || (d.dormName || '').toLowerCase().includes(q.toLowerCase())
   );
 
   return (
@@ -68,7 +58,7 @@ export default function BonusPage() {
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        <input placeholder={t('搜尋學校或宿舍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+        <input placeholder={t('搜尋學校', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
       </div>
 
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
@@ -86,27 +76,6 @@ export default function BonusPage() {
               </tr>
             ))}
             {schoolRows.length === 0 && <tr><td colSpan={4} className="muted">{t('沒有資料', lang)}</td></tr>}
-          </tbody>
-        </table></div>
-      </div>
-
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <h3 style={{ marginTop: 0 }}>{t('宿管人員獎金', lang)}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>{t('依宿舍管理設定的宿管1/宿管2計算，費率來源（內部費用建檔）已移除，金額顯示為 0。', lang)}</p>
-        <div className="table-wrap"><table>
-          <thead><tr><th>{t('宿舍', lang)}</th><th>{t('宿管1', lang)}</th><th>{t('宿管1獎金', lang)}</th><th>{t('宿管2', lang)}</th><th>{t('宿管2獎金', lang)}</th><th>{t('住宿天數合計', lang)}</th></tr></thead>
-          <tbody>
-            {dormRows.map((d) => (
-              <tr key={d.dormId}>
-                <td>{d.dormName}</td>
-                <td>{d.manager1 || '—'}</td>
-                <td>{d.manager1Amount.toLocaleString()} {t('元', lang)}</td>
-                <td>{d.manager2 || '—'}</td>
-                <td>{d.manager2Amount.toLocaleString()} {t('元', lang)}</td>
-                <td>{d.totalResidentDays} {t('天', lang)}</td>
-              </tr>
-            ))}
-            {dormRows.length === 0 && <tr><td colSpan={6} className="muted">{t('沒有資料', lang)}</td></tr>}
           </tbody>
         </table></div>
       </div>
