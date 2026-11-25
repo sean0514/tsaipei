@@ -1,12 +1,12 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { lastCompletedMilestone } from '../tsaipei/ApplicationProgressPage';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS_INDONESIA, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_applicationProgress）的資料，
 // 只篩選目前進度剛好停在「辦理簽證」這一關、且學生來源(國外供應商)是
-// ALLOWED_SOURCE_SUPPLIERS 這幾個的學生；這個分頁在元凱系統不能新增/
+// ALLOWED_SOURCE_SUPPLIERS_INDONESIA 這幾個的學生；這個分頁在元凱系統不能新增/
 // 編輯/刪除，實際編輯請到境外生實習系統的「申辦進度追蹤」頁面。
 export default function VisaReminderPage() {
   const { lang } = useOutletContext();
@@ -23,7 +23,7 @@ export default function VisaReminderPage() {
   const rows = progress
     .filter((r) => !r.confirmedClosed)
     .map((r) => ({ ...r, student: students.find((s) => s.id === r.studentId) }))
-    .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier))
+    .filter((r) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(r.student?.sourceSupplier))
     .filter((r) => lastCompletedMilestone(r)?.key === 'visaDate');
 
   const groups = groupByLabel(rows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));

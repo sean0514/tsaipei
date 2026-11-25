@@ -9,6 +9,7 @@ import { STUDENT_TAG } from '../../lib/tags';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { backfillBirthDatesFromVietnam } from '../../lib/vietnamTsaipeiStudentSync';
+import { backfillBirthDatesFromIndonesia } from '../../lib/indonesiaTsaipeiStudentSync';
 
 // Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
 const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -92,7 +93,9 @@ function formatCreatedAt(r) {
 // PositionBenefitsPage.jsx 的「來源系統」概念一致，只是那邊是整頁資料
 // 分兩個 collection 來源，這裡是同一個 collection 裡依欄位判斷。
 function systemSourceLabel(student) {
-  return student.syncedFromVietnamId ? '越南實習生系統' : '境外生實習系統';
+  if (student.syncedFromVietnamId) return '越南實習生系統';
+  if (student.syncedFromIndonesiaId) return '印尼實習生系統';
+  return '境外生實習系統';
 }
 
 // Ported from docChecklist/docSummary in apps-script/Index.html — 5-item
@@ -141,6 +144,17 @@ export default function StudentsPage() {
       .filter((r) => !r.birthDate && r.syncedFromVietnamId)
       .map((r) => ({ id: r.id, syncedFromVietnamId: r.syncedFromVietnamId }));
     if (missing.length) backfillBirthDatesFromVietnam(missing);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, canEditPage]);
+
+  // 跟上面同樣的補跑邏輯，印尼版本：對「有 syncedFromIndonesiaId 但
+  // birthDate 還空著」的學生，從印尼系統對應的學生資料把出生日期補回來。
+  useEffect(() => {
+    if (!canEditPage) return;
+    const missing = rows
+      .filter((r) => !r.birthDate && r.syncedFromIndonesiaId)
+      .map((r) => ({ id: r.id, syncedFromIndonesiaId: r.syncedFromIndonesiaId }));
+    if (missing.length) backfillBirthDatesFromIndonesia(missing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, canEditPage]);
 
@@ -199,6 +213,9 @@ export default function StudentsPage() {
         // 直接刪除學生時，連動建立的越南簽證辦理紀錄也要一併清掉，不留著
         // 一筆對應不到學生的孤兒資料。
         getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', studentId))),
+        // 同樣道理，印尼系統的「印尼辦理簽證」(indonesia_visaProcessing)
+        // 也要一併清掉。
+        getDocs(query(collection(db, 'indonesia_visaProcessing'), where('studentId', '==', studentId))),
       ]);
       const refs = [
         ...matchesSnap.docs.map((d) => d.ref),

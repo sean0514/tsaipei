@@ -1,10 +1,10 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS_INDONESIA, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_internshipDocs）的資料，只篩選
-// 學生來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS 這幾個的紀錄；這個分頁
+// 學生來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS_INDONESIA 這幾個的紀錄；這個分頁
 // 在元凱系統不能新增/編輯/刪除，實際編輯請到境外生實習系統的「實習文件
 // 追蹤」頁面。依客戶（學生所媒合的實習單位）分組顯示。
 function submittedText(docs, lang) {
@@ -24,7 +24,7 @@ export default function InternshipDocsPage() {
   const ctx = { matches, admittedList, positions };
   const translations = buildTranslationMap(companyTranslations);
 
-  const allowedStudentIds = new Set(students.filter((s) => ALLOWED_SOURCE_SUPPLIERS.includes(s.sourceSupplier)).map((s) => s.id));
+  const allowedStudentIds = new Set(students.filter((s) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(s.sourceSupplier)).map((s) => s.id));
   const byStudent = {};
   docs.filter((d) => allowedStudentIds.has(d.studentId)).forEach((d) => {
     (byStudent[d.studentId] ||= []).push(d);

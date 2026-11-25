@@ -1,11 +1,11 @@
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { ProgressPipeline } from '../tsaipei/ApplicationProgressPage';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS_INDONESIA, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_applicationProgress）的資料，
-// 只篩選學生來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS 這幾個的紀錄；
+// 只篩選學生來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS_INDONESIA 這幾個的紀錄；
 // 這個分頁在元凱系統不能新增/編輯/刪除，實際編輯請到境外生實習系統的
 // 「申辦進度追蹤」頁面。進度圖示沿用 tsaipei 自己的 ProgressPipeline
 // 元件，兩邊顯示邏輯完全一致。依客戶（學生所媒合的實習單位）分組顯示。
@@ -24,7 +24,7 @@ export default function ApplicationProgressPage() {
   const rows = progress
     .filter((r) => !r.confirmedClosed)
     .map((r) => ({ ...r, student: students.find((s) => s.id === r.studentId) }))
-    .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier))
+    .filter((r) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(r.student?.sourceSupplier))
     .sort((a, b) => studentFullLabel(a.student).localeCompare(studentFullLabel(b.student)));
 
   const groups = groupByLabel(rows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
