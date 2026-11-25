@@ -36,7 +36,11 @@ function studentLabel(s) {
 // 的學校名稱其實是不同字元、完全比對不到——這裡統一正規化成半形連字號
 // 再比對，避免因為這種看不出來的字元差異，自動帶入金額/幣別失敗。
 function normalizeSchoolName(name) {
-  return (name || '').trim().replace(/[－–—]/g, '-');
+  return (name || '')
+    .trim()
+    .replace(/[－–—]/g, '-') // 統一各種長得很像的破折號字元
+    .replace(/\s*-\s*/g, '-') // 破折號前後常見的全形/半形空格不一致
+    .replace(/\s+/g, ' ');
 }
 
 // 獎學金紀錄：學生一建檔就自動產生一筆空白紀錄（見下面的自動補建
