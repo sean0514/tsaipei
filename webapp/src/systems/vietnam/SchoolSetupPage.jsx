@@ -8,9 +8,11 @@ import { t } from '../../lib/i18n';
 
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'name', label: '學校名稱' }, { key: 'schoolRep', label: '學校代表' },
-  { key: 'monthlyFee', label: '學校代表獎金月費率' }, { key: 'scholarshipAmount', label: '獎學金金額' },
+  { key: 'monthlyFee', label: '學校代表獎金月費率' }, { key: 'scholarshipAmount', label: '獎學金金額' }, { key: 'scholarshipCurrency', label: '獎學金幣別' },
 ];
 const ROLE_CUSTOM = '__custom__';
+const CURRENCIES = ['新台幣', '美金', '越盾'];
+const DEFAULT_CURRENCY = '新台幣';
 
 // 學校費用設定：每所學校設定一位「學校代表」負責人＋獎金月費率（給「內部
 // 獎金計算」依學生就讀學校、在台天數比例試算），以及這所學校的「獎學金
@@ -65,7 +67,7 @@ export default function SchoolSetupPage() {
         <input placeholder={t('搜尋學校名稱', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12, width: 260 }} />
         {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
           <div className="table-wrap"><table>
-            <thead><tr><th>{t('學校名稱', lang)}</th><th>{t('學校代表', lang)}</th><th>{t('學校代表獎金月費率', lang)}</th><th>{t('獎學金金額', lang)}</th>{canEditPage && <th></th>}</tr></thead>
+            <thead><tr><th>{t('學校名稱', lang)}</th><th>{t('學校代表', lang)}</th><th>{t('學校代表獎金月費率', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('獎學金幣別', lang)}</th>{canEditPage && <th></th>}</tr></thead>
             <tbody>
               {filteredRows.map((r) => (
                 <tr key={r.id}>
@@ -73,6 +75,7 @@ export default function SchoolSetupPage() {
                   <td>{r.schoolRep || '—'}</td>
                   <td>{r.monthlyFee || 0}</td>
                   <td>{r.scholarshipAmount || 0}</td>
+                  <td>{t(r.scholarshipCurrency || DEFAULT_CURRENCY, lang)}</td>
                   {canEditPage && (
                     <td className="row-actions">
                       <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
@@ -81,7 +84,7 @@ export default function SchoolSetupPage() {
                   )}
                 </tr>
               ))}
-              {filteredRows.length === 0 && <tr><td colSpan={5} className="muted">{t('沒有資料', lang)}</td></tr>}
+              {filteredRows.length === 0 && <tr><td colSpan={6} className="muted">{t('沒有資料', lang)}</td></tr>}
             </tbody>
           </table></div>
         )}
@@ -153,6 +156,12 @@ function SchoolFormModal({ initial, users, schoolOptions, onCancel, onSave, lang
             <label>
               {t('獎學金金額', lang)}
               <input type="number" value={form.scholarshipAmount || ''} onChange={(e) => setForm({ ...form, scholarshipAmount: e.target.value })} />
+            </label>
+            <label>
+              {t('獎學金幣別', lang)}
+              <select value={form.scholarshipCurrency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, scholarshipCurrency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
           </div>
           <div className="row-actions">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -6,9 +6,12 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { t } from '../../lib/i18n';
 
+const CURRENCIES = ['新台幣', '美金', '越盾'];
+const DEFAULT_CURRENCY = '新台幣';
+
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'studentName', label: '學生姓名' },
-  { key: 'school', label: '就讀學校' }, { key: 'amount', label: '獎學金金額' },
+  { key: 'school', label: '就讀學校' }, { key: 'amount', label: '獎學金金額' }, { key: 'currency', label: '幣別' },
   { key: 'approved', label: '已審核' }, { key: 'remittanceDate', label: '匯款日期' }, { key: 'closed', label: '結案' }, { key: 'note', label: '備註' },
 ];
 
@@ -25,15 +28,16 @@ function studentLabel(s) {
   return s ? (s.chineseName || s.originalName || s.vietnameseName || '') : '';
 }
 
-// 獎學金紀錄：新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生
-// （學生安排送機後才算案件完成，才需要辦獎學金），依學生就讀學校分組顯示。
+// 獎學金紀錄：學生一建檔就自動產生一筆空白紀錄（見下面的自動補建
+// effect），不用等業務手動點「+新增」；金額/幣別依學生目前就讀學校在
+// 「學校費用設定」設定的獎學金金額/幣別自動帶入（設定裡沒有這間學校或
+// 還沒填金額就是 0，可以再手動調整），依學生就讀學校分組顯示。
 export default function ScholarshipsPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'scholarships', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_scholarships');
-  const { rows: students } = useCollection('vietnam_students');
-  const { rows: schools } = useCollection('vietnam_schoolSetup');
-  const { rows: departureTransport } = useCollection('vietnam_departureTransport');
+  const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
+  const { rows: schools, loading: schoolsLoading } = useCollection('vietnam_schoolSetup');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_scholarships', CSV_FIELDS, { entityLabel: '獎學金紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -41,28 +45,49 @@ export default function ScholarshipsPage() {
   function studentOf(studentId) {
     return students.find((s) => s.id === studentId);
   }
+  function schoolSetupOf(schoolName) {
+    return schools.find((sc) => sc.name === schoolName);
+  }
 
-  const departedStudentIds = new Set(departureTransport.map((d) => d.studentId).filter(Boolean));
-  const eligibleStudents = students.filter((s) => departedStudentIds.has(s.id));
-  const unrecordedStudents = eligibleStudents.filter((s) => !rows.some((r) => r.studentId === s.id));
+  const unrecordedStudents = students.filter((s) => !rows.some((r) => r.studentId === s.id));
+
+  // 自動補建：每筆沒有對應獎學金紀錄的學生（不論是在「學生資料」直接
+  // 新增、履歷轉入、還是境外生同步建立），載入時自動建立一筆空白紀錄，
+  // 不用業務自己點「+新增」逐一補。只跑一次，避免即時同步推回新資料時
+  // 重複觸發。
+  const ensureStubsDone = useRef(false);
+  useEffect(() => {
+    if (!canEditPage || loading || studentsLoading || schoolsLoading || ensureStubsDone.current) return;
+    ensureStubsDone.current = true;
+    unrecordedStudents.forEach((s) => {
+      const schoolSetup = schoolSetupOf(s.school);
+      add({
+        studentId: s.id,
+        school: s.school || '',
+        amount: schoolSetup?.scholarshipAmount || 0,
+        currency: schoolSetup?.scholarshipCurrency || DEFAULT_CURRENCY,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, studentsLoading, schoolsLoading, canEditPage]);
 
   const searchQuery = q.trim().toLowerCase();
   const filteredRows = rows.filter((r) => {
     if (!searchQuery) return true;
     const s = studentOf(r.studentId);
-    return `${studentLabel(s)} ${s?.school || ''}`.toLowerCase().includes(searchQuery);
+    return `${studentLabel(s)} ${r.school || ''}`.toLowerCase().includes(searchQuery);
   });
 
   const groups = {};
   filteredRows.forEach((r) => {
-    const schoolName = studentOf(r.studentId)?.school || '（未設定學校）';
+    const schoolName = r.school || '（未設定學校）';
     (groups[schoolName] ||= []).push(r);
   });
   Object.values(groups).forEach((list) => list.sort((a, b) => studentLabel(studentOf(a.studentId)).localeCompare(studentLabel(studentOf(b.studentId)))));
   const schoolNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
   async function handleSave(data) {
-    const payload = { ...data, amount: Number(data.amount) || 0 };
+    const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
     if (!payload.remittanceDate) delete payload.remittanceDate;
     if (data.id) {
       const { id, ...rest } = payload;
@@ -78,7 +103,7 @@ export default function ScholarshipsPage() {
       <div className="page-header">
         <div>
           <h2>{t('獎學金紀錄', lang)}</h2>
-          <div className="page-desc">{t('新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+          <div className="page-desc">{t('學生建檔時自動帶入名單，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額/幣別（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
         </div>
         <div className="row-actions">
           <input placeholder={t('搜尋學生或學校', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
@@ -97,7 +122,7 @@ export default function ScholarshipsPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th>
+                      <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
                       <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>{canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -109,6 +134,7 @@ export default function ScholarshipsPage() {
                         <tr key={r.id}>
                           <td style={{ fontWeight: 600 }}>{studentLabel(s) || '—'}</td>
                           <td>{(r.amount || 0).toLocaleString()}</td>
+                          <td>{t(r.currency || DEFAULT_CURRENCY, lang)}</td>
                           <td><span className={`tag ${status.cls}`}>{t(status.label, lang)}</span></td>
                           <td>{r.remittanceDate || '—'}</td>
                           {canEditPage && (
@@ -149,9 +175,15 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
     const student = students.find((s) => s.id === studentId);
     const school = student && schools.find((sc) => sc.name === student.school);
     // 只有新建紀錄、還沒手動填過金額時才自動帶入，避免覆蓋使用者已經
-    // 手動調整過的金額。
+    // 手動調整過的金額/幣別。
     const shouldAutoFill = !initial.id && !form.amount;
-    setForm({ ...form, studentId, amount: shouldAutoFill && school ? school.scholarshipAmount : form.amount });
+    setForm({
+      ...form,
+      studentId,
+      school: student?.school || form.school,
+      amount: shouldAutoFill && school ? school.scholarshipAmount : form.amount,
+      currency: shouldAutoFill && school ? (school.scholarshipCurrency || DEFAULT_CURRENCY) : (form.currency || DEFAULT_CURRENCY),
+    });
   }
 
   return (
@@ -170,6 +202,12 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
             <label>
               {t('獎學金金額', lang)}
               <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            </label>
+            <label>
+              {t('幣別', lang)}
+              <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
             <label>
               {t('匯款日期', lang)}

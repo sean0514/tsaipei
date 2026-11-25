@@ -1199,11 +1199,14 @@ const VI = {
   '學校代表': 'Đại diện trường',
   '學校代表獎金月費率': 'Mức phí thưởng hàng tháng của đại diện trường',
   '獎學金金額': 'Số tiền học bổng',
+  '獎學金幣別': 'Đơn vị tiền tệ học bổng',
   '編輯學校': 'Chỉnh sửa trường học',
 
   '獎學金紀錄': 'Hồ sơ học bổng',
   '新增紀錄只開放「越南送機行程」出現過、還沒建立紀錄的學生，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案':
     'Chỉ có thể tạo hồ sơ mới cho học viên đã xuất hiện ở "Lịch đưa sân bay Việt Nam" và chưa có hồ sơ; số tiền học bổng sẽ tự động điền theo thiết lập ở "Thiết lập chi phí trường học" dựa trên trường của học viên (có thể điều chỉnh lại); trạng thái duyệt: chờ duyệt → đã duyệt → đã chuyển khoản (kèm ngày chuyển khoản) → kết thúc hồ sơ',
+  '學生建檔時自動帶入名單，依學生就讀學校自動帶入「學校費用設定」設定的獎學金金額/幣別（可再手動調整）；審核狀態：待審核→已審核→已匯款（含匯款日期）→結案':
+    'Danh sách được tự động điền ngay khi tạo hồ sơ học viên; số tiền/đơn vị tiền tệ học bổng sẽ tự động điền theo thiết lập ở "Thiết lập chi phí trường học" dựa trên trường của học viên (có thể điều chỉnh lại); trạng thái duyệt: chờ duyệt → đã duyệt → đã chuyển khoản (kèm ngày chuyển khoản) → kết thúc hồ sơ',
   '搜尋學生或學校': 'Tìm theo học viên hoặc trường học',
   '新增獎學金紀錄': 'Thêm hồ sơ học bổng',
   '匯款日期': 'Ngày chuyển khoản',
