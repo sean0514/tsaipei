@@ -124,6 +124,10 @@ export default function ScholarshipsPage() {
     await update(r.id, { closed: !r.closed });
   }
 
+  async function updateField(r, field, value) {
+    await update(r.id, { [field]: value });
+  }
+
   async function handleSave(data) {
     const payload = {
       ...data,
@@ -168,7 +172,7 @@ export default function ScholarshipsPage() {
                   <thead>
                     <tr>
                       <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
-                      <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>
+                      <th>{t('已審核', lang)}</th><th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>
                       <th>{t('台灣給付日期', lang)}</th><th>{t('台灣給付金額', lang)}</th><th>{t('台灣給付幣別', lang)}</th>{canEditPage && <th></th>}
                     </tr>
                   </thead>
@@ -179,13 +183,46 @@ export default function ScholarshipsPage() {
                       return (
                         <tr key={r.id}>
                           <td style={{ fontWeight: 600 }}>{studentLabel(s) || '—'}</td>
-                          <td>{(r.amount || 0).toLocaleString()}</td>
-                          <td>{t(r.currency || DEFAULT_CURRENCY, lang)}</td>
+                          <td>
+                            {canEditPage ? (
+                              <input type="number" value={r.amount || ''} onChange={(e) => updateField(r, 'amount', Number(e.target.value) || 0)} style={{ width: 90 }} />
+                            ) : (r.amount || 0).toLocaleString()}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <select value={r.currency || DEFAULT_CURRENCY} onChange={(e) => updateField(r, 'currency', e.target.value)}>
+                                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                              </select>
+                            ) : t(r.currency || DEFAULT_CURRENCY, lang)}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <input type="checkbox" checked={!!r.approved} onChange={(e) => updateField(r, 'approved', e.target.checked)} />
+                            ) : (r.approved ? t('是', lang) : t('否', lang))}
+                          </td>
                           <td><span className={`tag ${status.cls}`}>{t(status.label, lang)}</span></td>
-                          <td>{r.remittanceDate || '—'}</td>
-                          <td>{r.twPaymentDate || '—'}</td>
-                          <td>{(r.twPaymentAmount || 0).toLocaleString()}</td>
-                          <td>{t(r.twPaymentCurrency || DEFAULT_CURRENCY, lang)}</td>
+                          <td>
+                            {canEditPage ? (
+                              <input type="date" value={r.remittanceDate || ''} onChange={(e) => updateField(r, 'remittanceDate', e.target.value)} />
+                            ) : (r.remittanceDate || '—')}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <input type="date" value={r.twPaymentDate || ''} onChange={(e) => updateField(r, 'twPaymentDate', e.target.value)} />
+                            ) : (r.twPaymentDate || '—')}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <input type="number" value={r.twPaymentAmount || ''} onChange={(e) => updateField(r, 'twPaymentAmount', Number(e.target.value) || 0)} style={{ width: 90 }} />
+                            ) : (r.twPaymentAmount || 0).toLocaleString()}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <select value={r.twPaymentCurrency || DEFAULT_CURRENCY} onChange={(e) => updateField(r, 'twPaymentCurrency', e.target.value)}>
+                                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                              </select>
+                            ) : t(r.twPaymentCurrency || DEFAULT_CURRENCY, lang)}
+                          </td>
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
@@ -252,39 +289,49 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
                 {sortedStudents.map((s) => <option key={s.id} value={s.id}>{studentLabel(s)}{s.school ? `（${s.school}）` : ''}</option>)}
               </select>
             </label>
-            <label>
-              {t('獎學金金額', lang)}
-              <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-            </label>
-            <label>
-              {t('幣別', lang)}
-              <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
-              </select>
-            </label>
-            <label>
-              {t('匯款日期', lang)}
-              <input type="date" value={form.remittanceDate || ''} onChange={(e) => setForm({ ...form, remittanceDate: e.target.value })} />
-            </label>
-            <label>
-              {t('台灣給付日期', lang)}
-              <input type="date" value={form.twPaymentDate || ''} onChange={(e) => setForm({ ...form, twPaymentDate: e.target.value })} />
-            </label>
-            <label>
-              {t('台灣給付金額', lang)}
-              <input type="number" value={form.twPaymentAmount || ''} onChange={(e) => setForm({ ...form, twPaymentAmount: e.target.value })} />
-            </label>
-            <label>
-              {t('台灣給付幣別', lang)}
-              <select value={form.twPaymentCurrency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, twPaymentCurrency: e.target.value })}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
-              </select>
-            </label>
+            {/* 金額/幣別/日期/已審核已經可以直接在列表上編輯（見 ScholarshipsPage
+                的 updateField），新建紀錄時列表上還沒有這一列可以編輯，這裡才需要
+                先填一次；編輯既有紀錄就不重複顯示，避免跟列表上的欄位搞混哪邊才
+                是真的存檔。 */}
+            {!initial.id && (
+              <>
+                <label>
+                  {t('獎學金金額', lang)}
+                  <input type="number" value={form.amount || ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                </label>
+                <label>
+                  {t('幣別', lang)}
+                  <select value={form.currency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                  </select>
+                </label>
+                <label>
+                  {t('匯款日期', lang)}
+                  <input type="date" value={form.remittanceDate || ''} onChange={(e) => setForm({ ...form, remittanceDate: e.target.value })} />
+                </label>
+                <label>
+                  {t('台灣給付日期', lang)}
+                  <input type="date" value={form.twPaymentDate || ''} onChange={(e) => setForm({ ...form, twPaymentDate: e.target.value })} />
+                </label>
+                <label>
+                  {t('台灣給付金額', lang)}
+                  <input type="number" value={form.twPaymentAmount || ''} onChange={(e) => setForm({ ...form, twPaymentAmount: e.target.value })} />
+                </label>
+                <label>
+                  {t('台灣給付幣別', lang)}
+                  <select value={form.twPaymentCurrency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, twPaymentCurrency: e.target.value })}>
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                  </select>
+                </label>
+              </>
+            )}
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-            <input type="checkbox" checked={!!form.approved} onChange={(e) => setForm({ ...form, approved: e.target.checked })} />
-            {t('已審核', lang)}
-          </label>
+          {!initial.id && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+              <input type="checkbox" checked={!!form.approved} onChange={(e) => setForm({ ...form, approved: e.target.checked })} />
+              {t('已審核', lang)}
+            </label>
+          )}
           <label style={{ display: 'block', marginTop: 8 }}>
             {t('備註', lang)}
             <textarea rows={3} value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ marginBottom: 16 }} />
