@@ -98,6 +98,16 @@ export const NAV_ICONS = {
     bonus: '◈',
     internalBonusRateSetup: '⚙',
   },
+  indonesia: {
+    visaProcessing: '🛂',
+    departureTransport: '🛫',
+    companyNameTranslations: '🔤',
+    meetings: '✎',
+    scholarships: '🎓',
+    schoolSetup: '🏫',
+    bonus: '◈',
+    internalBonusRateSetup: '⚙',
+  },
   laborAgency: {
     dashboard: '◆',
     resumeLinks: '📋',

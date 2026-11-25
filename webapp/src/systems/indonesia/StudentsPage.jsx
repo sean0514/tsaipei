@@ -1,0 +1,518 @@
+import { useRef, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../../firebase';
+import { useCollection } from '../../lib/useCollection';
+import { canEdit as computeCanEdit } from '../../lib/permissions';
+import Tag from '../../components/Tag';
+import { STUDENT_TAG } from '../../lib/tags';
+import ImportExportButtons from '../../components/ImportExportButtons';
+import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { t } from '../../lib/i18n';
+import { tsaipeiStudentFields, createSyncedTsaipeiStudent } from '../../lib/indonesiaTsaipeiStudentSync';
+import { translateViToZh } from '../../lib/translate';
+
+// Ported 1:1 from apps-script/Index.html STUDENT_STATUS.
+const STUDENT_STATUS = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
+const CERT_LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const DESIRED_INDUSTRY_PRESETS = ['餐飲業', '旅館業', '製造業', '服務業', '物流業'];
+const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
+const NO_INDUSTRY_KEY = '未填期望產業別';
+
+// 年齡用年份直接相減估算（現在年份－出生年份），不是精確到生日當天的
+// 歲數，跟 tsaipei 系統 StudentsPage.jsx 同一套簡化算法。
+function ageFromBirthDate(birthDate) {
+  if (!birthDate) return null;
+  const birthYear = parseInt(birthDate.slice(0, 4), 10);
+  if (!birthYear) return null;
+  return new Date().getFullYear() - birthYear;
+}
+
+// 舊資料（Excel 遷移進來的、CSV 匯入覆蓋的）沒有 createdAt，顯示「—」，
+// 不是程式漏存。
+function formatCreatedAt(r) {
+  const d = r.createdAt?.toDate?.();
+  if (!d) return '—';
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// 期望產業別存成 JSON 字串陣列（跟 PositionsPage.jsx 的 otherBenefits 同一套
+// 存法），可複選預設的五個產業，也可以自行新增項目；不是合法 JSON（例如
+// 舊資料是單一文字）就當成一個項目處理。
+function parseList(json) {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (Array.isArray(arr)) return arr;
+  } catch { /* 不是 JSON，當作舊版單一文字欄位處理 */ }
+  return [json];
+}
+
+// 欄位跟公開線上履歷填寫頁面（pages/IndonesiaResumeApplyPage.jsx，依「外國籍
+// 學生基本資料表」製作）一模一樣，這樣履歷轉入學生資料時欄位能直接對應。
+// 多保留 status/sourceSupplier 這兩個履歷表沒有的欄位——這兩個是系統運作
+// 必要的操作性欄位（status 給主管報表/儀表板算狀態統計、媒合流程用；
+// sourceSupplier 給國外補助申請篩選學生來源用），拿掉會讓其他頁面壞掉，
+// 不是履歷表「個人資料」的一部分，所以不跟著改。
+// 注意：InternshipDocsPage.jsx 原本會同步寫入 langProofStatus/passportCopy/
+// enrollProofStatus/extensionNeeded/extensionProof/nightInternshipDoc 這幾個
+// 舊欄位到學生資料，這裡拿掉後那幾個寫入動作還是會成功（Firestore 沒有
+// schema 限制），只是變成這個頁面看不到、也不會再用到的欄位，不影響
+// InternshipDocsPage 本身的文件追蹤功能。
+// schoolZh/departmentZh/workExperienceZh 是額外加的中文翻譯欄位（履歷表
+// 沒有這三個），因為學生自己填的這幾個自由文字欄位是印尼文，中文人員看
+// 不懂；FIELDS 裡用 translateFrom 指向印尼文原始欄位，離開（blur）印尼文
+// 原始欄位時會自動翻譯填入對應的中文欄位（見 lib/translate.js 與下面的
+// TRANSLATE_TARGET_BY_SOURCE），不需要手動按按鈕，翻譯結果也可以手動微調、
+// 不會覆蓋印尼文原文。
+const FIELDS = [
+  { key: 'originalName', label: '英文姓名（與護照相符）', required: true },
+  { key: 'chineseName', label: '中文姓名' },
+  { key: 'indonesiaPhone', label: '印尼電話' },
+  { key: 'photoUrl', label: '大頭貼', type: 'photo' },
+  { key: 'hasPassport', label: '是否有護照', options: ['', 'Yes', 'No'] },
+  { key: 'passportNumber', label: '護照號碼', visibleIf: (f) => f.hasPassport === 'Yes' },
+  { key: 'passportPhotoUrl', label: '護照照片', type: 'photo', visibleIf: (f) => f.hasPassport === 'Yes' },
+  { key: 'gender', label: '性別', options: ['', '男', '女'] },
+  { key: 'birthDate', label: '出生日期', type: 'date' },
+  { key: 'nationality', label: '國籍' },
+  { key: 'height', label: '身高(cm)', type: 'number' },
+  { key: 'weight', label: '體重(kg)', type: 'number' },
+  { key: 'school', label: '就讀學校' },
+  { key: 'schoolZh', label: '就讀學校（中文翻譯）', translateFrom: 'school' },
+  { key: 'enrollDate', label: '入學日期', type: 'date' },
+  { key: 'programYears', label: '學制（年）', type: 'number' },
+  { key: 'department', label: '科系' },
+  { key: 'departmentZh', label: '科系（中文翻譯）', translateFrom: 'department' },
+  { key: 'expectedGraduation', label: '預計畢業時間', type: 'date' },
+  { key: 'hasCert', label: '是否有華語證照', options: ['', '有', '已考試未領取證照', '無'] },
+  { key: 'certType', label: '證照類別', options: ['', 'TOCFL', 'TOEIC'], visibleIf: (f) => f.hasCert === '有' || f.hasCert === '已考試未領取證照' },
+  { key: 'certLevel', label: '等級', options: ['', ...CERT_LEVELS], visibleIf: (f) => f.hasCert === '有' || f.hasCert === '已考試未領取證照' },
+  { key: 'certPickupDate', label: '證照領取日期', type: 'date', visibleIf: (f) => f.hasCert === '已考試未領取證照' },
+  { key: 'expectedExamDate', label: '預計考試日期', type: 'date', visibleIf: (f) => f.hasCert === '無' },
+  { key: 'workExperience', label: '工作經驗', type: 'textarea' },
+  { key: 'workExperienceZh', label: '工作經驗（中文翻譯）', type: 'textarea', translateFrom: 'workExperience' },
+  { key: 'desiredIndustries', label: '期望產業別', type: 'multiselect', options: DESIRED_INDUSTRY_PRESETS },
+  // 期望實習單位可以填多筆，沒有預設選項，純粹自行輸入多個項目——跟
+  // desiredIndustries 共用同一套 MultiSelectEditor（options 傳空陣列即可），
+  // 一樣存成 JSON 字串陣列。
+  { key: 'desiredCompany', label: '期望實習單位', type: 'multiselect', options: [] },
+  // 內部獎金計算讀取的角色指派——這 5 個角色改成每位學生各自指派（取代
+  // 原本在「實習單位」(PositionsPage.jsx) 層級指派的做法），學生安排「印尼
+  // 送機行程」後，依這位學生就讀學校在「內部獎金設定」設定的月費率一次性
+  // 計算，詳見 lib/indonesiaBonus.js。
+  { key: 'assignedBizDev', label: '開發業務', type: 'staff' },
+  { key: 'assignedAdminSupervisor', label: '行政主管', type: 'staff' },
+  { key: 'assignedAdminRecruit', label: '行政招募', type: 'staff' },
+  { key: 'assignedAdminVisa', label: '行政簽證', type: 'staff' },
+  { key: 'assignedFieldStaff', label: '外務人員', type: 'staff' },
+  { key: 'status', label: '狀態' },
+  { key: 'sourceSupplier', label: '學生來源(國外供應商)' },
+];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'confirmedClosed', label: '結案' }];
+
+// key = 印尼文原始欄位、value = 對應的中文翻譯欄位；自動翻譯不需要按鈕，
+// 離開（blur）印尼文欄位時就自動翻成中文填入對應欄位，翻譯結果仍可手動
+// 微調（只要不再回去改印尼文原文並離開欄位，微調後的內容就不會被覆蓋）。
+const TRANSLATE_TARGET_BY_SOURCE = {};
+FIELDS.forEach((f) => { if (f.translateFrom) TRANSLATE_TARGET_BY_SOURCE[f.translateFrom] = f.key; });
+
+// 複製自 systems/tsaipei/StudentsPage.jsx，collection 字首改成 indonesia_，
+// 介面文字（標題/按鈕/欄位標籤/表格欄位）包上 t(...) 依語言切換顯示；下拉
+// 選單的選項值（國籍/性別等）維持中文儲存，不在這個分頁翻譯顯示文字。
+export default function StudentsPage() {
+  const { system, role, overrides, lang } = useOutletContext();
+  const canEditPage = computeCanEdit(system, 'students', role, overrides);
+  const { rows, loading, add, update, remove } = useCollection('indonesia_students');
+  const { rows: users } = useCollection('indonesia_users');
+  const [editing, setEditing] = useState(null); // null = closed, {} = new, {...} = editing
+  const [q, setQ] = useState('');
+
+  const sorted = [...rows].sort((a, b) => {
+    const at = a.createdAt?.toMillis?.() ?? 0;
+    const bt = b.createdAt?.toMillis?.() ?? 0;
+    if (at !== bt) return bt - at;
+    return (a.chineseName || '').localeCompare(b.chineseName || '');
+  });
+  const filtered = sorted
+    .filter((r) => !r.confirmedClosed)
+    .filter((r) => !q || [r.chineseName, r.originalName, r.school, r.nationality].some((v) => v?.includes(q)));
+  const { handleExport, handleImport } = useCsvOverwrite('indonesia_students', CSV_FIELDS, { entityLabel: '學生資料', canEdit: canEditPage });
+
+  // 依期望產業別分類顯示；一位學生可以複選多個產業別，就會同時出現在對應
+  // 的每一組（跟 UnmatchedStudentsPage.jsx 依國籍分組同一套模式），沒有填
+  // 期望產業別的學生統一歸到「未填期望產業別」這組。
+  const industryGroups = {};
+  filtered.forEach((r) => {
+    const industries = parseList(r.desiredIndustries);
+    (industries.length ? industries : [NO_INDUSTRY_KEY]).forEach((ind) => {
+      (industryGroups[ind] ||= []).push(r);
+    });
+  });
+  const industryGroupKeys = Object.keys(industryGroups).sort((a, b) => {
+    if (a === NO_INDUSTRY_KEY) return 1;
+    if (b === NO_INDUSTRY_KEY) return -1;
+    return a.localeCompare(b);
+  });
+
+  async function handleSave(data) {
+    try {
+      if (data.id) {
+        const { id, ...rest } = data;
+        await update(id, rest);
+        if (rest.syncedTsaipeiStudentId) {
+          await updateDoc(doc(db, 'tsaipei_students', rest.syncedTsaipeiStudentId), tsaipeiStudentFields(rest));
+        }
+      } else {
+        const ref = await add({ ...data, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'indonesia_matches'), {
+          studentId: ref.id, positionId: '', status: '媒合中', matchDate: '', notes: '（系統依學生建檔自動建立）', createdAt: serverTimestamp(),
+        });
+        // 同步建立一筆對應的境外生實習系統學生資料，見 lib/indonesiaTsaipeiStudentSync.js。
+        const tsaipeiStudentId = await createSyncedTsaipeiStudent(ref.id, data);
+        await update(ref.id, { syncedTsaipeiStudentId: tsaipeiStudentId });
+      }
+      setEditing(null);
+    } catch (err) {
+      alert(`存檔失敗：${err.message || err}`);
+    }
+  }
+
+  // 同步刪除連動到境外生實習系統的那筆學生資料，連鎖刪除範圍完全比照
+  // tsaipei/StudentsPage.jsx 自己的 handleDelete（deleteStudent() 邏輯）。
+  async function deleteSyncedTsaipeiStudent(tsaipeiStudentId) {
+    const matchesSnap = await getDocs(query(collection(db, 'tsaipei_matches'), where('studentId', '==', tsaipeiStudentId)));
+    const matchIds = matchesSnap.docs.map((d) => d.id);
+    const dependentSnaps = await Promise.all([
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      matchIds.length ? getDocs(query(collection(db, 'tsaipei_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+      getDocs(query(collection(db, 'tsaipei_internshipDocs'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_applicationProgress'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', tsaipeiStudentId))),
+      getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', tsaipeiStudentId))),
+      // 印尼系統的「印尼簽證辦理」(indonesia_visaProcessing) 是從境外生實習
+      // 系統的「申辦進度追蹤」連動建立的，studentId 存的是這裡的
+      // tsaipeiStudentId，不是印尼系統自己的學生 id（見
+      // tsaipei/ApplicationProgressPage.jsx 的 handleSave）——這筆境外生
+      // 學生資料被刪除時，連動建立的印尼簽證辦理紀錄也要一併清掉，不留著
+      // 一筆對應不到學生的孤兒資料。
+      getDocs(query(collection(db, 'indonesia_visaProcessing'), where('studentId', '==', tsaipeiStudentId))),
+    ]);
+    const refs = [
+      ...matchesSnap.docs.map((d) => d.ref),
+      ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+    ];
+    for (let i = 0; i < refs.length; i += 450) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, 'tsaipei_students', tsaipeiStudentId));
+  }
+
+  async function handleDelete(studentId) {
+    if (!window.confirm('確定要刪除這位學生嗎？')) return;
+    try {
+      const student = rows.find((r) => r.id === studentId);
+      const matchesSnap = await getDocs(query(collection(db, 'indonesia_matches'), where('studentId', '==', studentId)));
+      const matchIds = matchesSnap.docs.map((d) => d.id);
+      const dependentSnaps = await Promise.all([
+        matchIds.length ? getDocs(query(collection(db, 'indonesia_secondInterviews'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        matchIds.length ? getDocs(query(collection(db, 'indonesia_admittedList'), where('matchId', 'in', matchIds.slice(0, 30)))) : null,
+        getDocs(query(collection(db, 'indonesia_internshipDocs'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_applicationProgress'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_housingRecords'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_inTaiwanVisa'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_inTaiwanCare'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_departureTransport'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_vehicleArrangements'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_bankAccountProgress'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'indonesia_studentBillingPayments'), where('studentId', '==', studentId))),
+      ]);
+      const refs = [
+        ...matchesSnap.docs.map((d) => d.ref),
+        ...dependentSnaps.flatMap((snap) => (snap ? snap.docs.map((d) => d.ref) : [])),
+      ];
+      for (let i = 0; i < refs.length; i += 450) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+      // 「履歷表連結」(ResumeLinksPage.jsx) 轉入學生資料後，履歷紀錄本身會
+      // 留著（代表「收到過這份履歷」的歷史，不是單純的學生資料指標），只
+      // 記住對應的 studentId/processedAt 避免重複轉入。學生被刪除後，這筆
+      // 履歷不刪除，但要把 studentId/processedAt 清掉退回「待處理」，不然
+      // 會永遠卡在「已轉入」、指著一個不存在的學生，也沒辦法重新轉入。
+      const resumeSubmissionsSnap = await getDocs(query(collection(db, 'indonesia_resumeSubmissions'), where('studentId', '==', studentId)));
+      for (let i = 0; i < resumeSubmissionsSnap.docs.length; i += 450) {
+        const batch = writeBatch(db);
+        resumeSubmissionsSnap.docs.slice(i, i + 450).forEach((d) => batch.update(d.ref, { studentId: '', processedAt: null }));
+        await batch.commit();
+      }
+      await remove(studentId);
+      if (student?.syncedTsaipeiStudentId) {
+        await deleteSyncedTsaipeiStudent(student.syncedTsaipeiStudentId);
+      }
+    } catch (err) {
+      alert(`刪除失敗：${err.message || err}`);
+    }
+  }
+
+  return (
+    <div className="content">
+      <div className="page-header">
+        <div>
+          <h2>{t('學生資料', lang)}</h2>
+          <div className="page-desc">{t('管理來台實習之國際學生基本資料與狀態，欄位比照外國籍學生基本資料表', lang)}{!canEditPage && `（${t('唯讀', lang)}）`}</div>
+        </div>
+        <div className="row-actions">
+          {canEditPage && <button className="primary" onClick={() => setEditing({ status: STUDENT_STATUS[0] })}>+ {t('新增學生', lang)}</button>}
+          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+        </div>
+      </div>
+      {canEditPage && <p className="split-note">{t('「匯入資料」欄位需與「下載完整資料」的 CSV 欄位一致；上傳後會完全取代目前所有學生資料，請先下載備份再匯入。', lang)}</p>}
+      <input placeholder={t('搜尋姓名/學校/國籍', lang)} value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
+        filtered.length === 0 ? <p className="muted">{t('沒有資料', lang)}</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {industryGroupKeys.map((key) => (
+              <div className="card" key={key} style={{ overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0 }}>
+                  {key === NO_INDUSTRY_KEY ? t(NO_INDUSTRY_KEY, lang) : t(key, lang)}{' '}
+                  <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{industryGroups[key].length} {t('位學生', lang)}</span>
+                </h3>
+                <div className="table-wrap"><table>
+                  <thead>
+                    <tr>
+                      <th>{t('姓名', lang)} / {t('國籍', lang)}</th><th>{t('年齡', lang)}</th><th>{t('就讀學校', lang)} / {t('科系', lang)}</th><th>{t('性別', lang)}</th><th>{t('是否有華語證照', lang)}</th><th>{t('期望產業別', lang)}</th><th>{t('期望實習單位', lang)}</th><th>{t('狀態', lang)}</th><th>{t('建立時間', lang)}</th>
+                      {canEditPage && <th></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {industryGroups[key].map((r) => (
+                      <tr key={r.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{r.chineseName}{r.originalName ? `（${r.originalName}）` : ''}</div>
+                          <div className="muted" style={{ fontSize: 12 }}>{r.nationality || '—'}</div>
+                        </td>
+                        <td>{ageFromBirthDate(r.birthDate) ?? '—'}</td>
+                        <td>
+                          {r.school || '—'}{r.schoolZh ? `（${r.schoolZh}）` : ''}
+                          <div className="muted" style={{ fontSize: 12 }}>{r.department || ''}{r.departmentZh ? `（${r.departmentZh}）` : ''}</div>
+                        </td>
+                        <td>{r.gender || '—'}</td>
+                        <td>{r.hasCert && r.hasCert !== '無' ? `${r.hasCert}${r.certType ? `（${r.certType} ${r.certLevel || ''}）` : ''}` : (r.hasCert === '無' ? t('無', lang) : '—')}</td>
+                        <td>{parseList(r.desiredIndustries).map((v) => t(v, lang)).join('、') || '—'}</td>
+                        <td>{parseList(r.desiredCompany).join('、') || '—'}</td>
+                        <td><Tag value={r.status} map={STUDENT_TAG} lang={lang} /></td>
+                        <td className="muted">{formatCreatedAt(r)}</td>
+                        {canEditPage && (
+                          <td>
+                            <div className="row-actions">
+                              <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                              <button className="danger" onClick={() => handleDelete(r.id)}>{t('刪除', lang)}</button>
+                              <button onClick={() => update(r.id, { confirmedClosed: true })}>{t('結案', lang)}</button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+      {editing && (
+        <StudentFormModal initial={editing} onCancel={() => setEditing(null)} onSave={handleSave} lang={lang} users={users} />
+      )}
+    </div>
+  );
+}
+
+async function uploadStudentPhoto(file, prefix) {
+  const path = `indonesia_resumePhotos/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
+// 複選預設選項＋自行新增項目：checkbox 勾選預設選項，額外加過的自訂項目
+// 也會各自顯示成一個可勾選/移除的項目，整組存回 JSON 陣列字串。
+function MultiSelectEditor({ value, options, onChange, lang }) {
+  const [newItem, setNewItem] = useState('');
+  const selected = parseList(value);
+  const extraItems = selected.filter((v) => !options.includes(v));
+
+  function toggle(item) {
+    if (selected.includes(item)) onChange(selected.filter((v) => v !== item));
+    else onChange([...selected, item]);
+  }
+  function addCustom() {
+    const text = newItem.trim();
+    if (!text || selected.includes(text)) return;
+    onChange([...selected, text]);
+    setNewItem('');
+  }
+  function removeCustom(item) {
+    onChange(selected.filter((v) => v !== item));
+  }
+
+  return (
+    <div>
+      <div className="row-actions" style={{ flexWrap: 'wrap' }}>
+        {[...options, ...extraItems].map((item) => (
+          <label key={item} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+            <input type="checkbox" checked={selected.includes(item)} onChange={() => toggle(item)} />
+            {t(item, lang)}
+            {!options.includes(item) && (
+              <button type="button" className="danger small" onClick={() => removeCustom(item)}>×</button>
+            )}
+          </label>
+        ))}
+      </div>
+      <div className="row-actions" style={{ marginTop: 8 }}>
+        <input
+          placeholder={t('輸入自訂項目', lang)}
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          style={{ flex: 1 }}
+        />
+        <button type="button" onClick={addCustom}>+ {t('新增項目', lang)}</button>
+      </div>
+    </div>
+  );
+}
+
+function StudentFormModal({ initial, onCancel, onSave, lang, users }) {
+  const [form, setForm] = useState(initial);
+  const staffOptions = [...new Set((users || []).map((u) => u.displayName || u.email).filter(Boolean))].sort();
+  const [uploadingKey, setUploadingKey] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const [translatingKey, setTranslatingKey] = useState(null);
+  const [translateError, setTranslateError] = useState('');
+  const lastTranslatedSource = useRef({});
+
+  async function handleTranslate(key, fromKey, sourceValue) {
+    const source = sourceValue ?? form[fromKey];
+    if (!source || !source.trim()) return;
+    if (lastTranslatedSource.current[key] === source) return;
+    lastTranslatedSource.current[key] = source;
+    setTranslateError('');
+    setTranslatingKey(key);
+    try {
+      const result = await translateViToZh(source);
+      setForm((f) => ({ ...f, [key]: result }));
+    } catch (err) {
+      setTranslateError(`${t('機器翻譯失敗', lang)}：${err.message || err}`);
+    } finally {
+      setTranslatingKey(null);
+    }
+  }
+
+  async function handlePhotoChange(key, e) {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    setUploadError('');
+    if (file.size > MAX_PHOTO_SIZE) {
+      setUploadError(t('照片檔案太大（上限 3MB）', lang));
+      e.target.value = '';
+      return;
+    }
+    setUploadingKey(key);
+    try {
+      const url = await uploadStudentPhoto(file, key);
+      setForm((f) => ({ ...f, [key]: url }));
+    } catch (err) {
+      setUploadError(`${t('上傳失敗', lang)}：${err.message || err}`);
+    } finally {
+      setUploadingKey(null);
+      e.target.value = '';
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{initial.id ? t('編輯學生', lang) : t('新增學生', lang)}</h3>
+        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+          <div className="form-grid">
+            {FIELDS.filter((f) => !f.visibleIf || f.visibleIf(form)).map((f) => (
+              <label key={f.key} style={f.translateFrom && f.type === 'textarea' ? { gridColumn: 'span 2' } : undefined}>
+                {t(f.label, lang)}
+                {f.key === 'status' ? (
+                  <select value={form.status || STUDENT_STATUS[0]} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    {STUDENT_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : f.type === 'photo' ? (
+                  <div>
+                    {form[f.key] && <img src={form[f.key]} alt="" style={{ width: 90, height: 90, objectFit: 'cover', display: 'block', marginBottom: 6 }} />}
+                    <input type="file" accept="image/*" onChange={(e) => handlePhotoChange(f.key, e)} disabled={uploadingKey === f.key} />
+                    {uploadingKey === f.key && <div className="muted">{t('上傳中…', lang)}</div>}
+                  </div>
+                ) : f.translateFrom ? (
+                  <div>
+                    {f.type === 'textarea' ? (
+                      <textarea rows={4} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                    ) : (
+                      <input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                    )}
+                    {translatingKey === f.key && <div className="muted">{t('翻譯中…', lang)}</div>}
+                  </div>
+                ) : f.type === 'textarea' ? (
+                  <textarea
+                    rows={4}
+                    value={form[f.key] || ''}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    onBlur={(e) => { if (TRANSLATE_TARGET_BY_SOURCE[f.key]) handleTranslate(TRANSLATE_TARGET_BY_SOURCE[f.key], f.key, e.target.value); }}
+                  />
+                ) : f.type === 'multiselect' ? (
+                  <MultiSelectEditor
+                    value={form[f.key]}
+                    options={f.options}
+                    onChange={(next) => setForm({ ...form, [f.key]: JSON.stringify(next) })}
+                    lang={lang}
+                  />
+                ) : f.type === 'staff' ? (
+                  <>
+                    <input
+                      list={`${f.key}-options`}
+                      value={form[f.key] || ''}
+                      placeholder={t('選擇或自行輸入姓名', lang)}
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    />
+                    <datalist id={`${f.key}-options`}>
+                      {staffOptions.map((o) => <option key={o} value={o} />)}
+                    </datalist>
+                  </>
+                ) : f.options ? (
+                  <select value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    {f.options.map((o) => <option key={o} value={o}>{o || t('請選擇', lang)}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type={f.type || 'text'}
+                    required={f.required}
+                    value={form[f.key] || ''}
+                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    onBlur={(e) => { if (TRANSLATE_TARGET_BY_SOURCE[f.key]) handleTranslate(TRANSLATE_TARGET_BY_SOURCE[f.key], f.key, e.target.value); }}
+                  />
+                )}
+              </label>
+            ))}
+          </div>
+          {uploadError && <div className="error-text">{uploadError}</div>}
+          {translateError && <div className="error-text">{translateError}</div>}
+          <div className="row-actions">
+            <button type="submit" className="primary" disabled={!!uploadingKey}>{t('儲存', lang)}</button>
+            <button type="button" onClick={onCancel}>{t('取消', lang)}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

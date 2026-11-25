@@ -2,8 +2,10 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
+import IndonesiaLoginPage from './pages/IndonesiaLoginPage';
 import DispatchApplyPage from './pages/DispatchApplyPage';
 import VietnamResumeApplyPage from './pages/VietnamResumeApplyPage';
+import IndonesiaResumeApplyPage from './pages/IndonesiaResumeApplyPage';
 import LaborAgencyResumeApplyPage from './pages/LaborAgencyResumeApplyPage';
 import MonthlyVisitFormPage from './pages/MonthlyVisitFormPage';
 import JunyuCompanySitePage from './pages/JunyuCompanySitePage';
@@ -115,6 +117,40 @@ import VietnamStudentSelfPayHousingPage from './systems/vietnam/StudentSelfPayHo
 import VietnamStudentMasterSheetPage from './systems/vietnam/StudentMasterSheetPage';
 import VietnamDormProfitLossPage from './systems/vietnam/DormProfitLossPage';
 import VietnamStudentBillingPage from './systems/vietnam/StudentBillingPage';
+import IndonesiaDashboardPage from './systems/indonesia/DashboardPage';
+import IndonesiaStudentsPage from './systems/indonesia/StudentsPage';
+import IndonesiaResumeLinksPage from './systems/indonesia/ResumeLinksPage';
+import IndonesiaPositionsPage from './systems/indonesia/PositionsPage';
+import IndonesiaMatchesPage from './systems/indonesia/MatchesPage';
+import IndonesiaSecondInterviewsPage from './systems/indonesia/SecondInterviewsPage';
+import IndonesiaAdmittedListPage from './systems/indonesia/AdmittedListPage';
+import IndonesiaVisaReminderPage from './systems/indonesia/VisaReminderPage';
+import IndonesiaVisaProcessingPage from './systems/indonesia/VisaProcessingPage';
+import IndonesiaInternshipDocsPage from './systems/indonesia/InternshipDocsPage';
+import IndonesiaApplicationProgressPage from './systems/indonesia/ApplicationProgressPage';
+import IndonesiaInTaiwanCarePage from './systems/indonesia/InTaiwanCarePage';
+import IndonesiaExpectedArrivalPage from './systems/indonesia/ExpectedArrivalPage';
+import IndonesiaDepartureTransportPage from './systems/indonesia/DepartureTransportPage';
+import IndonesiaBankAccountProgressPage from './systems/indonesia/BankAccountProgressPage';
+import IndonesiaVehiclePickupPage from './systems/indonesia/VehiclePickupPage';
+import IndonesiaHousingPage from './systems/indonesia/HousingPage';
+import IndonesiaDormManagementPage from './systems/indonesia/DormManagementPage';
+import IndonesiaCustomerServicePendingPage from './systems/indonesia/CustomerServicePendingPage';
+import IndonesiaAdminPendingPage from './systems/indonesia/AdminPendingPage';
+import IndonesiaPositionBenefitsPage from './systems/indonesia/PositionBenefitsPage';
+import IndonesiaCompanyNameTranslationsPage from './systems/indonesia/CompanyNameTranslationsPage';
+import IndonesiaMeetingsPage from './systems/indonesia/MeetingsPage';
+import IndonesiaClosedCasesPage from './systems/indonesia/ClosedCasesPage';
+import IndonesiaManagerReportPage from './systems/indonesia/ManagerReportPage';
+import IndonesiaUnmatchedStudentsPage from './systems/indonesia/UnmatchedStudentsPage';
+import IndonesiaSchoolSetupPage from './systems/indonesia/SchoolSetupPage';
+import IndonesiaBonusPage from './systems/indonesia/BonusPage';
+import IndonesiaInternalBonusRateSetupPage from './systems/indonesia/InternalBonusRateSetupPage';
+import IndonesiaScholarshipsPage from './systems/indonesia/ScholarshipsPage';
+import IndonesiaStudentSelfPayHousingPage from './systems/indonesia/StudentSelfPayHousingPage';
+import IndonesiaStudentMasterSheetPage from './systems/indonesia/StudentMasterSheetPage';
+import IndonesiaDormProfitLossPage from './systems/indonesia/DormProfitLossPage';
+import IndonesiaStudentBillingPage from './systems/indonesia/StudentBillingPage';
 import LaborAgencyDashboardPage from './systems/laborAgency/DashboardPage';
 import LaborAgencyWorkersPage from './systems/laborAgency/WorkersPage';
 import LaborAgencyEmployersPage from './systems/laborAgency/EmployersPage';
@@ -290,6 +326,44 @@ const PAGES = {
     studentBilling: VietnamStudentBillingPage,
     users: UsersPage,
   },
+  // 印尼實習生系統：複製越南系統(vietnam)架構（對照 Layout.jsx 的 IMPLEMENTED_MODULES.indonesia）。
+  indonesia: {
+    dashboard: IndonesiaDashboardPage,
+    students: IndonesiaStudentsPage,
+    resumeLinks: IndonesiaResumeLinksPage,
+    positions: IndonesiaPositionsPage,
+    matches: IndonesiaMatchesPage,
+    secondInterview: IndonesiaSecondInterviewsPage,
+    admitted: IndonesiaAdmittedListPage,
+    visaReminder: IndonesiaVisaReminderPage,
+    visaProcessing: IndonesiaVisaProcessingPage,
+    internshipDocs: IndonesiaInternshipDocsPage,
+    applicationProgress: IndonesiaApplicationProgressPage,
+    inTaiwanCare: IndonesiaInTaiwanCarePage,
+    expectedArrival: IndonesiaExpectedArrivalPage,
+    departureTransport: IndonesiaDepartureTransportPage,
+    bankAccountProgress: IndonesiaBankAccountProgressPage,
+    vehiclePickup: IndonesiaVehiclePickupPage,
+    housing: IndonesiaHousingPage,
+    dormManagement: IndonesiaDormManagementPage,
+    customerServicePending: IndonesiaCustomerServicePendingPage,
+    adminPending: IndonesiaAdminPendingPage,
+    benefits: IndonesiaPositionBenefitsPage,
+    companyNameTranslations: IndonesiaCompanyNameTranslationsPage,
+    meetings: IndonesiaMeetingsPage,
+    closedCases: IndonesiaClosedCasesPage,
+    managerReport: IndonesiaManagerReportPage,
+    unmatchedStudents: IndonesiaUnmatchedStudentsPage,
+    schoolSetup: IndonesiaSchoolSetupPage,
+    bonus: IndonesiaBonusPage,
+    internalBonusRateSetup: IndonesiaInternalBonusRateSetupPage,
+    scholarships: IndonesiaScholarshipsPage,
+    studentSelfPayHousing: IndonesiaStudentSelfPayHousingPage,
+    studentMasterSheet: IndonesiaStudentMasterSheetPage,
+    dormProfitLoss: IndonesiaDormProfitLossPage,
+    studentBilling: IndonesiaStudentBillingPage,
+    users: UsersPage,
+  },
   laborAgency: {
     dashboard: LaborAgencyDashboardPage,
     resumeLinks: LaborAgencyResumeLinksPage,
@@ -344,8 +418,10 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/login/indonesia" element={<IndonesiaLoginPage />} />
         <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
         <Route path="/apply/vietnam" element={<VietnamResumeApplyPage />} />
+        <Route path="/apply/indonesia" element={<IndonesiaResumeApplyPage />} />
         <Route path="/apply/laborAgency" element={<LaborAgencyResumeApplyPage />} />
         <Route path="/apply/visitRecord/:studentId/:month/:role" element={<MonthlyVisitFormPage />} />
         <Route path="/about" element={<JunyuCompanySitePage />} />
