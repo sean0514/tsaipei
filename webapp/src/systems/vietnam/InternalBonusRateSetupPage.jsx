@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -6,6 +6,8 @@ import { VN_RATE_ROLE_KEYS, VN_RATE_ROLE_LABELS } from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
 const RATE_FIELDS = VN_RATE_ROLE_KEYS.map((key, i) => ({ key, label: VN_RATE_ROLE_LABELS[i] }));
+const CURRENCIES = ['新台幣', '美金', '越盾'];
+const DEFAULT_CURRENCY = '新台幣';
 
 // 內部獎金的角色費率設定——依學校分類，每所學校各自一筆開發業務/行政主管/
 // 行政招募/行政簽證/外務人員月費率，學校清單沿用「學校費用設定」
@@ -30,7 +32,10 @@ export default function InternalBonusRateSetupPage() {
       await update(id, rest);
     } else {
       const payload = { school: data.school };
-      RATE_FIELDS.forEach((f) => { payload[f.key] = Number(data[f.key]) || 0; });
+      RATE_FIELDS.forEach((f) => {
+        payload[f.key] = Number(data[f.key]) || 0;
+        payload[`${f.key}Currency`] = data[`${f.key}Currency`] || DEFAULT_CURRENCY;
+      });
       await add(payload);
     }
     setEditing(null);
@@ -56,7 +61,12 @@ export default function InternalBonusRateSetupPage() {
               <thead>
                 <tr>
                   <th>{t('學校', lang)}</th>
-                  {RATE_FIELDS.map((f) => <th key={f.key}>{t(f.label, lang)}</th>)}
+                  {RATE_FIELDS.map((f) => (
+                    <Fragment key={f.key}>
+                      <th>{t(f.label, lang)}</th>
+                      <th>{t('幣別', lang)}</th>
+                    </Fragment>
+                  ))}
                   {canEditPage && <th></th>}
                 </tr>
               </thead>
@@ -64,7 +74,12 @@ export default function InternalBonusRateSetupPage() {
                 {sortedRows.map((r) => (
                   <tr key={r.id}>
                     <td style={{ fontWeight: 600 }}>{r.school}</td>
-                    {RATE_FIELDS.map((f) => <td key={f.key}>{(r[f.key] || 0).toLocaleString()}</td>)}
+                    {RATE_FIELDS.map((f) => (
+                      <Fragment key={f.key}>
+                        <td>{(r[f.key] || 0).toLocaleString()}</td>
+                        <td>{t(r[`${f.key}Currency`] || DEFAULT_CURRENCY, lang)}</td>
+                      </Fragment>
+                    ))}
                     {canEditPage && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
@@ -103,10 +118,18 @@ function RateFormModal({ initial, schoolOptions, onCancel, onSave, lang }) {
               </select>
             </label>
             {RATE_FIELDS.map((f) => (
-              <label key={f.key}>
-                {t(f.label, lang)}（{t('每月', lang)}）
-                <input type="number" min="0" value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
-              </label>
+              <Fragment key={f.key}>
+                <label>
+                  {t(f.label, lang)}（{t('每月', lang)}）
+                  <input type="number" min="0" value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                </label>
+                <label>
+                  {t(f.label, lang)}{t('幣別', lang)}
+                  <select value={form[`${f.key}Currency`] || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, [`${f.key}Currency`]: e.target.value })}>
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+                  </select>
+                </label>
+              </Fragment>
             ))}
           </div>
           <div className="row-actions" style={{ marginTop: 12 }}>
