@@ -6,7 +6,8 @@ export const COMPANIES = {
   chenwei: { label: '宸暐企業有限公司', icon: '🏢', systems: ['dispatch'] },
   finance: { label: '財務專用系統', icon: '💰', systems: ['dormMgmt'] },
   yujian: { label: '聿見國際有限公司', icon: '🤝', systems: ['yujian'] },
-  yuankai: { label: '元凱貿易及人力資源有限公司', icon: '🇻🇳', systems: ['vietnam', 'indonesia', 'laborAgency'] },
+  yuankai: { label: '元凱貿易及人力資源有限公司', icon: '🇻🇳', systems: ['vietnam', 'laborAgency'] },
+  indonesia: { label: '印尼實習生管理系統', icon: '🇮🇩', systems: ['indonesia'] },
 };
 
 export function companyKeyForSystem(systemKey) {
