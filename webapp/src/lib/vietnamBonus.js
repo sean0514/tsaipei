@@ -16,6 +16,20 @@ export const VN_RATE_ROLE_LABELS = ['開發業務', '行政主管', '行政招�
 export const VN_CURRENCIES = ['新台幣', '美金', '越盾'];
 export const VN_DEFAULT_CURRENCY = '新台幣';
 
+// 學校名稱常常帶一個分隔用的破折號（例如「越南－工貿學院」），但全形
+// 破折號／連接號／em dash 長得很像，打字時很容易不小心混用（學生資料跟
+// 學校費用設定/內部獎金設定分別由不同人建檔，更容易兩邊不一致），導致
+// 看起來「一樣」的學校名稱其實是不同字元、完全比對不到，讓這裡的獎金
+// 算成 0 或查無資料（跟 ScholarshipsPage.jsx 同一套正規化邏輯，問題
+// 性質一樣：比對學校名稱時都要先正規化再比，不能直接用 ===）。
+export function normalizeSchoolName(name) {
+  return (name || '')
+    .trim()
+    .replace(/[－–—]/g, '-') // 統一各種長得很像的破折號字元
+    .replace(/\s*-\s*/g, '-') // 破折號前後常見的全形/半形空格不一致
+    .replace(/\s+/g, ' ');
+}
+
 // 這 5 個角色的負責人都指派在「學生資料」（StudentsPage.jsx 的
 // assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
 // assignedFieldStaff）。
@@ -36,7 +50,15 @@ function roleLabel(key) {
 // vietnam_internalBonusRateSetup 的所有紀錄，每筆一個學校；依學生自己
 // 就讀的學校找對應那筆費率，找不到就當沒設定（金額算 0）。
 function rateForSchool(bonusRateSetup, school) {
-  return (bonusRateSetup || []).find((r) => r.school === school);
+  const normalized = normalizeSchoolName(school);
+  if (!normalized) return undefined;
+  return (bonusRateSetup || []).find((r) => normalizeSchoolName(r.school) === normalized);
+}
+
+function findSchool(schools, name) {
+  const normalized = normalizeSchoolName(name);
+  if (!normalized) return undefined;
+  return (schools || []).find((sc) => normalizeSchoolName(sc.name) === normalized);
 }
 
 function studentFullLabel(s) {
@@ -92,7 +114,7 @@ export function computeVietnamInternalBonusByPerson(ctx) {
       addAmount(personTotals, name, rateVal, currency, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal, currency });
     });
 
-    const sc = (schools || []).find((x) => x.name === s.school);
+    const sc = findSchool(schools, s.school);
     const oneTimeVal = Number(sc?.oneTimeBonus) || 0;
     if (sc?.schoolRep && oneTimeVal) {
       const currency = sc.oneTimeBonusCurrency || VN_DEFAULT_CURRENCY;
@@ -118,14 +140,16 @@ export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
   const rows = {};
   (schools || []).forEach((sc) => {
     if (!sc.schoolRep || !Number(sc.monthlyFee)) return;
-    rows[sc.name] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, currency: sc.monthlyFeeCurrency || VN_DEFAULT_CURRENCY, totalDays: 0 };
+    const key = normalizeSchoolName(sc.name);
+    if (!key) return;
+    rows[key] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, currency: sc.monthlyFeeCurrency || VN_DEFAULT_CURRENCY, totalDays: 0 };
   });
   (students || []).forEach((s) => {
-    const row = rows[s.school];
+    const row = rows[normalizeSchoolName(s.school)];
     if (!row) return;
     const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
     if (days <= 0) return;
-    const sc = (schools || []).find((x) => x.name === s.school);
+    const sc = findSchool(schools, s.school);
     const rateVal = Number(sc?.monthlyFee) || 0;
     if (!rateVal) return;
     row.totalDays += days;
