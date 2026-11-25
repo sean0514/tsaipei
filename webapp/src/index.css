@@ -135,6 +135,44 @@
 .theme-vietnam .tag { border-radius: 999px; }
 .theme-vietnam .brand-sub { color: #F5D9A8; }
 
+/* 印尼實習生管理系統：紅/白配色呼應印尼國旗，鮮紅側邊欄＋白底主要反轉搭配
+   （有別於越南系統的深紅側邊欄＋金色主色），只在這個系統的頁面範圍內生效。 */
+.theme-indonesia {
+  --bg: #FFFFFF;
+  --panel: #FFFFFF;
+  --border: #F3C7C7;
+  --text: #2B2B2B;
+  --text-muted: #8A7A7A;
+  --accent: #CE1126;
+  --accent-soft: #FDE4E4;
+  --danger: #B3121F;
+  --sidebar-bg: #CE1126;
+  --sidebar-border: rgba(255,255,255,0.18);
+  --sidebar-text: #FFFFFF;
+  --sidebar-text-muted: #FFD9D9;
+  --sidebar-active-bg: #FFFFFF;
+  --sidebar-active-text: #CE1126;
+  --heading-font: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 10px;
+  --radius-lg: 12px;
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.theme-indonesia button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.theme-indonesia button.primary:hover { background: #A60E1F; border-color: #A60E1F; }
+.theme-indonesia h2, .theme-indonesia h3, .theme-indonesia h4 { font-family: var(--heading-font); color: #CE1126; }
+.theme-indonesia button { border-radius: 10px; border-color: #F3C7C7; }
+.theme-indonesia button:not(.primary):not(.danger):hover { background: #FDE4E4; border-color: #F0AFAF; }
+.theme-indonesia button.danger { background: #FDE4E4; color: #B3121F; border-color: #F0AFAF; }
+.theme-indonesia button.danger:hover { background: #FAC9C9; }
+.theme-indonesia input, .theme-indonesia select, .theme-indonesia textarea { border-radius: 8px; border-color: #F3C7C7; }
+.theme-indonesia input:focus, .theme-indonesia select:focus, .theme-indonesia textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(206,17,38,0.15);
+}
+.theme-indonesia .card { border-radius: 14px; box-shadow: 0 4px 18px rgba(206,17,38,0.08); }
+.theme-indonesia .modal { border-radius: 16px; box-shadow: 0 20px 60px rgba(206,17,38,0.25); }
+.theme-indonesia .tag { border-radius: 999px; }
+.theme-indonesia .brand-sub { color: #FFD9D9; }
+
 /* 宸暐企業（派遣公司專用系統）：中國風配色，朱紅側邊欄配金色文字/邊框，
    象牙白底、方正邊角（牌匾/印章感），書法感標題字體，只在這個系統的
    頁面範圍內生效。 */

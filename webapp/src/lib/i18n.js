@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 
-// 中文/越南文介面文字切換，只給 SYSTEMS[system].bilingual === true 的系統用
-// （目前是 vietnam）。只翻譯介面文字本身（選單標籤、按鈕、表格欄位標題），
-// 使用者輸入的實際資料（學生姓名、公司名稱、備註等）完全不經過這裡，維持
-// 原文顯示。用 localStorage 記住選擇（key 依系統分開），重新整理後還在。
+// 中文/越南文/印尼文介面文字切換，只給 SYSTEMS[system].bilingual === true 的
+// 系統用（目前是 vietnam、indonesia）。只翻譯介面文字本身（選單標籤、按鈕、
+// 表格欄位標題），使用者輸入的實際資料（學生姓名、公司名稱、備註等）完全
+// 不經過這裡，維持原文顯示。用 localStorage 記住選擇（key 依系統分開），
+// 重新整理後還在。
 //
-// t(text, lang) 用中文原文當查表的 key：lang !== 'vi' 時直接回傳原文；
-// lang === 'vi' 時查 VI 字典，查不到就照樣回傳中文原文（不會讓畫面因為
+// t(text, lang) 用中文原文當查表的 key：lang === 'vi' 時查 VI 字典、
+// lang === 'id' 時查 ID 字典，查不到就照樣回傳中文原文（不會讓畫面因為
 // 漏翻而空白），所以頁面可以漸進式地把文字包上 t(...)，字典不用一次翻完。
 export function useLanguage(system) {
   const storageKey = `uiLang_${system}`;

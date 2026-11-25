@@ -587,6 +587,262 @@ service cloud.firestore {
       allow delete: if vnCanEdit('resumeLinks');
     }
 
+
+    // ---------------- 印尼實習生管理系統 (indonesia) ----------------
+    // 複製 tsaipei 的權限模型(模組/預設權限完全一樣，見 src/lib/permissions.js
+    // SYSTEMS.indonesia)，collection 字首改成 indonesia_。分頁依 tsaipei 的分批
+    // 複製進度陸續補上對應的 match 區塊；還沒有專屬編輯頁的集合先開
+    // 唯讀給系統成員，等該分頁複製過來時再補上對應的 idCanEdit() 寫入規則。
+    function idRole() {
+      return get(/databases/$(database)/documents/indonesia_users/$(request.auth.uid)).data.role;
+    }
+    function idIsMember() {
+      return signedIn() && exists(/databases/$(database)/documents/indonesia_users/$(request.auth.uid));
+    }
+    function idDefaultLevel(module, role) {
+      return {
+        'dashboard': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'students': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'positions': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'matches': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'secondInterview': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'admitted': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'visaReminder': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'visaProcessing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'applicationProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'inTaiwanCare': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'expectedArrival': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'departureTransport': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'bankAccountProgress': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'vehiclePickup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'internshipDocs': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'housing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'dormManagement': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'meetings': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'closedCases': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'studentSelfPayHousing': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'studentMasterSheet': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'dormProfitLoss': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'schoolSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'internalBonusRateSetup': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'bonus': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'scholarships': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'users': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'managerReport': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'adminPending': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'studentBilling': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+        'resumeLinks': {'系統管理員':'edit','主管':'none','業務人員':'none','服務人員':'none','翻譯人員':'none','國外供應':'none','行政人員':'none','會計人員':'none','財務人員':'none','宿管人員':'none'},
+      }[module][role];
+    }
+    function idCanEdit(module) {
+      return idIsMember() && (
+        idRole() == '系統管理員' ||
+        (exists(/databases/$(database)/documents/indonesia_rolePermissions/$(module + '__' + idRole()))
+          ? get(/databases/$(database)/documents/indonesia_rolePermissions/$(module + '__' + idRole())).data.level == 'edit'
+          : idDefaultLevel(module, idRole()) == 'edit')
+      );
+    }
+
+    match /indonesia_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || idIsMember());
+      allow write: if idIsMember() && idRole() == '系統管理員';
+    }
+    match /indonesia_rolePermissions/{docId} {
+      allow read: if idIsMember();
+      allow write: if idIsMember() && idRole() == '系統管理員';
+    }
+    match /indonesia_students/{docId} {
+      allow read: if idIsMember();
+      // create 也放行 visaProcessing（印尼端新增「印尼辦理簽證」紀錄時）
+      // 跟 tsCanEdit('applicationProgress')（境外生實習系統「申辦進度
+      // 追蹤」自動連動建立印尼簽證辦理紀錄時，是從 tsaipei 那邊的使用者
+      // 觸發，要放行 tsaipei 系統自己的 applicationProgress 權限，不是
+      // 印尼系統的）：這兩種情況都會順便確保這裡也有一筆對應的學生資料
+      // （見 lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
+      allow create: if idCanEdit('students') || idCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
+      allow delete: if idCanEdit('students');
+      // update 也放行 internshipDocs 編輯者：InternshipDocsPage 會把文件
+      // 狀態同步回學生紀錄的對應欄位(syncStudentDocField)；closedCases 也
+      // 放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if idCanEdit('students') || idCanEdit('internshipDocs') || idCanEdit('closedCases');
+    }
+    match /indonesia_matches/{docId} {
+      allow read: if idIsMember();
+      // create 也放行 students 編輯者：新增學生存檔會自動建立一筆空白媒合
+      // 紀錄（見 StudentsPage.jsx），跟 tsaipei_matches 同樣的理由。
+      allow create: if idCanEdit('matches') || idCanEdit('students');
+      allow update: if idCanEdit('matches') || idCanEdit('closedCases');
+      allow delete: if idCanEdit('matches') || idCanEdit('students');
+    }
+    // read 額外放行 tsIsMember()：理由同 tsaipei_positions 那邊的註解。
+    match /indonesia_positions/{docId} {
+      allow read: if idIsMember() || tsIsMember();
+      allow write: if idCanEdit('positions');
+    }
+    match /indonesia_secondInterviews/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('secondInterview');
+      allow update: if idCanEdit('secondInterview') || idCanEdit('closedCases');
+      allow delete: if idCanEdit('secondInterview') || idCanEdit('students');
+    }
+    match /indonesia_admittedList/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('admitted');
+      // closedCases 放行是為了「已結案名單」的復原按鈕。
+      allow update: if idCanEdit('admitted') || idCanEdit('applicationProgress') || idCanEdit('closedCases');
+      allow delete: if idCanEdit('admitted') || idCanEdit('students');
+    }
+    // AdmittedListPage 狀態改成「確認錄取」時會連鎖建立 internshipDocs/
+    // applicationProgress，所以這兩個集合的 create 也放行 admitted 編輯者，
+    // 跟 tsaipei_internshipDocs/tsaipei_applicationProgress 同樣的理由。
+    match /indonesia_internshipDocs/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('internshipDocs') || idCanEdit('admitted');
+      allow update: if idCanEdit('internshipDocs');
+      allow delete: if idCanEdit('internshipDocs') || idCanEdit('admitted') || idCanEdit('students');
+    }
+    match /indonesia_applicationProgress/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('applicationProgress') || idCanEdit('admitted');
+      allow update: if idCanEdit('applicationProgress') || idCanEdit('closedCases');
+      allow delete: if idCanEdit('applicationProgress') || idCanEdit('students');
+    }
+    match /indonesia_housingRecords/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('housing') || idCanEdit('applicationProgress') || idCanEdit('inTaiwanVisa');
+      allow update: if idCanEdit('housing');
+      allow delete: if idCanEdit('housing') || idCanEdit('students');
+    }
+    match /indonesia_inTaiwanCare/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('inTaiwanVisa') || idCanEdit('applicationProgress');
+      allow update: if idCanEdit('inTaiwanCare');
+      allow delete: if idCanEdit('inTaiwanCare') || idCanEdit('students');
+    }
+    match /indonesia_inTaiwanVisa/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('inTaiwanVisa') || idCanEdit('applicationProgress');
+      // update 也放行 expectedArrival：「預計入台/離台」可以直接在頁面上
+      // 編輯體檢/送工/航班/付款等欄位，寫回同一筆在台簽證追蹤紀錄。
+      allow update: if idCanEdit('inTaiwanVisa') || idCanEdit('expectedArrival');
+      allow delete: if idCanEdit('inTaiwanVisa') || idCanEdit('students');
+    }
+    match /indonesia_bankAccountProgress/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('bankAccountProgress');
+    }
+    match /indonesia_vehicleArrangements/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('vehiclePickup');
+    }
+    // 印尼簽證辦理：境外生實習系統「申辦進度追蹤」的經濟部/交通部審核或
+    // 發函後寄國外完成後會自動建立一筆「辦理中」紀錄，這個連動是從
+    // tsaipei 那邊的使用者觸發的，所以 create 放行的是 tsCanEdit
+    // (tsaipei 系統自己的 applicationProgress 權限)，不是 idCanEdit
+    // （那檢查的是印尼系統自己的 applicationProgress 模組，跟這個連動
+    // 無關，放錯會讓沒有印尼系統帳號的 tsaipei 人員寫入被拒絕）。
+    // delete 也放行 tsCanEdit('applicationProgress')：境外生實習系統刪除
+    // 申辦進度紀錄時，會一併刪除連動建立的這筆印尼簽證辦理紀錄（見
+    // tsaipei/ApplicationProgressPage.jsx 的 handleDelete），是從 tsaipei
+    // 那邊的使用者觸發，要放行 tsaipei 系統自己的權限。
+    match /indonesia_visaProcessing/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
+      allow update: if idCanEdit('visaProcessing');
+      allow delete: if idCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
+    }
+    // create 也放行 visaProcessing（印尼端新增/補跑「印尼辦理簽證」時，
+    // 會順便在這裡建一筆空白送機行程紀錄）跟 tsCanEdit('applicationProgress')
+    // （境外生實習系統「申辦進度追蹤」的連動也會觸發同一段邏輯，是從
+    // tsaipei 那邊的使用者寫入，要放行 tsaipei 系統自己的權限）。
+    match /indonesia_departureTransport/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('departureTransport') || idCanEdit('visaProcessing') || tsCanEdit('applicationProgress');
+      allow update, delete: if idCanEdit('departureTransport');
+    }
+    // 申請表格：國外補助申請/日常支出申請/郵資費用紀錄每個分頁各自独立權限
+    // （比照 tsaipei）。已核准/已匯款之後，只有系統管理員/主管/會計人員能
+    // 再改日常支出申請的狀態/編輯/刪除。
+    match /indonesia_dailyExpenseApplications/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('dailyExpenseApplication');
+      allow update, delete: if idCanEdit('dailyExpenseApplication') &&
+        (!(resource.data.status in ['已核准', '已匯款']) || idRole() in ['系統管理員', '主管', '會計人員']);
+    }
+    match /indonesia_foreignSubsidyApplications/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('foreignSubsidyApplication');
+    }
+    match /indonesia_dormitories/{docId} {
+      allow read: if idIsMember();
+      allow create, delete: if idCanEdit('dormManagement');
+      // closedCases 也放行：「已結案名單」的復原按鈕要能把 confirmedClosed 改回 false。
+      allow update: if idCanEdit('dormManagement') || idCanEdit('closedCases');
+    }
+    match /indonesia_dormitoryUtilities/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('dormManagement');
+    }
+    // 行政未完成事項：自由新增的代辦事項清單，不綁定其他集合。
+    match /indonesia_adminTodos/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('adminPending');
+    }
+    match /indonesia_meetings/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('meetings');
+    }
+    // 客戶名稱印尼文對照表：元凱系統那幾個唯讀同步頁面的客戶分組標題要用，
+    // read 也放行 tsIsMember()，方便境外生實習系統那邊將來如果也要用同一套
+    // 對照表時不用再改規則。
+    match /indonesia_companyNameTranslations/{docId} {
+      allow read: if idIsMember() || tsIsMember();
+      allow write: if idCanEdit('companyNameTranslations');
+    }
+    // 學校費用設定：學校代表＋獎金月費率（給內部獎金計算用）、獎學金金額
+    // （給獎學金紀錄新增時自動帶入）。
+    match /indonesia_schoolSetup/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('schoolSetup');
+    }
+    // 內部獎金設定：開發業務/行政主管/行政招募/行政簽證/外務人員全公司
+    // 統一一筆固定月費率設定，供「內部獎金計算」試算。
+    match /indonesia_internalBonusRateSetup/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('internalBonusRateSetup');
+    }
+    match /indonesia_scholarships/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('scholarships');
+    }
+    // 學生請款計算：每個學生每個月的已收款/收款日期記錄，其他金額欄位都是
+    // 即時計算、不落地儲存。
+    match /indonesia_studentBillingPayments/{docId} {
+      allow read: if idIsMember();
+      allow write: if idCanEdit('studentBilling');
+    }
+    // 公開線上履歷連結（/apply/vietnam?ref=...）不需要登入即可新增一筆履歷，
+    // 只允許這裡列出的個人資料欄位＋assignedStaff/status/createdAt，且
+    // status 一定要是「待處理」，studentId/processedAt（轉入學生資料後才會
+    // 有）不開放公開連結寫入，避免公開連結被用來改到已轉入的狀態。
+    function isPublicIndonesiaResumeSubmission() {
+      return request.resource.data.keys().hasOnly([
+        'originalName', 'chineseName', 'hasPassport', 'passportId', 'gender', 'birthDate', 'nationality',
+        'height', 'weight', 'school', 'enrollDate', 'programYears', 'department', 'expectedGraduation',
+        'hasCert', 'certType', 'certLevel', 'certPickupDate', 'expectedExamDate', 'personalExperience',
+        'photoUrl', 'passportPhotoUrl', 'assignedStaff', 'status', 'createdAt'
+      ]) && (request.resource.data.originalName is string && request.resource.data.originalName.size() > 0)
+        && request.resource.data.status == '待處理';
+    }
+    // 履歷表連結：學生透過公開連結送出的履歷，待內部人員審核後轉入
+    // indonesia_students；轉入後的 studentId/processedAt 只能由內部人員寫入。
+    match /indonesia_resumeSubmissions/{docId} {
+      allow read: if idIsMember();
+      allow create: if idCanEdit('resumeLinks') || isPublicIndonesiaResumeSubmission();
+      allow update: if idCanEdit('resumeLinks') || idCanEdit('students');
+      allow delete: if idCanEdit('resumeLinks');
+    }
+
     // ---------------- 食品工廠管理系統 (foodfactory) ----------------
     function ffRole() {
       return get(/databases/$(database)/documents/foodfactory_users/$(request.auth.uid)).data.role;

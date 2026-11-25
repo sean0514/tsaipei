@@ -16,6 +16,7 @@ export default function CompanyPicker() {
     dormMgmt: useSystemProfile('dormMgmt'),
     yujian: useSystemProfile('yujian'),
     vietnam: useSystemProfile('vietnam'),
+    indonesia: useSystemProfile('indonesia'),
     laborAgency: useSystemProfile('laborAgency'),
   };
   const loading = Object.values(profiles).some((p) => p === undefined);
