@@ -56,6 +56,8 @@ export const IMPLEMENTED_MODULES = {
   // 越南實習生系統：複製 tsaipei 架構，分頁依 tsaipei 的分批複製進度陸續加入
   // 這裡；還沒加進來的模組側邊欄一樣看得到，但連到「尚未建置」畫面。
   vietnam: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'visaProcessing', 'internshipDocs', 'applicationProgress', 'expectedArrival', 'departureTransport', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'schoolSetup', 'bonus', 'internalBonusRateSetup', 'scholarships', 'studentMasterSheet', 'users'],
+  // 印尼實習生系統：複製越南系統(vietnam)架構。
+  indonesia: ['dashboard', 'unmatchedStudents', 'students', 'resumeLinks', 'matches', 'secondInterview', 'admitted', 'visaReminder', 'visaProcessing', 'internshipDocs', 'applicationProgress', 'expectedArrival', 'departureTransport', 'managerReport', 'benefits', 'companyNameTranslations', 'meetings', 'closedCases', 'schoolSetup', 'bonus', 'internalBonusRateSetup', 'scholarships', 'studentMasterSheet', 'users'],
   // 元凱移工事業部：獨立的越南外勞仲介引進系統，跟 yujian 分開。
   laborAgency: ['dashboard', 'resumeLinks', 'workerRoster', 'workers', 'employers', 'docsChecklist', 'visaProcessing', 'departure', 'arrivalNotice', 'feeSetup', 'chargeRecords', 'paymentRecords', 'bonus', 'bonusRateSetup', 'users'],
 };
@@ -136,6 +138,13 @@ const GROUP_SECTIONS = {
     { label: '會計專用', items: ['studentMasterSheet', 'scholarships'] },
     { label: '資料建檔', items: ['schoolSetup', 'bonus', 'internalBonusRateSetup'] },
   ],
+  indonesia: [
+    { label: '學生資料', items: ['unmatchedStudents', 'students', 'resumeLinks'] },
+    { label: '職缺媒合', items: ['matches', 'secondInterview', 'admitted', 'visaReminder', 'visaProcessing'] },
+    { label: '實習在台追蹤', items: ['expectedArrival', 'departureTransport'] },
+    { label: '會計專用', items: ['studentMasterSheet', 'scholarships'] },
+    { label: '資料建檔', items: ['schoolSetup', 'bonus', 'internalBonusRateSetup'] },
+  ],
   laborAgency: [
     { label: '工人資料', items: ['resumeLinks', 'workerRoster'] },
     { label: '行政專用', items: ['employers', 'workers', 'docsChecklist', 'visaProcessing', 'departure', 'arrivalNotice'] },
@@ -184,7 +193,7 @@ export default function Layout() {
   const role = effectiveRole;
 
   return (
-    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}${system === 'vietnam' ? ' theme-vietnam' : ''}${system === 'laborAgency' ? ' theme-laborAgency' : ''}`}>
+    <div className={`app-shell${system === 'tsaipei' ? ' theme-tsaipei' : ''}${system === 'yujian' ? ' theme-yujian' : ''}${system === 'dispatch' ? ' theme-dispatch' : ''}${system === 'vietnam' ? ' theme-vietnam' : ''}${system === 'indonesia' ? ' theme-indonesia' : ''}${system === 'laborAgency' ? ' theme-laborAgency' : ''}`}>
       <aside className="sidebar">
         {system === 'tsaipei' ? (
           <h1 className="brand-mark">🌸 鈞羽有限公司<br />境外實習生管理系統<div className="brand-sub">International Internship Desk</div></h1>
@@ -198,6 +207,12 @@ export default function Layout() {
           ) : (
             <h1 className="brand-mark">🇻🇳 元凱貿易及人力資源有限公司<br />越南實習生管理系統<div className="brand-sub">Vietnam Internship Desk</div></h1>
           )
+        ) : system === 'indonesia' ? (
+          effectiveLang === 'id' ? (
+            <h1 className="brand-mark">🇮🇩 PT YUANKAI TRADING &amp; SUMBER DAYA MANUSIA<br />Sistem Pengelolaan Peserta Magang<div className="brand-sub">Indonesia Internship Desk</div></h1>
+          ) : (
+            <h1 className="brand-mark">🇮🇩 元凱貿易及人力資源有限公司<br />印尼實習生管理系統<div className="brand-sub">Indonesia Internship Desk</div></h1>
+          )
         ) : system === 'laborAgency' ? (
           <h1 className="brand-mark" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {sys.logo && <img src={sys.logo} alt="" style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />}
@@ -209,10 +224,14 @@ export default function Layout() {
         <div className="back"><Link to={backTo}>← {t('切換系統', effectiveLang)}</Link></div>
         {sys?.bilingual && (
           <div style={{ padding: '8px 16px 0' }}>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>語言 / Ngôn ngữ</label>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--sidebar-text-muted)', marginBottom: 4 }}>{system === 'indonesia' ? '語言 / Bahasa' : '語言 / Ngôn ngữ'}</label>
             <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: '100%' }}>
               <option value="zh">中文</option>
-              <option value="vi">Tiếng Việt</option>
+              {system === 'indonesia' ? (
+                <option value="id">Bahasa Indonesia</option>
+              ) : (
+                <option value="vi">Tiếng Việt</option>
+              )}
             </select>
           </div>
         )}
