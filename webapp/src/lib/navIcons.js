@@ -88,6 +88,16 @@ export const NAV_ICONS = {
     postageFee: '✉',
     users: '▣',
   },
+  vietnam: {
+    visaProcessing: '🛂',
+    departureTransport: '🛫',
+    companyNameTranslations: '🔤',
+    meetings: '✎',
+    scholarships: '🎓',
+    schoolSetup: '🏫',
+    bonus: '◈',
+    internalBonusRateSetup: '⚙',
+  },
   laborAgency: {
     dashboard: '◆',
     resumeLinks: '📋',
