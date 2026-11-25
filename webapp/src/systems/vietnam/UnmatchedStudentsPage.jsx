@@ -47,8 +47,18 @@ export default function UnmatchedStudentsPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const [q, setQ] = useState('');
 
-  const matchedStudentIds = new Set(matches.filter((m) => m.positionId).map((m) => m.studentId));
-  const unmatched = students.filter((s) => !s.confirmedClosed && !matchedStudentIds.has(s.id));
+  // 複製自 systems/tsaipei/UnmatchedStudentsPage.jsx 的 matchingRecordOf/
+  // hasAdvancedMatch：只看「有沒有填實際職缺(positionId)」還不夠，媒合
+  // 紀錄被業務改成「取消」但 positionId 還是空的，不該算尚未安排；一定要
+  // 名下有一筆狀態=媒合中(或沒填狀態，預設視為媒合中)的媒合紀錄，而且
+  // 所有媒合紀錄都還沒填職缺，才算真的尚未安排。
+  function matchingRecordOf(studentId) {
+    return matches.find((m) => m.studentId === studentId && (m.status || '媒合中') === '媒合中') || null;
+  }
+  function hasAdvancedMatch(studentId) {
+    return matches.some((m) => m.studentId === studentId && m.positionId);
+  }
+  const unmatched = students.filter((s) => !s.confirmedClosed && matchingRecordOf(s.id) && !hasAdvancedMatch(s.id));
 
   const searchQuery = q.trim().toLowerCase();
   const filtered = unmatched
