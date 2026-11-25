@@ -51,10 +51,11 @@ export default function ScholarshipsPage() {
 
   const unrecordedStudents = students.filter((s) => !rows.some((r) => r.studentId === s.id));
 
-  // 自動補建：每筆沒有對應獎學金紀錄的學生（不論是在「學生資料」直接
-  // 新增、履歷轉入、還是境外生同步建立），載入時自動建立一筆空白紀錄，
-  // 不用業務自己點「+新增」逐一補。只跑一次，避免即時同步推回新資料時
-  // 重複觸發。
+  // 自動補建＋自動補帶入金額/幣別：每筆沒有對應獎學金紀錄的學生（不論是
+  // 在「學生資料」直接新增、履歷轉入、還是境外生同步建立），載入時自動
+  // 建立一筆空白紀錄；既有紀錄金額還是 0 的也依目前的學校費用設定補上
+  // 金額/幣別。不用業務自己點「+新增」逐一補，也不用等學校費用設定補填
+  // 完才手動一筆筆改。只跑一次，避免即時同步推回新資料時重複觸發。
   const ensureStubsDone = useRef(false);
   useEffect(() => {
     if (!canEditPage || loading || studentsLoading || schoolsLoading || ensureStubsDone.current) return;
@@ -66,6 +67,22 @@ export default function ScholarshipsPage() {
         school: s.school || '',
         amount: schoolSetup?.scholarshipAmount || 0,
         currency: schoolSetup?.scholarshipCurrency || DEFAULT_CURRENCY,
+      });
+    });
+    // 既有紀錄金額還是 0 的（當初建立空白紀錄時，學校費用設定還沒填金額，
+    // 或學校設定是後來才補上/修改的），依目前的學校費用設定補上金額/幣別；
+    // 已經手動填過金額（非 0）的紀錄不動，避免覆蓋業務調整過的值。學校
+    // 名稱優先用紀錄自己存的 school，舊資料沒有這個欄位才退回去查學生
+    // 資料目前的就讀學校。
+    rows.forEach((r) => {
+      if (r.amount) return;
+      const schoolName = r.school || studentOf(r.studentId)?.school;
+      const schoolSetup = schoolSetupOf(schoolName);
+      if (!schoolSetup?.scholarshipAmount) return;
+      update(r.id, {
+        school: r.school || schoolName || '',
+        amount: schoolSetup.scholarshipAmount,
+        currency: schoolSetup.scholarshipCurrency || DEFAULT_CURRENCY,
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
