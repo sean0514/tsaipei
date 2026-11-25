@@ -4,6 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { exportEntityCSV } from '../../lib/csv';
 import { t } from '../../lib/i18n';
 
 const BILL_TO_OPTIONS = ['實習單位', '元凱', '學生'];
@@ -12,6 +13,14 @@ const CSV_FIELDS = [
   { key: 'airline', label: '航空公司' }, { key: 'flightNumber', label: '航班編號' }, { key: 'terminal', label: '出入境航廈' },
   { key: 'flightTime', label: '班機時間' }, { key: 'fee', label: '車資費用' }, { key: 'billTo', label: '請款對象' },
   { key: 'billedToStudent', label: '是否列入學生請款' }, { key: 'done', label: '已完成' },
+];
+// 「實習單位」是從 matches/admittedList/positions 推算出來的顯示用欄位，不是
+// departureTransport 文件本身存的資料，所以只加進匯出用的欄位清單，不能放進
+// 上面 CSV_FIELDS（那份清單同時也是匯入比對表頭、決定要寫回文件的欄位，如果
+// 把這個算出來的欄位也放進去，匯入時會把它當成一個要寫入的欄位存進文件裡，
+// 變成一個跟 positions.company 脫勾、不會再更新的舊資料）。
+const EXPORT_FIELDS = [
+  ...CSV_FIELDS.slice(0, 2), { key: 'company', label: '實習單位' }, ...CSV_FIELDS.slice(2),
 ];
 
 function studentFullLabel(s) {
@@ -50,7 +59,15 @@ export default function DepartureTransportPage() {
   const { rows: positions } = useCollection('vietnam_positions');
   const companyCtx = { matches, admittedList, positions };
   const [editing, setEditing] = useState(null);
-  const { handleExport, handleImport } = useCsvOverwrite('vietnam_departureTransport', CSV_FIELDS, { entityLabel: '送機行程', requiredKeys: ['studentId'], canEdit: canEditPage });
+  const { handleImport } = useCsvOverwrite('vietnam_departureTransport', CSV_FIELDS, { entityLabel: '送機行程', requiredKeys: ['studentId'], canEdit: canEditPage });
+
+  function handleExportWithCompany(exportRows) {
+    exportEntityCSV(
+      exportRows.map((r) => ({ ...r, company: studentCompanyLabel(r.studentId, companyCtx) })),
+      EXPORT_FIELDS,
+      '送機行程'
+    );
+  }
 
   function studentOf(studentId) { return students.find((s) => s.id === studentId); }
 
@@ -82,7 +99,7 @@ export default function DepartureTransportPage() {
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ billedToStudent: false, done: false })}>+ {t('新增送機行程', lang)}</button>}
-          <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
+          <ImportExportButtons rows={rows} onExport={handleExportWithCompany} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
       {loading ? <p className="muted">{t('載入中…', lang)}</p> : (
