@@ -86,6 +86,10 @@ export default function ScholarshipsPage() {
   Object.values(groups).forEach((list) => list.sort((a, b) => studentLabel(studentOf(a.studentId)).localeCompare(studentLabel(studentOf(b.studentId)))));
   const schoolNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
 
+  async function toggleClosed(r) {
+    await update(r.id, { closed: !r.closed });
+  }
+
   async function handleSave(data) {
     const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
     if (!payload.remittanceDate) delete payload.remittanceDate;
@@ -140,6 +144,9 @@ export default function ScholarshipsPage() {
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                              {r.closed
+                                ? <button onClick={() => toggleClosed(r)}>{t('取消已結案', lang)}</button>
+                                : <button onClick={() => toggleClosed(r)}>{t('結案', lang)}</button>}
                               <button className="danger" onClick={() => remove(r.id)}>{t('刪除', lang)}</button>
                             </td>
                           )}
@@ -217,10 +224,6 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <input type="checkbox" checked={!!form.approved} onChange={(e) => setForm({ ...form, approved: e.target.checked })} />
             {t('已審核', lang)}
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-            <input type="checkbox" checked={!!form.closed} onChange={(e) => setForm({ ...form, closed: e.target.checked })} />
-            {t('結案', lang)}
           </label>
           <label style={{ display: 'block', marginTop: 8 }}>
             {t('備註', lang)}
