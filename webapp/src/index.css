@@ -354,6 +354,11 @@ th.sticky-col { z-index: 2; }
 .login-card input { width: 100%; }
 .error-text { color: var(--danger); font-size: 13px; }
 
+/* 印尼實習生系統品牌化登入頁（/login/indonesia）：紅/白配色呼應印尼國旗，
+   跟全系統共用登入頁的紫色底色區分開來。 */
+.theme-indonesia.login-wrap { background: linear-gradient(160deg, #7A0D1A, #CE1126 55%, #FFFFFF); }
+.theme-indonesia .login-card h2 { font-family: var(--heading-font); }
+
 .picker-wrap {
   min-height: 100vh; padding: 40px 24px;
   background: linear-gradient(160deg, #5A3A56, #8A5B82 55%, #EA82A3);

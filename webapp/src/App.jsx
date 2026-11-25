@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
+import IndonesiaLoginPage from './pages/IndonesiaLoginPage';
 import DispatchApplyPage from './pages/DispatchApplyPage';
 import VietnamResumeApplyPage from './pages/VietnamResumeApplyPage';
 import IndonesiaResumeApplyPage from './pages/IndonesiaResumeApplyPage';
@@ -417,6 +418,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/login/indonesia" element={<IndonesiaLoginPage />} />
         <Route path="/apply/dispatch" element={<DispatchApplyPage />} />
         <Route path="/apply/vietnam" element={<VietnamResumeApplyPage />} />
         <Route path="/apply/indonesia" element={<IndonesiaResumeApplyPage />} />
