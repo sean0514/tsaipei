@@ -7,8 +7,9 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { hasActiveHousingRecord } from '../../lib/housingRecords';
-import { isAllowedSourceStudent } from '../../lib/tsaipeiSourceFilter';
+import { isAllowedSourceStudent, isAllowedSourceStudentIndonesia } from '../../lib/tsaipeiSourceFilter';
 import { ensureVietnamStudentForTsaipeiStudent } from '../../lib/vietnamTsaipeiStudentSync';
+import { ensureIndonesiaStudentForTsaipeiStudent } from '../../lib/indonesiaTsaipeiStudentSync';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -238,12 +239,33 @@ export default function ApplicationProgressPage() {
         // lib/vietnamTsaipeiStudentSync.js 的 ensureVietnamStudentForTsaipeiStudent）。
         await ensureVietnamStudentForTsaipeiStudent(data.studentId, student);
       });
+      // 跟上面越南系統的連動是兩條各自獨立的路徑：學生來源(國外供應商)是
+      // 越南那幾個 supplier 才會建越南簽證辦理紀錄，是印尼那個 supplier
+      // （見 lib/tsaipeiSourceFilter.js 的 ALLOWED_SOURCE_SUPPLIERS_INDONESIA）
+      // 才會建印尼辦理簽證紀錄，一個學生只會命中其中一邊，不會兩邊都連動。
+      await runCascadeStep('建立印尼辦理簽證紀錄', async () => {
+        const student = students.find((s) => s.id === data.studentId);
+        if (!isAllowedSourceStudentIndonesia(student)) return;
+        if (!(await existsForStudent('indonesia_visaProcessing', data.studentId))) {
+          await addDoc(collection(db, 'indonesia_visaProcessing'), { studentId: data.studentId, status: '辦理中' });
+        }
+        // 同步確保印尼系統（indonesia_students）也有這位學生的對應紀錄、
+        // 「印尼送機行程」也有這位學生的空白紀錄（見
+        // lib/indonesiaTsaipeiStudentSync.js 的 ensureIndonesiaStudentForTsaipeiStudent）。
+        await ensureIndonesiaStudentForTsaipeiStudent(data.studentId, student);
+      });
     } else {
       const student = students.find((s) => s.id === data.studentId);
       if (isAllowedSourceStudent(student)) {
         await runCascadeStep('移除越南簽證辦理紀錄', () => removeLinkedVisaProcessing(
           data.studentId,
           '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，把經濟部/交通部審核、發函後寄國外的日期都清空會連同刪除越南端的紀錄，確定要清空嗎？'
+        ));
+      }
+      if (isAllowedSourceStudentIndonesia(student)) {
+        await runCascadeStep('移除印尼辦理簽證紀錄', () => removeLinkedIndonesiaVisaProcessing(
+          data.studentId,
+          '印尼系統「印尼辦理簽證」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，把經濟部/交通部審核、發函後寄國外的日期都清空會連同刪除印尼端的紀錄，確定要清空嗎？'
         ));
       }
     }
@@ -267,9 +289,24 @@ export default function ApplicationProgressPage() {
     return true;
   }
 
-  // 刪除這筆申辦進度紀錄時，如果曾經連動建立過「越南簽證辦理」紀錄（這個
-  // 學生來源是元凱移工事業部/越南實習生系統），那筆紀錄也要一併刪除，不
-  // 留著一筆對應不到進度紀錄的孤兒資料。
+  // 跟 removeLinkedVisaProcessing 是同樣邏輯的印尼版本，操作 indonesia_
+  // visaProcessing，兩邊各自獨立、互不影響。
+  async function removeLinkedIndonesiaVisaProcessing(studentId, confirmMessage) {
+    const snap = await getDocs(query(collection(db, 'indonesia_visaProcessing'), where('studentId', '==', studentId)));
+    if (snap.empty) return true;
+    const hasIndonesiaProgress = snap.docs.some((d) => d.data().visaStartDate || d.data().visaCompleteDate);
+    const confirmed = !hasIndonesiaProgress || window.confirm(confirmMessage);
+    if (!confirmed) return false;
+    await runCascadeStep('刪除印尼辦理簽證紀錄', async () => {
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'indonesia_visaProcessing', d.id))));
+    });
+    return true;
+  }
+
+  // 刪除這筆申辦進度紀錄時，如果曾經連動建立過「越南簽證辦理」或「印尼
+  // 辦理簽證」紀錄（這個學生來源是元凱移工事業部/越南實習生系統，或印尼
+  // 實習生系統），對應那筆紀錄也要一併刪除，不留著一筆對應不到進度紀錄的
+  // 孤兒資料。
   async function handleDelete(id) {
     const row = rows.find((r) => r.id === id);
     const student = row && students.find((s) => s.id === row.studentId);
@@ -277,6 +314,13 @@ export default function ApplicationProgressPage() {
       const confirmed = await removeLinkedVisaProcessing(
         row.studentId,
         '越南系統「越南簽證辦理」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，刪除這筆申辦進度紀錄會連同刪除越南端的紀錄，確定要刪除嗎？'
+      );
+      if (!confirmed) return;
+    }
+    if (isAllowedSourceStudentIndonesia(student)) {
+      const confirmed = await removeLinkedIndonesiaVisaProcessing(
+        row.studentId,
+        '印尼系統「印尼辦理簽證」已經有這位學生的辦理簽證時間/簽證完成時間紀錄，刪除這筆申辦進度紀錄會連同刪除印尼端的紀錄，確定要刪除嗎？'
       );
       if (!confirmed) return;
     }

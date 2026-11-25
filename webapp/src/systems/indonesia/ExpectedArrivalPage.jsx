@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS_INDONESIA, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { t } from '../../lib/i18n';
 
 const ARRIVAL_EXTRA_FIELDS = [
@@ -31,7 +31,7 @@ function daysBetween(dateStr, today) {
 }
 
 // 唯讀：改成顯示境外生實習系統（tsaipei_inTaiwanVisa）的資料，只篩選學生
-// 來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS 這幾個的紀錄；這個分頁在
+// 來源(國外供應商)是 ALLOWED_SOURCE_SUPPLIERS_INDONESIA 這幾個的紀錄；這個分頁在
 // 元凱系統不能編輯，實際編輯請到境外生實習系統的「預計入台/離台」或
 // 「在台簽證追蹤」頁面。依客戶（學生所媒合的實習單位）分組顯示。
 export default function ExpectedArrivalPage() {
@@ -50,7 +50,7 @@ export default function ExpectedArrivalPage() {
   const studentById = (id) => students.find((s) => s.id === id);
   const today = new Date().toISOString().slice(0, 10);
 
-  const allowedVisaRecords = visaRecords.filter((v) => ALLOWED_SOURCE_SUPPLIERS.includes(studentById(v.studentId)?.sourceSupplier));
+  const allowedVisaRecords = visaRecords.filter((v) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(studentById(v.studentId)?.sourceSupplier));
 
   const arrivals = [];
   const departures = [];

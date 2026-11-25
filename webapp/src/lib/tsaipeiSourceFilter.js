@@ -61,3 +61,12 @@ export function groupByLabel(rows, labelFn) {
     .sort((a, b) => a.localeCompare(b))
     .map((key) => ({ label: key, rows: groups[key] }));
 }
+
+// 元凱（印尼系統）同樣只唯讀顯示境外生實習系統（tsaipei）裡，學生來源
+// (國外供應商)是這幾個的紀錄；跟 ALLOWED_SOURCE_SUPPLIERS（越南系統用）
+// 是兩份獨立清單，不會互相重疊，越南/印尼兩邊各自只看得到自己來源的學生。
+export const ALLOWED_SOURCE_SUPPLIERS_INDONESIA = ['麗芬'];
+
+export function isAllowedSourceStudentIndonesia(student) {
+  return !!student && ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(student.sourceSupplier);
+}

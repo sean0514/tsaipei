@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
-import { ALLOWED_SOURCE_SUPPLIERS, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
+import { ALLOWED_SOURCE_SUPPLIERS_INDONESIA, studentFullLabel, studentCompanyLabel, groupByLabel, buildTranslationMap } from '../../lib/tsaipeiSourceFilter';
 import { ensureIndonesiaStudentForTsaipeiStudent, backfillIndonesiaStudentsForTsaipeiStudents } from '../../lib/indonesiaTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 // 印尼簽證辦理：資料本身存在印尼系統（indonesia_visaProcessing），學生則是
 // 境外生實習系統（tsaipei_students）裡學生來源(國外供應商)為
-// ALLOWED_SOURCE_SUPPLIERS 的紀錄——境外生實習系統「申辦進度追蹤」的
+// ALLOWED_SOURCE_SUPPLIERS_INDONESIA 的紀錄——境外生實習系統「申辦進度追蹤」的
 // 「經濟部/交通部審核」或「發函後寄國外」任一關第一次填入日期時，會自動
 // 在這裡建立一筆「辦理中」的紀錄（見 tsaipei/ApplicationProgressPage.jsx
 // 的 handleSave），不用等印尼端的人員自己盯著境外生實習系統手動建立；
@@ -32,12 +32,12 @@ export default function VisaProcessingPage() {
   const ctx = { matches, admittedList, positions };
   const translations = buildTranslationMap(companyTranslations);
 
-  const eligibleStudents = students.filter((s) => ALLOWED_SOURCE_SUPPLIERS.includes(s.sourceSupplier));
+  const eligibleStudents = students.filter((s) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(s.sourceSupplier));
   const unrecordedStudents = eligibleStudents.filter((s) => !rows.some((r) => r.studentId === s.id));
 
   const withStudent = rows
     .map((r) => ({ ...r, student: students.find((s) => s.id === r.studentId) }))
-    .filter((r) => ALLOWED_SOURCE_SUPPLIERS.includes(r.student?.sourceSupplier));
+    .filter((r) => ALLOWED_SOURCE_SUPPLIERS_INDONESIA.includes(r.student?.sourceSupplier));
   const inProgressRows = withStudent.filter((r) => r.status !== '已完成');
   const completedRows = withStudent.filter((r) => r.status === '已完成');
   const inProgressGroups = groupByLabel(inProgressRows, (r) => studentCompanyLabel(r.studentId, ctx, translations, lang));
