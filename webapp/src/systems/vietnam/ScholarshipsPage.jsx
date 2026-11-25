@@ -30,6 +30,34 @@ function studentLabel(s) {
   return s ? (s.chineseName || s.originalName || s.vietnameseName || '') : '';
 }
 
+// 入台/離台/辦理簽證中：不另外存一個欄位手動選，依其他已經在追蹤的
+// 資料自動推算——
+// 1. 「越南簽證辦理」(vietnam_visaProcessing) 是從境外生系統連動建立的，
+//    studentId 存的是 syncedTsaipeiStudentId（見 vietnam/StudentsPage.jsx），
+//    不是這裡的學生 id，要先換過去才能查到。狀態還不是「已完成」就算
+//    辦理簽證中。
+// 2. 簽證辦完才看「在台簽證追蹤」(vietnam_inTaiwanVisa) 的第一/二次
+//    入境/離境日期，取今天以前最後發生的一筆：是入境日就算入台，是
+//    離境日就算離台；都還沒發生過（或根本沒有這筆紀錄）就顯示「—」。
+function taiwanStatusOf(studentId, { students, visaProcessing, inTaiwanVisa }) {
+  const student = students.find((s) => s.id === studentId);
+  const tsaipeiId = student?.syncedTsaipeiStudentId;
+  const visa = tsaipeiId ? visaProcessing.find((v) => v.studentId === tsaipeiId) : null;
+  if (visa && visa.status !== '已完成') return '辦理簽證中';
+
+  const v = inTaiwanVisa.find((x) => x.studentId === studentId);
+  if (!v) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const events = [
+    { date: v.firstEntryDate, type: '入台' },
+    { date: v.secondEntryDate, type: '入台' },
+    { date: v.firstExitDate, type: '離台' },
+    { date: v.secondExitDate, type: '離台' },
+  ].filter((e) => e.date && e.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  if (!events.length) return null;
+  return events[events.length - 1].type;
+}
+
 // 學校名稱常常帶一個分隔用的破折號（例如「越南－工貿學院」），但全形
 // 破折號／連接號／em dash 長得很像，打字時很容易不小心混用（學生資料跟
 // 學校費用設定分別由不同人建檔，更容易兩邊不一致），導致看起來「一樣」
@@ -53,10 +81,13 @@ export default function ScholarshipsPage() {
   const { rows, loading, add, update, remove } = useCollection('vietnam_scholarships');
   const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: schools, loading: schoolsLoading } = useCollection('vietnam_schoolSetup');
+  const { rows: visaProcessing } = useCollection('vietnam_visaProcessing');
+  const { rows: inTaiwanVisa } = useCollection('vietnam_inTaiwanVisa');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_scholarships', CSV_FIELDS, { entityLabel: '獎學金紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
 
+  const taiwanStatusCtx = { students, visaProcessing, inTaiwanVisa };
   function studentOf(studentId) {
     return students.find((s) => s.id === studentId);
   }
@@ -171,7 +202,7 @@ export default function ScholarshipsPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
+                      <th>{t('學生', lang)}</th><th>{t('在台狀態', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
                       <th>{t('已審核', lang)}</th><th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>
                       <th>{t('台灣給付日期', lang)}</th><th>{t('台灣給付金額', lang)}</th><th>{t('台灣給付幣別', lang)}</th>{canEditPage && <th></th>}
                     </tr>
@@ -180,9 +211,11 @@ export default function ScholarshipsPage() {
                     {groups[schoolName].map((r) => {
                       const s = studentOf(r.studentId);
                       const status = statusOf(r);
+                      const taiwanStatus = taiwanStatusOf(r.studentId, taiwanStatusCtx);
                       return (
                         <tr key={r.id}>
                           <td style={{ fontWeight: 600 }}>{studentLabel(s) || '—'}</td>
+                          <td>{taiwanStatus ? t(taiwanStatus, lang) : '—'}</td>
                           <td>
                             {canEditPage ? (
                               <input type="number" value={r.amount || ''} onChange={(e) => updateField(r, 'amount', Number(e.target.value) || 0)} style={{ width: 90 }} />
