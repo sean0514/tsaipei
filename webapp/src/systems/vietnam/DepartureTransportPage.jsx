@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -53,13 +53,30 @@ export default function DepartureTransportPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'departureTransport', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_departureTransport');
-  const { rows: students } = useCollection('vietnam_students');
+  const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
   const companyCtx = { matches, admittedList, positions };
   const [editing, setEditing] = useState(null);
   const { handleImport } = useCsvOverwrite('vietnam_departureTransport', CSV_FIELDS, { entityLabel: '送機行程', requiredKeys: ['studentId'], canEdit: canEditPage });
+
+  // 刪除學生以前沒有連動清掉這裡的空白紀錄（已經補上，見 StudentsPage.jsx
+  // 的 handleDelete），導致舊資料留下一批 studentId 已經找不到對應學生的
+  // 孤兒紀錄，畫面上顯示成「(已刪除)」。這裡載入時順便清掉：對每筆孤兒
+  // 紀錄只嘗試刪除一次（用 attemptedCleanupIds 記住），避免每次 Firestore
+  // 即時同步推回新的 rows/students 就重複觸發一次刪除。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditPage || loading || studentsLoading) return;
+    const studentIds = new Set(students.map((s) => s.id));
+    rows.forEach((r) => {
+      if (!r.studentId || studentIds.has(r.studentId) || attemptedCleanupIds.current.has(r.id)) return;
+      attemptedCleanupIds.current.add(r.id);
+      remove(r.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, students, loading, studentsLoading, canEditPage]);
 
   function handleExportWithCompany(exportRows) {
     exportEntityCSV(

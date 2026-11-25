@@ -220,6 +220,7 @@ export default function StudentsPage() {
         getDocs(query(collection(db, 'vietnam_housingRecords'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_inTaiwanVisa'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_inTaiwanCare'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'vietnam_departureTransport'), where('studentId', '==', studentId))),
       ]);
       const refs = [
         ...matchesSnap.docs.map((d) => d.ref),
