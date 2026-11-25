@@ -12,7 +12,9 @@ const DEFAULT_CURRENCY = '新台幣';
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'studentName', label: '學生姓名' },
   { key: 'school', label: '就讀學校' }, { key: 'amount', label: '獎學金金額' }, { key: 'currency', label: '幣別' },
-  { key: 'approved', label: '已審核' }, { key: 'remittanceDate', label: '匯款日期' }, { key: 'closed', label: '結案' }, { key: 'note', label: '備註' },
+  { key: 'approved', label: '已審核' }, { key: 'remittanceDate', label: '匯款日期' },
+  { key: 'twPaymentDate', label: '台灣給付日期' }, { key: 'twPaymentAmount', label: '台灣給付金額' }, { key: 'twPaymentCurrency', label: '台灣給付幣別' },
+  { key: 'closed', label: '結案' }, { key: 'note', label: '備註' },
 ];
 
 // 審核狀態只用 approved/remittanceDate/closed 三個欄位推算顯示用的狀態
@@ -26,6 +28,15 @@ function statusOf(r) {
 
 function studentLabel(s) {
   return s ? (s.chineseName || s.originalName || s.vietnameseName || '') : '';
+}
+
+// 學校名稱常常帶一個分隔用的破折號（例如「越南－工貿學院」），但全形
+// 破折號／連接號／em dash 長得很像，打字時很容易不小心混用（學生資料跟
+// 學校費用設定分別由不同人建檔，更容易兩邊不一致），導致看起來「一樣」
+// 的學校名稱其實是不同字元、完全比對不到——這裡統一正規化成半形連字號
+// 再比對，避免因為這種看不出來的字元差異，自動帶入金額/幣別失敗。
+function normalizeSchoolName(name) {
+  return (name || '').trim().replace(/[－–—]/g, '-');
 }
 
 // 獎學金紀錄：學生一建檔就自動產生一筆空白紀錄（見下面的自動補建
@@ -46,7 +57,9 @@ export default function ScholarshipsPage() {
     return students.find((s) => s.id === studentId);
   }
   function schoolSetupOf(schoolName) {
-    return schools.find((sc) => sc.name === schoolName);
+    const normalized = normalizeSchoolName(schoolName);
+    if (!normalized) return undefined;
+    return schools.find((sc) => normalizeSchoolName(sc.name) === normalized);
   }
 
   const unrecordedStudents = students.filter((s) => !rows.some((r) => r.studentId === s.id));
@@ -108,8 +121,15 @@ export default function ScholarshipsPage() {
   }
 
   async function handleSave(data) {
-    const payload = { ...data, amount: Number(data.amount) || 0, currency: data.currency || DEFAULT_CURRENCY };
+    const payload = {
+      ...data,
+      amount: Number(data.amount) || 0,
+      currency: data.currency || DEFAULT_CURRENCY,
+      twPaymentAmount: Number(data.twPaymentAmount) || 0,
+      twPaymentCurrency: data.twPaymentCurrency || DEFAULT_CURRENCY,
+    };
     if (!payload.remittanceDate) delete payload.remittanceDate;
+    if (!payload.twPaymentDate) delete payload.twPaymentDate;
     if (data.id) {
       const { id, ...rest } = payload;
       await update(id, rest);
@@ -144,7 +164,8 @@ export default function ScholarshipsPage() {
                   <thead>
                     <tr>
                       <th>{t('學生', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
-                      <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>{canEditPage && <th></th>}
+                      <th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>
+                      <th>{t('台灣給付日期', lang)}</th><th>{t('台灣給付金額', lang)}</th><th>{t('台灣給付幣別', lang)}</th>{canEditPage && <th></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -158,6 +179,9 @@ export default function ScholarshipsPage() {
                           <td>{t(r.currency || DEFAULT_CURRENCY, lang)}</td>
                           <td><span className={`tag ${status.cls}`}>{t(status.label, lang)}</span></td>
                           <td>{r.remittanceDate || '—'}</td>
+                          <td>{r.twPaymentDate || '—'}</td>
+                          <td>{(r.twPaymentAmount || 0).toLocaleString()}</td>
+                          <td>{t(r.twPaymentCurrency || DEFAULT_CURRENCY, lang)}</td>
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
@@ -197,7 +221,8 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
 
   function handleStudentChange(studentId) {
     const student = students.find((s) => s.id === studentId);
-    const school = student && schools.find((sc) => sc.name === student.school);
+    const normalizedSchool = student && normalizeSchoolName(student.school);
+    const school = normalizedSchool && schools.find((sc) => normalizeSchoolName(sc.name) === normalizedSchool);
     // 只有新建紀錄、還沒手動填過金額時才自動帶入，避免覆蓋使用者已經
     // 手動調整過的金額/幣別。
     const shouldAutoFill = !initial.id && !form.amount;
@@ -236,6 +261,20 @@ function ScholarshipFormModal({ initial, students, schools, onCancel, onSave, la
             <label>
               {t('匯款日期', lang)}
               <input type="date" value={form.remittanceDate || ''} onChange={(e) => setForm({ ...form, remittanceDate: e.target.value })} />
+            </label>
+            <label>
+              {t('台灣給付日期', lang)}
+              <input type="date" value={form.twPaymentDate || ''} onChange={(e) => setForm({ ...form, twPaymentDate: e.target.value })} />
+            </label>
+            <label>
+              {t('台灣給付金額', lang)}
+              <input type="number" value={form.twPaymentAmount || ''} onChange={(e) => setForm({ ...form, twPaymentAmount: e.target.value })} />
+            </label>
+            <label>
+              {t('台灣給付幣別', lang)}
+              <select value={form.twPaymentCurrency || DEFAULT_CURRENCY} onChange={(e) => setForm({ ...form, twPaymentCurrency: e.target.value })}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
+              </select>
             </label>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
