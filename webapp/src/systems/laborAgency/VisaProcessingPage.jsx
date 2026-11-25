@@ -3,39 +3,29 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, getPairInfo, withPairInfo } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, withPairInfo, visaInfoOf } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
-const LEGACY_VISA_FIELDS = ['visaProcessDate', 'visaPickupDate', 'visaDocNumber', 'taiwanPhone'];
 
-// 簽證辦理日期/領取日期/文號、台灣電話號碼要依配對（移工×雇主）各自
-// 獨立存放（visaInfoMap），不能像舊版那樣直接存在移工文件的扁平欄位上
-// ——否則同一個移工同時配對多個雇主時，填寫其中一筆的簽證資料會覆蓋
-// 到另一筆（例如誤判另一筆也「已完成」）。舊資料沒有 visaInfoMap 時，
-// 退回舊的扁平欄位顯示（只配對單一雇主時仍準確），一旦編輯存檔就會
-// 改存進新的 visaInfoMap。
-function visaInfoOf(w, employerId) {
-  const stored = getPairInfo(w, 'visaInfoMap', employerId);
-  if (Object.keys(stored).length) return stored;
-  const legacy = {};
-  LEGACY_VISA_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
-  return legacy;
-}
-
-// 簽證文號、台灣電話號碼這兩個欄位原本每打一個字就立刻非同步寫一次
-// Firestore；打字速度一快，好幾個 updateDoc 同時在飛，網路上完成的
-// 先後順序不保證跟打字順序一樣，較舊那次（字數較少）的寫入如果比較晚
-// 完成，就會把 Firestore 上較新、字數較多的值蓋回去，連帶透過
-// onSnapshot 把畫面也蓋回去——看起來像「只能輸入一個數字」或打到一半
-// 被清空。改成：畫面永遠顯示本地狀態（打字當下就看得到，不等外部
-// 資料），輸入框還在聚焦時不接受外部資料覆蓋本地值；真正寫回 Firestore
-// 則是停止輸入 400ms 後才寫一次（debounce），失焦時立刻把還沒寫出去的
-// 值補寫一次——同一個欄位同時間只會有一次寫入在飛，不會互相搶跑蓋掉。
-function DigitsInput({ value, onChange, style }) {
+// 簽證文號、招募文號、台灣電話號碼這幾個欄位原本每打一個字就立刻
+// 非同步寫一次 Firestore；打字速度一快，好幾個 updateDoc 同時在飛，
+// 網路上完成的先後順序不保證跟打字順序一樣，較舊那次（字數較少）的
+// 寫入如果比較晚完成，就會把 Firestore 上較新、字數較多的值蓋回去，
+// 連帶透過 onSnapshot 把畫面也蓋回去——看起來像「只能輸入一個數字」
+// 或打到一半被清空。改成：畫面永遠顯示本地狀態（打字當下就看得到，
+// 不等外部資料），輸入框還在聚焦時不接受外部資料覆蓋本地值；真正寫回
+// Firestore 則是停止輸入 400ms 後才寫一次（debounce），失焦時立刻把
+// 還沒寫出去的值補寫一次——同一個欄位同時間只會有一次寫入在飛，不會
+// 互相搶跑蓋掉。
+// allowHyphen：簽證文號／招募文號這類文件編號常見「113-123456」這種
+// 帶連字號的格式，台灣電話號碼不需要連字號，兩種欄位共用同一個元件，
+// 用這個參數分開允許的字元。
+function DigitsInput({ value, onChange, style, allowHyphen }) {
   const [local, setLocal] = useState(value || '');
   const [focused, setFocused] = useState(false);
   const timerRef = useRef(null);
+  const sanitize = (raw) => raw.replace(allowHyphen ? /[^0-9-]/g : /\D/g, '');
 
   useEffect(() => {
     if (!focused) setLocal(value || '');
@@ -47,7 +37,7 @@ function DigitsInput({ value, onChange, style }) {
   }
 
   function handleChange(e) {
-    const digits = e.target.value.replace(/\D/g, '');
+    const digits = sanitize(e.target.value);
     setLocal(digits);
     commit(digits);
   }
@@ -63,7 +53,9 @@ function DigitsInput({ value, onChange, style }) {
 
   return (
     <input
-      inputMode="numeric"
+      // 允許連字號的欄位用一般文字鍵盤（手機數字鍵盤通常沒有「-」鍵），
+      // 純數字欄位（電話號碼）才用 numeric 叫出數字鍵盤。
+      inputMode={allowHyphen ? 'text' : 'numeric'}
       value={local}
       onFocus={() => setFocused(true)}
       onBlur={handleBlur}
@@ -98,7 +90,7 @@ function EmployerTable({
             <tr>
               <th>{t('姓名', lang)}</th><th>{t('越文姓名', lang)}</th><th>{t('性別', lang)}</th>
               <th>{t('省份', lang)}</th><th>{t('簽證辦理日期', lang)}</th><th>{t('簽證領取日期', lang)}</th><th>{t('簽證文號', lang)}</th>
-              <th>{t('台灣電話號碼', lang)}</th>{canEditPage && <th></th>}
+              <th>{t('招募文號', lang)}</th><th>{t('台灣電話號碼', lang)}</th>{canEditPage && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -122,8 +114,13 @@ function EmployerTable({
                 </td>
                 <td>
                   {canEditPage ? (
-                    <DigitsInput value={info.visaDocNumber} onChange={(v) => onField(w, employerId, 'visaDocNumber', v)} style={{ width: 120 }} />
+                    <DigitsInput allowHyphen value={info.visaDocNumber} onChange={(v) => onField(w, employerId, 'visaDocNumber', v)} style={{ width: 120 }} />
                   ) : (info.visaDocNumber || '—')}
+                </td>
+                <td>
+                  {canEditPage ? (
+                    <DigitsInput allowHyphen value={info.recruitmentDocNumber} onChange={(v) => onField(w, employerId, 'recruitmentDocNumber', v)} style={{ width: 120 }} />
+                  ) : (info.recruitmentDocNumber || '—')}
                 </td>
                 <td>
                   {canEditPage ? (

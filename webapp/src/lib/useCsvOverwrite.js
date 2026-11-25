@@ -45,7 +45,12 @@ async function overwriteCollection(collectionName, importedRows) {
   }
 }
 
-export function useCsvOverwrite(collectionName, fields, { entityLabel, requiredKeys, canEdit } = {}) {
+// validateRow(row) 是選用的額外檢查：parseImportRows 只確認 requiredKeys
+// 欄位「有填值」，不會確認那個值是不是真的存在（例如移工ID欄位填了
+// 一個不存在/打錯的 ID，一樣會被當成合法匯入，結果畫面顯示姓名變成
+// 「—」，因為查不到對應的移工資料——有傳 validateRow 的頁面，這裡會
+// 再濾掉一次，回傳 false 的列會被當成略過，不是直接匯入。
+export function useCsvOverwrite(collectionName, fields, { entityLabel, requiredKeys, validateRow, canEdit } = {}) {
   function handleExport(rows) {
     exportEntityCSV(rows, fields, entityLabel || collectionName);
   }
@@ -56,6 +61,11 @@ export function useCsvOverwrite(collectionName, fields, { entityLabel, requiredK
     try { text = await decodeCsvFile(file, fields); } catch { alert('無法讀取檔案。'); return; }
     const result = parseImportRows(text, fields, requiredKeys);
     if (result.error) { alert(result.error); return; }
+    if (validateRow) {
+      const before = result.imported.length;
+      result.imported = result.imported.filter(validateRow);
+      result.skipped = (result.skipped || 0) + (before - result.imported.length);
+    }
     if (!result.imported.length) {
       alert('沒有任何一列可以匯入，請確認欄位格式與必填的關聯 ID 是否正確。請使用「下載完整資料」產生的檔案來編輯，不要自己重新排欄位。');
       return;

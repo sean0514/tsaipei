@@ -159,6 +159,41 @@ export function withPairInfo(w, field, employerId, value) {
   return JSON.stringify({ ...parsePairFlags(w, field), [key]: value });
 }
 
+// 移到這裡（原本只在 DeparturePage.jsx 裡）：內部獎金頁面要依「出境
+// 月份」試算，也要讀同一份航班資訊，兩邊共用同一份判斷邏輯，不要
+// 各自維護一份、以後改了其中一邊忘記改另一邊。
+const LEGACY_DEPARTURE_FIELDS = ['flightAirline', 'flightNumber', 'flightTerminal', 'flightTime', 'transportFee', 'billingParty', 'includeInBilling'];
+
+// 航班/交通資訊依配對（移工×雇主）各自獨立存放（departureInfoMap），
+// 不能像舊版那樣直接存在移工文件的扁平欄位上——否則同一個移工同時配對
+// 多個雇主時，填寫其中一筆的航班資訊會覆蓋到另一筆。舊資料沒有
+// departureInfoMap 時，退回舊的扁平欄位顯示（只配對單一雇主時仍準確），
+// 一旦透過「編輯」存檔就會改存進新的 departureInfoMap。
+export function departureInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'departureInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_DEPARTURE_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
+
+// 移到這裡（原本只在 VisaProcessingPage.jsx 裡）：入境通知要顯示簽證
+// 文號，也要讀同一份簽證資訊，理由跟上面 departureInfoOf 移過來一樣
+// ——兩邊共用同一份讀取邏輯，不要各自維護一份。
+const LEGACY_VISA_FIELDS = ['visaProcessDate', 'visaPickupDate', 'visaDocNumber', 'taiwanPhone'];
+
+// 簽證辦理日期/領取日期/文號、台灣電話號碼依配對（移工×雇主）各自
+// 獨立存放（visaInfoMap），理由跟上面 departureInfoOf 一樣——不能像舊版
+// 那樣直接存在移工文件的扁平欄位上，否則同一個移工同時配對多個雇主時，
+// 填寫其中一筆的簽證資料會覆蓋到另一筆。
+export function visaInfoOf(w, employerId) {
+  const stored = getPairInfo(w, 'visaInfoMap', employerId);
+  if (Object.keys(stored).length) return stored;
+  const legacy = {};
+  LEGACY_VISA_FIELDS.forEach((k) => { if (w[k] !== undefined) legacy[k] = w[k]; });
+  return legacy;
+}
+
 // 從其他狀態改回「錄取」，代表那一筆配對重新開始整個流程——文件追蹤/
 // 辦理簽證/出境辦理/入境通知先前留下的完成/移除/結案旗標都要清掉，
 // 不然那一筆配對會因為舊旗標還是 true，卡在原本的頁面出不來或一路
@@ -233,4 +268,92 @@ export function requiredDocsDone(worker) {
   const checked = worker.docsChecked || {};
   const required = DOCS_CHECKLIST.filter((d) => d.required);
   return required.filter((d) => checked[d.key]).length;
+}
+
+// 費用計算/收費紀錄/支付紀錄/內部獎金都要能各自標示幣別——同一位
+// 移工的多筆收費/支付可能用不同幣別分開收/付，不互相轉換，各幣別
+// 分開加總顯示（不換算成同一個基準幣別），所以這裡提供共用的
+// 「依幣別分組加總」「兩個幣別分組相減」「幣別分組格式化成字串」
+// 工具函式，四個頁面各自的彙總表都呼叫同一份，不要各自重寫一次。
+// 舊資料沒有幣別欄位時，當作新台幣（DEFAULT_CURRENCY），不是因為
+// 新台幣比較重要，只是這個系統原本金額欄位預設就是新台幣。
+export const CURRENCIES = ['新台幣', '美金', '越盾'];
+export const DEFAULT_CURRENCY = CURRENCIES[0];
+
+export function formatMoney(amount, currency, lang) {
+  return `${(Number(amount) || 0).toLocaleString()} ${t(currency || DEFAULT_CURRENCY, lang)}`;
+}
+
+// items 是任意物件陣列（收費紀錄、支付紀錄…），amountKey/currencyKey
+// 是金額跟幣別分別存在哪個欄位名稱；回傳 { 幣別: 加總金額 }。
+export function sumByCurrency(items, amountKey, currencyKey = 'currency') {
+  const map = {};
+  items.forEach((item) => {
+    const cur = item[currencyKey] || DEFAULT_CURRENCY;
+    map[cur] = (map[cur] || 0) + (Number(item[amountKey]) || 0);
+  });
+  return map;
+}
+
+// 應繳 - 已繳＝餘額，但兩邊可能出現不同的幣別組合（例如應繳是新台幣，
+// 已繳卻收了一筆美金）——用兩邊出現過的幣別聯集各自相減，不會漏掉
+// 任何一個幣別，也不會把不同幣別的數字加在一起相減。
+export function subtractCurrencyMaps(dueMap, paidMap) {
+  const result = {};
+  new Set([...Object.keys(dueMap), ...Object.keys(paidMap)]).forEach((cur) => {
+    result[cur] = (dueMap[cur] || 0) - (paidMap[cur] || 0);
+  });
+  return result;
+}
+
+// 把 { 幣別: 金額 } 的分組結果格式化成一行文字（例如「50,000 新台幣、
+// $200 美金」），金額是 0 的幣別不顯示（不然每筆沒用到的幣別都會列出
+// 一個「0 越盾」，太吵）；整個結果是空的（或全部都是 0）就顯示「0」。
+export function formatMoneyMap(map, lang) {
+  const entries = Object.entries(map).filter(([, amount]) => amount);
+  if (!entries.length) return '0';
+  return entries.map(([cur, amount]) => formatMoney(amount, cur, lang)).join('、');
+}
+
+// 結案（費用計算/收費紀錄/支付紀錄共用同一個 closed 欄位）前要先完成
+// 審核關卡：收費紀錄這邊是審核、覆核兩道（chargeReviewed 審核完成後
+// 才能按 chargeCountersigned 覆核，兩個都要完成），支付紀錄只有一道
+// （paymentReviewed）——三個頁面的結案按鈕都要套用同一個判斷，不要
+// 各自寫一次判斷式，以免以後改了審核規則卻只改到其中一兩個頁面。
+export function canCloseFee(fs) {
+  return fs.chargeCountersigned === '是' && fs.paymentReviewed === '是';
+}
+
+// 內部獎金的 6 個固定角色（招募人員另外在「費用計算」每位移工各自填，
+// 不在這裡）——「內部獎金編輯」(BonusRateSetupPage.jsx) 跟「內部獎金」
+// (BonusPage.jsx) 都要讀同一組角色定義跟對應的欄位名稱，共用同一份
+// 設定，不要各自維護一份。rateKey/currencyKey 直接存在移工文件本身
+// （不是依配對），因為這筆獎金是整個案件固定一筆，不是按配對拆開算。
+export const BONUS_ROLE_DEFS = [
+  { workerKey: 'assignedAdminResume', rateKey: 'adminResumeRate', currencyKey: 'adminResumeRateCurrency', label: '行政（履歷表）' },
+  { workerKey: 'assignedAdminForm', rateKey: 'adminFormRate', currencyKey: 'adminFormRateCurrency', label: '行政表格' },
+  { workerKey: 'assignedAccountant', rateKey: 'accountantRate', currencyKey: 'accountantRateCurrency', label: '會計人員' },
+  { workerKey: 'assignedFieldStaff', rateKey: 'fieldStaffRate', currencyKey: 'fieldStaffRateCurrency', label: '外務人員' },
+  { workerKey: 'assignedSupervisor', rateKey: 'supervisorRate', currencyKey: 'supervisorRateCurrency', label: '主管' },
+  { workerKey: 'assignedManager', rateKey: 'managerRate', currencyKey: 'managerRateCurrency', label: '經理' },
+];
+
+// 這位移工是否有任一筆配對（移工×雇主）已經到「入境通知」名單——跟
+// ArrivalNoticePage.jsx 判斷是否列入名單的條件一致（出境辦理已完成、
+// 沒有從入境通知名單移除），「內部獎金編輯」的名單直接沿用同一個條件，
+// 不會因為那一筆配對在入境通知那邊「已結案」就消失（獎金設定是永久
+// 紀錄，不跟著入境通知自己的結案狀態走）。
+export function reachedArrivalNotice(w) {
+  const ids = workerEmployerIds(w);
+  const pairs = ids.length ? ids : [null];
+  return pairs.some((employerId) => getPairFlag(w, 'departureCompletedMap', employerId) && !getPairFlag(w, 'arrivalListRemovedMap', employerId));
+}
+
+// 這位移工是否有任一筆配對的出境航班時間落在這個月——跟 BonusPage.jsx
+// 原本「依出境月份試算」的判斷同一套邏輯，移到這裡供「內部獎金編輯」
+// 共用（名單也要依月份分類）。
+export function departedInMonth(w, month) {
+  const ids = workerEmployerIds(w);
+  const pairs = ids.length ? ids : [null];
+  return pairs.some((employerId) => (departureInfoOf(w, employerId).flightTime || '').slice(0, 7) === month);
 }

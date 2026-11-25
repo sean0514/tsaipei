@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
 import { downloadXlsx } from '../../lib/xlsxExport';
-import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag } from './constants';
+import { employerLabel, workerEmployerIds, getPairFlag, withPairFlag, departureInfoOf, visaInfoOf } from './constants';
 
 const UNSET_AGENCY = '__unset_agency__';
 const UNMATCHED_EMPLOYER = '__unmatched__';
@@ -129,67 +129,70 @@ export default function ArrivalNoticePage() {
     setEditing(null);
   }
 
-  // 下載入境通知單：比照使用者提供的紙本格式，表頭 TO/FROM/DATE + 入境
-  // 日期/機場及班機/抵達時間，底下接編號/姓名/雇主…的名冊表格。同一組
-  // （仲介）底下的移工通常是同一班飛機，班機資訊取第一筆有填的那筆。
-  async function handleDownload(agencyKey, group) {
-    const flightRow = group.find(({ worker: w }) => w.flightTime)?.worker || {};
-    const [arrivalDate, arrivalTimeRaw] = (flightRow.flightTime || '').split('T');
-    const title = agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey;
-    await downloadXlsx(`入境通知單_${title}.xlsx`, async (workbook) => {
-      const sheet = workbook.addWorksheet('入境通知單');
-      sheet.addRow(['入境通知單']);
-      sheet.mergeCells('A1:N1');
-      sheet.getCell('A1').alignment = { horizontal: 'center' };
-      sheet.getCell('A1').font = { bold: true, size: 14 };
-      sheet.addRow(['TO：']);
-      sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
-      sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
-      sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
-      sheet.addRow([
-        '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
-        '護照發照日期', '護照有效日期', '核准文號', '婚姻狀況', '台灣電話號碼',
-      ]).font = { bold: true };
-      // 姓名欄中文+越文兩行、核准文號欄核准文號+簽證文號兩行；工人照片欄
-      // 直接把履歷照片嵌進那一格，不是文字。
-      for (let i = 0; i < group.length; i += 1) {
-        const { worker: w, employerId } = group[i];
+  // 下載入境通知單：改成一人一份（原本是整組仲介底下所有人合併成一份，
+  // 現場接機／入境相關人員實際上是一個人對一份文件，拆開比較好用）。
+  // 格式還是比照使用者提供的紙本：表頭 TO/FROM/DATE + 入境日期/機場及
+  // 班機/起飛時間/抵達時間，底下接那一個人的名冊列。
+  async function handleDownload(w, employerId) {
+    try {
+      const flightRow = departureInfoOf(w, employerId);
+      // 抵達時間另外有專屬欄位（出境辦理填的是啟程班機時間，兩者不一定
+      // 相同），舊資料沒填抵達時間時退回用班機時間頂替，不然入境通知單
+      // 整欄空白。
+      const [arrivalDate, arrivalTimeRaw] = (flightRow.arrivalTime || flightRow.flightTime || '').split('T');
+      // 起飛時間另外顯示在表頭，跟抵達時間放一起比較——兩者是不同時間點
+      // （起飛用的就是出境辦理那邊的班機時間本身，不是抵達時間的退回值）。
+      const [, departureTimeRaw] = (flightRow.flightTime || '').split('T');
+      // 選擇帶入的證件照片，連同大頭照一次平行抓好（原本逐筆 await 排隊
+      // 抓，按下按鈕跟真正跳出存檔之間會等很久，看起來像「按了沒反應」）
+      // ——抓失敗的那幾張 fetchImageForExcel 內部已經接住回傳 null，不會
+      // 讓整個下載失敗。
+      const selectedTypes = IMAGE_TYPES.filter((it) => (imageSelections[selectionKey(w.id, employerId)] || {})[it.key]);
+      const [photo, ...attachmentPhotos] = await Promise.all([
+        fetchImageForExcel(w.photoUrl),
+        ...selectedTypes.map((type) => fetchImageForExcel(w[type.field])),
+      ]);
+      await downloadXlsx(`入境通知單_${w.name}.xlsx`, async (workbook) => {
+        const sheet = workbook.addWorksheet('入境通知單');
+        sheet.addRow(['入境通知單']);
+        sheet.mergeCells('A1:N1');
+        sheet.getCell('A1').alignment = { horizontal: 'center' };
+        sheet.getCell('A1').font = { bold: true, size: 14 };
+        sheet.addRow(['TO：']);
+        sheet.addRow(['FROM：', '', '', '', '', '', '', '', '', '入境日期', arrivalDate || '']);
+        sheet.addRow(['DATE：', '', '', '', '', '', '', '', '', '機場及班機', `${flightRow.flightAirline || ''} ${flightRow.flightNumber || ''}`.trim()]);
+        sheet.addRow(['', '', '', '', '', '', '', '', '', '起飛時間', departureTimeRaw || '']);
+        sheet.addRow(['', '', '', '', '', '', '', '', '', '抵達時間', arrivalTimeRaw || '']);
+        sheet.addRow([
+          '編號', '工人照片', '姓名', '雇主', '出生年月', '國籍', '性別', '護照號碼',
+          '護照發照日期', '護照有效日期', '核准文號', '婚姻狀況', '台灣電話號碼',
+        ]).font = { bold: true };
+        // 姓名欄中文+越文兩行、核准文號欄核准文號+簽證文號兩行；工人照片欄
+        // 直接把履歷照片嵌進那一格，不是文字。
         const row = sheet.addRow([
-          i + 1, '',
+          1, '',
           [w.name, w.vietnameseName].filter(Boolean).join('\n'),
           employerId ? employerLabel(employers, employerId, lang) : t('尚未配對', lang),
           w.birthDate || '', '越南', t(w.gender, lang) || '', w.passportNo || '',
           w.passportIssueDate || '', w.passportExpiry || '',
-          [w.approvalDocNumber, w.visaDocNumber].filter(Boolean).join('\n'),
+          [w.approvalDocNumber, visaInfoOf(w, employerId).visaDocNumber].filter(Boolean).join('\n'),
           t(w.maritalStatus, lang) || '', w.taiwanPhone || '',
         ]);
         row.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
         row.getCell(11).alignment = { wrapText: true, vertical: 'middle' };
         row.height = WORKER_PHOTO_PT;
-        const photo = await fetchImageForExcel(w.photoUrl);
         if (photo) {
           const imageId = workbook.addImage({ base64: photo.base64, extension: photo.extension });
           sheet.addImage(imageId, { tl: { col: 1, row: row.number - 1 }, ext: { width: WORKER_PHOTO_PX, height: WORKER_PHOTO_PX } });
         }
-      }
-      sheet.columns.forEach((col) => { col.width = 14; });
+        sheet.columns.forEach((col) => { col.width = 14; });
 
-      // 選擇帶入的證件照片接續放在同一個分頁的主表格下方，每位移工一個
-      // 區塊，標題列顯示姓名，底下橫向排開那個人自己勾選的幾種照片
-      // （每個人各自獨立選，不是整組共用一份）——入境通知單與附件照片
-      // 都在同一頁，不再另開分頁。
-      const anySelected = group.some(({ worker: w, employerId }) => {
-        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
-        return IMAGE_TYPES.some((it) => sel[it.key]);
-      });
-      if (!anySelected) return;
-      sheet.addRow([]);
-      const titleRow = sheet.addRow([t('附件照片', lang)]);
-      titleRow.font = { bold: true, size: 13 };
-      for (const { worker: w, employerId } of group) {
-        const sel = imageSelections[selectionKey(w.id, employerId)] || {};
-        const selectedTypes = IMAGE_TYPES.filter((it) => sel[it.key]);
-        if (!selectedTypes.length) continue;
+        // 選擇帶入的證件照片接續放在同一個分頁的主表格下方，橫向排開
+        // 勾選的幾種照片——入境通知單與附件照片都在同一頁，不再另開分頁。
+        if (!selectedTypes.length) return;
+        sheet.addRow([]);
+        const titleRow = sheet.addRow([t('附件照片', lang)]);
+        titleRow.font = { bold: true, size: 13 };
         const nameRow = sheet.addRow([w.name]);
         nameRow.font = { bold: true };
         const labelRow = sheet.addRow([]);
@@ -199,16 +202,20 @@ export default function ArrivalNoticePage() {
         const imageRow = sheet.addRow([]);
         imageRow.height = DOC_PHOTO_PT;
         for (let col = 0; col < selectedTypes.length; col += 1) {
-          const type = selectedTypes[col];
-          const img = await fetchImageForExcel(w[type.field]);
+          const img = attachmentPhotos[col];
           if (img) {
             const imageId = workbook.addImage({ base64: img.base64, extension: img.extension });
             sheet.addImage(imageId, { tl: { col: col * 3, row: imageRow.number - 1 }, ext: { width: DOC_PHOTO_PX, height: DOC_PHOTO_PX } });
           }
         }
-        sheet.addRow([]);
-      }
-    });
+      });
+    } catch (err) {
+      // 原本任何一步失敗（例如抓照片、產生 Excel）都只會在 console 留下
+      // 錯誤，畫面上完全看不出來、以為是按鈕沒反應——改成明確跳出錯誤
+      // 訊息，之後真的遇到問題才看得出是哪一步壞了。
+      console.error(err);
+      window.alert(`${t('下載失敗', lang)}：${err.message || err}`);
+    }
   }
 
   function AgencyTable({ group, closed }) {
@@ -218,26 +225,31 @@ export default function ArrivalNoticePage() {
             <thead>
               <tr>
                 <th>{t('姓名', lang)}</th><th>{t('雇主', lang)}</th><th>{t('性別', lang)}</th>
-                <th>{t('護照號碼', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
+                <th>{t('護照號碼', lang)}</th><th>{t('簽證文號', lang)}</th><th>{t('航空公司', lang)}</th><th>{t('航班編號', lang)}</th>
                 <th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
                 <th>{t('請款對象', lang)}</th>
                 {!closed && canEditPage && <th>{t('下載時選擇帶入的證件照片', lang)}</th>}
+                <th></th>
                 {canEditPage && <th></th>}
               </tr>
             </thead>
             <tbody>
-              {group.map(({ worker: w, employerId: rowEmployerId }) => (
+              {group.map(({ worker: w, employerId: rowEmployerId }) => {
+                const info = departureInfoOf(w, rowEmployerId);
+                const visaInfo = visaInfoOf(w, rowEmployerId);
+                return (
                 <tr key={`${w.id}-${rowEmployerId || UNMATCHED_EMPLOYER}`}>
                   <td style={{ fontWeight: 600 }}>{w.name}</td>
                   <td>{rowEmployerId ? employerLabel(employers, rowEmployerId, lang) : t('尚未配對', lang)}</td>
                   <td>{t(w.gender, lang) || '—'}</td>
                   <td>{w.passportNo || '—'}</td>
-                  <td>{w.flightAirline || '—'}</td>
-                  <td>{w.flightNumber || '—'}</td>
-                  <td>{w.flightTerminal || '—'}</td>
-                  <td>{w.flightTime || '—'}</td>
-                  <td>{w.transportFee ? (+w.transportFee).toLocaleString() : '—'}</td>
-                  <td>{w.billingParty || '—'}</td>
+                  <td>{visaInfo.visaDocNumber || '—'}</td>
+                  <td>{info.flightAirline || '—'}</td>
+                  <td>{info.flightNumber || '—'}</td>
+                  <td>{info.flightTerminal || '—'}</td>
+                  <td>{info.flightTime || '—'}</td>
+                  <td>{info.transportFee ? (+info.transportFee).toLocaleString() : '—'}</td>
+                  <td>{info.billingParty || '—'}</td>
                   {!closed && canEditPage && (
                     <td>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -255,6 +267,9 @@ export default function ArrivalNoticePage() {
                       </div>
                     </td>
                   )}
+                  <td className="row-actions">
+                    <button onClick={() => handleDownload(w, rowEmployerId)}>{t('下載入境通知單', lang)}</button>
+                  </td>
                   {canEditPage && (
                     <td className="row-actions">
                       {closed ? (
@@ -270,7 +285,8 @@ export default function ArrivalNoticePage() {
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table></div>
       </div>
@@ -296,9 +312,6 @@ export default function ArrivalNoticePage() {
                 {agencyKey === UNSET_AGENCY ? t('未填仲介名稱', lang) : agencyKey}
                 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>（{group.length}）</span>
               </h3>
-              <div className="row-actions" style={{ marginBottom: 10 }}>
-                <button onClick={() => handleDownload(agencyKey, group)}>{t('下載入境通知單', lang)}</button>
-              </div>
               <AgencyTable group={group} />
             </div>
           );

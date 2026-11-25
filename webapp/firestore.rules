@@ -1083,21 +1083,37 @@ service cloud.firestore {
     // 文件追蹤頁面只會更新 docsChecked 欄位（勾選清單），所以 update 也
     // 放行 docsChecklist；履歷表連結轉入移工資料時也會新增一筆，所以
     // create 也放行 resumeLinks；移工名冊（跳過案件階段/雇主的簡化名冊）
-    // 共用同一個集合，也放行 workerRoster。
+    // 共用同一個集合，也放行 workerRoster；費用計算新增/編輯費用設定時
+    // 會自動把那一筆配對的狀態改成「錄取」，帶入文件追蹤名單，所以
+    // update 也放行 feeSetup（見 FeeSetupPage.jsx 的 ensureHiredForFee）；
+    // 內部獎金編輯改成直接把每位移工的角色獎金金額/幣別存在移工文件
+    // 本身（不是像以前存一筆全公司共用設定），所以 update 也放行
+    // bonusRateSetup（見 BonusRateSetupPage.jsx）。
     match /laborAgency_workers/{docId} {
       allow read: if laIsMember();
       allow create: if laCanEdit('workers') || laCanEdit('resumeLinks') || laCanEdit('workerRoster') || isPublicLaborWorkerCreate();
       allow delete: if laCanEdit('workers') || laCanEdit('workerRoster');
       allow update: if laCanEdit('workers') || laCanEdit('docsChecklist') || laCanEdit('workerRoster')
-        || laCanEdit('visaProcessing') || laCanEdit('departure') || laCanEdit('arrivalNotice');
+        || laCanEdit('visaProcessing') || laCanEdit('departure') || laCanEdit('arrivalNotice') || laCanEdit('feeSetup') || laCanEdit('bonusRateSetup');
     }
     match /laborAgency_employers/{docId} {
       allow read: if laIsMember();
       allow write: if laCanEdit('employers');
     }
+    // create 也放行 workers 編輯者：移工管理把一筆配對改成「錄取」時，
+    // 會自動在這裡補一筆空白費用設定（見 WorkersPage.jsx 的
+    // ensureFeeSetupForHire），經辦人不一定有費用計算的編輯權限。
+    // update 也放行 chargeRecords／paymentRecords 編輯者：這兩個頁面
+    // 的「結案」按鈕改的是同一個 closed 欄位（三邊互通，見
+    // ChargeRecordsPage.jsx／PaymentRecordsPage.jsx），經辦人不一定
+    // 有費用計算本身的編輯權限，只放行 closed 這一個欄位風險太小、
+    // 不值得為此另外寫欄位層級的限制。delete 仍只限費用計算編輯者，
+    // 避免誤刪已維護的設定。
     match /laborAgency_feeSetup/{docId} {
       allow read: if laIsMember();
-      allow write: if laCanEdit('feeSetup');
+      allow create: if laCanEdit('feeSetup') || laCanEdit('workers');
+      allow update: if laCanEdit('feeSetup') || laCanEdit('chargeRecords') || laCanEdit('paymentRecords');
+      allow delete: if laCanEdit('feeSetup');
     }
     match /laborAgency_chargeRecords/{docId} {
       allow read: if laIsMember();
@@ -1107,13 +1123,20 @@ service cloud.firestore {
       allow read: if laIsMember();
       allow write: if laCanEdit('paymentRecords');
     }
-    // 內部獎金編輯：全公司統一一筆設定（固定 doc id "default"），跟
-    // dispatch_referralBonusRate 同一套做法，用 bonusRateSetup 這個權限鍵
-    // 單獨控管（跟「內部獎金」頁面本身的 bonus 權限鍵分開，避免有唯讀
-    // 權限看獎金試算的人也能改費率）。
+    // 內部獎金編輯：原本是全公司統一一筆設定（固定 doc id "default"），
+    // 跟 dispatch_referralBonusRate 同一套做法；後來改成每位移工各自填
+    // （直接存在 laborAgency_workers，見上面該集合 update 規則），這個
+    // 集合留著是舊資料，不再有新寫入，規則留著無害、不特別清掉。
     match /laborAgency_bonusRateSetup/{docId} {
       allow read: if laIsMember();
       allow write: if laCanEdit('bonusRateSetup');
+    }
+    // 內部獎金：確認封存的獎金快照（每個出境月份一筆），封存後該月畫面
+    // 改用這份固定資料，不再即時重算——比照 tsaipei_bonusArchives 同一套
+    // 做法，用「內部獎金」頁面本身的 bonus 權限鍵控管。
+    match /laborAgency_bonusArchives/{docId} {
+      allow read: if laIsMember();
+      allow write: if laCanEdit('bonus');
     }
     // 公開線上履歷連結（/apply/laborAgency?ref=...）不需要登入即可新增一筆
     // 履歷，只允許這裡列出的欄位＋assignedStaff/status/createdAt，且 status

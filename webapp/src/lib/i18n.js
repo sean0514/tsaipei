@@ -333,6 +333,8 @@ const VI = {
   '航班編號': 'Số hiệu chuyến bay',
   '航廈': 'Nhà ga',
   '機票費用': 'Chi phí vé máy bay',
+  '簽證費用': 'Chi phí xin visa',
+  '掛牌費用': 'Chi phí đăng ký',
   '付款人': 'Người thanh toán',
 
   // 接送車輛安排
@@ -380,6 +382,9 @@ const VI = {
   '學生來源(國外供應商)': 'Nguồn học viên (nhà cung cấp nước ngoài)',
   '學生名字': 'Tên học viên',
   '幣別': 'Loại tiền',
+  '新台幣': 'Đài tệ (TWD)',
+  '美金': 'Đô la Mỹ (USD)',
+  '越盾': 'Đồng Việt Nam (VND)',
   '台幣金額': 'Số tiền TWD',
 
   // 郵資費用紀錄
@@ -614,6 +619,14 @@ const VI = {
   '合計總額': 'Tổng cộng',
   '已封存': 'Đã lưu trữ',
   '即時試算': 'Ước tính trực tiếp',
+  '封存本月': 'Lưu trữ tháng này',
+  '取消封存': 'Hủy lưu trữ',
+  '目前沒有任何移工的出境紀錄，無法試算內部獎金': 'Hiện chưa có hồ sơ xuất cảnh nào của lao động, không thể ước tính tiền thưởng nội bộ',
+  '這個月沒有可計算的獎金資料，無法封存': 'Tháng này không có dữ liệu tiền thưởng để tính, không thể lưu trữ',
+  '封存失敗': 'Lưu trữ thất bại',
+  '取消封存失敗': 'Hủy lưu trữ thất bại',
+  '確定要取消封存這個月份的內部獎金計算嗎？取消後會改回即時重算的數字。':
+    'Bạn có chắc muốn hủy lưu trữ tiền thưởng nội bộ của tháng này không? Sau khi hủy sẽ quay lại tính toán trực tiếp.',
   '產生中…': 'Đang tạo…',
   '下載請款單': 'Tải hóa đơn thu tiền',
   '取消確認': 'Hủy xác nhận',
@@ -1209,12 +1222,18 @@ const VI = {
   // 內部獎金編輯），以及移工資料新增的角色指派欄位
   '招募人員': 'Nhân viên tuyển dụng',
   '行政（履歷表）': 'Hành chính (hồ sơ)',
+  '行政表格': 'Hành chính (biểu mẫu)',
+  '行政（負責履歷表）': 'Hành chính (phụ trách hồ sơ)',
+  '行政（負責客戶）': 'Hành chính (phụ trách khách hàng)',
   '主管': 'Quản lý',
+  '經理': 'Giám đốc',
   '搜尋姓名': 'Tìm theo tên',
 
   '費用計算': 'Tính phí',
   '每位移工一筆費用設定：應繳費用為總金額，台仲收費為其中元凱自己抽的部分，招募者獎金直接填固定金額，收費對象記錄向工人本人或向招募人員收取':
     'Mỗi lao động một thiết lập phí: phí phải nộp là tổng số tiền, phí môi giới Đài Loan là phần Nguyên Khải tự thu, tiền thưởng người tuyển dụng điền số tiền cố định, đối tượng thu phí ghi lại thu từ chính lao động hay từ người tuyển dụng',
+  '儲存後，若已選擇雇主，會自動將該配對狀態設為「錄取」，列入文件追蹤名單':
+    'Sau khi lưu, nếu đã chọn chủ sử dụng lao động, trạng thái cặp đó sẽ tự động chuyển thành "Trúng tuyển" và được đưa vào danh sách theo dõi hồ sơ',
   '新增費用設定': 'Thêm thiết lập phí',
   '應繳費用': 'Phí phải nộp',
   '台仲收費': 'Phí môi giới Đài Loan',
@@ -1231,6 +1250,31 @@ const VI = {
   '收費日期': 'Ngày thu phí',
   '尚未建立收費紀錄': 'Chưa có hồ sơ thu phí',
   '編輯收費紀錄': 'Chỉnh sửa hồ sơ thu phí',
+  '收費項目': 'Hạng mục thu phí',
+  '訂金': 'Tiền đặt cọc',
+  '預付款': 'Tiền tạm ứng',
+  '尾款': 'Tiền còn lại',
+  '選擇或自行輸入項目名稱': 'Chọn hoặc tự nhập tên hạng mục',
+  '已繳費用': 'Phí đã nộp',
+  '餘額': 'Số dư',
+  '查看明細': 'Xem chi tiết',
+  '新增收費': 'Thêm khoản thu',
+  '取消已結案': 'Hủy kết thúc hồ sơ',
+  '顯示已結案名單': 'Hiện danh sách đã kết thúc hồ sơ',
+  '此移工目前沒有收費紀錄': 'Lao động này hiện chưa có hồ sơ thu phí nào',
+  '收費審核': 'Duyệt thu phí',
+  '收費覆核': 'Phúc duyệt thu phí',
+  '支付審核': 'Duyệt chi trả',
+  '審核完成': 'Đã duyệt',
+  '未審核': 'Chưa duyệt',
+  '取消審核': 'Hủy duyệt',
+  '覆核': 'Phúc duyệt',
+  '覆核完成': 'Đã phúc duyệt',
+  '未覆核': 'Chưa phúc duyệt',
+  '取消覆核': 'Hủy phúc duyệt',
+  '核准人：': 'Người phê duyệt: ',
+  '時間：': 'Thời gian: ',
+  '需先完成收費覆核與支付審核才能結案': 'Cần hoàn tất phúc duyệt thu phí và duyệt chi trả trước khi có thể kết thúc hồ sơ',
 
   '支付紀錄': 'Hồ sơ chi trả',
   '實際付出的款項日誌（招募者獎金、內部獎金或其他支出）': 'Nhật ký thực tế chi tiền (tiền thưởng người tuyển dụng, tiền thưởng nội bộ hoặc chi phí khác)',
@@ -1245,15 +1289,34 @@ const VI = {
   '（無）': '(Không có)',
   '尚未建立支付紀錄': 'Chưa có hồ sơ chi trả',
   '編輯支付紀錄': 'Chỉnh sửa hồ sơ chi trả',
+  '已付招募者獎金': 'Tiền thưởng người tuyển dụng đã trả',
+  '其他支付紀錄': 'Hồ sơ chi trả khác',
+  '已結案支付紀錄（依月份）': 'Hồ sơ chi trả đã kết thúc hồ sơ (theo tháng)',
+  '月份': 'Tháng',
+  '未知月份': 'Tháng không xác định',
+  '本月總計': 'Tổng tháng này',
+  '這個月沒有已結案的支付紀錄': 'Tháng này không có hồ sơ chi trả đã kết thúc hồ sơ nào',
+  '此移工目前沒有支付紀錄': 'Lao động này hiện chưa có hồ sơ chi trả nào',
 
   '內部獎金編輯': 'Chỉnh sửa tiền thưởng nội bộ',
   '設定行政（履歷表）/會計人員/外務人員/主管每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
     'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '設定行政（履歷表）/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '設定行政（履歷表）/行政表格/會計人員/外務人員/主管/經理每個案件固定發放的獎金金額（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Thiết lập số tiền thưởng cố định cho mỗi hồ sơ của hành chính (hồ sơ)/hành chính (biểu mẫu)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
   '每案': 'mỗi hồ sơ',
   '已儲存': 'Đã lưu',
+  '自動列出已到「入境通知」階段的移工，依出境月份分類，每位移工各自填寫行政（負責履歷表）/行政（負責客戶）/會計人員/外務人員/主管/經理的獎金金額與幣別（招募人員的獎金在「費用計算」每位移工各自填），供「內部獎金」試算':
+    'Tự động liệt kê các lao động đã đến bước "Thông báo nhập cảnh", phân loại theo tháng xuất cảnh, mỗi lao động tự điền số tiền và đơn vị tiền tệ thưởng cho hành chính (phụ trách hồ sơ)/hành chính (phụ trách khách hàng)/nhân viên kế toán/nhân viên đối ngoại/quản lý/giám đốc (tiền thưởng người tuyển dụng điền riêng cho từng lao động ở "Tính phí"), dùng để tính "Tiền thưởng nội bộ"',
+  '目前沒有已到入境通知階段的移工': 'Hiện chưa có lao động nào đến bước Thông báo nhập cảnh',
+  '尚未填出境月份': 'Chưa điền tháng xuất cảnh',
 
   '依移工案件自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總':
     'Tự động tính theo từng hồ sơ lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người',
+  '依移工出境月份自動試算：招募人員拿費用計算設定的招募者獎金，其餘角色拿內部獎金編輯設定的固定金額，依人員加總；每個月分開顯示，可各自封存':
+    'Tự động tính theo tháng xuất cảnh của lao động: người tuyển dụng nhận tiền thưởng người tuyển dụng thiết lập ở Tính phí, các vai trò khác nhận số tiền cố định thiết lập ở Chỉnh sửa tiền thưởng nội bộ, cộng dồn theo từng người; mỗi tháng hiển thị riêng, có thể lưu trữ từng tháng',
+  '全部月份': 'Tất cả các tháng',
 
   // 元凱移工事業部：補漏翻譯——性別/角色等跨頁共用值，以及出境辦理/
   // 入境通知/文件追蹤/辦理簽證頁面標題、說明文字、欄位標籤（原本漏了
@@ -1281,6 +1344,7 @@ const VI = {
   '目前沒有待收件的名單': 'Hiện chưa có danh sách chờ thu hồ sơ',
   '簽證辦理日期': 'Ngày làm visa',
   '簽證文號': 'Số văn bản visa',
+  '招募文號': 'Số văn bản tuyển dụng',
   '需先填入簽證文號才能按完成': 'Cần điền số văn bản visa trước khi bấm hoàn tất',
   '簽證領取日期': 'Ngày nhận visa',
   '自動列出文件已收齊完成的移工，填寫簽證辦理日期、領取日期；完成後進入下一關「出境辦理」':
@@ -1311,6 +1375,7 @@ const VI = {
   '下載入境通知單時會帶入這三項資訊；入境日期/機場及班機/抵達時間自動取該組移工的班機資訊。':
     'Khi tải xuống thông báo nhập cảnh, ba thông tin này sẽ được điền vào; ngày nhập cảnh/sân bay và chuyến bay/giờ đến được tự động lấy từ thông tin chuyến bay của nhóm lao động đó.',
   '入境通知欄位': 'Thông tin nhập cảnh',
+  '下載失敗': 'Tải xuống thất bại',
 
   '是否可以接受刺青': 'Có chấp nhận hình xăm',
   '是否可以接受刺青：': 'Có chấp nhận hình xăm:',
