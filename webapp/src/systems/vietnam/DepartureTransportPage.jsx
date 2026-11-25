@@ -20,6 +20,19 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
+// 複製自 InTaiwanCarePage.jsx 的同名函式：依學生目前的媒合/錄取結果找出實習單位名稱。
+function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
+  const admitted = admittedList.find((a) => {
+    const m = matches.find((mm) => mm.id === a.matchId);
+    return m && m.studentId === studentId;
+  });
+  let m = admitted ? matches.find((mm) => mm.id === admitted.matchId) : null;
+  if (!m) m = matches.find((x) => x.studentId === studentId);
+  if (!m) return '未指定';
+  const p = positions.find((pp) => pp.id === m.positionId);
+  return p?.company || '未指定';
+}
+
 function monthOf(dateStr) {
   return (dateStr || '').slice(0, 7) || '未填日期';
 }
@@ -32,6 +45,10 @@ export default function DepartureTransportPage() {
   const canEditPage = computeCanEdit(system, 'departureTransport', role, overrides);
   const { rows, loading, add, update, remove } = useCollection('vietnam_departureTransport');
   const { rows: students } = useCollection('vietnam_students');
+  const { rows: matches } = useCollection('vietnam_matches');
+  const { rows: admittedList } = useCollection('vietnam_admittedList');
+  const { rows: positions } = useCollection('vietnam_positions');
+  const companyCtx = { matches, admittedList, positions };
   const [editing, setEditing] = useState(null);
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_departureTransport', CSV_FIELDS, { entityLabel: '送機行程', requiredKeys: ['studentId'], canEdit: canEditPage });
 
@@ -79,7 +96,7 @@ export default function DepartureTransportPage() {
                 <div className="table-wrap"><table>
                   <thead>
                     <tr>
-                      <th>{t('送機日期', lang)}</th><th>{t('學生名稱', lang)}</th><th>{t('學校', lang)}</th><th>{t('航空公司', lang)}</th>
+                      <th>{t('送機日期', lang)}</th><th>{t('學生名稱', lang)}</th><th>{t('學校', lang)}</th><th>{t('實習單位', lang)}</th><th>{t('航空公司', lang)}</th>
                       <th>{t('航班編號', lang)}</th><th>{t('出入境航廈', lang)}</th><th>{t('班機時間', lang)}</th><th>{t('車資費用', lang)}</th>
                       <th>{t('請款對象', lang)}</th><th>{t('是否列入學生請款', lang)}</th><th>{t('已完成', lang)}</th>
                       {canEditPage && <th></th>}
@@ -93,6 +110,7 @@ export default function DepartureTransportPage() {
                           <td>{r.date || '—'}</td>
                           <td style={{ fontWeight: 600 }}>{studentFullLabel(s)}</td>
                           <td>{s?.school || '—'}</td>
+                          <td>{studentCompanyLabel(r.studentId, companyCtx)}</td>
                           <td>{r.airline || '—'}</td>
                           <td>{r.flightNumber || '—'}</td>
                           <td>{r.terminal || '—'}</td>
