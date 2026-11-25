@@ -193,6 +193,12 @@ export default function StudentsPage() {
         getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', studentId))),
+        // 越南系統的「越南簽證辦理」(vietnam_visaProcessing) 是從這裡的
+        // 「申辦進度追蹤」連動建立的，studentId 存的就是這個境外生學生 id
+        // （見 tsaipei/ApplicationProgressPage.jsx 的 handleSave）——這裡
+        // 直接刪除學生時，連動建立的越南簽證辦理紀錄也要一併清掉，不留著
+        // 一筆對應不到學生的孤兒資料。
+        getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', studentId))),
       ]);
       const refs = [
         ...matchesSnap.docs.map((d) => d.ref),

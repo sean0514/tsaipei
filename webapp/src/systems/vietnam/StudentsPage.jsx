@@ -193,6 +193,13 @@ export default function StudentsPage() {
       getDocs(query(collection(db, 'tsaipei_housingRecords'), where('studentId', '==', tsaipeiStudentId))),
       getDocs(query(collection(db, 'tsaipei_inTaiwanVisa'), where('studentId', '==', tsaipeiStudentId))),
       getDocs(query(collection(db, 'tsaipei_inTaiwanCare'), where('studentId', '==', tsaipeiStudentId))),
+      // 越南系統的「越南簽證辦理」(vietnam_visaProcessing) 是從境外生實習
+      // 系統的「申辦進度追蹤」連動建立的，studentId 存的是這裡的
+      // tsaipeiStudentId，不是越南系統自己的學生 id（見
+      // tsaipei/ApplicationProgressPage.jsx 的 handleSave）——這筆境外生
+      // 學生資料被刪除時，連動建立的越南簽證辦理紀錄也要一併清掉，不留著
+      // 一筆對應不到學生的孤兒資料。
+      getDocs(query(collection(db, 'vietnam_visaProcessing'), where('studentId', '==', tsaipeiStudentId))),
     ]);
     const refs = [
       ...matchesSnap.docs.map((d) => d.ref),
@@ -221,6 +228,8 @@ export default function StudentsPage() {
         getDocs(query(collection(db, 'vietnam_inTaiwanVisa'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_inTaiwanCare'), where('studentId', '==', studentId))),
         getDocs(query(collection(db, 'vietnam_departureTransport'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'vietnam_vehicleArrangements'), where('studentId', '==', studentId))),
+        getDocs(query(collection(db, 'vietnam_bankAccountProgress'), where('studentId', '==', studentId))),
       ]);
       const refs = [
         ...matchesSnap.docs.map((d) => d.ref),

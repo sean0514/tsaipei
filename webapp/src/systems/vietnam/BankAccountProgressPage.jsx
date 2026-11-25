@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
@@ -54,8 +54,8 @@ export default function BankAccountProgressPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bankAccountProgress', role, overrides);
   const { rows: visaRecords, loading } = useCollection('vietnam_inTaiwanVisa');
-  const { rows: progressRows, add: addProgress, update: updateProgress } = useCollection('vietnam_bankAccountProgress');
-  const { rows: students } = useCollection('vietnam_students');
+  const { rows: progressRows, add: addProgress, update: updateProgress, remove: removeProgress } = useCollection('vietnam_bankAccountProgress');
+  const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
@@ -64,6 +64,22 @@ export default function BankAccountProgressPage() {
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
+
+  // 這個頁面本身是跟著「在台簽證追蹤」(vietnam_inTaiwanVisa，學生刪除時
+  // 已經會連鎖刪除)顯示，正常不會冒出孤兒紀錄；這裡只是順手清掉舊資料
+  // 裡本來就有、studentId 已經找不到對應學生的 vietnam_bankAccountProgress
+  // 紀錄，避免資料庫裡一直留著用不到的資料。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditPage || studentsLoading) return;
+    const studentIds = new Set(students.map((s) => s.id));
+    progressRows.forEach((r) => {
+      if (!r.studentId || studentIds.has(r.studentId) || attemptedCleanupIds.current.has(r.id)) return;
+      attemptedCleanupIds.current.add(r.id);
+      removeProgress(r.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progressRows, students, studentsLoading, canEditPage]);
 
   const arrived = visaRecords.filter((v) => v.firstEntryDate);
   const progressByStudent = {};

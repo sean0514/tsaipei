@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView, canEdit as computeCanEdit } from '../../lib/permissions';
@@ -42,7 +42,7 @@ export default function VehiclePickupPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canSee = canView(system, 'vehiclePickup', role, overrides);
   const canEditPage = computeCanEdit(system, 'vehiclePickup', role, overrides);
-  const { rows: students } = useCollection('vietnam_students');
+  const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
@@ -55,6 +55,22 @@ export default function VehiclePickupPage() {
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
   const today = new Date().toISOString().slice(0, 10);
+
+  // 刪除學生以前沒有連動清掉這裡的接送安排紀錄（已經補上，見
+  // StudentsPage.jsx 的 handleDelete），導致舊資料留下一批 studentId 已經
+  // 找不到對應學生的孤兒紀錄，畫面上顯示成「(已刪除)」。這裡載入時順便
+  // 清掉：對每筆孤兒紀錄只嘗試刪除一次，避免即時同步推回新資料時重複觸發。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditPage || l2 || studentsLoading) return;
+    const studentIds = new Set(students.map((s) => s.id));
+    arrangements.forEach((r) => {
+      if (!r.studentId || studentIds.has(r.studentId) || attemptedCleanupIds.current.has(r.id)) return;
+      attemptedCleanupIds.current.add(r.id);
+      remove(r.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrangements, students, l2, studentsLoading, canEditPage]);
 
   const pending = [];
   visaRecords.forEach((v) => {

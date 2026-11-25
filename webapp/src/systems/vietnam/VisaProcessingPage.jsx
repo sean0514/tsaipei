@@ -58,6 +58,24 @@ export default function VisaProcessingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
+  // 刪除境外生學生以前沒有連動清掉這裡連動建立的紀錄（已經補上，見
+  // tsaipei/StudentsPage.jsx 的 handleDelete 跟 vietnam/StudentsPage.jsx 的
+  // deleteSyncedTsaipeiStudent），導致舊資料留下一批 studentId 已經找不到
+  // 對應境外生學生的孤兒紀錄（因為上面的 withStudent 會把這些孤兒紀錄
+  // 直接篩掉，不會顯示在畫面上，所以不容易發現）。這裡載入時順便清掉：
+  // 對每筆孤兒紀錄只嘗試刪除一次，避免即時同步推回新資料時重複觸發。
+  const attemptedCleanupIds = useRef(new Set());
+  useEffect(() => {
+    if (!canEditPage || loadingRows || loadingStudents) return;
+    const studentIds = new Set(students.map((s) => s.id));
+    rows.forEach((r) => {
+      if (!r.studentId || studentIds.has(r.studentId) || attemptedCleanupIds.current.has(r.id)) return;
+      attemptedCleanupIds.current.add(r.id);
+      remove(r.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, students, loadingRows, loadingStudents, canEditPage]);
+
   async function handleSave(data) {
     if (data.id) {
       const { id, ...rest } = data;
