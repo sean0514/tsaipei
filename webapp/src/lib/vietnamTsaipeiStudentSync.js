@@ -1,6 +1,18 @@
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// 越南系統學生對應的境外生系統(tsaipei_students) id，依建檔方向分別存在
+// 兩個不同欄位：這個學生本來就是越南系統建檔、同步建立對應 tsaipei 紀錄
+// 的（StudentsPage.jsx 的「+ 新增學生」、ResumeLinksPage.jsx 的「轉入學生
+// 資料」）存在 syncedTsaipeiStudentId；反過來，學生本來是 tsaipei 系統
+// 建檔、越南系統只是連動補建鏡像紀錄的（見下面
+// ensureVietnamStudentForTsaipeiStudent/backfillVietnamStudentsForTsaipeiStudents）
+// 存在 syncedFromTsaipeiStudentId。只查其中一個欄位會漏掉另一個方向建檔
+// 的學生，要同時查兩個欄位才能涵蓋全部。
+export function tsaipeiIdOf(student) {
+  return student?.syncedTsaipeiStudentId || student?.syncedFromTsaipeiStudentId || null;
+}
+
 // 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
 // 資料裡——兩個入口都要用到這套同步邏輯：StudentsPage.jsx 自己的「+ 新增
 // 學生」，以及 ResumeLinksPage.jsx 把履歷表連結送進來的履歷「轉入學生

@@ -28,7 +28,11 @@ export default function BonusPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
-  const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
+  // 實際入境/離境日期記在境外生系統「在台簽證追蹤」，不是越南系統自己
+  // 的 vietnam_inTaiwanVisa（整個系統沒有任何地方會真的寫入這個
+  // collection，一直是空的）——見 lib/vietnamBonus.js 的
+  // computeVietnamSchoolRepBonusForMonth。
+  const { rows: inTaiwanVisaRecords } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: bonusRateSetup } = useCollection('vietnam_internalBonusRateSetup');
   const { rows: departureTransport } = useCollection('vietnam_departureTransport');

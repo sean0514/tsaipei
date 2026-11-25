@@ -4,6 +4,7 @@
 // studentProjectClientPair/computeDormManagerBonusForMonth）跟角色清單無關，
 // 直接沿用 lib/bonus.js 的版本。
 import { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjectClientPair, computeDormManagerBonusForMonth } from './bonus';
+import { tsaipeiIdOf } from './vietnamTsaipeiStudentSync';
 
 export { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjectClientPair, computeDormManagerBonusForMonth };
 
@@ -133,6 +134,10 @@ export function computeVietnamInternalBonusByPerson(ctx) {
 // 學校代表獎金：依學校費用設定(vietnam_schoolSetup)設定的學校代表＋月費率，
 // 乘以該校每位學生這個月在台天數比例，依學校分組顯示；幣別就是那所學校
 // 設定的月費率幣別（跟上面一次性獎金的幣別是分開的兩個欄位，可以不同）。
+// 在台天數要看境外生系統「在台簽證追蹤」(tsaipei_inTaiwanVisa) 的入境/
+// 離境日期——越南系統自己的 vietnam_inTaiwanVisa 目前整個系統沒有任何
+// 地方會真的寫入入境/離境日期，一直是空的，實際日期都記在境外生系統
+// 那邊，要先用 tsaipeiIdOf() 把學生換成對應的境外生 id 才查得到。
 export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
@@ -147,7 +152,9 @@ export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
   (students || []).forEach((s) => {
     const row = rows[normalizeSchoolName(s.school)];
     if (!row) return;
-    const days = studentDaysInTaiwanForMonth(s.id, monthStr, inTaiwanVisaRecords);
+    const tsaipeiId = tsaipeiIdOf(s);
+    if (!tsaipeiId) return;
+    const days = studentDaysInTaiwanForMonth(tsaipeiId, monthStr, inTaiwanVisaRecords);
     if (days <= 0) return;
     const sc = findSchool(schools, s.school);
     const rateVal = Number(sc?.monthlyFee) || 0;

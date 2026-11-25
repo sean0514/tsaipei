@@ -4,6 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
+import { tsaipeiIdOf } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 const CURRENCIES = ['新台幣', '美金', '越盾'];
@@ -33,19 +34,23 @@ function studentLabel(s) {
 // 入台/離台/辦理簽證中：不另外存一個欄位手動選，依其他已經在追蹤的
 // 資料自動推算——
 // 1. 「越南簽證辦理」(vietnam_visaProcessing) 是從境外生系統連動建立的，
-//    studentId 存的是 syncedTsaipeiStudentId（見 vietnam/StudentsPage.jsx），
-//    不是這裡的學生 id，要先換過去才能查到。狀態還不是「已完成」就算
-//    辦理簽證中。
-// 2. 簽證辦完才看「在台簽證追蹤」(vietnam_inTaiwanVisa) 的第一/二次
-//    入境/離境日期，取今天以前最後發生的一筆：是入境日就算入台，是
-//    離境日就算離台；都還沒發生過（或根本沒有這筆紀錄）就顯示「—」。
+//    studentId 存的是境外生學生 id，不是這裡的學生 id，要先換過去才能
+//    查到。狀態還不是「已完成」就算辦理簽證中。
+// 2. 簽證辦完才看境外生系統「在台簽證追蹤」(tsaipei_inTaiwanVisa) 的
+//    第一/二次入境/離境日期（越南系統自己的 vietnam_inTaiwanVisa 目前
+//    整個系統沒有任何地方會真的寫入入境/離境日期，一直是空的，實際
+//    入境/離境日期都是記在境外生系統那邊），取今天以前最後發生的一筆：
+//    是入境日就算入台，是離境日就算離台；都還沒發生過（或根本沒有這筆
+//    紀錄）就顯示「—」。學生對應的境外生 id 不論是哪個方向建檔的都要
+//    查得到，用 tsaipeiIdOf() 同時查 syncedTsaipeiStudentId/
+//    syncedFromTsaipeiStudentId 兩個欄位。
 function taiwanStatusOf(studentId, { students, visaProcessing, inTaiwanVisa }) {
   const student = students.find((s) => s.id === studentId);
-  const tsaipeiId = student?.syncedTsaipeiStudentId;
+  const tsaipeiId = tsaipeiIdOf(student);
   const visa = tsaipeiId ? visaProcessing.find((v) => v.studentId === tsaipeiId) : null;
   if (visa && visa.status !== '已完成') return '辦理簽證中';
 
-  const v = inTaiwanVisa.find((x) => x.studentId === studentId);
+  const v = tsaipeiId ? inTaiwanVisa.find((x) => x.studentId === tsaipeiId) : null;
   if (!v) return null;
   const today = new Date().toISOString().slice(0, 10);
   const events = [
@@ -82,7 +87,7 @@ export default function ScholarshipsPage() {
   const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: schools, loading: schoolsLoading } = useCollection('vietnam_schoolSetup');
   const { rows: visaProcessing } = useCollection('vietnam_visaProcessing');
-  const { rows: inTaiwanVisa } = useCollection('vietnam_inTaiwanVisa');
+  const { rows: inTaiwanVisa } = useCollection('tsaipei_inTaiwanVisa');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_scholarships', CSV_FIELDS, { entityLabel: '獎學金紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
