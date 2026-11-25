@@ -147,7 +147,7 @@ export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
     if (!sc.schoolRep || !Number(sc.monthlyFee)) return;
     const key = normalizeSchoolName(sc.name);
     if (!key) return;
-    rows[key] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, currency: sc.monthlyFeeCurrency || VN_DEFAULT_CURRENCY, totalDays: 0 };
+    rows[key] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, currency: sc.monthlyFeeCurrency || VN_DEFAULT_CURRENCY, totalDays: 0, breakdown: [] };
   });
   (students || []).forEach((s) => {
     const row = rows[normalizeSchoolName(s.school)];
@@ -159,9 +159,12 @@ export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
     const sc = findSchool(schools, s.school);
     const rateVal = Number(sc?.monthlyFee) || 0;
     if (!rateVal) return;
+    const amount = Math.round((rateVal / range.daysInMonth) * days);
     row.totalDays += days;
-    row.amount += Math.round((rateVal / range.daysInMonth) * days);
+    row.amount += amount;
+    row.breakdown.push({ student: studentFullLabel(s), days, amount });
   });
+  Object.values(rows).forEach((r) => r.breakdown.sort((a, b) => b.amount - a.amount));
   return Object.values(rows).filter((r) => r.totalDays > 0).sort((a, b) => a.schoolName.localeCompare(b.schoolName));
 }
 

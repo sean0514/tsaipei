@@ -94,7 +94,7 @@ export default function BonusPage() {
         <h3 style={{ marginTop: 0 }}>{t('學校代表獎金', lang)}</h3>
         <p className="muted" style={{ marginTop: 0 }}>{t('依學校費用設定的學校代表＋月費率計算：該校每位學生這個月在台天數 ÷ 當月天數 × 月費率，加總到對應的學校代表身上。', lang)}</p>
         <div className="table-wrap"><table>
-          <thead><tr><th>{t('學校', lang)}</th><th>{t('學校代表', lang)}</th><th>{t('獎金', lang)}</th><th>{t('在台總天數', lang)}</th></tr></thead>
+          <thead><tr><th>{t('學校', lang)}</th><th>{t('學校代表', lang)}</th><th>{t('獎金', lang)}</th><th>{t('在台總天數', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
           <tbody>
             {schoolRows.map((s) => (
               <tr key={s.schoolName}>
@@ -102,9 +102,10 @@ export default function BonusPage() {
                 <td>{s.schoolRep || '—'}</td>
                 <td>{s.amount.toLocaleString()} {t(s.currency, lang)}</td>
                 <td>{s.totalDays} {t('天', lang)}</td>
+                <td className="muted">{s.breakdown.map((b) => `${b.student}(${b.days}${t('天', lang)}) ${b.amount.toLocaleString()} ${t(s.currency, lang)}`).join('、')}</td>
               </tr>
             ))}
-            {schoolRows.length === 0 && <tr><td colSpan={4} className="muted">{t('沒有資料', lang)}</td></tr>}
+            {schoolRows.length === 0 && <tr><td colSpan={5} className="muted">{t('沒有資料', lang)}</td></tr>}
           </tbody>
         </table></div>
       </div>
