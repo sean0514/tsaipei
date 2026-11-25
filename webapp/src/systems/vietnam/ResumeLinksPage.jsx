@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { serverTimestamp } from 'firebase/firestore';
+import QRCode from 'qrcode';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
@@ -13,6 +14,10 @@ function copyLink(url) {
     () => alert(`已複製連結：\n${url}`),
     () => window.prompt('複製失敗，請手動複製以下連結：', url),
   );
+}
+
+function resumeLinkOf(member) {
+  return `${window.location.origin}/apply/vietnam?ref=${encodeURIComponent(member.displayName || '')}`;
 }
 
 // 履歷表連結：每個使用人員一條專屬的公開線上履歷填寫連結
@@ -29,6 +34,7 @@ export default function ResumeLinksPage() {
   const { rows: existingStudents, loading: loadingExistingStudents, add: addStudent, update: updateStudent } = useCollection('vietnam_students');
   const [q, setQ] = useState('');
   const [viewing, setViewing] = useState(null);
+  const [qrFor, setQrFor] = useState(null);
 
   // 轉入學生資料後，這筆履歷會記住 studentId 避免重複轉入（見
   // handleConvertToStudent）；學生之後被刪除的話，StudentsPage.jsx 的
@@ -49,8 +55,7 @@ export default function ResumeLinksPage() {
   }, [submissions, existingStudents, loadingSubmissions, loadingExistingStudents, canEditStudents]);
 
   function handleCopyLink(member) {
-    const url = `${window.location.origin}/apply/vietnam?ref=${encodeURIComponent(member.displayName || '')}`;
-    copyLink(url);
+    copyLink(resumeLinkOf(member));
   }
 
   // 學生資料（StudentsPage.jsx）的欄位已經改成比照履歷表製作，這裡逐欄位
@@ -124,7 +129,10 @@ export default function ResumeLinksPage() {
                   <td>{member.displayName || '—'}</td>
                   <td>{member.email}</td>
                   <td>{member.role}</td>
-                  <td><button onClick={() => handleCopyLink(member)}>{t('複製履歷連結', lang)}</button></td>
+                  <td className="row-actions">
+                    <button onClick={() => handleCopyLink(member)}>{t('複製履歷連結', lang)}</button>
+                    <button onClick={() => setQrFor(member)}>{t('顯示 QR Code', lang)}</button>
+                  </td>
                 </tr>
               ))}
               {staff.length === 0 && <tr><td colSpan={4} className="muted">{t('沒有資料', lang)}</td></tr>}
@@ -210,6 +218,40 @@ export default function ResumeLinksPage() {
           </div>
         </div>
       )}
+
+      {qrFor && <QrCodeModal member={qrFor} onClose={() => setQrFor(null)} lang={lang} />}
+    </div>
+  );
+}
+
+function QrCodeModal({ member, onClose, lang }) {
+  const canvasRef = useRef(null);
+  const url = resumeLinkOf(member);
+
+  useEffect(() => {
+    if (canvasRef.current) QRCode.toCanvas(canvasRef.current, url, { width: 280, margin: 2 });
+  }, [url]);
+
+  function handleDownload() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `履歷連結QRCode_${member.displayName || '專員'}.png`;
+    a.click();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 360, maxWidth: '100%', textAlign: 'center' }}>
+        <h3 style={{ marginTop: 0 }}>{member.displayName || '—'} {t('履歷連結 QR Code', lang)}</h3>
+        <canvas ref={canvasRef} style={{ maxWidth: '100%' }} />
+        <p className="muted" style={{ wordBreak: 'break-all', fontSize: 12 }}>{url}</p>
+        <div className="row-actions" style={{ marginTop: 12, justifyContent: 'center' }}>
+          <button className="primary" onClick={handleDownload}>{t('下載圖片', lang)}</button>
+          <button onClick={onClose}>{t('關閉', lang)}</button>
+        </div>
+      </div>
     </div>
   );
 }
