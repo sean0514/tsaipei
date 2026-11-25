@@ -213,6 +213,7 @@ const VI = {
   '搜尋學生或客戶/職務': 'Tìm theo học viên hoặc khách hàng/chức vụ',
   '處理中': 'Đang xử lý',
   '位學生': 'học viên',
+  '位人員': 'người',
   '目前沒有處理中的學生。': 'Hiện không có học viên đang xử lý.',
   '已繳交文件': 'Hồ sơ đã nộp',
   '已完成繳交': 'Đã nộp xong',

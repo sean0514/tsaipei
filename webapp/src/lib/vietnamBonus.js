@@ -45,30 +45,41 @@ function studentFullLabel(s) {
   return s.chineseName || s.originalName || '(未命名)';
 }
 
-// 一次性內部獎金：以「越南送機行程」(vietnam_departureTransport) 出現過的
-// 學生名單為準——學生安排送機才算案件完成，這幾個角色的獎金才算一次
-// （不分月、不按天數比例分攤）。依該學生自己就讀的學校在「內部獎金設定」
-// 查對應費率，5 個角色都看學生自己指派的負責人（StudentsPage.jsx 的
-// assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
-// assignedFieldStaff），依人員加總；另外再加上「學校費用設定」設定的
-// 「學校代表獎金（一次性）」，一樣學生安排送機後算一次，加到該校的學校
-// 代表身上。5 個角色＋學校代表都各自可能用不同幣別（InternalBonusRateSetupPage.jsx/
+// 一次性內部獎金：以「越南送機行程」(vietnam_departureTransport) 真的填了
+// 送機日期的學生名單為準——光是有這筆紀錄還不夠（學生建檔/同步時系統會
+// 自動建立一筆只有 studentId、日期還是空的空白紀錄，不代表案件已經完成），
+// 一定要送機日期實際填上去，才算這個學生的案件完成、才列入計算。依這個
+// 送機日期所在的月份分組（同一個學生只會有一個送機日期，不會同時出現在
+// 兩個月份），月份底下再依人員加總：該學生自己就讀的學校在「內部獎金
+// 設定」查對應費率，5 個角色都看學生自己指派的負責人（StudentsPage.jsx
+// 的 assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/
+// assignedAdminVisa/assignedFieldStaff）；另外再加上「學校費用設定」
+// 設定的「學校代表獎金（一次性）」，加到該校的學校代表身上。5 個角色＋
+// 學校代表都各自可能用不同幣別（InternalBonusRateSetupPage.jsx/
 // SchoolSetupPage.jsx 各自設定），同一個人底下可能同時有不同幣別的金額，
 // 不能直接加總成一個數字，改成依幣別分開加總（totalsByCurrency），頁面
 // 顯示時再依幣別分行列出。
 export function computeVietnamInternalBonusByPerson(ctx) {
   const { students, bonusRateSetup, departureTransport, schools } = ctx;
-  const departedStudentIds = new Set((departureTransport || []).map((d) => d.studentId).filter(Boolean));
-  const personTotals = {};
+  const departureDateByStudent = {};
+  (departureTransport || []).forEach((d) => {
+    if (d.studentId && d.date) departureDateByStudent[d.studentId] = d.date;
+  });
 
-  function addAmount(name, amount, currency, detail) {
+  const monthGroups = {};
+  function groupFor(month) {
+    return (monthGroups[month] ||= {});
+  }
+  function addAmount(personTotals, name, amount, currency, detail) {
     if (!name || !amount) return;
     const entry = (personTotals[name] ||= { name, totalsByCurrency: {}, breakdown: [] });
     entry.totalsByCurrency[currency] = (entry.totalsByCurrency[currency] || 0) + amount;
     entry.breakdown.push(detail);
   }
 
-  (students || []).filter((s) => departedStudentIds.has(s.id)).forEach((s) => {
+  (students || []).filter((s) => departureDateByStudent[s.id]).forEach((s) => {
+    const month = departureDateByStudent[s.id].slice(0, 7);
+    const personTotals = groupFor(month);
     const pair = studentProjectClientPair(s.id, ctx);
     const rate = rateForSchool(bonusRateSetup, s.school);
     const studentName = studentFullLabel(s);
@@ -78,21 +89,23 @@ export function computeVietnamInternalBonusByPerson(ctx) {
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       if (!name || !rateVal) return;
       const currency = (rate && rate[`${k}Currency`]) || VN_DEFAULT_CURRENCY;
-      addAmount(name, rateVal, currency, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal, currency });
+      addAmount(personTotals, name, rateVal, currency, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal, currency });
     });
 
     const sc = (schools || []).find((x) => x.name === s.school);
     const oneTimeVal = Number(sc?.oneTimeBonus) || 0;
     if (sc?.schoolRep && oneTimeVal) {
       const currency = sc.oneTimeBonusCurrency || VN_DEFAULT_CURRENCY;
-      addAmount(sc.schoolRep, oneTimeVal, currency, { student: studentName, client: pair?.client || '', role: '學校代表', amount: oneTimeVal, currency });
+      addAmount(personTotals, sc.schoolRep, oneTimeVal, currency, { student: studentName, client: pair?.client || '', role: '學校代表', amount: oneTimeVal, currency });
     }
   });
 
-  return Object.values(personTotals).sort((a, b) => {
+  function sortByTotal(personTotals) {
     const sum = (totals) => Object.values(totals).reduce((acc, v) => acc + v, 0);
-    return sum(b.totalsByCurrency) - sum(a.totalsByCurrency);
-  });
+    return Object.values(personTotals).sort((a, b) => sum(b.totalsByCurrency) - sum(a.totalsByCurrency));
+  }
+
+  return Object.keys(monthGroups).sort().map((month) => ({ month, byPerson: sortByTotal(monthGroups[month]) }));
 }
 
 // 學校代表獎金：依學校費用設定(vietnam_schoolSetup)設定的學校代表＋月費率，

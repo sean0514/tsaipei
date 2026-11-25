@@ -37,9 +37,15 @@ export default function BonusPage() {
   const [qPerson, setQPerson] = useState('');
 
   const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, schools };
-  const byPerson = computeVietnamInternalBonusByPerson(ctx).filter((p) =>
-    !qPerson || p.name.toLowerCase().includes(qPerson.toLowerCase()) || p.breakdown.some((b) => (b.student || '').toLowerCase().includes(qPerson.toLowerCase()))
-  );
+  const personSearch = qPerson.trim().toLowerCase();
+  const byMonth = computeVietnamInternalBonusByPerson(ctx)
+    .map((g) => ({
+      month: g.month,
+      byPerson: g.byPerson.filter((p) =>
+        !personSearch || p.name.toLowerCase().includes(personSearch) || p.breakdown.some((b) => (b.student || '').toLowerCase().includes(personSearch))
+      ),
+    }))
+    .filter((g) => g.byPerson.length > 0);
   const schoolRows = computeVietnamSchoolRepBonusForMonth(month, ctx).filter((s) =>
     !q || (s.schoolName || '').toLowerCase().includes(q.toLowerCase())
   );
@@ -50,21 +56,29 @@ export default function BonusPage() {
 
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>{t('一次性內部獎金（依人員加總）', lang)}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>{t('開發業務/行政主管/行政招募/行政簽證/外務人員，以及學校費用設定的學校代表獎金（一次性）：學生安排送機後才算一次，不分月份、不按在台天數比例分攤；各角色/學校代表可能各自設定不同幣別，加總時依幣別分開列出。', lang)}</p>
+        <p className="muted" style={{ marginTop: 0 }}>{t('開發業務/行政主管/行政招募/行政簽證/外務人員，以及學校費用設定的學校代表獎金（一次性）：依「越南送機行程」實際填上的送機日期分月份顯示，只填了日期才算這個學生的案件完成、列入計算；各角色/學校代表可能各自設定不同幣別，加總時依幣別分開列出。', lang)}</p>
         <input placeholder={t('搜尋姓名或學生', lang)} value={qPerson} onChange={(e) => setQPerson(e.target.value)} style={{ width: 220, marginBottom: 12 }} />
-        <div className="table-wrap"><table>
-          <thead><tr><th>{t('姓名', lang)}</th><th>{t('總額', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
-          <tbody>
-            {byPerson.map((p) => (
-              <tr key={p.name}>
-                <td style={{ fontWeight: 600 }}>{p.name}</td>
-                <td>{formatTotalsByCurrency(p.totalsByCurrency, lang)}</td>
-                <td className="muted">{p.breakdown.map((b) => `${b.student}・${b.client}(${t(b.role, lang)}) ${b.amount.toLocaleString()} ${t(b.currency, lang)}`).join('、')}</td>
-              </tr>
+        {byMonth.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('沒有資料', lang)}</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {byMonth.map((g) => (
+              <div key={g.month}>
+                <h4 style={{ margin: '0 0 8px' }}>{g.month} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{g.byPerson.length} {t('位人員', lang)}</span></h4>
+                <div className="table-wrap"><table>
+                  <thead><tr><th>{t('姓名', lang)}</th><th>{t('總額', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
+                  <tbody>
+                    {g.byPerson.map((p) => (
+                      <tr key={p.name}>
+                        <td style={{ fontWeight: 600 }}>{p.name}</td>
+                        <td>{formatTotalsByCurrency(p.totalsByCurrency, lang)}</td>
+                        <td className="muted">{p.breakdown.map((b) => `${b.student}・${b.client}(${t(b.role, lang)}) ${b.amount.toLocaleString()} ${t(b.currency, lang)}`).join('、')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
             ))}
-            {byPerson.length === 0 && <tr><td colSpan={3} className="muted">{t('沒有資料', lang)}</td></tr>}
-          </tbody>
-        </table></div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
