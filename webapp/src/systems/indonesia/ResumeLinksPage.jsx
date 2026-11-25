@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { serverTimestamp } from 'firebase/firestore';
+import QRCode from 'qrcode';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { t } from '../../lib/i18n';
@@ -13,6 +14,21 @@ function copyLink(url) {
     () => alert(`已複製連結：\n${url}`),
     () => window.prompt('複製失敗，請手動複製以下連結：', url),
   );
+}
+
+// 專員的公開履歷連結網址，複製連結／QR Code 共用同一個產生邏輯。
+function resumeLinkUrl(member) {
+  return `${window.location.origin}/apply/indonesia?ref=${encodeURIComponent(member.displayName || '')}`;
+}
+
+// 下載 QR Code 圖片：用暫時建立、不加進畫面的 <a download> 觸發存檔，
+// 讓「下載圖片」按鈕可以沿用一般 <button> 樣式，不用另外刻一個
+// <a> 版本的按鈕外觀。
+function downloadQrImage({ member, dataUrl }) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `履歷連結QRCode-${member.displayName || 'staff'}.png`;
+  a.click();
 }
 
 // 履歷表連結：每個使用人員一條專屬的公開線上履歷填寫連結
@@ -29,6 +45,7 @@ export default function ResumeLinksPage() {
   const { rows: existingStudents, loading: loadingExistingStudents, add: addStudent, update: updateStudent } = useCollection('indonesia_students');
   const [q, setQ] = useState('');
   const [viewing, setViewing] = useState(null);
+  const [qrModal, setQrModal] = useState(null); // null = closed, { member, dataUrl } = open
 
   // 轉入學生資料後，這筆履歷會記住 studentId 避免重複轉入（見
   // handleConvertToStudent）；學生之後被刪除的話，StudentsPage.jsx 的
@@ -49,8 +66,19 @@ export default function ResumeLinksPage() {
   }, [submissions, existingStudents, loadingSubmissions, loadingExistingStudents, canEditStudents]);
 
   function handleCopyLink(member) {
-    const url = `${window.location.origin}/apply/indonesia?ref=${encodeURIComponent(member.displayName || '')}`;
-    copyLink(url);
+    copyLink(resumeLinkUrl(member));
+  }
+
+  // 彈窗顯示這個專員連結的 QR Code，手機掃描就能直接開啟履歷填寫頁面，
+  // 現場（面試會場、招募活動）不用手動輸入網址。圖片用 data URL 產生，
+  // 不經過任何第三方服務。
+  async function handleShowQr(member) {
+    try {
+      const dataUrl = await QRCode.toDataURL(resumeLinkUrl(member), { width: 320, margin: 2 });
+      setQrModal({ member, dataUrl });
+    } catch (err) {
+      alert(`QR Code 產生失敗：${err.message || err}`);
+    }
   }
 
   // 學生資料（StudentsPage.jsx）的欄位已經改成比照履歷表製作，這裡逐欄位
@@ -123,7 +151,10 @@ export default function ResumeLinksPage() {
                   <td>{member.displayName || '—'}</td>
                   <td>{member.email}</td>
                   <td>{member.role}</td>
-                  <td><button onClick={() => handleCopyLink(member)}>{t('複製履歷連結', lang)}</button></td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => handleCopyLink(member)}>{t('複製履歷連結', lang)}</button>
+                    <button onClick={() => handleShowQr(member)}>{t('QR Code', lang)}</button>
+                  </td>
                 </tr>
               ))}
               {staff.length === 0 && <tr><td colSpan={4} className="muted">{t('沒有資料', lang)}</td></tr>}
@@ -203,6 +234,19 @@ export default function ResumeLinksPage() {
             </div>
             <div className="row-actions" style={{ marginTop: 16 }}>
               <button onClick={() => setViewing(null)}>{t('關閉', lang)}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {qrModal && (
+        <div className="modal-backdrop" onClick={() => setQrModal(null)}>
+          <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ width: 360, maxWidth: '100%', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0 }}>{qrModal.member.displayName || '—'} · {t('履歷連結 QR Code', lang)}</h3>
+            <p className="muted" style={{ fontSize: 13 }}>{t('用手機相機或掃描 App 直接掃描，開啟履歷填寫頁面', lang)}</p>
+            <img src={qrModal.dataUrl} alt="QR Code" style={{ width: 280, height: 280 }} />
+            <div className="row-actions" style={{ marginTop: 16, justifyContent: 'center' }}>
+              <button className="primary" onClick={() => downloadQrImage(qrModal)}>{t('下載圖片', lang)}</button>
+              <button onClick={() => setQrModal(null)}>{t('關閉', lang)}</button>
             </div>
           </div>
         </div>
