@@ -13,6 +13,28 @@ export function tsaipeiIdOf(student) {
   return student?.syncedTsaipeiStudentId || student?.syncedFromTsaipeiStudentId || null;
 }
 
+// 越南系統很多頁面原本讀 vietnam_inTaiwanVisa 當作「這個學生的在台簽證
+// 追蹤紀錄」，但整個系統沒有任何地方會真的寫入這個 collection（學生
+// 建檔/同步時不會像送機行程那樣順便建一筆對應的空白紀錄），一直是空的——
+// 實際入境/離境日期、已體檢/已送工都記在境外生系統的 tsaipei_inTaiwanVisa，
+// 用學生對應的境外生 id 查。這裡把 tsaipei_inTaiwanVisa 的紀錄依越南學生
+// 清單重新掛上越南學生 id（原本的 studentId 會被換掉，其餘欄位不變），
+// 讓呼叫端可以直接拿來當成「vietnam_inTaiwanVisa」原本預期的資料格式用，
+// 不用每個頁面各自重新寫一次換算邏輯。找不到對應境外生 id、或境外生那邊
+// 沒有對應紀錄的學生，就不會出現在回傳陣列裡（等同於「沒有這筆紀錄」，
+// 跟原本讀空 collection 時的行為一致，呼叫端不用另外處理）。
+export function vietnamInTaiwanVisaShim(vietnamStudents, tsaipeiInTaiwanVisaRecords) {
+  const byTsaipeiId = {};
+  (tsaipeiInTaiwanVisaRecords || []).forEach((v) => { byTsaipeiId[v.studentId] = v; });
+  return (vietnamStudents || [])
+    .map((s) => {
+      const tsaipeiId = tsaipeiIdOf(s);
+      const v = tsaipeiId ? byTsaipeiId[tsaipeiId] : null;
+      return v ? { ...v, studentId: s.id } : null;
+    })
+    .filter(Boolean);
+}
+
 // 元凱（越南系統）新增學生後，同步連動到境外生實習系統（tsaipei）的學生
 // 資料裡——兩個入口都要用到這套同步邏輯：StudentsPage.jsx 自己的「+ 新增
 // 學生」，以及 ResumeLinksPage.jsx 把履歷表連結送進來的履歷「轉入學生

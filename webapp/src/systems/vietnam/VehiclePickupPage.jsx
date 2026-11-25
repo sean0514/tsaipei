@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canView, canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { vietnamInTaiwanVisaShim } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 const TYPES = ['接機', '送機', '送工', '送宿舍'];
@@ -46,11 +47,15 @@ export default function VehiclePickupPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
-  const { rows: visaRecords, loading: l1 } = useCollection('vietnam_inTaiwanVisa');
+  // 實際入境/離境日期記在境外生系統「在台簽證追蹤」，不是越南系統自己的
+  // vietnam_inTaiwanVisa（整個系統沒有任何地方會真的寫入這個 collection，
+  // 一直是空的）——見 lib/vietnamTsaipeiStudentSync.js 的 vietnamInTaiwanVisaShim。
+  const { rows: tsaipeiInTaiwanVisaRaw, loading: l1 } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: arrangements, loading: l2, add, update, remove } = useCollection('vietnam_vehicleArrangements', { order: ['date', 'asc'] });
   const [reportMonth, setReportMonth] = useState(currentMonthStr());
   const [editing, setEditing] = useState(null);
   const loading = l1 || l2;
+  const visaRecords = vietnamInTaiwanVisaShim(students, tsaipeiInTaiwanVisaRaw);
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);

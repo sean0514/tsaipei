@@ -6,6 +6,7 @@ import { studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
 import {
   computeVietnamInternalBonusByPerson, computeVietnamSchoolRepBonusForMonth, computeDormManagerBonusForMonth,
 } from '../../lib/vietnamBonus';
+import { vietnamInTaiwanVisaShim } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 const STUDENT_STATUS_ORDER = ['媒合中', '待面試', '已面試', '送審中', '補件中', '企業用印', '收到函文', '辦理簽證中', '已入台實習', '已完成', '取消'];
@@ -35,7 +36,10 @@ export default function ManagerReportPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: positions } = useCollection('vietnam_positions');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
-  const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
+  // 實際入境/離境日期記在境外生系統「在台簽證追蹤」，不是越南系統自己的
+  // vietnam_inTaiwanVisa（整個系統沒有任何地方會真的寫入這個 collection，
+  // 一直是空的）——見 lib/vietnamTsaipeiStudentSync.js 的 vietnamInTaiwanVisaShim。
+  const { rows: tsaipeiInTaiwanVisaRaw } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: schools } = useCollection('vietnam_schoolSetup');
   const { rows: housingRecords } = useCollection('vietnam_housingRecords');
   const { rows: internshipDocs } = useCollection('vietnam_internshipDocs');
@@ -46,6 +50,7 @@ export default function ManagerReportPage() {
 
   // 宿管人員1/2 的費率來源（內部費用建檔）已移除，固定傳空陣列讓費率查找
   // 安全地找不到、金額算成 0，不用動共用計算邏輯本身。
+  const inTaiwanVisaRecords = vietnamInTaiwanVisaShim(students, tsaipeiInTaiwanVisaRaw);
   const ctx = { students, matches, positions, admittedList, inTaiwanVisaRecords, bonusRateSetup, departureTransport, internalFeeSetupRecords: [], schools, dormitories, housingRecords };
 
   const statusCounts = {};
@@ -85,9 +90,18 @@ export default function ManagerReportPage() {
     if (done) docsComplete++; else docsPending++;
   });
 
+  // computeVietnamInternalBonusByPerson 現在依送機月份分組回傳
+  // [{month, byPerson}]，每個人底下的金額又依幣別分開存
+  // （totalsByCurrency），這裡只是給主管看一個粗略總額的數字卡片，不分
+  // 幣別直接全部加總（不同幣別混在一起加總本來就不精確，但這張卡片
+  // 本來就只是概覽用途，不是真正的財務金額）。
   let bonusTotal = 0;
   if (canSeeBonus) {
-    computeVietnamInternalBonusByPerson(ctx).forEach((p) => { bonusTotal += p.total || 0; });
+    computeVietnamInternalBonusByPerson(ctx).forEach((g) => {
+      g.byPerson.forEach((p) => {
+        Object.values(p.totalsByCurrency).forEach((amt) => { bonusTotal += amt; });
+      });
+    });
     computeVietnamSchoolRepBonusForMonth(month, ctx).forEach((r) => { bonusTotal += r.amount || 0; });
     computeDormManagerBonusForMonth(month, ctx).forEach((d) => { bonusTotal += d.manager1Amount + d.manager2Amount; });
   }

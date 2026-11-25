@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { exportEntityCSV } from '../../lib/csv';
 import { studentDaysInTaiwanForMonth, studentProjectClientPair, currentMonthStr } from '../../lib/bonus';
+import { vietnamInTaiwanVisaShim } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 function studentFullLabel(s) {
@@ -10,8 +11,12 @@ function studentFullLabel(s) {
   if (s.chineseName && s.originalName) return `${s.chineseName}（${s.originalName}）`;
   return s.chineseName || s.originalName || '(未命名)';
 }
-function effectiveEntryDate(s) { return s.secondEntryDate || s.firstEntryDate || ''; }
-function effectiveExitDate(s) { return s.secondExitDate || s.firstExitDate || ''; }
+// 入境/離境日期是「在台簽證追蹤」紀錄本身的欄位，不是學生資料
+// (vietnam_students) 的欄位——這兩個學生資料從來沒有這兩個欄位可以讀
+// （之前直接讀 s.firstEntryDate 等於永遠讀到 undefined），要傳這個學生
+// 對應的簽證追蹤紀錄 v 進來，不是學生本身。
+function effectiveEntryDate(v) { return v?.secondEntryDate || v?.firstEntryDate || ''; }
+function effectiveExitDate(v) { return v?.secondExitDate || v?.firstExitDate || ''; }
 
 // 複製自 systems/tsaipei/StudentMasterSheetPage.jsx，collection 字首改成
 // vietnam_，介面文字包上 t(...)。
@@ -21,15 +26,20 @@ export default function StudentMasterSheetPage() {
   const { rows: matches } = useCollection('vietnam_matches');
   const { rows: admittedList } = useCollection('vietnam_admittedList');
   const { rows: positions } = useCollection('vietnam_positions');
-  const { rows: inTaiwanVisaRecords } = useCollection('vietnam_inTaiwanVisa');
+  // 實際入境/離境日期記在境外生系統「在台簽證追蹤」，不是越南系統自己的
+  // vietnam_inTaiwanVisa（整個系統沒有任何地方會真的寫入這個 collection，
+  // 一直是空的）——見 lib/vietnamTsaipeiStudentSync.js 的 vietnamInTaiwanVisaShim。
+  const { rows: tsaipeiInTaiwanVisaRaw } = useCollection('tsaipei_inTaiwanVisa');
   const [month, setMonth] = useState(currentMonthStr());
   const [q, setQ] = useState('');
 
+  const inTaiwanVisaRecords = vietnamInTaiwanVisaShim(students, tsaipeiInTaiwanVisaRaw);
   const ctx = { matches, admittedList, positions };
   const rows = students.map((s) => {
     const pair = studentProjectClientPair(s.id, ctx);
     return {
       student: s,
+      visa: inTaiwanVisaRecords.find((v) => v.studentId === s.id),
       client: pair ? pair.client : '',
       projectCode: pair ? pair.projectCode : '',
       workDays: studentDaysInTaiwanForMonth(s.id, month, inTaiwanVisaRecords),
@@ -46,7 +56,7 @@ export default function StudentMasterSheetPage() {
   function handleDownload() {
     const exportRows = filtered.map((r) => ({
       client: r.client, projectCode: r.projectCode, name: studentFullLabel(r.student), passportNumber: r.student.passportNumber || '',
-      gender: r.student.gender || '', entryDate: effectiveEntryDate(r.student), exitDate: effectiveExitDate(r.student),
+      gender: r.student.gender || '', entryDate: effectiveEntryDate(r.visa), exitDate: effectiveExitDate(r.visa),
       workDays: r.workDays,
     }));
     exportEntityCSV(exportRows, [
@@ -86,8 +96,8 @@ export default function StudentMasterSheetPage() {
                   <td style={{ fontWeight: 600 }}>{studentFullLabel(r.student)}</td>
                   <td>{r.student.passportNumber || '—'}</td>
                   <td>{r.student.gender || '—'}</td>
-                  <td>{effectiveEntryDate(r.student) || '—'}</td>
-                  <td>{effectiveExitDate(r.student) || '—'}</td>
+                  <td>{effectiveEntryDate(r.visa) || '—'}</td>
+                  <td>{effectiveExitDate(r.visa) || '—'}</td>
                   <td>{r.workDays}</td>
                 </tr>
               ))}

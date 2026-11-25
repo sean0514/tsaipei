@@ -456,6 +456,8 @@ const VI = {
   '客服未完成事項': 'Việc CSKH chưa hoàn thành',
   '彙整預計入台/離台（未勾已體檢/已送工）、開戶進度追蹤（未勾銀行帳戶）、住宿安排（未安排）、宿舍管理（本月未填其他費用）的名單，入台/離台的已體檢/已送工、宿舍管理的其他費用可以直接在這裡填寫，其餘編輯請到原本的分頁操作':
     'Tổng hợp danh sách từ Dự kiến nhập/xuất cảnh (chưa tích khám sức khỏe/đến nơi làm việc), Theo dõi tiến độ mở tài khoản (chưa tích tài khoản ngân hàng), Sắp xếp chỗ ở (chưa sắp xếp), Quản lý ký túc xá (chưa điền chi phí khác tháng này); có thể điền trực tiếp khám sức khỏe/đến nơi làm việc và chi phí khác ở đây, các chỉnh sửa khác vui lòng vào trang gốc',
+  '彙整開戶進度追蹤（未勾銀行帳戶）、住宿安排（未安排）、宿舍管理（本月未填其他費用）的名單，宿舍管理的其他費用可以直接在這裡填寫，其餘編輯請到原本的分頁操作':
+    'Tổng hợp danh sách từ Theo dõi tiến độ mở tài khoản (chưa tích tài khoản ngân hàng), Sắp xếp chỗ ở (chưa sắp xếp), Quản lý ký túc xá (chưa điền chi phí khác tháng này); có thể điền trực tiếp chi phí khác ở đây, các chỉnh sửa khác vui lòng vào trang gốc',
   '目前沒有未完成的項目。': 'Hiện không có mục nào chưa hoàn thành.',
   '間': 'phòng',
 

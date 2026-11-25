@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { exportEntityCSV } from '../../lib/csv';
+import { vietnamInTaiwanVisaShim } from '../../lib/vietnamTsaipeiStudentSync';
 import { t } from '../../lib/i18n';
 
 function studentFullLabel(s) {
@@ -53,7 +54,10 @@ const CSV_FIELDS = [
 export default function BankAccountProgressPage() {
   const { system, role, overrides, lang } = useOutletContext();
   const canEditPage = computeCanEdit(system, 'bankAccountProgress', role, overrides);
-  const { rows: visaRecords, loading } = useCollection('vietnam_inTaiwanVisa');
+  // 實際入境/離境日期記在境外生系統「在台簽證追蹤」，不是越南系統自己的
+  // vietnam_inTaiwanVisa（整個系統沒有任何地方會真的寫入這個 collection，
+  // 一直是空的）——見 lib/vietnamTsaipeiStudentSync.js 的 vietnamInTaiwanVisaShim。
+  const { rows: tsaipeiInTaiwanVisaRaw, loading } = useCollection('tsaipei_inTaiwanVisa');
   const { rows: progressRows, add: addProgress, update: updateProgress, remove: removeProgress } = useCollection('vietnam_bankAccountProgress');
   const { rows: students, loading: studentsLoading } = useCollection('vietnam_students');
   const { rows: matches } = useCollection('vietnam_matches');
@@ -64,6 +68,7 @@ export default function BankAccountProgressPage() {
 
   const ctx = { matches, admittedList, positions };
   const studentById = (id) => students.find((s) => s.id === id);
+  const visaRecords = vietnamInTaiwanVisaShim(students, tsaipeiInTaiwanVisaRaw);
 
   // 這個頁面本身是跟著「在台簽證追蹤」(vietnam_inTaiwanVisa，學生刪除時
   // 已經會連鎖刪除)顯示，正常不會冒出孤兒紀錄；這裡只是順手清掉舊資料
