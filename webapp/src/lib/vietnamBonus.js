@@ -13,6 +13,8 @@ export { monthRange, dateOverlapDays, studentDaysInTaiwanForMonth, studentProjec
 // (內部費用建檔) 已移除，固定算 0）。
 export const VN_RATE_ROLE_KEYS = ['bizDev', 'adminSupervisor', 'adminRecruit', 'adminVisa', 'fieldStaff'];
 export const VN_RATE_ROLE_LABELS = ['開發業務', '行政主管', '行政招募', '行政簽證', '外務人員'];
+export const VN_CURRENCIES = ['新台幣', '美金', '越盾'];
+export const VN_DEFAULT_CURRENCY = '新台幣';
 
 // 這 5 個角色的負責人都指派在「學生資料」（StudentsPage.jsx 的
 // assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
@@ -48,16 +50,21 @@ function studentFullLabel(s) {
 // （不分月、不按天數比例分攤）。依該學生自己就讀的學校在「內部獎金設定」
 // 查對應費率，5 個角色都看學生自己指派的負責人（StudentsPage.jsx 的
 // assignedBizDev/assignedAdminSupervisor/assignedAdminRecruit/assignedAdminVisa/
-// assignedFieldStaff），依人員加總。
+// assignedFieldStaff），依人員加總；另外再加上「學校費用設定」設定的
+// 「學校代表獎金（一次性）」，一樣學生安排送機後算一次，加到該校的學校
+// 代表身上。5 個角色＋學校代表都各自可能用不同幣別（InternalBonusRateSetupPage.jsx/
+// SchoolSetupPage.jsx 各自設定），同一個人底下可能同時有不同幣別的金額，
+// 不能直接加總成一個數字，改成依幣別分開加總（totalsByCurrency），頁面
+// 顯示時再依幣別分行列出。
 export function computeVietnamInternalBonusByPerson(ctx) {
-  const { students, bonusRateSetup, departureTransport } = ctx;
+  const { students, bonusRateSetup, departureTransport, schools } = ctx;
   const departedStudentIds = new Set((departureTransport || []).map((d) => d.studentId).filter(Boolean));
   const personTotals = {};
 
-  function addAmount(name, amount, detail) {
+  function addAmount(name, amount, currency, detail) {
     if (!name || !amount) return;
-    const entry = (personTotals[name] ||= { name, total: 0, breakdown: [] });
-    entry.total += amount;
+    const entry = (personTotals[name] ||= { name, totalsByCurrency: {}, breakdown: [] });
+    entry.totalsByCurrency[currency] = (entry.totalsByCurrency[currency] || 0) + amount;
     entry.breakdown.push(detail);
   }
 
@@ -70,15 +77,27 @@ export function computeVietnamInternalBonusByPerson(ctx) {
       const name = s[VN_STUDENT_FIELD_BY_ROLE_KEY[k]];
       const rateVal = rate ? (Number(rate[k]) || 0) : 0;
       if (!name || !rateVal) return;
-      addAmount(name, rateVal, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal });
+      const currency = (rate && rate[`${k}Currency`]) || VN_DEFAULT_CURRENCY;
+      addAmount(name, rateVal, currency, { student: studentName, client: pair?.client || '', role: roleLabel(k), amount: rateVal, currency });
     });
+
+    const sc = (schools || []).find((x) => x.name === s.school);
+    const oneTimeVal = Number(sc?.oneTimeBonus) || 0;
+    if (sc?.schoolRep && oneTimeVal) {
+      const currency = sc.oneTimeBonusCurrency || VN_DEFAULT_CURRENCY;
+      addAmount(sc.schoolRep, oneTimeVal, currency, { student: studentName, client: pair?.client || '', role: '學校代表', amount: oneTimeVal, currency });
+    }
   });
 
-  return Object.values(personTotals).sort((a, b) => b.total - a.total);
+  return Object.values(personTotals).sort((a, b) => {
+    const sum = (totals) => Object.values(totals).reduce((acc, v) => acc + v, 0);
+    return sum(b.totalsByCurrency) - sum(a.totalsByCurrency);
+  });
 }
 
 // 學校代表獎金：依學校費用設定(vietnam_schoolSetup)設定的學校代表＋月費率，
-// 乘以該校每位學生這個月在台天數比例，依學校分組顯示。
+// 乘以該校每位學生這個月在台天數比例，依學校分組顯示；幣別就是那所學校
+// 設定的月費率幣別（跟上面一次性獎金的幣別是分開的兩個欄位，可以不同）。
 export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
   const range = monthRange(monthStr);
   if (!range) return [];
@@ -86,7 +105,7 @@ export function computeVietnamSchoolRepBonusForMonth(monthStr, ctx) {
   const rows = {};
   (schools || []).forEach((sc) => {
     if (!sc.schoolRep || !Number(sc.monthlyFee)) return;
-    rows[sc.name] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, totalDays: 0 };
+    rows[sc.name] = { schoolName: sc.name, schoolRep: sc.schoolRep, amount: 0, currency: sc.monthlyFeeCurrency || VN_DEFAULT_CURRENCY, totalDays: 0 };
   });
   (students || []).forEach((s) => {
     const row = rows[s.school];

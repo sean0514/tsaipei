@@ -5,12 +5,23 @@ import { currentMonthStr } from '../../lib/bonus';
 import { computeVietnamInternalBonusByPerson, computeVietnamSchoolRepBonusForMonth } from '../../lib/vietnamBonus';
 import { t } from '../../lib/i18n';
 
+// 金額依幣別分開加總後的物件（{幣別: 金額}）格式化成一行文字，例如
+// 「50,000 新台幣、100 美金」；沒有任何金額就顯示 0。開發業務/行政主管
+// 等 5 個角色、學校代表都可能各自設定不同幣別，同一個人底下可能同時有
+// 不同幣別的金額，不能直接加總成一個數字。
+function formatTotalsByCurrency(totalsByCurrency, lang) {
+  const entries = Object.entries(totalsByCurrency || {}).filter(([, amount]) => amount);
+  if (!entries.length) return '0';
+  return entries.map(([currency, amount]) => `${amount.toLocaleString()} ${t(currency, lang)}`).join('、');
+}
+
 // 跟境外生實習系統（tsaipei）的 BonusPage.jsx 不同：角色清單改用越南
 // 系統專用的 5 個角色（lib/vietnamBonus.js），不是共用的 lib/bonus.js
-// 舊角色清單。開發業務/行政主管/行政招募/行政簽證/外務人員這 5 個角色改成
-// 一次性計算（見 lib/vietnamBonus.js 的 computeVietnamInternalBonusByPerson），
-// 不分月份；學校代表維持原本按月比例分攤的算法。宿管人員獎金的費率來源
-// （內部費用建檔）已經移除，這裡不再顯示這個永遠是 0 的區塊。
+// 舊角色清單。開發業務/行政主管/行政招募/行政簽證/外務人員這 5 個角色＋
+// 學校代表的一次性獎金改成一次性計算（見 lib/vietnamBonus.js 的
+// computeVietnamInternalBonusByPerson），不分月份；學校代表的月費率維持
+// 原本按月比例分攤的算法。宿管人員獎金的費率來源（內部費用建檔）已經
+// 移除，這裡不再顯示這個永遠是 0 的區塊。
 export default function BonusPage() {
   const { lang } = useOutletContext();
   const { rows: students } = useCollection('vietnam_students');
@@ -39,7 +50,7 @@ export default function BonusPage() {
 
       <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>{t('一次性內部獎金（依人員加總）', lang)}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>{t('開發業務/行政主管/行政招募/行政簽證/外務人員：學生安排送機後才算一次，不分月份、不按在台天數比例分攤。', lang)}</p>
+        <p className="muted" style={{ marginTop: 0 }}>{t('開發業務/行政主管/行政招募/行政簽證/外務人員，以及學校費用設定的學校代表獎金（一次性）：學生安排送機後才算一次，不分月份、不按在台天數比例分攤；各角色/學校代表可能各自設定不同幣別，加總時依幣別分開列出。', lang)}</p>
         <input placeholder={t('搜尋姓名或學生', lang)} value={qPerson} onChange={(e) => setQPerson(e.target.value)} style={{ width: 220, marginBottom: 12 }} />
         <div className="table-wrap"><table>
           <thead><tr><th>{t('姓名', lang)}</th><th>{t('總額', lang)}</th><th>{t('明細', lang)}</th></tr></thead>
@@ -47,8 +58,8 @@ export default function BonusPage() {
             {byPerson.map((p) => (
               <tr key={p.name}>
                 <td style={{ fontWeight: 600 }}>{p.name}</td>
-                <td>{p.total.toLocaleString()} {t('元', lang)}</td>
-                <td className="muted">{p.breakdown.map((b) => `${b.student}・${b.client}(${t(b.role, lang)}) ${b.amount.toLocaleString()}`).join('、')}</td>
+                <td>{formatTotalsByCurrency(p.totalsByCurrency, lang)}</td>
+                <td className="muted">{p.breakdown.map((b) => `${b.student}・${b.client}(${t(b.role, lang)}) ${b.amount.toLocaleString()} ${t(b.currency, lang)}`).join('、')}</td>
               </tr>
             ))}
             {byPerson.length === 0 && <tr><td colSpan={3} className="muted">{t('沒有資料', lang)}</td></tr>}
@@ -71,7 +82,7 @@ export default function BonusPage() {
               <tr key={s.schoolName}>
                 <td>{s.schoolName}</td>
                 <td>{s.schoolRep || '—'}</td>
-                <td>{s.amount.toLocaleString()} {t('元', lang)}</td>
+                <td>{s.amount.toLocaleString()} {t(s.currency, lang)}</td>
                 <td>{s.totalDays} {t('天', lang)}</td>
               </tr>
             ))}

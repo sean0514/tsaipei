@@ -1199,6 +1199,7 @@ const VI = {
   '學校名稱': 'Tên trường học',
   '學校代表': 'Đại diện trường',
   '學校代表獎金月費率': 'Mức phí thưởng hàng tháng của đại diện trường',
+  '學校代表獎金一次性': 'Thưởng một lần cho đại diện trường',
   '獎學金金額': 'Số tiền học bổng',
   '獎學金幣別': 'Đơn vị tiền tệ học bổng',
   '編輯學校': 'Chỉnh sửa trường học',
@@ -1473,6 +1474,8 @@ const VI = {
   '一次性內部獎金（依人員加總）': 'Tiền thưởng nội bộ một lần (cộng dồn theo người)',
   '開發業務/行政主管/行政招募/行政簽證/外務人員：學生安排送機後才算一次，不分月份、不按在台天數比例分攤。':
     'Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại: chỉ tính một lần sau khi học viên được xếp lịch đưa sân bay, không phân theo tháng, không chia theo tỷ lệ số ngày ở Đài Loan.',
+  '開發業務/行政主管/行政招募/行政簽證/外務人員，以及學校費用設定的學校代表獎金（一次性）：學生安排送機後才算一次，不分月份、不按在台天數比例分攤；各角色/學校代表可能各自設定不同幣別，加總時依幣別分開列出。':
+    'Phát triển kinh doanh/Trưởng phòng hành chính/Hành chính tuyển dụng/Hành chính visa/Nhân viên đối ngoại, và tiền thưởng một lần cho đại diện trường ở "Thiết lập chi phí trường học": chỉ tính một lần sau khi học viên được xếp lịch đưa sân bay, không phân theo tháng, không chia theo tỷ lệ số ngày ở Đài Loan; mỗi vai trò/đại diện trường có thể thiết lập đơn vị tiền tệ khác nhau, khi cộng tổng sẽ liệt kê riêng theo từng đơn vị tiền tệ.',
   '搜尋姓名或學生': 'Tìm theo tên hoặc học viên',
   '搜尋學校或宿舍': 'Tìm theo trường hoặc ký túc xá',
   '內部獎金試算': 'Ước tính thưởng nội bộ',
