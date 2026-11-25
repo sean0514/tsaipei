@@ -2898,4 +2898,10 @@ const ID = {
   '搜尋姓名或學生': 'Cari nama atau siswa',
   '搜尋學校或宿舍': 'Cari sekolah atau asrama',
   '內部獎金試算': 'Estimasi Bonus Internal',
+
+  // 履歷表連結 QR Code（ResumeLinksPage.jsx）
+  'QR Code': 'Kode QR',
+  '履歷連結 QR Code': 'Kode QR Tautan Resume',
+  '用手機相機或掃描 App 直接掃描，開啟履歷填寫頁面': 'Pindai langsung dengan kamera ponsel atau aplikasi pemindai untuk membuka halaman formulir resume',
+  '下載圖片': 'Unduh Gambar',
 };
