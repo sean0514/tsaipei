@@ -17,6 +17,7 @@ import {
   TEMPLATE_FILE_BY_LANG, LANG_LABEL, downloadInternshipCertificate,
 } from '../../lib/internshipCertificate';
 import { isDeparted } from '../../lib/visaDates';
+import SignaturePad from '../../components/SignaturePad';
 
 const STATUSES = ['良好', '待關心', '預計離台'];
 const CSV_FIELDS = [
@@ -242,6 +243,7 @@ function blankVisitForm() {
     managerComment: '', studentComment: '',
     monthlyWorkDone: '', monthlyLearning: '', difficulties: '', nextMonthGoals: '',
     result: [], resultOther: '',
+    studentSignature: '', managerSignature: '', staffSignature: '',
   };
 }
 
@@ -384,10 +386,12 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
         <h4>實習狀況</h4>
         <RatingTable title="訪視項目" items={WORK_ITEMS} options={WORK_RATING_OPTIONS} group="workRatings" notesGroup="workNotes" values={form.workRatings} notes={form.workNotes} onRate={setRating} onNote={setNote} />
         <label>企業主管意見<textarea rows={2} value={form.managerComment} onChange={(e) => setField('managerComment', e.target.value)} style={{ width: '100%' }} /></label>
+        <label>企業主管簽名<SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} /></label>
 
         <h4>生活適應情況</h4>
         <RatingTable title="訪視項目" items={LIFE_ITEMS} options={LIFE_RATING_OPTIONS} group="lifeRatings" notesGroup="lifeNotes" values={form.lifeRatings} notes={form.lifeNotes} onRate={setRating} onNote={setNote} />
         <label>學生意見<textarea rows={2} value={form.studentComment} onChange={(e) => setField('studentComment', e.target.value)} style={{ width: '100%' }} /></label>
+        <label>學生簽名<SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} /></label>
 
         <h4>本月學習成果</h4>
         <div className="form-grid">
@@ -408,6 +412,7 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
             </label>
           ))}
         </div>
+        <label>訪視人員簽名<SignaturePad value={form.staffSignature} onChange={(v) => setField('staffSignature', v)} /></label>
 
         <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
           <div className="row-actions">

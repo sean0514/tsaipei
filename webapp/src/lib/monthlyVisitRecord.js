@@ -24,10 +24,11 @@ export function visitRecordDocId(studentId, month) {
 
 // 線上填寫連結各自只能改自己負責的欄位，跟 firestore.rules 的
 // tsIsPublicVisitFieldUpdate() 保持一致：學生填「生活適應情況」評核表
-// 跟自己的意見，企業主管填「實習狀況」評核表跟主管意見，其餘欄位（訪視
-// 日期/方式/人員、本月學習成果、訪視結果）只有內部人員能動。
-export const STUDENT_PUBLIC_FIELDS = ['studentComment', 'lifeRatings', 'lifeNotes'];
-export const MANAGER_PUBLIC_FIELDS = ['managerComment', 'workRatings', 'workNotes'];
+// 跟自己的意見（含簽名），企業主管填「實習狀況」評核表跟主管意見（含
+// 簽名），其餘欄位（訪視日期/方式/人員、本月學習成果、訪視結果、訪視
+// 人員簽名）只有內部人員能動。
+export const STUDENT_PUBLIC_FIELDS = ['studentComment', 'lifeRatings', 'lifeNotes', 'studentSignature'];
+export const MANAGER_PUBLIC_FIELDS = ['managerComment', 'workRatings', 'workNotes', 'managerSignature'];
 
 export function blankRatings(items) {
   const obj = {};
@@ -44,15 +45,38 @@ function box(checked) {
   return checked ? '☑' : '□';
 }
 
+// 簽名存成 PNG data URL，這裡轉成 docx ImageRun 需要的位元組陣列；
+// 瀏覽器端用 atob 解 base64，跟 lib/fileAttachment.js 的 dataUrlToBlobUrl
+// 同一套解法。
+function dataUrlToUint8Array(dataUrl) {
+  const base64 = dataUrl.split(',')[1] || '';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 // data: { studentName, passportNumber, nationality, company, venue, department,
 //         visitDate, visitMethod, visitPersonnel,
 //         workRatings, workNotes, lifeRatings, lifeNotes,
 //         managerComment, studentComment,
 //         monthlyWorkDone, monthlyLearning, difficulties, nextMonthGoals,
-//         result: string[], resultOther }
+//         result: string[], resultOther,
+//         studentSignature, managerSignature, staffSignature (皆為 PNG data URL 或空字串) }
 function buildChildren(data, lib) {
-  const { Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } = lib;
+  const { Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, WidthType, AlignmentType } = lib;
   const zhFont = '標楷體';
+
+  // 有簽名就放圖片，沒有就留一條底線給人事後手寫簽名，不會讓這一格整個
+  // 空白看不出來是要簽名的地方。
+  function signatureBlock(labelZh, labelVi, dataUrl) {
+    return [
+      new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: labelZh, bold: true, size: 22, font: zhFont }), new TextRun({ text: labelVi ? `  ${labelVi}` : '', italics: true, size: 18 })] }),
+      dataUrl
+        ? new Paragraph({ children: [new ImageRun({ data: dataUrlToUint8Array(dataUrl), transformation: { width: 200, height: 70 } })] })
+        : new Paragraph({ children: [new TextRun({ text: '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿', size: 22 })] }),
+    ];
+  }
 
   function titleRun(zh, vi) {
     return [
@@ -132,9 +156,11 @@ function buildChildren(data, lib) {
     new Paragraph({ children: [new TextRun({ text: '實習狀況 Tình trạng thực tập', bold: true, size: 24, font: zhFont })] }),
     ratingTable(WORK_ITEMS, WORK_RATING_OPTIONS, data.workRatings || {}, data.workNotes || {}),
     ...textSection('企業主管意見', 'Ý kiến của giám đốc điều hành doanh nghiệp', data.managerComment),
+    ...signatureBlock('企業主管簽名', 'Chữ ký giám đốc điều hành', data.managerSignature),
     new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: '生活適應情況 Thích nghi với cuộc sống', bold: true, size: 24, font: zhFont })] }),
     ratingTable(LIFE_ITEMS, LIFE_RATING_OPTIONS, data.lifeRatings || {}, data.lifeNotes || {}),
     ...textSection('學生意見', 'Ý kiến học sinh', data.studentComment),
+    ...signatureBlock('學生簽名', 'Chữ ký học sinh', data.studentSignature),
     new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: '本月學習成果 kết quả học tập tháng', bold: true, size: 24, font: zhFont })] }),
     ...textSection('本月完成之工作內容', 'Công việc đã hoàn thành trong tháng', data.monthlyWorkDone),
     ...textSection('本月學習收穫', 'Học tập đạt được trong tháng', data.monthlyLearning),
@@ -142,6 +168,7 @@ function buildChildren(data, lib) {
     ...textSection('下月學習目標', 'Mục tiêu học tập cho tháng tới', data.nextMonthGoals),
     new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: '訪視結果 kết quả chuyến thăm', bold: true, size: 24, font: zhFont })] }),
     ...resultLines,
+    ...signatureBlock('訪視人員簽名', 'Chữ ký người thăm', data.staffSignature),
     new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: '訪視照片：如附件。', size: 22, font: zhFont })] }),
   ];
 }
