@@ -601,7 +601,10 @@ export default function StudentBillingPage() {
           remaining: ledgerEntry.remaining,
         };
       });
-      await downloadStudentBillingStatements(`學生請款單_${month}.zip`, items);
+      const { failed } = await downloadStudentBillingStatements(`學生請款單_${month}.zip`, items);
+      if (failed.length > 0) {
+        alert(`已下載，但以下 ${failed.length} 位學生的請款單產生失敗，請另外處理：\n${failed.map((f) => `${f.studentName}：${f.error}`).join('\n')}`);
+      }
     } catch (err) {
       alert(`下載失敗：${err.message || err}`);
     } finally {
