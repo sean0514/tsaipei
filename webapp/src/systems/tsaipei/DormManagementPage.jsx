@@ -349,7 +349,7 @@ export default function DormManagementPage() {
           onSave={async (itemOptions) => { await update(optionsEditing.id, { itemOptions: JSON.stringify(itemOptions) }); setOptionsEditing(null); }}
         />
       )}
-      {vehicleEditing && <VehicleFormModal initial={vehicleEditing} onCancel={() => setVehicleEditing(null)} onSave={handleSaveVehicle} />}
+      {vehicleEditing && <VehicleFormModal initial={vehicleEditing} dormitories={rows} onCancel={() => setVehicleEditing(null)} onSave={handleSaveVehicle} />}
     </div>
   );
 }
@@ -569,7 +569,7 @@ function RentalPeriodsEditor({ periods, onChange }) {
   );
 }
 
-function VehicleFormModal({ initial, onCancel, onSave }) {
+function VehicleFormModal({ initial, dormitories, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -622,9 +622,18 @@ function VehicleFormModal({ initial, onCancel, onSave }) {
             {VEHICLE_FIELDS.map((f) => (
               <label key={f.key}>
                 {f.label}
-                <input type={f.type || 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                <input
+                  type={f.type || 'text'}
+                  required={f.required}
+                  list={f.key === 'location' ? 'vehicle-location-options' : undefined}
+                  value={form[f.key] || ''}
+                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                />
               </label>
             ))}
+            <datalist id="vehicle-location-options">
+              {[...new Set((dormitories || []).map((d) => d.name).filter(Boolean))].map((n) => <option key={n} value={n} />)}
+            </datalist>
           </div>
           <h4>車輛照片</h4>
           <div style={{ marginBottom: 12 }}>
