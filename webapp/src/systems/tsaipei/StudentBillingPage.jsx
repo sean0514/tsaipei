@@ -446,18 +446,27 @@ export default function StudentBillingPage() {
     return { minMonth, maxMonth };
   }
 
-  // 學生收款總帳：某個月多繳的金額(溢繳)自動抵掉下一個月的應繳金額，一路
-  // 往後遞延直到抵完為止；欠款同理不會因為換月就消失，會一直累積到真的
-  // 補繳為止。從這個學生最早入住的月份算到最近退宿(或現在)的月份，逐月
-  // 計算：這個月應繳金額、加上前面月份結餘的溢繳額度跟這個月實際收到的
-  // 錢，算出這個月還欠多少、結餘多少溢繳額度給下個月。標記「全額付清」
-  // 的月份視為已經用掉剛好足夠的錢結清，不產生新的溢繳，也不消耗既有
-  // 溢繳額度(沒有記錄實際付了多少錢，無法算出多付了多少)。
+  // 學生收款總帳：某個月多繳的金額(溢繳)自動抵掉下一個月的應繳金額，欠款
+  // 同理不會因為換月就消失，會一直累積到真的補繳(或之後月份溢繳回頭
+  // 抵掉)為止。用一個「結餘」(balance)貫穿每個月：正數＝溢繳額度(可以
+  // 抵未來應繳)，負數＝還欠多少(累積到目前為止的總欠款，不是只有這個
+  // 月自己的欠款)——這樣如果學生某個月欠錢、後面月份補繳或溢繳，會直接
+  // 沖抵掉之前月份留下來的欠款，不會讓舊欠款卡在那個月的紀錄裡，即使
+  // 後來已經把錢補上也還是顯示欠款。
+  //
+  // 之前的版本欠款不會結轉到下個月（只有溢繳會），造成即使學生後面月份
+  // 多繳了錢，前面月份的「剩餘餘額」仍然卡住不會被沖抵，總表/下載報表
+  // 看到的欠款金額會比實際還欠的金額高——這裡修正這個問題。
+  //
+  // 從這個學生最早入住的月份算到最近退宿(或現在)的月份，逐月計算每個月
+  // 結束時「累積到目前為止」還欠多少(remaining)/結餘多少溢繳(creditAfter)。
+  // 標記「全額付清」的月份視為這個月＋之前累積的欠款都已經結清(沒有記錄
+  // 實際付了多少錢，無法得知是否還有多付的溢繳，所以結清後結餘歸零)。
   function buildStudentLedger(studentId) {
     const { minMonth, maxMonth } = studentMonthBounds(studentId);
     const ledger = {};
     if (!minMonth) return ledger;
-    let credit = 0;
+    let balance = 0; // 正數=溢繳額度，負數=累積欠款
     let m = minMonth;
     let guard = 0;
     while (m <= maxMonth && guard < 1200) {
@@ -467,20 +476,15 @@ export default function StudentBillingPage() {
         .filter((h) => h.studentId === studentId && residentOverlapDays(h, mRange) > 0)
         .reduce((sum, h) => sum + billingFor(h, m, mRange).total, 0);
       const p = paymentFor(studentId, m);
-      let remaining;
-      let creditAfter;
       if (p.status === '全額付清') {
-        remaining = 0;
-        creditAfter = credit;
+        balance = 0;
       } else {
         const paid = p.status === '先繳部分'
           ? parsePartialPayments(p.partialPayments).reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
           : 0;
-        const available = credit + paid;
-        if (available >= owed) { remaining = 0; creditAfter = available - owed; } else { remaining = owed - available; creditAfter = 0; }
+        balance = balance - owed + paid;
       }
-      ledger[m] = { owed, remaining, creditAfter };
-      credit = creditAfter;
+      ledger[m] = { owed, remaining: balance < 0 ? -balance : 0, creditAfter: balance > 0 ? balance : 0 };
       m = nextMonthStr(m);
     }
     return ledger;
@@ -606,9 +610,19 @@ export default function StudentBillingPage() {
   }
 
   // 未繳總表：一個學生一列，橫向 1-12 月各一欄，依學生收款總帳(buildStudentLedger)
-  // 顯示選定年度每個月的剩餘未繳金額——總帳本身已經把前面月份的溢繳額度
-  // 往後抵充、欠款往後累積都算進去了，這裡只要照抄每個月的 remaining，
-  // 不需要另外維護一份「未繳」資料。
+  // 顯示選定年度每個月「累計到當月底為止」還欠多少——總帳本身已經把前面
+  // 月份的溢繳額度往後抵充、欠款往後累積(後面月份補繳/溢繳也會往回沖掉
+  // 之前欠款)都算進去了，這裡只要照抄每個月的 remaining，不需要另外維護
+  // 一份「未繳」資料。因為每個月的數字已經是累計金額(後面月份的數字包含
+  // 前面月份沒還清的部分)，橫向加總 1-12 月會重複計算同一筆欠款好幾次，
+  // 「總計」只能取這個學生當年度最後一個有欠款的月份的數字(=年底還欠多少)，
+  // 不能把 12 個月的數字加起來。
+  function finalUnpaidBalance(r) {
+    const presentMonths = MONTH_NUMS.filter((m) => r.months[m] !== undefined);
+    if (!presentMonths.length) return 0;
+    return r.months[Math.max(...presentMonths)] || 0;
+  }
+
   const unpaidByStudent = {};
   const unpaidStudentIds = [...new Set(housingRecords.filter((h) => h.studentId).map((h) => h.studentId))];
   unpaidStudentIds.forEach((studentId) => {
@@ -639,18 +653,13 @@ export default function StudentBillingPage() {
     .filter((r) => !unpaidQuery || `${r.studentName} ${r.internship}`.toLowerCase().includes(unpaidQuery))
     .sort((a, b) => a.studentName.localeCompare(b.studentName));
   const MONTH_NUMS = Array.from({ length: 12 }, (_, i) => i + 1);
-  const unpaidGrandTotal = filteredUnpaid.reduce((sum, r) => sum + MONTH_NUMS.reduce((s, m) => s + (r.months[m] || 0), 0), 0);
+  const unpaidGrandTotal = filteredUnpaid.reduce((sum, r) => sum + finalUnpaidBalance(r), 0);
 
   function handleDownloadUnpaid() {
     const rows = filteredUnpaid.map((r) => {
       const row = { studentName: r.studentName, internship: r.internship, operators: operatorsLabel(r) };
-      let rowTotal = 0;
-      MONTH_NUMS.forEach((m) => {
-        const amt = r.months[m] || 0;
-        row[`m${m}`] = amt || '';
-        rowTotal += amt;
-      });
-      row.total = rowTotal;
+      MONTH_NUMS.forEach((m) => { row[`m${m}`] = r.months[m] || ''; });
+      row.total = finalUnpaidBalance(r);
       return row;
     });
     // 下載時的總計：最後補一列每月加總+總計欄位的大計，跟畫面上表格底部
@@ -675,7 +684,7 @@ export default function StudentBillingPage() {
           <div className="page-desc">
             {view === 'monthly'
               ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元；宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，整月固定收取設定的月租金（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止；下載此月份報表會多一欄「上月欠費」(上個月的剩餘餘額)跟「應繳總額」(本月合計+上月欠費)；「下載學生請款單(Word)」會依這個月篩選出來的住宿紀錄，一位學生產生一份請款單，打包成一個 .zip 一次下載'
-              : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
+              : '依學生收款總帳列出選定年度每個月累計到當月底為止還欠多少(已經把前面月份的欠款/溢繳都算進去，後面月份補繳或溢繳會直接沖掉之前欠款，不會一直卡在原本那個月不動)；某個月完全不欠才會從總表消失；「總計」是這個學生當年度最後一個月的累計欠款(=年底結餘)，不是把12個月的數字加起來(因為每個月的數字已經是累計的，加起來會重複算到同一筆欠款)；核准人=這個學生有未繳月份裡標記過收款狀態的人'}
           </div>
         </div>
         <div className="row-actions">
@@ -820,7 +829,7 @@ export default function StudentBillingPage() {
                 <thead><tr><th>學生</th><th>實習單位</th><th>核准人</th>{MONTH_NUMS.map((m) => <th key={m}>{m}月</th>)}<th>總計</th></tr></thead>
                 <tbody>
                   {filteredUnpaid.map((r) => {
-                    const rowTotal = MONTH_NUMS.reduce((s, m) => s + (r.months[m] || 0), 0);
+                    const rowTotal = finalUnpaidBalance(r);
                     return (
                       <tr key={r.studentId}>
                         <td style={{ fontWeight: 600 }}>{r.studentName}</td>
