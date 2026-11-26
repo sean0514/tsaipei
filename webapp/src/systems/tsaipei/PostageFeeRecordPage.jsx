@@ -31,6 +31,11 @@ const STATUSES = ['待審核', '已核准', '已匯款', '退回'];
 // 申請／國外補助申請同一套規則。
 const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
 
+// 是否收到發票：核准前一定要先勾選(是/否/無發票)，避免已核准、甚至已
+// 匯款之後才發現發票沒收到，事後難以追查。
+const INVOICE_RECEIVED_OPTIONS = ['是', '否', '無發票'];
+function canApproveInvoice(r) { return !!r.invoiceReceived; }
+
 const FIELDS = [
   { key: 'serialNumber', label: '編號' },
   { key: 'shipDate', label: '寄件日期', type: 'date' },
@@ -44,7 +49,7 @@ const FIELDS = [
   { key: 'amount', label: '金額', type: 'number' },
 ];
 
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'status', label: '狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, ...FIELDS, { key: 'invoiceReceived', label: '是否收到發票' }, { key: 'status', label: '狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' }];
 
 export default function PostageFeeRecordPage() {
   const { system, role, overrides } = useOutletContext();
@@ -90,7 +95,7 @@ export default function PostageFeeRecordPage() {
       <div className="page-header">
         <div>
           <h2>郵資費用紀錄</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的紀錄可以按「結案」歸檔，已匯款的紀錄可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；「是否收到發票」要先勾選(是/否/無發票)才能核准；已核准的紀錄可以按「結案」歸檔，已匯款的紀錄可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({ serialNumber: String(nextSerialNumber(rows)) })}>+ 新增紀錄</button>}
@@ -112,7 +117,7 @@ export default function PostageFeeRecordPage() {
               <div className="table-wrap sticky-header"><table>
                 <thead><tr>
                   <th>編號</th><th>寄件日期</th><th>寄件編號</th><th>寄件人</th><th>電話</th>
-                  <th>收件人</th><th>電話</th><th>地址</th><th>文件內容</th><th>金額</th>{canEditPage && <th></th>}
+                  <th>收件人</th><th>電話</th><th>地址</th><th>文件內容</th><th>金額</th><th>是否收到發票</th>{canEditPage && <th></th>}
                 </tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
@@ -127,12 +132,20 @@ export default function PostageFeeRecordPage() {
                       <td>{r.address || '—'}</td>
                       <td>{r.documentContent || '—'}</td>
                       <td>{r.amount ? Number(r.amount).toLocaleString() : '—'}</td>
+                      <td>
+                        {canEditPage ? (
+                          <select value={r.invoiceReceived || ''} onChange={(e) => update(r.id, { invoiceReceived: e.target.value })}>
+                            <option value="">請選擇</option>
+                            {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (r.invoiceReceived || '—')}
+                      </td>
                       {canEditPage && (
                         <td className="row-actions">
                           {status === '待審核' && (
                             <>
-                              <button onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
-                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
                               <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
                             </>
                           )}
@@ -146,7 +159,12 @@ export default function PostageFeeRecordPage() {
                             <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
                           )}
                           {status === '退回' && STATUSES.filter((s) => s !== status).map((s) => (
-                            <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
+                            <button
+                              key={s}
+                              disabled={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r)}
+                              title={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined}
+                              onClick={() => update(r.id, { status: s })}
+                            >{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
                           {status === '已核准' && <button onClick={() => update(r.id, { confirmedClosed: true })}>結案</button>}
@@ -156,7 +174,7 @@ export default function PostageFeeRecordPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 11 : 10} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 12 : 11} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -214,6 +232,13 @@ function PostageFeeFormModal({ initial, onCancel, onSave }) {
                 <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </label>
             ))}
+            <label>
+              是否收到發票
+              <select value={form.invoiceReceived || ''} onChange={(e) => setForm({ ...form, invoiceReceived: e.target.value })}>
+                <option value="">請選擇</option>
+                {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </label>
             {initial.id && (
               <label>
                 狀態

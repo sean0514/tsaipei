@@ -50,10 +50,16 @@ const ARCHIVE_ROLES = ['系統管理員', '財務人員'];
 
 const CURRENCIES = ['台幣', '美金'];
 
+// 是否收到發票：核准前一定要先勾選(是/否/無發票)，避免已核准、甚至已
+// 匯款之後才發現發票沒收到，事後難以追查。
+const INVOICE_RECEIVED_OPTIONS = ['是', '否', '無發票'];
+function canApproveInvoice(r) { return !!r.invoiceReceived; }
+
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'applicant', label: '申請人' }, { key: 'sourceSupplier', label: '學生來源(國外供應商)' }, { key: 'studentId', label: '學生ID' },
   { key: 'school', label: '就讀學校' }, { key: 'internshipCompany', label: '實習單位' },
   { key: 'remittanceDate', label: '匯款日期' }, { key: 'purpose', label: '用途說明' }, { key: 'currency', label: '幣別' }, { key: 'amount', label: '金額' }, { key: 'twdAmount', label: '台幣金額' },
+  { key: 'invoiceReceived', label: '是否收到發票' },
   { key: 'notes', label: '備註' }, { key: 'status', label: '審核狀態' }, { key: 'confirmedClosed', label: '結案' }, { key: 'archived', label: '封存' },
 ];
 
@@ -142,7 +148,7 @@ export default function ForeignSubsidyApplicationPage() {
       <div className="page-header">
         <div>
           <h2>國外補助申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；「是否收到發票」要先勾選(是/否/無發票)才能核准；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -163,7 +169,7 @@ export default function ForeignSubsidyApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap sticky-header"><table>
-                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>就讀學校</th><th>實習單位</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>申請人</th><th>學生來源</th><th>學生</th><th>就讀學校</th><th>實習單位</th><th>匯款日期</th><th>用途說明</th><th>金額</th><th>是否收到發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
@@ -178,13 +184,21 @@ export default function ForeignSubsidyApplicationPage() {
                         {r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}
                         {r.currency === '美金' && r.twdAmount ? `（台幣 ${Number(r.twdAmount).toLocaleString()}）` : ''}
                       </td>
+                      <td>
+                        {canEditPage ? (
+                          <select value={r.invoiceReceived || ''} onChange={(e) => update(r.id, { invoiceReceived: e.target.value })}>
+                            <option value="">請選擇</option>
+                            {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (r.invoiceReceived || '—')}
+                      </td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
                           {status === '待審核' && (
                             <>
-                              <button onClick={async () => { await update(r.id, { status: '已核准' }); await syncApprovedPayment({ ...r, status: '已核准' }); }}>已核准</button>
-                              <button onClick={async () => { await update(r.id, { status: '已匯款' }); await syncApprovedPayment({ ...r, status: '已匯款' }); }}>已匯款</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={async () => { await update(r.id, { status: '已核准' }); await syncApprovedPayment({ ...r, status: '已核准' }); }}>已核准</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={async () => { await update(r.id, { status: '已匯款' }); await syncApprovedPayment({ ...r, status: '已匯款' }); }}>已匯款</button>
                               <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
                             </>
                           )}
@@ -198,7 +212,12 @@ export default function ForeignSubsidyApplicationPage() {
                             <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
                           )}
                           {status === '退回' && STATUSES.filter((s) => s !== status).map((s) => (
-                            <button key={s} onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}>{s}</button>
+                            <button
+                              key={s}
+                              disabled={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r)}
+                              title={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined}
+                              onClick={async () => { await update(r.id, { status: s }); await syncApprovedPayment({ ...r, status: s }); }}
+                            >{s}</button>
                           ))}
                           <button onClick={() => setEditing(r)}>編輯</button>
                           {(status === '待審核' || status === '退回') && <button onClick={() => handleDuplicate(r)}>複製</button>}
@@ -209,7 +228,7 @@ export default function ForeignSubsidyApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 10 : 9} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 11 : 10} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -358,6 +377,13 @@ function ForeignSubsidyFormModal({ initial, students, users, positions, matches,
             <label style={{ gridColumn: 'span 2' }}>
               用途說明
               <input required value={form.purpose || ''} onChange={(e) => setForm({ ...form, purpose: e.target.value })} />
+            </label>
+            <label>
+              是否收到發票
+              <select value={form.invoiceReceived || ''} onChange={(e) => setForm({ ...form, invoiceReceived: e.target.value })}>
+                <option value="">請選擇</option>
+                {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             </label>
             <label style={{ gridColumn: 'span 2' }}>
               備註
