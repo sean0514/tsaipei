@@ -23,6 +23,12 @@ const CURRENCIES = ['台幣', '美金'];
 
 const INVOICE_OPTIONS = ['鈞羽發票', '供應商發票', '無須發票'];
 
+// 是否收到發票：跟上面「是否開立發票」(誰開立)是不同的東西，這個是會計
+// 實際有沒有收到那張發票(或確認根本不需要發票)，核准前一定要先勾選過，
+// 避免已核准、甚至已匯款之後才發現發票沒收到，事後難以追查。
+const INVOICE_RECEIVED_OPTIONS = ['是', '否', '無發票'];
+function canApproveInvoice(r) { return !!r.invoiceReceived; }
+
 const TYPES = ['支出', '收入'];
 const DORM_ITEM = '宿舍設備';
 
@@ -43,6 +49,7 @@ const FIELDS = [
   { key: 'purpose', label: '用途說明', required: true },
   { key: 'amount', label: '金額', type: 'number' },
   { key: 'invoiceType', label: '是否開立發票' },
+  { key: 'invoiceReceived', label: '是否收到發票' },
   { key: 'notes', label: '備註' },
 ];
 
@@ -114,7 +121,7 @@ export default function DailyExpenseApplicationPage() {
       <div className="page-header">
         <div>
           <h2>日常支出申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；「是否收到發票」要先勾選(是/否/無發票)才能核准；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -138,7 +145,7 @@ export default function DailyExpenseApplicationPage() {
             <div className="card" key={status}>
               <h3 style={{ marginTop: 0 }}>{status}（{groups[status].length}）</h3>
               <div className="table-wrap sticky-header"><table>
-                <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>宿舍</th><th>金額</th><th>是否開立發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
+                <thead><tr><th>類型</th><th>申請人</th><th>須請款(實習單位)</th><th>學生姓名</th><th>項目</th><th>日期</th><th>用途說明</th><th>宿舍</th><th>金額</th><th>是否開立發票</th><th>是否收到發票</th><th>備註</th>{canEditPage && <th></th>}</tr></thead>
                 <tbody>
                   {groups[status].map((r) => (
                     <tr key={r.id}>
@@ -152,13 +159,21 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.item === DORM_ITEM ? (dormName(r.dormId) || '—') : '—'}</td>
                       <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                       <td>{r.invoiceType || '—'}</td>
+                      <td>
+                        {canModify(r) ? (
+                          <select value={r.invoiceReceived || ''} onChange={(e) => update(r.id, { invoiceReceived: e.target.value })}>
+                            <option value="">請選擇</option>
+                            {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (r.invoiceReceived || '—')}
+                      </td>
                       <td>{r.notes || '—'}</td>
                       {canEditPage && (
                         <td className="row-actions">
                           {status === '待審核' && canModify(r) && (
                             <>
-                              <button onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
-                              <button onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={() => update(r.id, { status: '已核准' })}>已核准</button>
+                              <button disabled={!canApproveInvoice(r)} title={!canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined} onClick={() => update(r.id, { status: '已匯款' })}>已匯款</button>
                               <button onClick={() => update(r.id, { status: '退回' })}>退回</button>
                             </>
                           )}
@@ -172,7 +187,12 @@ export default function DailyExpenseApplicationPage() {
                             <button onClick={() => update(r.id, { status: '已核准' })}>退回(回到已核准)</button>
                           )}
                           {status === '退回' && canModify(r) && STATUSES.filter((s) => s !== status).map((s) => (
-                            <button key={s} onClick={() => update(r.id, { status: s })}>{s}</button>
+                            <button
+                              key={s}
+                              disabled={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r)}
+                              title={(s === '已核准' || s === '已匯款') && !canApproveInvoice(r) ? '請先勾選「是否收到發票」才能核准' : undefined}
+                              onClick={() => update(r.id, { status: s })}
+                            >{s}</button>
                           ))}
                           {canModify(r) && <button onClick={() => setEditing(r)}>編輯</button>}
                           {status === '待審核' && canModify(r) && <button onClick={() => handleDuplicate(r)}>複製</button>}
@@ -184,7 +204,7 @@ export default function DailyExpenseApplicationPage() {
                       )}
                     </tr>
                   ))}
-                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 12 : 11} className="muted">沒有資料</td></tr>}
+                  {groups[status].length === 0 && <tr><td colSpan={canEditPage ? 13 : 12} className="muted">沒有資料</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -316,6 +336,11 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, d
                   <select value={form.invoiceType || ''} onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}>
                     <option value="">請選擇</option>
                     {INVOICE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : f.key === 'invoiceReceived' ? (
+                  <select value={form.invoiceReceived || ''} onChange={(e) => setForm({ ...form, invoiceReceived: e.target.value })}>
+                    <option value="">請選擇</option>
+                    {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : (
                   <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} required={f.required} value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
