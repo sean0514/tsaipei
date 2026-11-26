@@ -27,7 +27,9 @@ const INVOICE_OPTIONS = ['鈞羽發票', '供應商發票', '無須發票'];
 // 實際有沒有收到那張發票(或確認根本不需要發票)，核准前一定要先勾選過，
 // 避免已核准、甚至已匯款之後才發現發票沒收到，事後難以追查。
 const INVOICE_RECEIVED_OPTIONS = ['是', '否', '無發票'];
-function canApproveInvoice(r) { return !!r.invoiceReceived; }
+// 類型=收入的申請(錢是公司收進來，不是公司花出去，不會有對應的發票可以
+// 收)不用勾選這個欄位也能核准；支出類才需要。
+function canApproveInvoice(r) { return r.type === '收入' || !!r.invoiceReceived; }
 
 const TYPES = ['支出', '收入'];
 const DORM_ITEM = '宿舍設備';
@@ -121,7 +123,7 @@ export default function DailyExpenseApplicationPage() {
       <div className="page-header">
         <div>
           <h2>日常支出申請</h2>
-          <div className="page-desc">依待審核／已核准／已匯款／退回分類；「是否收到發票」要先勾選(是/否/無發票)才能核准；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依待審核／已核准／已匯款／退回分類；類型=支出的申請「是否收到發票」要先勾選(是/否/無發票)才能核准(類型=收入不用勾選)；已核准的申請可以按「結案」歸檔，已匯款的申請可以按「封存」歸檔（僅財務人員／系統管理員），結案或封存後從列表隱藏（資料還在，下載完整資料時仍會包含）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           {canEditPage && <button className="primary" onClick={() => setEditing({})}>+ 新增申請</button>}
@@ -160,7 +162,7 @@ export default function DailyExpenseApplicationPage() {
                       <td>{r.amount ? `${r.currency || '台幣'} ${Number(r.amount).toLocaleString()}` : '—'}</td>
                       <td>{r.invoiceType || '—'}</td>
                       <td>
-                        {canModify(r) ? (
+                        {r.type === '收入' ? '—（收入免填）' : canModify(r) ? (
                           <select value={r.invoiceReceived || ''} onChange={(e) => update(r.id, { invoiceReceived: e.target.value })}>
                             <option value="">請選擇</option>
                             {INVOICE_RECEIVED_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -284,7 +286,7 @@ function DailyExpenseFormModal({ initial, users, positions, students, matches, d
                 {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
-            {FIELDS.map((f) => (
+            {FIELDS.filter((f) => f.key !== 'invoiceReceived' || !isIncome).map((f) => (
               <label key={f.key}>
                 {f.key === 'applicant' ? applicantLabel : f.label}
                 {f.key === 'applicant' ? (
