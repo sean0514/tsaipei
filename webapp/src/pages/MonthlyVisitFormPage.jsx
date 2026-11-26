@@ -6,6 +6,7 @@ import {
   WORK_ITEMS, WORK_RATING_OPTIONS, LIFE_ITEMS, LIFE_RATING_OPTIONS,
   blankRatings, blankNotes, visitRecordDocId,
 } from '../lib/monthlyVisitRecord';
+import SignaturePad from '../components/SignaturePad';
 
 // 公開的「每月訪視紀錄」線上填寫頁面（/apply/visitRecord/:studentId/:month/:role），
 // 不需要登入，從在台關懷紀錄頁面的「取得填寫連結」按鈕產生。role=student
@@ -64,12 +65,14 @@ export default function MonthlyVisitFormPage() {
           studentComment: data.studentComment || '',
           lifeRatings: { ...blankRatings(LIFE_ITEMS), ...(data.lifeRatings || {}) },
           lifeNotes: { ...blankNotes(LIFE_ITEMS), ...(data.lifeNotes || {}) },
+          studentSignature: data.studentSignature || '',
         });
       } else {
         setForm({
           managerComment: data.managerComment || '',
           workRatings: { ...blankRatings(WORK_ITEMS), ...(data.workRatings || {}) },
           workNotes: { ...blankNotes(WORK_ITEMS), ...(data.workNotes || {}) },
+          managerSignature: data.managerSignature || '',
         });
       }
     }).catch(() => { if (!cancelled) setLoadError('讀取失敗，請稍後再試一次，或聯絡窗口重新取得連結。'); });
@@ -138,6 +141,7 @@ export default function MonthlyVisitFormPage() {
                 onNote={(item, v) => setNote('lifeNotes', item, v)}
               />
               <label>學生意見<textarea rows={3} value={form.studentComment} onChange={(e) => setField('studentComment', e.target.value)} style={{ width: '100%' }} /></label>
+              <label>簽名<SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} /></label>
             </>
           ) : (
             <>
@@ -151,6 +155,7 @@ export default function MonthlyVisitFormPage() {
                 onNote={(item, v) => setNote('workNotes', item, v)}
               />
               <label>企業主管意見<textarea rows={3} value={form.managerComment} onChange={(e) => setField('managerComment', e.target.value)} style={{ width: '100%' }} /></label>
+              <label>簽名<SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} /></label>
             </>
           )}
           {loadError && <p style={{ color: 'var(--danger)' }}>{loadError}</p>}
