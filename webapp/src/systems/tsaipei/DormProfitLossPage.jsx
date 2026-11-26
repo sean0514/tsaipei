@@ -14,7 +14,7 @@ function parseOtherFees(json) {
 
 // 可以點數字看逐筆明細的細項——不含「宿舍設備收入/支出」(已經有自己的
 // 「宿舍設備收支明細」按鈕)跟幾個合計列(income/cost/profit/bonus)。
-const DETAILABLE_KEYS = ['housingIncome', 'dormManageFeeIncome', 'otherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost'];
+const DETAILABLE_KEYS = ['housingIncome', 'dormManageFeeIncome', 'otherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'gasCylinderDepositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost'];
 
 // 各損益細項的逐筆明細：跟 lib/bonus.js computeDormProfitLossForYear 裡
 // 同一套公式，只是這裡不加總、改成列出每一筆對應紀錄方便核對來源。
@@ -109,6 +109,12 @@ function detailEntriesFor(key, rawDorm, monthStr, ctx) {
     return amount ? [{ desc: `押金 ${Number(rawDorm.deposit || 0).toLocaleString()} － 退還押金 ${Number(rawDorm.depositRefundAmount || 0).toLocaleString()}（退還日 ${rawDorm.depositRefundDate}）`, amount }] : [];
   }
 
+  if (key === 'gasCylinderDepositLossCost') {
+    if (!rawDorm.gasCylinderDepositRefundDate || rawDorm.gasCylinderDepositRefundDate.slice(0, 7) !== monthStr) return [];
+    const amount = (Number(rawDorm.gasCylinderDeposit) || 0) - (Number(rawDorm.gasCylinderDepositRefundAmount) || 0);
+    return amount ? [{ desc: `瓦斯空桶押金 ${Number(rawDorm.gasCylinderDeposit || 0).toLocaleString()} － 退還 ${Number(rawDorm.gasCylinderDepositRefundAmount || 0).toLocaleString()}（退還日 ${rawDorm.gasCylinderDepositRefundDate}）`, amount }] : [];
+  }
+
   return [];
 }
 
@@ -125,6 +131,7 @@ const LINE_ITEMS = [
   { key: 'rentCost', label: '租金' },
   { key: 'agentFeeCost', label: '房仲費' },
   { key: 'depositLossCost', label: '押金損失(押金-退還押金)' },
+  { key: 'gasCylinderDepositLossCost', label: '瓦斯空桶押金損失(押金-退還押金)' },
   { key: 'waterCost', label: '水費' },
   { key: 'electricityCost', label: '電費' },
   { key: 'gasCost', label: '瓦斯費' },
@@ -264,7 +271,7 @@ export default function DormProfitLossPage() {
       <div className="page-header">
         <div>
           <h2>宿舍損益</h2>
-          <div className="page-desc">收入＝住宿費收入(學生自付用住宿紀錄租金；廠商代付改用客戶費用建檔的宿舍費費率，即實際收到的錢)＋宿管費收入(廠商代付住戶依客戶費用建檔的宿管費費率)＋日常支出申請(宿舍設備收入)＋宿舍管理「填寫其他費用」自訂項目標類型=收入的金額＋水電瓦斯費收入(跟學生請款計算同一套公式，不論付款方式由當月所有住戶平分，電費另外每人每月固定加收200元，南投竹山再加500元，宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)＋電動車月租金收入(住宿紀錄勾選「是否借用電動車」的住戶，依開始租借日~結束租借日跟當月重疊的天數比例計算，跟學生請款計算同一套算法)；成本＝租金(依租約當月生效天數比例計算)/房仲費/押金損失/水費/電費/瓦斯費/其他費用(自訂項目標類型=支出的金額)＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類；每間宿舍可以到「宿舍管理」的「項目選項」自行維護常用的收入/支出項目名稱</div>
+          <div className="page-desc">收入＝住宿費收入(學生自付用住宿紀錄租金；廠商代付改用客戶費用建檔的宿舍費費率，即實際收到的錢)＋宿管費收入(廠商代付住戶依客戶費用建檔的宿管費費率)＋日常支出申請(宿舍設備收入)＋宿舍管理「填寫其他費用」自訂項目標類型=收入的金額＋水電瓦斯費收入(跟學生請款計算同一套公式，不論付款方式由當月所有住戶平分，電費另外每人每月固定加收200元，南投竹山再加500元，宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)＋電動車月租金收入(住宿紀錄勾選「是否借用電動車」的住戶，依開始租借日~結束租借日跟當月重疊的天數比例計算，跟學生請款計算同一套算法)；成本＝租金(依租約當月生效天數比例計算)/房仲費/押金損失/瓦斯空桶押金損失(支付押金當下不計成本，退還時才計「押金-退還金額」的損失，算在退還日期那個月)/水費/電費/瓦斯費/其他費用(自訂項目標類型=支出的金額)＋日常支出申請(宿舍設備支出)；利潤＝收入－成本；分紅＝利潤×20%；依宿舍管理設定的宿管1分類；每間宿舍可以到「宿舍管理」的「項目選項」自行維護常用的收入/支出項目名稱</div>
         </div>
         <div className="row-actions">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
