@@ -8,6 +8,7 @@ import {
   studentProjectClientPair, currentYear, NOT_BILLABLE,
   ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
 } from '../../lib/bonus';
+import { downloadStudentBillingStatements } from '../../lib/studentBillingStatement';
 
 function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
@@ -115,6 +116,12 @@ function effectivePayment(p) {
 function nextMonthStr(monthStr) {
   const [y, m] = monthStr.split('-').map(Number);
   const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function prevMonthStr(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -511,6 +518,7 @@ export default function StudentBillingPage() {
       const b = billingFor(h, month, range);
       const p = paymentFor(h.studentId, month);
       const ledgerEntry = ledgerFor(h.studentId)[month] || { remaining: b.total, creditAfter: 0 };
+      const previousOwed = ledgerFor(h.studentId)[prevMonthStr(month)]?.remaining || 0;
       const partialDetail = p.status === '先繳部分'
         ? parsePartialPayments(p.partialPayments).map((e) => `${e.amount || 0}元(${e.date || '未填日期'})${e.reviewedBy ? `[已審核:${e.reviewedBy}]` : ''}`).join('；')
         : '';
@@ -527,6 +535,8 @@ export default function StudentBillingPage() {
         healthCheckFee: b.healthCheckFee,
         evFee: b.evFee,
         total: b.total,
+        previousOwed,
+        grandTotalWithPrevious: b.total + previousOwed,
         status: p.status,
         partialDetail,
         fullPaidDate: p.status === '全額付清' ? (p.fullPaidDate || '') : '',
@@ -541,12 +551,58 @@ export default function StudentBillingPage() {
     exportEntityCSV(rows, [
       { key: 'dorm', label: '宿舍名稱' }, { key: 'studentName', label: '學生' }, { key: 'payer', label: '付款方式' }, { key: 'days', label: '當月天數' },
       { key: 'selfPayDormFee', label: '自付宿舍費' }, { key: 'waterFee', label: '水費' }, { key: 'electricityFee', label: '電費' },
-      { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'healthCheckFee', label: '體檢費' }, { key: 'evFee', label: '電動車月租金' }, { key: 'total', label: '合計' },
+      { key: 'gasFee', label: '瓦斯費' }, { key: 'otherFees', label: '其他費用' }, { key: 'healthCheckFee', label: '體檢費' }, { key: 'evFee', label: '電動車月租金' }, { key: 'total', label: '本月合計' },
+      { key: 'previousOwed', label: '上月欠費' }, { key: 'grandTotalWithPrevious', label: '應繳總額(本月合計+上月欠費)' },
       { key: 'status', label: '收款狀態' }, { key: 'partialDetail', label: '先繳部分明細' },
       { key: 'fullPaidDate', label: '全額付清日期' }, { key: 'fullPaidReviewedBy', label: '全額付清審核人' },
       { key: 'remaining', label: '剩餘餘額' }, { key: 'overpaidCredit', label: '溢繳餘額(可抵次月)' },
       { key: 'accountantConfirmedBy', label: '會計確認人' }, { key: 'financeConfirmedBy', label: '財務確認人' }, { key: 'adminConfirmedBy', label: '系統管理員確認人' },
     ], `學生請款計算_${month}`);
+  }
+
+  // 學生請款單(Word)：一位學生一份，跟下載報表(CSV)同一批資料、同一筆
+  // 筆住宿紀錄對應一份，金額項目/上月欠費/應繳總額都一致，只是排成方便
+  // 直接列印給學生的單張格式；多位學生打包成一個 .zip 一次下載。
+  const [downloadingStatements, setDownloadingStatements] = useState(false);
+  async function handleDownloadStatements() {
+    setDownloadingStatements(true);
+    try {
+      const items = filtered.map((h) => {
+        const b = billingFor(h, month, range);
+        const p = paymentFor(h.studentId, month);
+        const ledgerEntry = ledgerFor(h.studentId)[month] || { remaining: b.total, creditAfter: 0 };
+        const previousOwed = ledgerFor(h.studentId)[prevMonthStr(month)]?.remaining || 0;
+        const partialDetail = p.status === '先繳部分'
+          ? parsePartialPayments(p.partialPayments).map((e) => `${e.amount || 0}元(${e.date || '未填日期'})`).join('；')
+          : '';
+        return {
+          studentName: studentFullLabel(students.find((s) => s.id === h.studentId)),
+          dorm: h.type || '',
+          payer: h.payer || '',
+          month,
+          items: [
+            { label: '自付宿舍費', amount: b.selfPayDormFee },
+            { label: '水費', amount: b.waterFee },
+            { label: '電費', amount: b.electricityFee },
+            { label: '瓦斯費', amount: b.gasFee },
+            { label: '其他費用', amount: b.otherFees },
+            { label: '體檢費', amount: b.healthCheckFee },
+            { label: '電動車月租金', amount: b.evFee },
+          ],
+          total: b.total,
+          previousOwed,
+          grandTotal: b.total + previousOwed,
+          status: p.status,
+          partialDetail,
+          remaining: ledgerEntry.remaining,
+        };
+      });
+      await downloadStudentBillingStatements(`學生請款單_${month}.zip`, items);
+    } catch (err) {
+      alert(`下載失敗：${err.message || err}`);
+    } finally {
+      setDownloadingStatements(false);
+    }
   }
 
   // 未繳總表：一個學生一列，橫向 1-12 月各一欄，依學生收款總帳(buildStudentLedger)
@@ -618,7 +674,7 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元；宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，整月固定收取設定的月租金（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止'
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元；宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，整月固定收取設定的月租金（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止；下載此月份報表會多一欄「上月欠費」(上個月的剩餘餘額)跟「應繳總額」(本月合計+上月欠費)；「下載學生請款單(Word)」會依這個月篩選出來的住宿紀錄，一位學生產生一份請款單，打包成一個 .zip 一次下載'
               : '依學生收款總帳列出選定年度每個月的剩餘未繳金額(已經把前面月份的溢繳抵充、欠款累積算進去了)；某個月的欠款完全被抵完(不論靠這個月收的錢還是前面月份結餘的溢繳額度)才會從總表消失；核准人=這個學生有未繳月份裡標記過收款狀態的人；表格最下面跟下載的 CSV 都有每月加總的總計列'}
           </div>
         </div>
@@ -633,6 +689,7 @@ export default function StudentBillingPage() {
           <div className="row-actions" style={{ marginBottom: 16 }}>
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
             <button onClick={handleDownload}>下載此月份報表</button>
+            <button onClick={handleDownloadStatements} disabled={downloadingStatements}>{downloadingStatements ? '產生中…' : '下載學生請款單(Word)'}</button>
           </div>
           <input placeholder="搜尋學生或宿舍名稱" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
           {loading ? <p className="muted">載入中…</p> : (
