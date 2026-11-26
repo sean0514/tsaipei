@@ -58,23 +58,44 @@ function buildChildren(data, lib) {
   ];
 }
 
+// Windows 檔名不能有 < > : " / \ | ? * 這幾個字元，開頭/結尾也不能留空白
+// 或句點——學生姓名有時候含有舊資料編碼錯誤殘留的符號(例如越南文變音
+// 符號被不相容的編碼轉成問號)，如果直接拿姓名當檔名，裡面若剛好有這些
+// 符號，在 Windows 解壓縮時那個檔案會被跳過或解壓失敗，看起來就像那位
+// 學生的請款單整個不見了——其實是放進 zip 裡了，只是解壓縮失敗。這裡
+// 統一濾掉這些字元，避免整批依賴檔名裡的姓名格式而默默漏掉人。
+function sanitizeFilenamePart(text) {
+  // eslint-disable-next-line no-control-regex -- 刻意連控制字元一起濾掉，避免舊資料殘留的不可見字元也混進檔名。
+  const cleaned = (text || '').replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim().replace(/[.\s]+$/, '');
+  return cleaned || '未命名';
+}
+
 // 一位學生一份請款單，多位學生打包成一個 .zip；學生姓名重複(同一個月
-// 不只一筆住宿紀錄的少見情況)在檔名後面加序號避免互相覆蓋。
+// 不只一筆住宿紀錄的少見情況)在檔名後面加序號避免互相覆蓋。每位學生
+// 獨立 try/catch，單一學生文件產生失敗不會讓整批下載連帶失敗、其他人
+// 的請款單還是要能正常下載；失敗的學生名單會回傳給呼叫端，顯示出來
+// 讓承辦人員知道哪些人要另外處理，而不是默默少了幾份看不出來。
 export async function downloadStudentBillingStatements(zipFilename, students) {
   const lib = await import('docx');
   const { Document, Packer } = lib;
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   const usedNames = new Set();
+  const failed = [];
   for (const data of students) {
-    const doc = new Document({ sections: [{ children: buildChildren(data, lib) }] });
-    const blob = await Packer.toBlob(doc);
-    const buffer = await blob.arrayBuffer();
-    let name = `${data.studentName}_${data.month}請款單.docx`;
-    let n = 2;
-    while (usedNames.has(name)) { name = `${data.studentName}_${data.month}請款單(${n}).docx`; n += 1; }
-    usedNames.add(name);
-    zip.file(name, buffer);
+    try {
+      const doc = new Document({ sections: [{ children: buildChildren(data, lib) }] });
+      const blob = await Packer.toBlob(doc);
+      const buffer = await blob.arrayBuffer();
+      const safeName = sanitizeFilenamePart(data.studentName);
+      let name = `${safeName}_${data.month}請款單.docx`;
+      let n = 2;
+      while (usedNames.has(name)) { name = `${safeName}_${data.month}請款單(${n}).docx`; n += 1; }
+      usedNames.add(name);
+      zip.file(name, buffer);
+    } catch (err) {
+      failed.push({ studentName: data.studentName, error: err?.message || String(err) });
+    }
   }
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(zipBlob);
@@ -85,4 +106,5 @@ export async function downloadStudentBillingStatements(zipFilename, students) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  return { succeeded: students.length - failed.length, failed };
 }
