@@ -16,11 +16,12 @@ import {
   AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
   TEMPLATE_FILE_BY_LANG, LANG_LABEL, downloadInternshipCertificate,
 } from '../../lib/internshipCertificate';
+import { isDeparted } from '../../lib/visaDates';
 
 const STATUSES = ['良好', '待關心', '預計離台'];
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'careDate', label: '關懷時間' },
-  { key: 'content', label: '內容' }, { key: 'status', label: '狀態' }, { key: 'confirmedDeparture', label: '確認離台' },
+  { key: 'content', label: '內容' }, { key: 'status', label: '狀態' },
 ];
 
 // Ported from studentProjectCompanyKey/matchPositionLabel in apps-script/Index.html.
@@ -88,8 +89,13 @@ export default function InTaiwanCarePage() {
 
   const ctx = { matches, admittedList, positions };
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
+  const studentOf = (id) => students.find((x) => x.id === id);
+  // 「確認離台」不再是手動勾選，直接看學生資料上同步過來的入境/離境日期
+  // 欄位(跟「在台簽證追蹤」存檔時同步寫回 tsaipei_students 的那幾個欄位
+  // 是同一批)，用 lib/visaDates.js 同一套規則判斷，兩邊保證一致。
+  const today = new Date().toISOString().slice(0, 10);
   const searchQuery = q.trim().toLowerCase();
-  const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery)));
+  const visible = rows.filter((r) => (showDeparted || !isDeparted(studentOf(r.studentId), today)) && (!searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery)));
 
   // 依專案編號＋客戶分類，跟原本 renderInTaiwanCare 一致。
   const byCompany = {};
@@ -110,10 +116,10 @@ export default function InTaiwanCarePage() {
       <div className="page-header">
         <div>
           <h2>在台關懷紀錄</h2>
-          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；確認離台後自動移除）；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「訪視連結」可取得學生/企業主管的線上填寫連結、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；離台後自動從清單移除）；「是否離台」自動判斷，跟「在台簽證追蹤」同一套規則(見該頁說明)，不用手動勾選；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「訪視連結」可取得學生/企業主管的線上填寫連結、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
+          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已離台</label>
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
       </div>
@@ -127,7 +133,7 @@ export default function InTaiwanCarePage() {
                 <h3 style={{ marginTop: 0 }}>{company} <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>{byCompany[company].length} 筆紀錄</span></h3>
                 <div className="table-wrap sticky-header">
                   <table>
-                    <thead><tr><th>學生</th><th>關懷時間</th><th>內容</th><th>狀態</th><th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
+                    <thead><tr><th>學生</th><th>關懷時間</th><th>內容</th><th>狀態</th><th>是否離台</th>{canEditPage && <th></th>}</tr></thead>
                     <tbody>
                       {byCompany[company].map((r) => (
                         <tr key={r.id}>
@@ -135,11 +141,7 @@ export default function InTaiwanCarePage() {
                           <td>{r.careDate || '—'}</td>
                           <td>{r.content || '—'}</td>
                           <td><Tag value={r.status} map={CARE_TAG} /></td>
-                          <td>
-                            {canEditPage ? (
-                              <input type="checkbox" checked={!!r.confirmedDeparture} onChange={(e) => update(r.id, { confirmedDeparture: e.target.checked })} />
-                            ) : (r.confirmedDeparture ? '是' : '否')}
-                          </td>
+                          <td>{isDeparted(studentOf(r.studentId), today) ? '是' : '否'}</td>
                           {canEditPage && (
                             <td>
                               <div className="row-actions">

@@ -7,6 +7,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { hasActiveHousingRecord } from '../../lib/housingRecords';
+import { isDeparted } from '../../lib/visaDates';
 
 async function existsForStudent(collectionName, studentId) {
   const snap = await getDocs(query(collection(db, collectionName), where('studentId', '==', studentId)));
@@ -77,7 +78,7 @@ const FIELDS = [
   { key: 'secondExitDate', label: '第二次離台時間', type: 'date' },
   { key: 'visaRenewalDate2', label: '在台期間換發簽證時間2', type: 'date' },
 ];
-const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS, { key: 'confirmedDeparture', label: '確認離台' }];
+const CSV_FIELDS = [{ key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, ...FIELDS];
 
 // Ported from studentProjectCompanyKey/matchPositionLabel in apps-script/Index.html.
 function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
@@ -93,21 +94,16 @@ function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
   return [p.projectCode, p.company, m.venue].filter(Boolean).join(' ') || '未指定客戶';
 }
 
-function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove, onToggleDeparture }) {
+function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove }) {
   return (
     <div className="table-wrap sticky-header">
       <table>
-        <thead><tr><th>學生</th>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}<th>確認離台</th>{canEditPage && <th></th>}</tr></thead>
+        <thead><tr><th>學生</th>{FIELDS.map((f) => <th key={f.key}>{f.label}</th>)}{canEditPage && <th></th>}</tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
               <td>{studentName(r.studentId)}</td>
               {FIELDS.map((f) => <td key={f.key}>{r[f.key] || '—'}</td>)}
-              <td>
-                {canEditPage ? (
-                  <input type="checkbox" checked={!!r.confirmedDeparture} onChange={(e) => onToggleDeparture(r.id, e.target.checked)} />
-                ) : (r.confirmedDeparture ? '是' : '否')}
-              </td>
               {canEditPage && (
                 <td>
                   <div className="row-actions">
@@ -118,7 +114,7 @@ function VisaTable({ rows, canEditPage, studentName, onEdit, onRemove, onToggleD
               )}
             </tr>
           ))}
-          {rows.length === 0 && <tr><td colSpan={FIELDS.length + (canEditPage ? 3 : 2)} className="muted">沒有資料</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={FIELDS.length + (canEditPage ? 2 : 1)} className="muted">沒有資料</td></tr>}
         </tbody>
       </table>
     </div>
@@ -134,7 +130,6 @@ export default function InTaiwanVisaPage() {
   const { rows: admittedList } = useCollection('tsaipei_admittedList');
   const { rows: positions } = useCollection('tsaipei_positions');
   const [editing, setEditing] = useState(null);
-  const [showDeparted, setShowDeparted] = useState(false);
   const [q, setQ] = useState('');
   const [backfilling, setBackfilling] = useState(false);
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanVisa', CSV_FIELDS, { entityLabel: '在台簽證追蹤', requiredKeys: ['studentId'], canEdit: canEditPage });
@@ -142,13 +137,14 @@ export default function InTaiwanVisaPage() {
   const ctx = { matches, admittedList, positions };
   const studentName = (id) => { const s = students.find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知)'; };
   const searchQuery = q.trim().toLowerCase();
-  const visible = rows.filter((r) => (showDeparted || r.confirmedDeparture !== true) && (!searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery)));
+  const visible = rows.filter((r) => !searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
 
-  // 已離台：第二次離台時間已到期（今天或之前）就自動歸類，不用手動維護；
-  // 在台中：其餘的，依客戶分類顯示。
+  // 已離台／在台中：全部自動依日期判斷(lib/visaDates.js isDeparted)，不再
+  // 需要手動勾選「確認離台」——跟在台關懷紀錄用同一套規則(那邊是看學生
+  // 資料上同步過去的這幾個欄位)，兩邊保證看到一致的結果。
   const today = new Date().toISOString().slice(0, 10);
-  const departed = visible.filter((r) => r.secondExitDate && r.secondExitDate <= today);
-  const inTaiwan = visible.filter((r) => !(r.secondExitDate && r.secondExitDate <= today));
+  const departed = visible.filter((r) => isDeparted(r, today));
+  const inTaiwan = visible.filter((r) => !isDeparted(r, today));
 
   const byCompany = {};
   inTaiwan.forEach((r) => {
@@ -221,10 +217,9 @@ export default function InTaiwanVisaPage() {
       <div className="page-header">
         <div>
           <h2>在台簽證追蹤</h2>
-          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」在第二次離台時間到期後自動列入；填寫第一次入台時間後會自動帶入「實習開始1」、填寫第二次入台時間後會自動帶入「實習開始2」(都可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依在台中／已離台分類，在台中的學生再依客戶分組；「已離台」自動判斷(有第二次離台時間看那個日期；沒有但已排定第二次入台時間代表還會再入境一次、不算離台；都沒有就看第一次離台時間)，不用手動勾選，跟「在台關懷紀錄」用同一套規則(透過同步到學生資料的日期欄位)保證兩邊一致；填寫第一次入台時間後會自動帶入「實習開始1」、填寫第二次入台時間後會自動帶入「實習開始2」(都可手動改)，並在日常支出申請待審核清單帶入寢具費用480/鑰匙費用300/體檢費用300（類型=收入）{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
-          <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已確認離台</label>
           {canEditPage && <button disabled={backfilling} onClick={handleBackfillFirstEntryExpenses}>{backfilling ? '補建立中…' : '補建立入境費用'}</button>}
           <ImportExportButtons rows={rows} onExport={handleExport} onImport={handleImport} canEdit={canEditPage} />
         </div>
@@ -246,7 +241,6 @@ export default function InTaiwanVisaPage() {
                       studentName={studentName}
                       onEdit={setEditing}
                       onRemove={remove}
-                      onToggleDeparture={(id, checked) => update(id, { confirmedDeparture: checked })}
                     />
                   </div>
                 ))}
@@ -262,7 +256,6 @@ export default function InTaiwanVisaPage() {
                 studentName={studentName}
                 onEdit={setEditing}
                 onRemove={remove}
-                onToggleDeparture={(id, checked) => update(id, { confirmedDeparture: checked })}
               />
             </div>
           </div>
