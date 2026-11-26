@@ -2,6 +2,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useCollection } from '../../lib/useCollection';
 import Tag from '../../components/Tag';
 import { STUDENT_TAG, CARE_TAG } from '../../lib/tags';
+import { isDeparted } from '../../lib/visaDates';
 
 function effectiveEntryDate(s) {
   return s.secondEntryDate || s.firstEntryDate || '';
@@ -86,7 +87,9 @@ export default function DashboardPage() {
     .filter((s) => { const d = effectiveExitDate(s); return d && d >= today && d <= monthAhead; })
     .slice().sort((a, b) => effectiveExitDate(a).localeCompare(effectiveExitDate(b)));
 
-  const needsCare = careRecords.filter((c) => c.status === '待關心' && !c.confirmedDeparture).slice(0, 6);
+  // 離台判斷改成跟在台關懷紀錄/在台簽證追蹤同一套自動規則(lib/visaDates.js)，
+  // 不再看手動勾選的 confirmedDeparture(已經不維護這個欄位了)。
+  const needsCare = careRecords.filter((c) => c.status === '待關心' && !isDeparted(students.find((s) => s.id === c.studentId), today)).slice(0, 6);
 
   const pendingDocsCount = {};
   internshipDocs.forEach((d) => {
