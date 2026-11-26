@@ -490,7 +490,7 @@ const DORM_PROFIT_SHARE_RATE = 0.2;
 // 月/宿舍/宿管1/全部宿舍這幾層加總都用同一組欄位，避免每層各寫一次
 // 加總邏輯。
 const DORM_PNL_INCOME_KEYS = ['housingIncome', 'dormManageFeeIncome', 'dormItemIncome', 'otherIncome', 'utilityIncome', 'evIncome'];
-const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
+const DORM_PNL_COST_KEYS = ['rentCost', 'agentFeeCost', 'depositLossCost', 'gasCylinderDepositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost'];
 
 function sumDormPnlEntries(entries) {
   const sum = {};
@@ -518,7 +518,8 @@ function sumDormPnlEntries(entries) {
 // 成本＝租金
 // (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
 // + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
-// 在退還押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫、
+// 在退還押金日期那個月) + 瓦斯空桶押金損失(同一套邏輯，算在退還瓦斯
+// 空桶押金日期那個月) + 水費/電費/瓦斯費/其他費用(宿舍管理當月填寫、
 // 自訂項目標類型=支出的金額)
 // + 日常支出申請(項目=宿舍設備、綁定這間宿舍、類型=支出、已核准/已匯款)；
 // 利潤＝收入－成本；分紅＝利潤×20%。最後依宿舍在「宿舍管理」設定的宿管1
@@ -593,6 +594,11 @@ export function computeDormProfitLossForYear(year, ctx) {
       // 認損失的時間點）；沒有填退還押金日期就還不算損失，不計入。
       const depositLossCost = (d.depositRefundDate && d.depositRefundDate.slice(0, 7) === monthStr)
         ? (Number(d.deposit) || 0) - (Number(d.depositRefundAmount) || 0) : 0;
+      // 瓦斯空桶押金損失：跟房屋押金同一套邏輯，支付押金當下不計成本，退還
+      // 押金時才認列「押金－退還金額」的損失，算在退還瓦斯空桶押金日期
+      // 那個月。
+      const gasCylinderDepositLossCost = (d.gasCylinderDepositRefundDate && d.gasCylinderDepositRefundDate.slice(0, 7) === monthStr)
+        ? (Number(d.gasCylinderDeposit) || 0) - (Number(d.gasCylinderDepositRefundAmount) || 0) : 0;
       const u = (dormitoryUtilities || []).find((x) => x.dormitoryId === d.id && x.month === monthStr);
       const waterCost = Number(u?.waterFee) || 0;
       const electricityCost = Number(u?.electricityFee) || 0;
@@ -625,7 +631,7 @@ export function computeDormProfitLossForYear(year, ctx) {
 
       monthly.push({
         month: m,
-        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, utilityIncome, evIncome, rentCost, agentFeeCost, depositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
+        ...sumDormPnlEntries([{ housingIncome, dormManageFeeIncome, dormItemIncome, otherIncome, utilityIncome, evIncome, rentCost, agentFeeCost, depositLossCost, gasCylinderDepositLossCost, waterCost, electricityCost, gasCost, otherUtilityCost, dormItemCost }]),
       });
     }
     const yearTotal = sumDormPnlEntries(monthly);

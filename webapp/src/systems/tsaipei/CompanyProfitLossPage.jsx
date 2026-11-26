@@ -53,6 +53,7 @@ const LINE_ITEMS = [
   { key: 'rentCost', label: '宿舍成本－租金' },
   { key: 'agentFeeCost', label: '宿舍成本－房仲費' },
   { key: 'depositLossCost', label: '宿舍成本－押金損失' },
+  { key: 'gasCylinderDepositLossCost', label: '宿舍成本－瓦斯空桶押金損失' },
   { key: 'waterCost', label: '宿舍成本－水費' },
   { key: 'electricityCost', label: '宿舍成本－電費' },
   { key: 'gasCost', label: '宿舍成本－瓦斯費' },
@@ -381,7 +382,7 @@ function customItemEntries(items, amounts, monthStr) {
 // 這個頁面的 otherIncome 另有所指(日常支出申請-收入類)，LINE_ITEMS 裡
 // 改用 dormOtherIncome 這個名字避免撞名，這裡對照回 dormPnl 的原始欄位。
 const DORM_LINE_ITEM_KEY_MAP = { dormOtherIncome: 'otherIncome', dormProfitBonusExpense: 'bonus' };
-const DORM_BY_DORM_KEYS = ['dormItemIncome', 'dormOtherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost', 'dormProfitBonusExpense'];
+const DORM_BY_DORM_KEYS = ['dormItemIncome', 'dormOtherIncome', 'utilityIncome', 'evIncome', 'rentCost', 'agentFeeCost', 'depositLossCost', 'gasCylinderDepositLossCost', 'waterCost', 'electricityCost', 'gasCost', 'otherUtilityCost', 'dormItemCost', 'dormProfitBonusExpense'];
 
 // 公司損益：收入＝服務費收入(文件費/機票費/體檢費/服務費)＋代墊費用收入(日常支出申請裡
 // 已請款客戶的鈞羽/供應商發票部分，公司向客戶收回來的錢)＋營業稅收入(5%，
@@ -501,6 +502,7 @@ export default function CompanyProfitLossPage() {
       rentCost: dormPnl.rentCost || 0,
       agentFeeCost: dormPnl.agentFeeCost || 0,
       depositLossCost: dormPnl.depositLossCost || 0,
+      gasCylinderDepositLossCost: dormPnl.gasCylinderDepositLossCost || 0,
       waterCost: dormPnl.waterCost || 0,
       electricityCost: dormPnl.electricityCost || 0,
       gasCost: dormPnl.gasCost || 0,
