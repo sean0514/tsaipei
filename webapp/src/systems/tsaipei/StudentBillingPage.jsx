@@ -417,9 +417,14 @@ export default function StudentBillingPage() {
     const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);
     const healthCheckFee = healthCheckFeeFor(h.studentId, monthStr, range);
-    // 電動車月租金：住宿紀錄勾選「是否借用電動車」才收，跟體檢費一樣整月
-    // 固定金額、不依當月住了幾天比例計算。
-    const evFee = h.hasElectricVehicle && days > 0 ? (Number(h.electricVehicleMonthlyFee) || 0) : 0;
+    // 電動車月租金：住宿紀錄勾選「是否借用電動車」才收，依「開始租借日~
+    // 結束租借日」跟當月重疊的天數比例計算(起租/還車當月只算部分月份)，
+    // 跟自付宿舍費同一套比例公式；舊資料沒有填這兩個日期的話，退回用
+    // 住宿紀錄本身的入住日/退宿日當作租借區間，維持改版前的行為。
+    const evStart = h.electricVehicleStartDate || h.checkIn;
+    const evEnd = h.electricVehicleEndDate || h.checkOut;
+    const evDays = h.hasElectricVehicle ? dateOverlapDays(range.start, range.end, evStart, evEnd) : 0;
+    const evFee = evDays > 0 ? Math.round((Number(h.electricVehicleMonthlyFee) || 0) / range.daysInMonth * evDays) : 0;
     const total = selfPayDormFee + waterFee + electricityFee + gasFee + otherFees + healthCheckFee + evFee;
     const live = { days, selfPayDormFee, waterFee, electricityFee, gasFee, otherFees, healthCheckFee, evFee, total };
     const lock = lockFor(h.id, monthStr);
@@ -708,7 +713,7 @@ export default function StudentBillingPage() {
           <h2>學生請款計算</h2>
           <div className="page-desc">
             {view === 'monthly'
-              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元；宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，整月固定收取設定的月租金（不照天數比例）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止；下載此月份報表會多一欄「上月欠費」(上個月的剩餘餘額)跟「應繳總額」(本月合計+上月欠費)；「下載學生請款單(Word)」會依這個月篩選出來的住宿紀錄，一位學生產生一份請款單，打包成一個 .zip 一次下載'
+              ? '只要當月有住宿舍（廠商代付、學生自付）都列入；自付宿舍費只有學生自付才試算；水電瓦斯費取自宿舍管理當月填寫的紀錄，依該宿舍當月住過的人數平分（電費在平分金額之上每人每月固定再加200元；南投竹山宿舍的學生電費再額外加收500元；宿舍管理標「廠商宿舍」的宿舍不加收這兩筆)；其他費用=宿舍管理分攤的其他費用+該學生名下日常支出申請(收入、已核准/已匯款、當月)金額；體檢費=實習單位是和德昌的學生，在第一次入境期間每個月固定收150元（不照天數比例）；電動車月租金=住宿紀錄勾選「是否借用電動車」的學生，依開始租借日~結束租借日跟當月重疊的天數比例收取（起租/還車當月只算部分月份，沒填這兩個日期的話退回用入住日/退宿日當租借區間）；收款狀態分「未收款」「先繳部分(可分好幾筆填金額+日期，每一筆金額各自可以按主管審核)」「全額付清(填日期，同樣可以按審核)」三種；剩餘餘額會自動把前面月份結餘的溢繳額度/累積欠款都算進去——多繳的錢自動抵次月的應繳金額，欠款也會一路累積到補繳為止；下載此月份報表會多一欄「上月欠費」(上個月的剩餘餘額)跟「應繳總額」(本月合計+上月欠費)；「下載學生請款單(Word)」會依這個月篩選出來的住宿紀錄，一位學生產生一份請款單，打包成一個 .zip 一次下載'
               : '依學生收款總帳列出選定年度每個月累計到當月底為止還欠多少(已經把前面月份的欠款/溢繳都算進去，後面月份補繳或溢繳會直接沖掉之前欠款，不會一直卡在原本那個月不動)；某個月完全不欠才會從總表消失；「總計」是這個學生當年度最後一個月的累計欠款(=年底結餘)，不是把12個月的數字加起來(因為每個月的數字已經是累計的，加起來會重複算到同一筆欠款)；核准人=這個學生有未繳月份裡標記過收款狀態的人'}
           </div>
         </div>

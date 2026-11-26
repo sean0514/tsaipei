@@ -12,6 +12,7 @@ const CSV_FIELDS = [
   { key: 'contactPhone', label: '翻譯' }, { key: 'payer', label: '付款方式' }, { key: 'utilityPayer', label: '水電瓦斯付款方式' },
   { key: 'checkIn', label: '入住日', type: 'date' }, { key: 'checkOut', label: '退宿日', type: 'date' }, { key: 'monthlyRent', label: '每月租金' },
   { key: 'hasElectricVehicle', label: '是否借用電動車' }, { key: 'electricVehicleId', label: '電動車編號' }, { key: 'electricVehicleMonthlyFee', label: '電動車每月金額' },
+  { key: 'electricVehicleStartDate', label: '電動車開始租借日', type: 'date' }, { key: 'electricVehicleEndDate', label: '電動車結束租借日', type: 'date' },
   { key: 'completed', label: '已完成' }, { key: 'notes', label: '備註' },
 ];
 
@@ -119,7 +120,7 @@ export default function HousingPage() {
     const vehicle = electricVehicles.find((v) => v.id === vehicleId);
     if (!vehicle) return;
     const periods = parseRentalPeriods(vehicle.rentalPeriods);
-    const entry = { housingRecordId, start: data.checkIn || '', end: data.checkOut || '', monthlyRent: Number(data.electricVehicleMonthlyFee) || 0 };
+    const entry = { housingRecordId, start: data.electricVehicleStartDate || '', end: data.electricVehicleEndDate || '', monthlyRent: Number(data.electricVehicleMonthlyFee) || 0 };
     const idx = periods.findIndex((p) => p.housingRecordId === housingRecordId);
     if (idx >= 0) periods[idx] = entry; else periods.push(entry);
     await updateVehicle(vehicle.id, { rentalPeriods: JSON.stringify(periods) });
@@ -161,7 +162,7 @@ export default function HousingPage() {
               <td>{r.monthlyRent ? Number(r.monthlyRent).toLocaleString() : '—'}</td>
               <td>{r.checkIn || '—'}</td>
               <td>{r.checkOut || '—'}</td>
-              <td>{r.hasElectricVehicle ? `是（${Number(r.electricVehicleMonthlyFee || 0).toLocaleString()}/月）` : '—'}</td>
+              <td>{r.hasElectricVehicle ? `是（${Number(r.electricVehicleMonthlyFee || 0).toLocaleString()}/月，${r.electricVehicleStartDate || '—'}~${r.electricVehicleEndDate || '—'}）` : '—'}</td>
               {canEditPage && (
                 <td className="row-actions">
                   <button onClick={() => setEditing(r)}>編輯</button>
@@ -302,6 +303,14 @@ function HousingFormModal({ initial, students, dormitories, users, electricVehic
                 <label>
                   電動車每月金額
                   <input type="number" value={form.electricVehicleMonthlyFee || ''} onChange={(e) => setForm({ ...form, electricVehicleMonthlyFee: e.target.value })} />
+                </label>
+                <label>
+                  開始租借日
+                  <input type="date" value={form.electricVehicleStartDate || ''} onChange={(e) => setForm({ ...form, electricVehicleStartDate: e.target.value })} />
+                </label>
+                <label>
+                  結束租借日
+                  <input type="date" value={form.electricVehicleEndDate || ''} onChange={(e) => setForm({ ...form, electricVehicleEndDate: e.target.value })} />
                 </label>
               </>
             )}

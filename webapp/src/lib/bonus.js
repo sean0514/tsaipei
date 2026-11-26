@@ -513,8 +513,8 @@ function sumDormPnlEntries(entries) {
 // + 水電瓦斯費收入(這個月住過這間宿舍的所有人平分水電瓦斯費、電費另外
 // 每人每月固定加收200元(南投竹山再加500元)，不論付款方式，這是實際
 // 跟學生收到的錢，不是只算在成本面) + 電動車月租金收入(住宿紀錄勾選
-// 「是否借用電動車」的住戶，整月固定金額、不依天數比例，跟「學生請款
-// 計算」頁面的算法一致，只要這個月住過這間宿舍就整筆收)；
+// 「是否借用電動車」的住戶，依開始租借日~結束租借日跟當月重疊的天數
+// 比例計算，跟「學生請款計算」頁面的算法一致)；
 // 成本＝租金
 // (依租約在當月生效天數 ÷ 當月天數比例計算，起租/退租當月只算部分月份)
 // + 房仲費(只算在起租月份) + 押金損失(押金金額－退還押金金額，算
@@ -546,6 +546,16 @@ export function computeDormProfitLossForYear(year, ctx) {
         // 歸檔標記，不代表這筆住宿財務上沒發生過，不能排除，否則舊紀錄一被
         // 標記完成，住宿費/宿管費收入就會從已經發生過的月份裡憑空消失。
         if (h.type !== d.name) return;
+        // 電動車月租金：跟 StudentBillingPage.jsx 的 billingFor 同一套規則，
+        // 依「開始租借日~結束租借日」(沒填就退回入住日/退宿日)跟當月重疊
+        // 的天數比例收取，獨立於下面的住宿費/宿管費天數判斷之外計算，
+        // 不會因為住宿天數剛好是0(例如還了車但住宿資料還沒更新)就漏算。
+        if (h.hasElectricVehicle) {
+          const evStart = h.electricVehicleStartDate || h.checkIn;
+          const evEnd = h.electricVehicleEndDate || h.checkOut;
+          const evDays = dateOverlapDays(range.start, range.end, evStart, evEnd);
+          if (evDays > 0) evIncome += Math.round(((Number(h.electricVehicleMonthlyFee) || 0) / range.daysInMonth) * evDays);
+        }
         const days = dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut);
         if (days <= 0) return;
         if (h.payer === '廠商代付') {
@@ -559,9 +569,6 @@ export function computeDormProfitLossForYear(year, ctx) {
         } else {
           housingIncome += h.monthlyRent ? Math.round((Number(h.monthlyRent) / range.daysInMonth) * days) : 0;
         }
-        // 電動車月租金：跟 StudentBillingPage.jsx 的 billingFor 同一套規則，
-        // 整月固定金額、不照天數比例（只要這個月有住在這間宿舍就整筆收）。
-        if (h.hasElectricVehicle) evIncome += Number(h.electricVehicleMonthlyFee) || 0;
       });
 
       let dormItemIncome = 0;
