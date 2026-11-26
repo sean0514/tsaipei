@@ -14,6 +14,20 @@ function currentMonthStr() {
   return new Date().toISOString().slice(0, 7);
 }
 
+// Windows 檔名不能有這些字元(「下載學生請款單(Word)」產生檔名時也是
+// 濾掉同一組字元)——學生姓名(中文名/原文名)剛好含有這些符號，常常是
+// 舊資料匯入時編碼不相容殘留下來的亂碼(例如越南文變音符號被不相容的
+// 編碼轉成問號)，不是真正的姓名內容，值得特別標出來提醒去源頭(學生
+// 資料)修正，而不是每次下載才被動發現。
+const UNSAFE_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1F]/; // eslint-disable-line no-control-regex -- 刻意連控制字元一起抓出來。
+function studentNameUnsafeChars(s) {
+  const found = new Set();
+  [s?.chineseName, s?.originalName].forEach((name) => {
+    (name || '').split('').forEach((c) => { if (UNSAFE_FILENAME_CHARS.test(c)) found.add(c); });
+  });
+  return [...found];
+}
+
 function studentFullLabel(s) {
   if (!s) return '(已刪除)';
   if (s.chineseName && s.originalName) return `${s.chineseName}（${s.originalName}）`;
@@ -207,6 +221,14 @@ export default function StudentBillingPage() {
   const [year, setYear] = useState(currentYear());
 
   const pairCtx = { matches, admittedList, positions };
+
+  // 姓名含有 Windows 檔名不允許字元的學生：提醒去「學生基本資料」把這些
+  // 殘留的亂碼符號清掉，不然下載學生請款單(Word)/其他需要用姓名當檔名
+  // 的地方還是可能遇到同樣的問題（已經在產生檔名時濾掉這些字元讓下載
+  // 不會漏檔案，但姓名本身的亂碼沒有因此被修正）。
+  const studentsWithUnsafeNames = students
+    .map((s) => ({ student: s, chars: studentNameUnsafeChars(s) }))
+    .filter((r) => r.chars.length > 0);
 
   function paymentFor(studentId, monthStr) {
     if (!studentId) return null;
@@ -695,6 +717,13 @@ export default function StudentBillingPage() {
           <button className={view === 'unpaid' ? 'primary' : ''} onClick={() => setView('unpaid')}>未繳總表</button>
         </div>
       </div>
+      {studentsWithUnsafeNames.length > 0 && (
+        <p className="split-note" style={{ color: 'var(--danger)' }}>
+          ⚠ 以下 {studentsWithUnsafeNames.length} 位學生的姓名含有不能用在檔名裡的符號(常見是舊資料匯入編碼不相容殘留的亂碼，例如越南文變音符號被轉成問號)：
+          {studentsWithUnsafeNames.map(({ student, chars }) => `${studentFullLabel(student)}(${chars.join('、')})`).join('、')}
+          。下載學生請款單(Word)時已經會自動濾掉這些符號，不會漏掉這些學生，但建議到「學生基本資料」把姓名改成正確的文字。
+        </p>
+      )}
 
       {view === 'monthly' ? (
         <>
