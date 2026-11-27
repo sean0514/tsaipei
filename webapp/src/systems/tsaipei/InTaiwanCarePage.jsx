@@ -85,6 +85,7 @@ export default function InTaiwanCarePage() {
   const [generatingCert, setGeneratingCert] = useState(null); // studentId generating a certificate for, or null
   const [linking, setLinking] = useState(null); // studentId getting online fill-in links for, or null
   const [showDeparted, setShowDeparted] = useState(false);
+  const [month, setMonth] = useState('');
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('tsaipei_inTaiwanCare', CSV_FIELDS, { entityLabel: '在台關懷紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
 
@@ -96,7 +97,10 @@ export default function InTaiwanCarePage() {
   // 是同一批)，用 lib/visaDates.js 同一套規則判斷，兩邊保證一致。
   const today = new Date().toISOString().slice(0, 10);
   const searchQuery = q.trim().toLowerCase();
-  const visible = rows.filter((r) => (showDeparted || !isDeparted(studentOf(r.studentId), today)) && (!searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery)));
+  const visible = rows
+    .filter((r) => showDeparted || !isDeparted(studentOf(r.studentId), today))
+    .filter((r) => !month || (r.careDate || '').slice(0, 7) === month)
+    .filter((r) => !searchQuery || `${studentName(r.studentId)} ${studentCompanyLabel(r.studentId, ctx)}`.toLowerCase().includes(searchQuery));
 
   // 依專案編號＋客戶分類，跟原本 renderInTaiwanCare 一致。
   const byCompany = {};
@@ -117,7 +121,7 @@ export default function InTaiwanCarePage() {
       <div className="page-header">
         <div>
           <h2>在台關懷紀錄</h2>
-          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；離台後自動從清單移除）；「是否離台」自動判斷，跟「在台簽證追蹤」同一套規則(見該頁說明)，不用手動勾選；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「訪視連結」可取得學生/企業主管的線上填寫連結、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
+          <div className="page-desc">依專案編號＋客戶分類，記錄學生在台期間的關懷追蹤（在台簽證追蹤建立後自動加入；離台後自動從清單移除）；「是否離台」自動判斷，跟「在台簽證追蹤」同一套規則(見該頁說明)，不用手動勾選；可依「關懷時間」所在月份篩選；填寫「內容」時，還沒填過的「關懷時間」會自動帶入今天日期；每位學生另有「每月訪視紀錄」可按月填寫訪視內容並下載紀錄表、「訪視連結」可取得學生/企業主管的線上填寫連結、「產生證明書」可下載實習證明書{!canEditPage && '（唯讀）'}</div>
         </div>
         <div className="row-actions">
           <label className="muted"><input type="checkbox" checked={showDeparted} onChange={(e) => setShowDeparted(e.target.checked)} /> 顯示已離台</label>
@@ -125,9 +129,16 @@ export default function InTaiwanCarePage() {
         </div>
       </div>
       {canEditPage && <p className="split-note">「匯入資料」需使用「下載完整資料」產生的 CSV 檔案編輯（保留「學生ID」欄位）；上傳後會完全取代目前所有在台關懷紀錄，請先下載備份再匯入。</p>}
-      <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 16, width: 260 }} />
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <input placeholder="搜尋學生或客戶" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <label>
+          關懷時間月份
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </label>
+        {month && <button type="button" onClick={() => setMonth('')}>清除月份篩選</button>}
+      </div>
       {loading ? <p className="muted">載入中…</p> : (
-        companies.length === 0 ? <p className="muted">尚無在台關懷紀錄。</p> : (
+        companies.length === 0 ? <p className="muted">{month || searchQuery ? '沒有符合篩選條件的紀錄。' : '尚無在台關懷紀錄。'}</p> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {companies.map((company) => (
               <div className="card" key={company}>
@@ -201,6 +212,14 @@ export default function InTaiwanCarePage() {
 
 function CareFormModal({ initial, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
+
+  // 填寫內容當下才自動帶入今天的日期當關懷時間，不會動到已經填過的日期
+  // (單純補字/修正錯字不會把日期跳到今天)，省掉大部分情況下還要自己
+  // 另外填一次日期的動作。
+  function handleContentChange(value) {
+    setForm((f) => ({ ...f, content: value, careDate: f.careDate || new Date().toISOString().slice(0, 10) }));
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -219,7 +238,7 @@ function CareFormModal({ initial, onCancel, onSave }) {
             </label>
             <label style={{ gridColumn: 'span 2' }}>
               內容
-              <input value={form.content || ''} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+              <input value={form.content || ''} onChange={(e) => handleContentChange(e.target.value)} />
             </label>
           </div>
           <div className="row-actions">
