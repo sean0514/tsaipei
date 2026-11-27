@@ -132,8 +132,11 @@ export default function PositionsPage() {
       await update(id, rest);
     } else {
       await add({ ...data, closed: '' });
-      await ensureClientFeeSetup(data.projectCode, data.company);
     }
+    // 編輯職缺時如果改了專案編號或客戶名稱，也要確保「客戶費用建檔」有對應
+    // 這組新的專案編號+客戶的費率列可以填——不然舊的費率列還留著舊客戶
+    // 名稱，新名稱底下的學生永遠查不到費率，住宿費/服務費收入會悄悄變成0。
+    await ensureClientFeeSetup(data.projectCode, data.company);
     setEditing(null);
   }
 

@@ -23,6 +23,14 @@ function detailEntriesFor(key, rawDorm, monthStr, ctx) {
   const range = monthRange(monthStr);
   const studentName = (id) => { const s = (students || []).find((x) => x.id === id); return s?.chineseName || s?.originalName || '(未知學生)'; };
   const residentsOf = () => (housingRecords || []).filter((h) => h.type === rawDorm.name && dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0);
+  // 水電瓦斯費收入明細分母要跟 lib/bonus.js 的 utilityResidentCount 用同一套
+  // 篩選(排除已離宿歸檔h.completed、沒有入住日的紀錄)，不能直接用上面
+  // residentsOf()——不然明細分母跟宿舍損益表實際算出來的人數不一致，明細
+  // 加總跟表格上的數字會對不起來。
+  const utilityResidentsOf = () => (housingRecords || []).filter((h) => {
+    if (h.type !== rawDorm.name || h.completed || !h.checkIn) return false;
+    return dateOverlapDays(range.start, range.end, h.checkIn, h.checkOut) > 0;
+  });
   const utilFor = () => (dormitoryUtilities || []).find((x) => x.dormitoryId === rawDorm.id && x.month === monthStr);
 
   if (key === 'housingIncome' || key === 'dormManageFeeIncome') {
@@ -74,7 +82,7 @@ function detailEntriesFor(key, rawDorm, monthStr, ctx) {
   }
 
   if (key === 'utilityIncome') {
-    const residents = residentsOf();
+    const residents = utilityResidentsOf();
     if (residents.length === 0) return [];
     const u = utilFor();
     const perHead = (amount) => Math.round((Number(amount) || 0) / residents.length);
