@@ -47,20 +47,28 @@ function studentLabel(s) {
 function taiwanStatusOf(studentId, { students, visaProcessing, inTaiwanVisa }) {
   const student = students.find((s) => s.id === studentId);
   const tsaipeiId = tsaipeiIdOf(student);
-  const visa = tsaipeiId ? visaProcessing.find((v) => v.studentId === tsaipeiId) : null;
+
+  // 實際入境/離境日期是已經發生的事實，比「越南簽證辦理」那邊的行政
+  // 狀態可靠——業務常常忘記把簽證辦理狀態改成「已完成」，但學生早就
+  // 已經入台了，這種情況要優先顯示入台/離台，不能讓一筆忘記更新的
+  // 行政狀態蓋過實際已經發生的事實。只有完全查不到入境/離境紀錄時，
+  // 才退回去看簽證辦理是不是還在辦理中。
+  const v = tsaipeiId ? inTaiwanVisa.find((x) => x.studentId === tsaipeiId) : null;
+  if (v) {
+    const today = new Date().toISOString().slice(0, 10);
+    const events = [
+      { date: v.firstEntryDate, type: '入台' },
+      { date: v.secondEntryDate, type: '入台' },
+      { date: v.firstExitDate, type: '離台' },
+      { date: v.secondExitDate, type: '離台' },
+    ].filter((e) => e.date && e.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+    if (events.length) return events[events.length - 1].type;
+  }
+
+  const visa = tsaipeiId ? visaProcessing.find((x) => x.studentId === tsaipeiId) : null;
   if (visa && visa.status !== '已完成') return '辦理簽證中';
 
-  const v = tsaipeiId ? inTaiwanVisa.find((x) => x.studentId === tsaipeiId) : null;
-  if (!v) return null;
-  const today = new Date().toISOString().slice(0, 10);
-  const events = [
-    { date: v.firstEntryDate, type: '入台' },
-    { date: v.secondEntryDate, type: '入台' },
-    { date: v.firstExitDate, type: '離台' },
-    { date: v.secondExitDate, type: '離台' },
-  ].filter((e) => e.date && e.date <= today).sort((a, b) => a.date.localeCompare(b.date));
-  if (!events.length) return null;
-  return events[events.length - 1].type;
+  return null;
 }
 
 // 學校名稱常常帶一個分隔用的破折號（例如「越南－工貿學院」），但全形
