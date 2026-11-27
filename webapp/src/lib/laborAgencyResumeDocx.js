@@ -386,6 +386,17 @@ export async function downloadWorkerResumeDocx(w) {
 
   const doc = new Document({
     sections: [{
+      // 官方範本用的是美規 Letter 紙張、邊界幾乎貼齊頁緣（量測範本的
+      // sectPr 得出這組數字），不是 docx 預設的 A4＋一般邊界——邊界
+      // 窄很多，表格可用寬度差很多，不跟著改的話每一欄都會被擠得比
+      // 範本窄，欄位名稱容易換成兩三行、工人照片那一帶的比例也會跟著
+      // 跑掉，不是只有照片本身的問題。
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840 },
+          margin: { top: 60, right: 280, bottom: 280, left: 220 },
+        },
+      },
       children: [
         ...headerChildren,
         mainTable, new Paragraph({ text: '' }),
