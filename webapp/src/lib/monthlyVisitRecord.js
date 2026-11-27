@@ -23,11 +23,16 @@ export function visitRecordDocId(studentId, month) {
 }
 
 // 線上填寫連結各自只能改自己負責的欄位，跟 firestore.rules 的
-// tsIsPublicVisitFieldUpdate() 保持一致：學生填「生活適應情況」評核表
-// 跟自己的意見（含簽名），企業主管填「實習狀況」評核表跟主管意見（含
-// 簽名），其餘欄位（訪視日期/方式/人員、本月學習成果、訪視結果、訪視
-// 人員簽名）只有內部人員能動。
-export const STUDENT_PUBLIC_FIELDS = ['studentComment', 'lifeRatings', 'lifeNotes', 'studentSignature'];
+// tsIsPublicVisitFieldUpdate() 保持一致：學生填「生活適應情況」評核表、
+// 自己的意見（含簽名），以及「本月學習成果」整組（本月完成之工作內容/
+// 本月學習收穫/遇到之困難/下月學習目標，這些是學生自己這個月的狀況，
+// 由學生自己填寫才準確），企業主管填「實習狀況」評核表跟主管意見（含
+// 簽名），其餘欄位（訪視日期/方式/人員、訪視結果、訪視人員簽名）只有
+// 內部人員能動。
+export const STUDENT_PUBLIC_FIELDS = [
+  'studentComment', 'lifeRatings', 'lifeNotes', 'studentSignature',
+  'monthlyWorkDone', 'monthlyLearning', 'difficulties', 'nextMonthGoals',
+];
 export const MANAGER_PUBLIC_FIELDS = ['managerComment', 'workRatings', 'workNotes', 'managerSignature'];
 
 export function blankRatings(items) {

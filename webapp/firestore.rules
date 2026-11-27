@@ -34,7 +34,7 @@ service cloud.firestore {
     // 負責的那組欄位，跟 lib/monthlyVisitRecord.js 的 STUDENT_PUBLIC_FIELDS/
     // MANAGER_PUBLIC_FIELDS 保持一致。
     function tsIsPublicVisitFieldUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentComment', 'lifeRatings', 'lifeNotes', 'studentSignature'])
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentComment', 'lifeRatings', 'lifeNotes', 'studentSignature', 'monthlyWorkDone', 'monthlyLearning', 'difficulties', 'nextMonthGoals'])
         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerComment', 'workRatings', 'workNotes', 'managerSignature']);
     }
     // 沒有人在「使用人員」頁面動過某個模組/角色的權限時，tsaipei_rolePermissions
