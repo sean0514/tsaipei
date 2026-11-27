@@ -4,7 +4,7 @@ import { useCollection } from '../../lib/useCollection';
 import {
   computeDormProfitLossForYear, sumDormProfitLossGroups, currentYear, DORM_EQUIPMENT_ITEM, DORM_PNL_BILLABLE_STATUSES,
   monthRange, dateOverlapDays, studentProjectClientPair,
-  ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
+  ELECTRICITY_FLAT_FEE_PER_HEAD, isNantouZhushanDorm, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
 } from '../../lib/bonus';
 import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
 
@@ -79,7 +79,7 @@ function detailEntriesFor(key, rawDorm, monthStr, ctx) {
     const u = utilFor();
     const perHead = (amount) => Math.round((Number(amount) || 0) / residents.length);
     const flatFee = rawDorm.isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD;
-    const surcharge = !rawDorm.isVendorDorm && rawDorm.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+    const surcharge = !rawDorm.isVendorDorm && isNantouZhushanDorm(rawDorm.name) ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
     const waterShare = perHead(u?.waterFee);
     const electricityShare = perHead(u?.electricityFee) + flatFee + surcharge;
     const gasShare = perHead(u?.gasFee);

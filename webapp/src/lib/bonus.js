@@ -26,6 +26,13 @@ export const ELECTRICITY_FLAT_FEE_PER_HEAD = 200;
 export const NANTOU_ZHUSHAN_DORM_NAME = '南投竹山';
 export const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
 
+// 南投竹山可能依樓層分成好幾間宿舍（例如「南投竹山(3樓)」），名稱不會跟
+// NANTOU_ZHUSHAN_DORM_NAME 完全一樣，但一樣要加收電費——用開頭比對，不要
+// 完全比對，不然樓層名稱一帶上去，500元加收就會悄悄失效。
+export function isNantouZhushanDorm(dormName) {
+  return (dormName || '').startsWith(NANTOU_ZHUSHAN_DORM_NAME);
+}
+
 export function monthRange(monthStr) {
   const [y, m] = (monthStr || '').split('-').map(Number);
   if (!y || !m) return null;
@@ -624,7 +631,7 @@ export function computeDormProfitLossForYear(year, ctx) {
       }).length;
       const utilityPerHead = (amount) => (utilityResidentCount > 0 ? Math.round((Number(amount) || 0) / utilityResidentCount) : 0);
       const utilityElectricityFlatFee = d.isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD;
-      const utilityElectricitySurcharge = !d.isVendorDorm && d.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+      const utilityElectricitySurcharge = !d.isVendorDorm && isNantouZhushanDorm(d.name) ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
       const utilityIncome = utilityResidentCount > 0
         ? utilityResidentCount * (utilityPerHead(u?.waterFee) + utilityPerHead(u?.electricityFee) + utilityElectricityFlatFee + utilityElectricitySurcharge + utilityPerHead(u?.gasFee))
         : 0;
