@@ -100,6 +100,7 @@ export async function downloadWorkerResumeDocx(w) {
     const label = RESUME_LABELS[labelKey];
     return new TableRow({
       children: [new TableCell({
+        width: { size: 100, type: WidthType.PERCENTAGE },
         columnSpan: span,
         shading: { type: ShadingType.CLEAR, fill: BLUE_FILL },
         children: [new Paragraph({
@@ -337,7 +338,7 @@ export async function downloadWorkerResumeDocx(w) {
   // ===== 專長 =====
   const specialtiesRows = [
     sectionRow('specialties', 1),
-    new TableRow({ children: [new TableCell({ children: [new Paragraph(fieldValueText(w, 'specialties', { translatable: true }))] })] }),
+    new TableRow({ children: [new TableCell({ width: { size: 100, type: WidthType.PERCENTAGE }, children: [new Paragraph(fieldValueText(w, 'specialties', { translatable: true }))] })] }),
   ];
 
   const mainTable = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: basicRows });
