@@ -10,8 +10,10 @@ import SignaturePad from '../components/SignaturePad';
 
 // 公開的「每月訪視紀錄」線上填寫頁面（/apply/visitRecord/:studentId/:month/:role），
 // 不需要登入，從在台關懷紀錄頁面的「取得填寫連結」按鈕產生。role=student
-// 只能填「生活適應情況」評核表跟學生意見，role=manager 只能填「實習狀況」
-// 評核表跟企業主管意見，跟 firestore.rules 的 tsIsPublicVisitFieldUpdate()
+// 只能填「生活適應情況」評核表、學生意見、本月學習成果(本月完成之工作
+// 內容/本月學習收穫/遇到之困難/下月學習目標，這是學生自己這個月的狀況，
+// 由學生自己填才準確)跟簽名，role=manager 只能填「實習狀況」評核表、
+// 企業主管意見跟簽名，跟 firestore.rules 的 tsIsPublicVisitFieldUpdate()
 // 是同一套範圍——即使有人改網址想動別的欄位，規則也會擋掉。
 // 連結只用文件 ID（學生ID_月份）直接 get，不會查詢/列出其他學生的紀錄，
 // 但知道連結的人看得到這份紀錄的全部內容（企業主管意見、學生意見都在
@@ -66,6 +68,10 @@ export default function MonthlyVisitFormPage() {
           lifeRatings: { ...blankRatings(LIFE_ITEMS), ...(data.lifeRatings || {}) },
           lifeNotes: { ...blankNotes(LIFE_ITEMS), ...(data.lifeNotes || {}) },
           studentSignature: data.studentSignature || '',
+          monthlyWorkDone: data.monthlyWorkDone || '',
+          monthlyLearning: data.monthlyLearning || '',
+          difficulties: data.difficulties || '',
+          nextMonthGoals: data.nextMonthGoals || '',
         });
       } else {
         setForm({
@@ -141,6 +147,11 @@ export default function MonthlyVisitFormPage() {
                 onNote={(item, v) => setNote('lifeNotes', item, v)}
               />
               <label>學生意見<textarea rows={3} value={form.studentComment} onChange={(e) => setField('studentComment', e.target.value)} style={{ width: '100%' }} /></label>
+              <h3>本月學習成果</h3>
+              <label>本月完成之工作內容<textarea rows={2} value={form.monthlyWorkDone} onChange={(e) => setField('monthlyWorkDone', e.target.value)} style={{ width: '100%' }} /></label>
+              <label>本月學習收穫<textarea rows={2} value={form.monthlyLearning} onChange={(e) => setField('monthlyLearning', e.target.value)} style={{ width: '100%' }} /></label>
+              <label>遇到之困難<textarea rows={2} value={form.difficulties} onChange={(e) => setField('difficulties', e.target.value)} style={{ width: '100%' }} /></label>
+              <label>下月學習目標<textarea rows={2} value={form.nextMonthGoals} onChange={(e) => setField('nextMonthGoals', e.target.value)} style={{ width: '100%' }} /></label>
               <label>簽名<SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} /></label>
             </>
           ) : (
