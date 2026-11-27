@@ -391,11 +391,13 @@ export async function downloadWorkerResumeDocx(w) {
       // sectPr 得出這組數字），不是 docx 預設的 A4＋一般邊界——邊界
       // 窄很多，表格可用寬度差很多，不跟著改的話每一欄都會被擠得比
       // 範本窄，欄位名稱容易換成兩三行、工人照片那一帶的比例也會跟著
-      // 跑掉，不是只有照片本身的問題。
+      // 跑掉，不是只有照片本身的問題。左右邊界改成留 2 公分（使用者
+      // 指定），不是照搬範本幾乎貼齊頁緣的邊界——1 公分 = 566.93 twips，
+      // 2 公分四捨五入成 1134。
       properties: {
         page: {
           size: { width: 12240, height: 15840 },
-          margin: { top: 60, right: 280, bottom: 280, left: 220 },
+          margin: { top: 60, right: 1134, bottom: 280, left: 1134 },
         },
       },
       children: [
