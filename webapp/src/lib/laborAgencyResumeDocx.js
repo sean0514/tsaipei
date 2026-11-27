@@ -95,7 +95,13 @@ export async function downloadWorkerResumeDocx(w) {
   } = await import('docx');
 
   // 區塊標題列（個人基本資料/家庭狀況/學歷語言…），淺藍底、置中、橫跨
-  // 整列——比照模板的分區樣式，不是像一般標題那樣靠左。
+  // 整列——比照模板的分區樣式，不是像一般標題那樣靠左。span 一定要等於
+  // 這個表格其他列實際用到的「欄位數」（每個儲存格 columnSpan 的總和，
+  // 不是視覺上看起來的欄數）——docx 套件是用每一列的 columnSpan 總和
+  // 推算整張表格的網格欄數，這裡的 span 跟其他列對不起來的話，套件會
+  // 多算出根本沒有任何一列明確定義寬度的「幽靈欄位」，連帶把整張表格
+  // 撐寬超過 100%、超出頁面邊界（出過這個 bug：span 隨便給一個看起來
+  // 差不多的數字，跟其他列實際的欄位數對不起來）。
   function sectionRow(labelKey, span) {
     const label = RESUME_LABELS[labelKey];
     return new TableRow({
@@ -173,7 +179,7 @@ export async function downloadWorkerResumeDocx(w) {
     : new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, rowSpan: 6, children: [new Paragraph('')] });
 
   const basicRows = [
-    sectionRow('sectionBasic', 7),
+    sectionRow('sectionBasic', 5),
     new TableRow({
       children: [
         bilingualLabel('vietnameseName', { width: 13 }),
@@ -227,7 +233,7 @@ export async function downloadWorkerResumeDocx(w) {
       children: [
         bilingualLabel('majorSurgery', { width: 32, span: 2 }),
         valueCell(fieldValueText(w, 'majorSurgery'), { width: 13 }),
-        bilingualLabel('maritalStatus', { width: 26, span: 2 }),
+        bilingualLabel('maritalStatus', { width: 26 }),
         valueCell(fieldValueText(w, 'maritalStatus'), { width: 29 }),
       ],
     }),
@@ -248,7 +254,7 @@ export async function downloadWorkerResumeDocx(w) {
     });
   }
   const familyRows = [
-    sectionRow('sectionFamily', 7),
+    sectionRow('sectionFamily', 6),
     parentRow('fatherName', 'fatherAlive', 'fatherAge', 'fatherOccupation', 'father'),
     parentRow('motherName', 'motherAlive', 'motherAge', 'motherOccupation', 'mother'),
     new TableRow({
@@ -282,7 +288,7 @@ export async function downloadWorkerResumeDocx(w) {
 
   // ===== 學歷、語言 =====
   const educationRows = [
-    sectionRow('sectionEducation', 7),
+    sectionRow('sectionEducation', 6),
     new TableRow({
       children: [
         bilingualLabel('educationLevel', { width: 20 }),
@@ -330,7 +336,7 @@ export async function downloadWorkerResumeDocx(w) {
   }
 
   const experienceRows = [
-    sectionRow('sectionExperience', 4),
+    sectionRow('sectionExperience', 5),
     ...experienceSection('domesticExperience', domestic),
     ...experienceSection('overseasExperience', overseas),
   ];
