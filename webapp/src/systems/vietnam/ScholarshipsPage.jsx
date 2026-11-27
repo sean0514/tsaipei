@@ -5,6 +5,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import { tsaipeiIdOf } from '../../lib/vietnamTsaipeiStudentSync';
+import { printScholarshipBillingForm } from '../../lib/scholarshipBillingForm';
 import { t } from '../../lib/i18n';
 
 const CURRENCIES = ['新台幣', '美金', '越盾'];
@@ -13,10 +14,25 @@ const DEFAULT_CURRENCY = '新台幣';
 const CSV_FIELDS = [
   { key: 'id', label: 'ID' }, { key: 'studentId', label: '學生ID' }, { key: 'studentName', label: '學生姓名' },
   { key: 'school', label: '就讀學校' }, { key: 'amount', label: '獎學金金額' }, { key: 'currency', label: '幣別' },
+  { key: 'bankName', label: '匯款銀行' }, { key: 'bankAccountNumber', label: '匯款帳號' },
   { key: 'approved', label: '已審核' }, { key: 'remittanceDate', label: '匯款日期' },
   { key: 'twPaymentDate', label: '台灣給付日期' }, { key: 'twPaymentAmount', label: '台灣給付金額' }, { key: 'twPaymentCurrency', label: '台灣給付幣別' },
   { key: 'closed', label: '結案' }, { key: 'note', label: '備註' },
 ];
+
+// 請款單需要「實習單位」欄位，跟其他頁面同一套推算邏輯：依學生目前的
+// 媒合/錄取結果找出所屬公司名稱。
+function studentCompanyLabel(studentId, { matches, admittedList, positions }) {
+  const admitted = admittedList.find((a) => {
+    const m = matches.find((mm) => mm.id === a.matchId);
+    return m && m.studentId === studentId;
+  });
+  let m = admitted ? matches.find((mm) => mm.id === admitted.matchId) : null;
+  if (!m) m = matches.find((x) => x.studentId === studentId);
+  if (!m) return '';
+  const p = positions.find((pp) => pp.id === m.positionId);
+  return p?.company || '';
+}
 
 // 審核狀態只用 approved/remittanceDate/closed 三個欄位推算顯示用的狀態
 // 標籤，不另外存一個 status 字串欄位，避免跟實際欄位值不同步。
@@ -96,11 +112,15 @@ export default function ScholarshipsPage() {
   const { rows: schools, loading: schoolsLoading } = useCollection('vietnam_schoolSetup');
   const { rows: visaProcessing } = useCollection('vietnam_visaProcessing');
   const { rows: inTaiwanVisa } = useCollection('tsaipei_inTaiwanVisa');
+  const { rows: matches } = useCollection('vietnam_matches');
+  const { rows: admittedList } = useCollection('vietnam_admittedList');
+  const { rows: positions } = useCollection('vietnam_positions');
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState('');
   const { handleExport, handleImport } = useCsvOverwrite('vietnam_scholarships', CSV_FIELDS, { entityLabel: '獎學金紀錄', requiredKeys: ['studentId'], canEdit: canEditPage });
 
   const taiwanStatusCtx = { students, visaProcessing, inTaiwanVisa };
+  const companyCtx = { matches, admittedList, positions };
   function studentOf(studentId) {
     return students.find((s) => s.id === studentId);
   }
@@ -172,6 +192,23 @@ export default function ScholarshipsPage() {
     await update(r.id, { [field]: value });
   }
 
+  function handlePrintBillingForm(r) {
+    const s = studentOf(r.studentId);
+    printScholarshipBillingForm({
+      studentName: studentLabel(s),
+      passportNumber: s?.passportNumber || '',
+      nationality: s?.nationality || '',
+      school: r.school || s?.school || '',
+      company: studentCompanyLabel(r.studentId, companyCtx),
+      amount: r.amount,
+      currency: t(r.currency || DEFAULT_CURRENCY, lang),
+      bankName: r.bankName || '',
+      bankAccountNumber: r.bankAccountNumber || '',
+      note: r.note || '',
+      issueDate: new Date().toISOString().slice(0, 10),
+    });
+  }
+
   async function handleSave(data) {
     const payload = {
       ...data,
@@ -216,6 +253,7 @@ export default function ScholarshipsPage() {
                   <thead>
                     <tr>
                       <th>{t('學生', lang)}</th><th>{t('在台狀態', lang)}</th><th>{t('獎學金金額', lang)}</th><th>{t('幣別', lang)}</th>
+                      <th>{t('匯款銀行', lang)}</th><th>{t('匯款帳號', lang)}</th>
                       <th>{t('已審核', lang)}</th><th>{t('狀態', lang)}</th><th>{t('匯款日期', lang)}</th>
                       <th>{t('台灣給付日期', lang)}</th><th>{t('台灣給付金額', lang)}</th><th>{t('台灣給付幣別', lang)}</th>{canEditPage && <th></th>}
                     </tr>
@@ -240,6 +278,16 @@ export default function ScholarshipsPage() {
                                 {CURRENCIES.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}
                               </select>
                             ) : t(r.currency || DEFAULT_CURRENCY, lang)}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <input value={r.bankName || ''} onChange={(e) => updateField(r, 'bankName', e.target.value)} style={{ width: 100 }} />
+                            ) : (r.bankName || '—')}
+                          </td>
+                          <td>
+                            {canEditPage ? (
+                              <input value={r.bankAccountNumber || ''} onChange={(e) => updateField(r, 'bankAccountNumber', e.target.value)} style={{ width: 120 }} />
+                            ) : (r.bankAccountNumber || '—')}
                           </td>
                           <td>
                             {canEditPage ? (
@@ -272,6 +320,7 @@ export default function ScholarshipsPage() {
                           {canEditPage && (
                             <td className="row-actions">
                               <button onClick={() => setEditing(r)}>{t('編輯', lang)}</button>
+                              <button onClick={() => handlePrintBillingForm(r)}>{t('列印請款單', lang)}</button>
                               {r.closed
                                 ? <button onClick={() => toggleClosed(r)}>{t('取消已結案', lang)}</button>
                                 : <button onClick={() => toggleClosed(r)}>{t('結案', lang)}</button>}
