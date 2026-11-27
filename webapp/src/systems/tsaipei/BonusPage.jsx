@@ -4,11 +4,35 @@ import { useCollection } from '../../lib/useCollection';
 import { canEdit as computeCanEdit } from '../../lib/permissions';
 import {
   PROJECT_CLIENT_BONUS_ROLE_KEYS, PROJECT_CLIENT_BONUS_ROLE_LABELS, BONUS_ROLE_KEYS, BONUS_ROLE_LABELS,
-  computeInternalBonusForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth, currentMonthStr,
+  computeInternalBonusForMonth, computeDormManagerBonusForMonth, computeOverseasRepBonusForMonth, currentMonthStr, currentYear,
 } from '../../lib/bonus';
+import { downloadXlsx, addTableSheet } from '../../lib/xlsxExport';
+
+const MONTH_LABELS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
 
 function parseJson(json, fallback) {
   try { return json ? JSON.parse(json) : fallback; } catch { return fallback; }
+}
+
+// 可選年份＝有封存紀錄的年份 + 今年，不是讓使用者輸入任何數字卻看到空表。
+function availableBonusYears(archives) {
+  const years = new Set([currentYear()]);
+  (archives || []).forEach((a) => {
+    const y = parseInt((a.month || '').slice(0, 4), 10);
+    if (y) years.add(y);
+  });
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+// 單一月份的三組明細：有封存用封存當下的數字，沒有就即時試算——跟畫面上
+// 單月檢視同一套規則，年度報表才會跟已經封存、對外發過獎金的月份數字
+// 保持一致，不會自己重新即時計算蓋過去。
+function monthlyRowsFor(monthStr, archives, ctx) {
+  const archive = (archives || []).find((a) => a.month === monthStr) || null;
+  const allRows = archive ? parseJson(archive.rows, []) : computeInternalBonusForMonth(monthStr, ctx);
+  const allDormRows = archive ? parseJson(archive.dormRows, []) : computeDormManagerBonusForMonth(monthStr, ctx);
+  const allOverseasRepRows = archive ? parseJson(archive.overseasRepRows, []) : computeOverseasRepBonusForMonth(monthStr, ctx);
+  return { allRows, allDormRows, allOverseasRepRows };
 }
 
 // 依人員加總：跟 lib/bonus.js 的 computeInternalBonusByPersonForMonth 同一套
@@ -57,6 +81,7 @@ export default function BonusPage() {
   const { rows: housingRecords } = useCollection('tsaipei_housingRecords');
   const { rows: archives, add: addArchive, update: updateArchive, remove: removeArchive } = useCollection('tsaipei_bonusArchives');
   const [month, setMonth] = useState(currentMonthStr());
+  const [year, setYear] = useState(currentYear());
   const [q, setQ] = useState('');
   const [editKey, setEditKey] = useState(null);
   const [editValues, setEditValues] = useState(null);
@@ -72,9 +97,7 @@ export default function BonusPage() {
   // 封存當下的樣子，直到按「取消封存」解除——避免薪資已經發放後，原始
   // 資料事後修正又讓歷史月份的獎金數字變動。
   const archive = archives.find((a) => a.month === month) || null;
-  const allRows = archive ? parseJson(archive.rows, []) : computeInternalBonusForMonth(month, ctx);
-  const allDormRows = archive ? parseJson(archive.dormRows, []) : computeDormManagerBonusForMonth(month, ctx);
-  const allOverseasRepRows = archive ? parseJson(archive.overseasRepRows, []) : computeOverseasRepBonusForMonth(month, ctx);
+  const { allRows, allDormRows, allOverseasRepRows } = monthlyRowsFor(month, archives, ctx);
   const rows = allRows.filter((r) =>
     !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.projectCode || '').toLowerCase().includes(q.toLowerCase())
   );
@@ -83,6 +106,53 @@ export default function BonusPage() {
     !q || (r.client || '').toLowerCase().includes(q.toLowerCase()) || (r.supplier || '').toLowerCase().includes(q.toLowerCase())
   );
   const byPerson = bonusByPerson(allRows, allDormRows, allOverseasRepRows);
+  const bonusYears = availableBonusYears(archives);
+
+  // 年度報表：把選定年份1~12月每個月的「依人員加總」攤開成一張表，每個月
+  // 份各自照上面同一套規則(封存用封存數字、沒封存即時試算)，不會互相
+  // 影響；人員只要任何一個月有金額就會出現，沒有金額的月份顯示"—"。
+  const yearlyPersonTotals = {};
+  for (let m = 1; m <= 12; m++) {
+    const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+    const { allRows: r, allDormRows: d, allOverseasRepRows: o } = monthlyRowsFor(monthStr, archives, ctx);
+    bonusByPerson(r, d, o).forEach((p) => {
+      const entry = (yearlyPersonTotals[p.name] ||= { name: p.name, monthly: Array(12).fill(0), total: 0 });
+      entry.monthly[m - 1] += p.total;
+      entry.total += p.total;
+    });
+  }
+  const yearlyByPerson = Object.values(yearlyPersonTotals).sort((a, b) => b.total - a.total);
+
+  async function handleDownloadYearly() {
+    await downloadXlsx(`內部獎金_${year}年度報表.xlsx`, (workbook) => {
+      addTableSheet(
+        workbook, '年度合計(依人員)',
+        ['姓名', ...MONTH_LABELS, '年度合計'],
+        yearlyByPerson.map((p) => [p.name, ...p.monthly, p.total]),
+      );
+      for (let m = 1; m <= 12; m++) {
+        const monthStr = `${year}-${String(m).padStart(2, '0')}`;
+        const { allRows: r, allDormRows: d, allOverseasRepRows: o } = monthlyRowsFor(monthStr, archives, ctx);
+        const monthDetailRows = [];
+        r.forEach((row) => {
+          PROJECT_CLIENT_BONUS_ROLE_KEYS.forEach((k) => {
+            const amt = row.amounts[k];
+            if (!amt) return;
+            const roleLabel = BONUS_ROLE_LABELS[BONUS_ROLE_KEYS.indexOf(k)];
+            monthDetailRows.push([row.client, row.projectCode, roleLabel, row.roles[k] || '', amt]);
+          });
+        });
+        d.forEach((dorm) => {
+          if (dorm.manager1 && dorm.manager1Amount) monthDetailRows.push([dorm.dormName, '', '宿管人員1', dorm.manager1, dorm.manager1Amount]);
+          if (dorm.manager2 && dorm.manager2Amount) monthDetailRows.push([dorm.dormName, '', '宿管人員2', dorm.manager2, dorm.manager2Amount]);
+        });
+        o.forEach((rep) => {
+          if (rep.supplier && rep.amount) monthDetailRows.push([rep.client, rep.projectCode, '國外代表', rep.supplier, rep.amount]);
+        });
+        addTableSheet(workbook, `${m}月`, ['客戶/宿舍', '專案編號', '角色', '人員', '金額'], monthDetailRows);
+      }
+    });
+  }
 
   async function handleConfirmArchive() {
     const liveRows = computeInternalBonusForMonth(month, ctx);
@@ -363,6 +433,34 @@ export default function BonusPage() {
               </tr>
             ))}
             {byPerson.length === 0 && <tr><td colSpan={3} className="muted">沒有資料</td></tr>}
+          </tbody>
+        </table></div>
+      </div>
+
+      <div className="card" style={{ overflowX: 'auto', marginTop: 16 }}>
+        <div className="page-header" style={{ marginBottom: 8 }}>
+          <div>
+            <h3 style={{ margin: 0 }}>年度報表</h3>
+            <div className="page-desc">依人員攤開全年每個月的獎金加總(客戶/宿管/國外代表)，已封存的月份用封存數字、沒封存的月份即時試算，跟上面「依人員加總」同一套邏輯</div>
+          </div>
+          <div className="row-actions">
+            <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              {bonusYears.map((y) => <option key={y} value={y}>{y}年</option>)}
+            </select>
+            <button onClick={handleDownloadYearly}>下載年度報表</button>
+          </div>
+        </div>
+        <div className="table-wrap sticky-header"><table>
+          <thead><tr><th>姓名</th>{MONTH_LABELS.map((l) => <th key={l}>{l}</th>)}<th>年度合計</th></tr></thead>
+          <tbody>
+            {yearlyByPerson.map((p) => (
+              <tr key={p.name}>
+                <td>{p.name}</td>
+                {p.monthly.map((v, i) => <td key={i}>{v ? `${v.toLocaleString()} 元` : '—'}</td>)}
+                <td style={{ fontWeight: 600 }}>{p.total.toLocaleString()} 元</td>
+              </tr>
+            ))}
+            {yearlyByPerson.length === 0 && <tr><td colSpan={14} className="muted">沒有資料</td></tr>}
           </tbody>
         </table></div>
       </div>
