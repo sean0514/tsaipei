@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -10,7 +10,7 @@ import ImportExportButtons from '../../components/ImportExportButtons';
 import { useCsvOverwrite } from '../../lib/useCsvOverwrite';
 import {
   VISIT_METHODS, WORK_ITEMS, WORK_RATING_OPTIONS, LIFE_ITEMS, LIFE_RATING_OPTIONS,
-  RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord, visitRecordDocId,
+  RESULT_OPTIONS, blankRatings, blankNotes, downloadMonthlyVisitRecord, printMonthlyVisitRecord, visitRecordDocId,
 } from '../../lib/monthlyVisitRecord';
 import {
   AGENCY_OPTIONS, certificateLangFor, guessApprovalAgency, totalInternshipDays,
@@ -287,17 +287,26 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
 
   const [month, setMonth] = useState(currentMonthStr());
   const [form, setForm] = useState(() => records.find((r) => r.month === month) || { ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
-  const [loadedMonth, setLoadedMonth] = useState(month);
+  // 這個視窗打開當下，「每月訪視紀錄」整個集合不一定已經從 Firestore 載入
+  // 完成(在台關懷紀錄頁面同時間還在讀好幾個集合)，上面 useState 的初始值
+  // 這時候用 records.find() 會找不到任何資料、只能先給空白表單——如果
+  // 之後資料才跟著載入完成，先前「月份沒有切換過」的話，這個空白表單會
+  // 一直卡著不會自動補上已經存在的內容(包含簽名)，使用者只會看到空白，
+  // 以為簽名欄位「沒有顯示」。用一個 key(月份+這個月有沒有找到既有紀錄)
+  // 追蹤，只要 key 改變(換月份，或是同一個月從「找不到」變成「找到了」)
+  // 就重新同步一次表單，不會不小心蓋掉使用者已經在打的內容。
+  const existing = records.find((r) => r.month === month) || null;
+  const loadKey = `${month}:${existing ? existing.id : 'new'}`;
+  const [loadedKey, setLoadedKey] = useState(loadKey);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  if (month !== loadedMonth) {
-    const existing = records.find((r) => r.month === month);
+  useEffect(() => {
+    if (loadKey === loadedKey) return;
     setForm(existing || { ...blankVisitForm(), visitDate: new Date().toISOString().slice(0, 10) });
-    setLoadedMonth(month);
-  }
-
-  const existing = records.find((r) => r.month === month);
+    setLoadedKey(loadKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadKey]);
 
   function setField(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -421,6 +430,7 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
           <div className="row-actions">
             <button className="primary" onClick={handleSave} disabled={saving}>{saving ? '儲存中…' : '儲存'}</button>
             <button onClick={handleDownload} disabled={downloading}>{downloading ? '產生中…' : '下載本月紀錄表'}</button>
+            <button onClick={() => printMonthlyVisitRecord({ ...header, ...form, month })}>列印訪視表</button>
             <button onClick={onClose}>關閉</button>
           </div>
         </div>

@@ -193,3 +193,101 @@ export async function downloadMonthlyVisitRecord(filename, data) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+function escapeHtml(text) {
+  return String(text == null ? '' : text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 列印版：不用先下載 .docx 再打開才能印，直接在新分頁組一份排版接近的
+// HTML，呼叫瀏覽器內建列印。跟 buildChildren 用同一份 data，欄位/順序
+// 盡量對齊 Word 版本。
+function buildPrintHtml(data) {
+  const checkbox = (checked) => (checked ? '☑' : '☐');
+  const infoRows = [
+    ['學生姓名', 'Họ tên học sinh', data.studentName],
+    ['護照號碼', 'Số hộ chiếu', data.passportNumber],
+    ['國籍', 'Quốc tịch', data.nationality],
+    ['實習企業', 'Công ty thực tập', data.company],
+    ['實習分店', 'Bộ phận thực tập', data.venue],
+    ['實習部門', 'Phòng thực tập', data.department],
+    ['訪視日期', 'Thời gian thăm', data.visitDate],
+    ['訪視方式', 'Phương pháp thăm', data.visitMethod],
+    ['訪視人員', 'Người thăm', data.visitPersonnel],
+  ].map(([zh, vi, value]) => `<tr><th>${escapeHtml(zh)}<div class="vi">${escapeHtml(vi)}</div></th><td>${escapeHtml(value)}</td></tr>`).join('');
+
+  function ratingTableHtml(items, options, ratings, notes) {
+    const header = `<tr><th>訪視項目</th>${options.map((o) => `<th>${escapeHtml(o)}</th>`).join('')}<th>備註</th></tr>`;
+    const rows = items.map((item) => `<tr><td>${escapeHtml(item)}</td>${options.map((o) => `<td class="center">${checkbox(ratings[item] === o)}</td>`).join('')}<td>${escapeHtml(notes[item] || '')}</td></tr>`).join('');
+    return `<table class="rating-table">${header}${rows}</table>`;
+  }
+
+  function textSectionHtml(zh, vi, value) {
+    return `<div class="section-label">${escapeHtml(zh)} <span class="vi">${escapeHtml(vi)}</span></div><div class="fill-line">${value ? escapeHtml(value) : '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</div>`;
+  }
+
+  function signatureHtml(zh, vi, dataUrl) {
+    return `<div class="section-label">${escapeHtml(zh)} <span class="vi">${escapeHtml(vi)}</span></div>${dataUrl ? `<img class="signature" src="${dataUrl}" alt="${escapeHtml(zh)}" />` : '<div class="fill-line">＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>'}`;
+  }
+
+  const resultLines = RESULT_OPTIONS.map((o) => `<div>${checkbox((data.result || []).includes(o))} ${escapeHtml(o)}${o === '其他' && data.resultOther ? `：${escapeHtml(data.resultOther)}` : ''}</div>`).join('');
+
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(data.studentName)}_${escapeHtml(data.month || '')}_每月訪視紀錄表</title>
+<style>
+  body { font-family: "標楷體", "PMingLiU", sans-serif; padding: 24px; color: #111; }
+  h1 { font-size: 20px; margin-bottom: 2px; }
+  .vi { font-size: 12px; font-style: italic; color: #555; }
+  h2 { font-size: 16px; margin: 18px 0 6px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { border: 1px solid #999; padding: 4px 8px; font-size: 13px; text-align: left; vertical-align: top; }
+  .rating-table th, .rating-table td { text-align: center; }
+  .rating-table td:first-child { text-align: left; }
+  .center { text-align: center; }
+  .section-label { font-weight: bold; margin-top: 10px; }
+  .fill-line { margin-bottom: 6px; }
+  .signature { display: block; width: 160px; height: 56px; object-fit: contain; border: 1px solid #999; margin-bottom: 6px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+  <h1>外國籍實習生每月訪視紀錄表</h1>
+  <div class="vi">Mẫu phiếu ghi chuyến thăm hàng tháng dành cho thực tập sinh nước ngoài</div>
+  <table>${infoRows}</table>
+  <h2>實習狀況 <span class="vi">Tình trạng thực tập</span></h2>
+  ${ratingTableHtml(WORK_ITEMS, WORK_RATING_OPTIONS, data.workRatings || {}, data.workNotes || {})}
+  ${textSectionHtml('企業主管意見', 'Ý kiến của giám đốc điều hành doanh nghiệp', data.managerComment)}
+  ${signatureHtml('企業主管簽名', 'Chữ ký giám đốc điều hành', data.managerSignature)}
+  <h2>生活適應情況 <span class="vi">Thích nghi với cuộc sống</span></h2>
+  ${ratingTableHtml(LIFE_ITEMS, LIFE_RATING_OPTIONS, data.lifeRatings || {}, data.lifeNotes || {})}
+  ${textSectionHtml('學生意見', 'Ý kiến học sinh', data.studentComment)}
+  ${signatureHtml('學生簽名', 'Chữ ký học sinh', data.studentSignature)}
+  <h2>本月學習成果 <span class="vi">kết quả học tập tháng</span></h2>
+  ${textSectionHtml('本月完成之工作內容', 'Công việc đã hoàn thành trong tháng', data.monthlyWorkDone)}
+  ${textSectionHtml('本月學習收穫', 'Học tập đạt được trong tháng', data.monthlyLearning)}
+  ${textSectionHtml('遇到之困難', 'những khó khăn gặp phải', data.difficulties)}
+  ${textSectionHtml('下月學習目標', 'Mục tiêu học tập cho tháng tới', data.nextMonthGoals)}
+  <h2>訪視結果 <span class="vi">kết quả chuyến thăm</span></h2>
+  ${resultLines}
+  ${signatureHtml('訪視人員簽名', 'Chữ ký người thăm', data.staffSignature)}
+  <div style="margin-top: 10px;">訪視照片：如附件。</div>
+</body>
+</html>`;
+}
+
+// 列印：開一個新分頁組出排版接近 Word 版的 HTML，載入完成後自動叫出
+// 瀏覽器的列印對話框；使用者取消列印或印完，這個分頁留著方便再印一次，
+// 自行關閉即可。彈出視窗被瀏覽器擋掉的話會提示使用者手動允許。
+export function printMonthlyVisitRecord(data) {
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('瀏覽器擋住了列印視窗，請允許這個網站的彈出視窗後再試一次。');
+    return;
+  }
+  win.document.open();
+  win.document.write(buildPrintHtml(data));
+  win.document.close();
+  win.addEventListener('load', () => win.print());
+}
