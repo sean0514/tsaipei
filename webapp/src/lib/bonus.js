@@ -95,7 +95,14 @@ export function studentProjectClientPair(studentId, { admittedList, matches, pos
     return m && m.studentId === studentId;
   });
   let m = admitted ? matches.find((x) => x.id === admitted.matchId) : null;
-  if (!m) m = matches.find((x) => x.studentId === studentId);
+  if (!m) {
+    // 沒有錄取名單可以對照時，退回這個學生名下的媒合紀錄——要排除「取消」
+    // 的媒合(已經作廢，不該再被當成現在的專案/客戶)，學生如果被重新媒合過
+    // 有好幾筆紀錄，要取媒合日期最新的那一筆，不能隨便抓到陣列裡排序不定
+    // 的第一筆舊紀錄(可能是後來才被取消或已經換過職缺的舊資料)。
+    const candidates = matches.filter((x) => x.studentId === studentId && x.status !== '取消');
+    m = candidates.sort((a, b) => (b.matchDate || '').localeCompare(a.matchDate || ''))[0] || null;
+  }
   if (!m) return null;
   const p = positions.find((x) => x.id === m.positionId);
   if (!p || !p.company) return null;

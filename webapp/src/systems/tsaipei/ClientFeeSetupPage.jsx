@@ -122,13 +122,18 @@ export default function ClientFeeSetupPage() {
   // 把「實習單位」裡有、但這裡還沒有的專案編號＋公司名稱直接複製成新的一列，
   // 使用者再補上費用金額即可，不用手動一筆一筆新增選擇。
   async function handleCopyFromPositions() {
-    const existing = new Set(rows.map((r) => r.projectCode));
+    // 跟 PositionsPage.jsx 的 ensureClientFeeSetup 同一套鍵值：要用「專案編號
+    // +客戶」一起比對，不能只比對專案編號——同一個專案編號底下如果有好幾個
+    // 不同客戶，只比專案編號會把其他客戶誤判為已經有了，漏掉沒有複製帶入。
+    const key = (projectCode, client) => `${projectCode}||${client}`;
+    const existing = new Set(rows.map((r) => key(r.projectCode, r.client)));
     const seen = new Set();
     const toAdd = [];
     positions.forEach((p) => {
       if (!p.projectCode || !p.company) return;
-      if (existing.has(p.projectCode) || seen.has(p.projectCode)) return;
-      seen.add(p.projectCode);
+      const k = key(p.projectCode, p.company);
+      if (existing.has(k) || seen.has(k)) return;
+      seen.add(k);
       toAdd.push({ projectCode: p.projectCode, client: p.company, reviewStatus: '待審核' });
     });
     if (toAdd.length === 0) { alert('實習單位裡的專案編號都已經在這裡了，沒有新的可以帶入。'); return; }
