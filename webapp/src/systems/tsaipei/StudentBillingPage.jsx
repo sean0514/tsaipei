@@ -6,7 +6,7 @@ import { canEdit as computeCanEdit } from '../../lib/permissions';
 import { useSystemProfile } from '../../auth/useSystemAccess';
 import {
   studentProjectClientPair, currentYear, NOT_BILLABLE,
-  ELECTRICITY_FLAT_FEE_PER_HEAD, NANTOU_ZHUSHAN_DORM_NAME, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
+  ELECTRICITY_FLAT_FEE_PER_HEAD, isNantouZhushanDorm, NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD,
 } from '../../lib/bonus';
 import { downloadStudentBillingStatements } from '../../lib/studentBillingStatement';
 
@@ -412,7 +412,7 @@ export default function StudentBillingPage() {
     // 額外加收 500 元(疊加在這 200 元之上，不是取代)——但宿舍管理標「廠商
     // 宿舍」的宿舍不額外加收這兩筆，水電瓦斯其他費用仍照常分攤。
     const isVendorDorm = !!dormitories.find((d) => d.name === h.type)?.isVendorDorm;
-    const electricitySurcharge = !isVendorDorm && h.type === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+    const electricitySurcharge = !isVendorDorm && isNantouZhushanDorm(h.type) ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
     const electricityFee = perHead(u?.electricityFee) + (isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD) + electricitySurcharge;
     const gasFee = perHead(u?.gasFee);
     const otherFees = perHead(otherFeesTotal) + studentIncomeTotal(h.studentId, monthStr);

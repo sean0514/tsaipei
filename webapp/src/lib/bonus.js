@@ -26,6 +26,13 @@ export const ELECTRICITY_FLAT_FEE_PER_HEAD = 200;
 export const NANTOU_ZHUSHAN_DORM_NAME = '南投竹山';
 export const NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD = 500;
 
+// 南投竹山可能依樓層分成好幾間宿舍（例如「南投竹山(3樓)」），名稱不會跟
+// NANTOU_ZHUSHAN_DORM_NAME 完全一樣，但一樣要加收電費——用開頭比對，不要
+// 完全比對，不然樓層名稱一帶上去，500元加收就會悄悄失效。
+export function isNantouZhushanDorm(dormName) {
+  return (dormName || '').startsWith(NANTOU_ZHUSHAN_DORM_NAME);
+}
+
 export function monthRange(monthStr) {
   const [y, m] = (monthStr || '').split('-').map(Number);
   if (!y || !m) return null;
@@ -88,7 +95,14 @@ export function studentProjectClientPair(studentId, { admittedList, matches, pos
     return m && m.studentId === studentId;
   });
   let m = admitted ? matches.find((x) => x.id === admitted.matchId) : null;
-  if (!m) m = matches.find((x) => x.studentId === studentId);
+  if (!m) {
+    // 沒有錄取名單可以對照時，退回這個學生名下的媒合紀錄——要排除「取消」
+    // 的媒合(已經作廢，不該再被當成現在的專案/客戶)，學生如果被重新媒合過
+    // 有好幾筆紀錄，要取媒合日期最新的那一筆，不能隨便抓到陣列裡排序不定
+    // 的第一筆舊紀錄(可能是後來才被取消或已經換過職缺的舊資料)。
+    const candidates = matches.filter((x) => x.studentId === studentId && x.status !== '取消');
+    m = candidates.sort((a, b) => (b.matchDate || '').localeCompare(a.matchDate || ''))[0] || null;
+  }
   if (!m) return null;
   const p = positions.find((x) => x.id === m.positionId);
   if (!p || !p.company) return null;
@@ -624,7 +638,7 @@ export function computeDormProfitLossForYear(year, ctx) {
       }).length;
       const utilityPerHead = (amount) => (utilityResidentCount > 0 ? Math.round((Number(amount) || 0) / utilityResidentCount) : 0);
       const utilityElectricityFlatFee = d.isVendorDorm ? 0 : ELECTRICITY_FLAT_FEE_PER_HEAD;
-      const utilityElectricitySurcharge = !d.isVendorDorm && d.name === NANTOU_ZHUSHAN_DORM_NAME ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
+      const utilityElectricitySurcharge = !d.isVendorDorm && isNantouZhushanDorm(d.name) ? NANTOU_ZHUSHAN_ELECTRICITY_SURCHARGE_PER_HEAD : 0;
       const utilityIncome = utilityResidentCount > 0
         ? utilityResidentCount * (utilityPerHead(u?.waterFee) + utilityPerHead(u?.electricityFee) + utilityElectricityFlatFee + utilityElectricitySurcharge + utilityPerHead(u?.gasFee))
         : 0;
