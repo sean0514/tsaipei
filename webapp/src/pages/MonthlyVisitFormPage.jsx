@@ -152,7 +152,7 @@ export default function MonthlyVisitFormPage() {
               <label>本月學習收穫<textarea rows={2} value={form.monthlyLearning} onChange={(e) => setField('monthlyLearning', e.target.value)} style={{ width: '100%' }} /></label>
               <label>遇到之困難<textarea rows={2} value={form.difficulties} onChange={(e) => setField('difficulties', e.target.value)} style={{ width: '100%' }} /></label>
               <label>下月學習目標<textarea rows={2} value={form.nextMonthGoals} onChange={(e) => setField('nextMonthGoals', e.target.value)} style={{ width: '100%' }} /></label>
-              <label>簽名<SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} /></label>
+              <div style={{ marginBottom: 4 }}>簽名</div><SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} />
             </>
           ) : (
             <>
@@ -166,7 +166,7 @@ export default function MonthlyVisitFormPage() {
                 onNote={(item, v) => setNote('workNotes', item, v)}
               />
               <label>企業主管意見<textarea rows={3} value={form.managerComment} onChange={(e) => setField('managerComment', e.target.value)} style={{ width: '100%' }} /></label>
-              <label>簽名<SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} /></label>
+              <div style={{ marginBottom: 4 }}>簽名</div><SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} />
             </>
           )}
           {loadError && <p style={{ color: 'var(--danger)' }}>{loadError}</p>}

@@ -395,12 +395,12 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
         <h4>實習狀況</h4>
         <RatingTable title="訪視項目" items={WORK_ITEMS} options={WORK_RATING_OPTIONS} group="workRatings" notesGroup="workNotes" values={form.workRatings} notes={form.workNotes} onRate={setRating} onNote={setNote} />
         <label>企業主管意見<textarea rows={2} value={form.managerComment} onChange={(e) => setField('managerComment', e.target.value)} style={{ width: '100%' }} /></label>
-        <label>企業主管簽名<SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} /></label>
+        <div className="muted" style={{ marginBottom: 4 }}>企業主管簽名</div><SignaturePad value={form.managerSignature} onChange={(v) => setField('managerSignature', v)} />
 
         <h4>生活適應情況</h4>
         <RatingTable title="訪視項目" items={LIFE_ITEMS} options={LIFE_RATING_OPTIONS} group="lifeRatings" notesGroup="lifeNotes" values={form.lifeRatings} notes={form.lifeNotes} onRate={setRating} onNote={setNote} />
         <label>學生意見<textarea rows={2} value={form.studentComment} onChange={(e) => setField('studentComment', e.target.value)} style={{ width: '100%' }} /></label>
-        <label>學生簽名<SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} /></label>
+        <div className="muted" style={{ marginBottom: 4 }}>學生簽名</div><SignaturePad value={form.studentSignature} onChange={(v) => setField('studentSignature', v)} />
 
         <h4>本月學習成果</h4>
         <div className="form-grid">
@@ -421,7 +421,7 @@ function MonthlyVisitModal({ student, studentLabel, position, match, records, on
             </label>
           ))}
         </div>
-        <label>訪視人員簽名<SignaturePad value={form.staffSignature} onChange={(v) => setField('staffSignature', v)} /></label>
+        <div className="muted" style={{ marginBottom: 4 }}>訪視人員簽名</div><SignaturePad value={form.staffSignature} onChange={(v) => setField('staffSignature', v)} />
 
         <div className="row-actions" style={{ marginTop: 16, justifyContent: 'space-between' }}>
           <div className="row-actions">
